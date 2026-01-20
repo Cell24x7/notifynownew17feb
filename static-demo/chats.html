@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chats - Cell24x7</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">C</div>
+        <span class="sidebar-brand">Cell24x7</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          Dashboard
+        </a>
+        <a href="chats.html" class="nav-item active">
+          <span class="nav-icon">💬</span>
+          Chats
+        </a>
+        <a href="contacts.html" class="nav-item">
+          <span class="nav-icon">👥</span>
+          Contacts
+        </a>
+        <a href="campaigns.html" class="nav-item">
+          <span class="nav-icon">📤</span>
+          Campaigns
+        </a>
+        <a href="automations.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          Automations
+        </a>
+        <a href="integrations.html" class="nav-item">
+          <span class="nav-icon">🔌</span>
+          Integrations
+        </a>
+        <a href="settings.html" class="nav-item">
+          <span class="nav-icon">⚙️</span>
+          Settings
+        </a>
+      </nav>
+
+      <div class="wallet-card">
+        <div class="wallet-label">Wallet Balance</div>
+        <div class="wallet-balance">₹550</div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">JS</div>
+          <div class="user-details">
+            <div class="user-name">John Smith</div>
+            <div class="user-role">Admin</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Chat Container -->
+    <div class="chat-container">
+      <!-- Chat Sidebar - Conversation List -->
+      <div class="chat-sidebar">
+        <!-- Search -->
+        <div class="p-4 border-b">
+          <div class="input-with-icon">
+            <span class="icon">🔍</span>
+            <input type="text" class="input" placeholder="Search conversations..." style="padding-left: 2.25rem;">
+          </div>
+        </div>
+
+        <!-- Channel Filters -->
+        <div class="p-4 border-b">
+          <div class="flex gap-2 overflow-x-auto">
+            <button class="btn btn-primary btn-sm">All</button>
+            <button class="btn btn-outline btn-sm">WhatsApp</button>
+            <button class="btn btn-outline btn-sm">SMS</button>
+            <button class="btn btn-outline btn-sm">Instagram</button>
+          </div>
+        </div>
+
+        <!-- Conversations -->
+        <div class="scroll-area flex-1 p-2">
+          <!-- Conversation 1 - Active -->
+          <div class="conversation-item active">
+            <div class="flex items-start gap-3">
+              <div class="relative">
+                <div class="avatar">AB</div>
+                <div class="channel-icon channel-whatsapp channel-icon-sm absolute" style="bottom: -4px; right: -4px;">💬</div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">Alice Brown</span>
+                  <span class="text-xs text-muted">2 min ago</span>
+                </div>
+                <p class="text-sm text-muted truncate mt-1">Thanks for your help!</p>
+                <div class="mt-1">
+                  <span class="status-badge status-open">Open</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conversation 2 -->
+          <div class="conversation-item">
+            <div class="flex items-start gap-3">
+              <div class="relative">
+                <div class="avatar">BM</div>
+                <div class="channel-icon channel-sms channel-icon-sm absolute" style="bottom: -4px; right: -4px;">📱</div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">Bob Martinez</span>
+                  <span class="text-xs text-muted">1 hour ago</span>
+                </div>
+                <p class="text-sm text-muted truncate mt-1">When will my order arrive?</p>
+                <div class="mt-1">
+                  <span class="status-badge status-pending">Pending</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conversation 3 -->
+          <div class="conversation-item">
+            <div class="flex items-start gap-3">
+              <div class="relative">
+                <div class="avatar">CW</div>
+                <div class="channel-icon channel-instagram channel-icon-sm absolute" style="bottom: -4px; right: -4px;">📸</div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">Carol White</span>
+                  <span class="text-xs text-muted">2 hours ago</span>
+                </div>
+                <p class="text-sm text-muted truncate mt-1">Love your products!</p>
+                <div class="mt-1">
+                  <span class="status-badge status-open">Open</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conversation 4 -->
+          <div class="conversation-item">
+            <div class="flex items-start gap-3">
+              <div class="relative">
+                <div class="avatar">DL</div>
+                <div class="channel-icon channel-facebook channel-icon-sm absolute" style="bottom: -4px; right: -4px;">📘</div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">David Lee</span>
+                  <span class="text-xs text-muted">1 day ago</span>
+                </div>
+                <p class="text-sm text-muted truncate mt-1">Need help with returns</p>
+                <div class="mt-1">
+                  <span class="status-badge status-closed">Closed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conversation 5 -->
+          <div class="conversation-item">
+            <div class="flex items-start gap-3">
+              <div class="relative">
+                <div class="avatar">EG</div>
+                <div class="channel-icon channel-rcs channel-icon-sm absolute" style="bottom: -4px; right: -4px;">📲</div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">Eva Garcia</span>
+                  <span class="text-xs text-muted">2 days ago</span>
+                </div>
+                <p class="text-sm text-muted truncate mt-1">Can we schedule a call?</p>
+                <div class="mt-1">
+                  <span class="status-badge status-pending">Pending</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Main -->
+      <div class="chat-main">
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <div class="flex items-center gap-3">
+            <div class="avatar">AB</div>
+            <div>
+              <h2 class="font-semibold">Alice Brown</h2>
+              <span class="channel-badge whatsapp">WhatsApp</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="btn btn-ghost btn-icon btn-sm">⋮</button>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages">
+          <div class="message message-received">
+            <p class="text-sm">Hi! I need help with my order #12345</p>
+            <div class="message-time">5 minutes ago</div>
+          </div>
+
+          <div class="message message-sent">
+            <p class="text-sm">Hello Alice! I'd be happy to help you with your order. Let me look that up for you.</p>
+            <div class="message-time">4 minutes ago</div>
+          </div>
+
+          <div class="message message-sent">
+            <p class="text-sm">I found your order. It was shipped yesterday and should arrive by Friday.</p>
+            <div class="message-time">3 minutes ago</div>
+          </div>
+
+          <div class="message message-bot">
+            <div class="text-xs mb-1" style="color: var(--secondary);">🤖 Bot</div>
+            <p class="text-sm">Would you like me to send you the tracking link?</p>
+            <div class="flex gap-2 mt-3">
+              <button class="btn btn-outline btn-sm">Yes, send tracking</button>
+              <button class="btn btn-outline btn-sm">No thanks</button>
+            </div>
+            <div class="message-time">2 minutes ago</div>
+          </div>
+
+          <div class="message message-received">
+            <p class="text-sm">Yes please!</p>
+            <div class="message-time">1 minute ago</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions Bar -->
+        <div class="quick-actions">
+          <button class="btn btn-ghost btn-sm">⚡ Quick</button>
+          <button class="btn btn-ghost btn-sm">📄 Templates</button>
+          <button class="btn btn-ghost btn-sm">📝 Notes</button>
+        </div>
+
+        <!-- Message Input -->
+        <div class="chat-input-area">
+          <div class="flex items-center gap-3">
+            <button class="btn btn-ghost btn-icon btn-sm" style="color: var(--muted-foreground);">📎</button>
+            <input type="text" class="input flex-1" placeholder="Type a message...">
+            <button class="btn btn-ghost btn-icon btn-sm" style="color: var(--muted-foreground);">😊</button>
+            <button class="btn btn-primary btn-icon rounded-full">📤</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CRM Panel -->
+      <div class="crm-panel">
+        <div class="text-center mb-4">
+          <div class="avatar avatar-lg avatar-gradient" style="margin: 0 auto;">AB</div>
+          <h3 class="font-semibold mt-2">Alice Brown</h3>
+          <p class="text-sm text-muted">VIP Customer</p>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Contact Info -->
+        <div class="crm-section">
+          <div class="crm-label">Contact Info</div>
+          <div class="text-sm mb-2">
+            <span class="text-muted">Phone:</span> +1234567890
+          </div>
+          <div class="text-sm mb-2">
+            <span class="text-muted">Email:</span> alice@gmail.com
+          </div>
+          <div class="text-sm">
+            <span class="text-muted">City:</span> Mumbai
+          </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Assigned Agent -->
+        <div class="crm-section">
+          <div class="crm-label">Assigned Agent</div>
+          <select class="select">
+            <option>Mike Wilson</option>
+            <option>Sarah Johnson</option>
+            <option>Emily Davis</option>
+          </select>
+        </div>
+
+        <!-- Team -->
+        <div class="crm-section">
+          <div class="crm-label">Team</div>
+          <select class="select">
+            <option>Support Team</option>
+            <option>Sales Team</option>
+            <option>Technical Team</option>
+          </select>
+        </div>
+
+        <!-- Priority -->
+        <div class="crm-section">
+          <div class="crm-label">Priority</div>
+          <select class="select">
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Labels -->
+        <div class="crm-section">
+          <div class="crm-label">Labels</div>
+          <div class="flex flex-wrap gap-1">
+            <span class="badge badge-primary">VIP</span>
+            <span class="badge badge-secondary">Premium</span>
+            <button class="badge badge-secondary">+ Add</button>
+          </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Actions -->
+        <div class="flex flex-col gap-2">
+          <button class="btn btn-outline w-full">✓ Resolve</button>
+          <button class="btn btn-outline w-full">📁 Archive</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

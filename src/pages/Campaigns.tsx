@@ -1,0 +1,1662 @@
+import { useState, useMemo } from 'react';
+import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChannelBadge } from '@/components/ui/channel-icon';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { mockCampaigns, mockMessageTemplates, audienceSegments, type Campaign, type Channel, type MessageTemplate, type TemplateChannel, type HeaderType, type TemplateButton } from '@/lib/mockData';
+import { format } from 'date-fns';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
+
+// WhatsApp Business API supported template languages
+const templateLanguages = [
+  { code: 'en_US', name: 'English (US)' },
+  { code: 'en_GB', name: 'English (UK)' },
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'es_AR', name: 'Spanish (Argentina)' },
+  { code: 'es_ES', name: 'Spanish (Spain)' },
+  { code: 'es_MX', name: 'Spanish (Mexico)' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'pt_BR', name: 'Portuguese (Brazil)' },
+  { code: 'pt_PT', name: 'Portuguese (Portugal)' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'zh_CN', name: 'Chinese (Simplified)' },
+  { code: 'zh_TW', name: 'Chinese (Traditional)' },
+  { code: 'zh_HK', name: 'Chinese (Hong Kong)' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'tr', name: 'Turkish' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'it', name: 'Italian' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'pl', name: 'Polish' },
+  { code: 'th', name: 'Thai' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'te', name: 'Telugu' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'kn', name: 'Kannada' },
+  { code: 'ml', name: 'Malayalam' },
+  { code: 'pa', name: 'Punjabi' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'he', name: 'Hebrew' },
+  { code: 'ms', name: 'Malay' },
+  { code: 'fil', name: 'Filipino' },
+  { code: 'uk', name: 'Ukrainian' },
+  { code: 'cs', name: 'Czech' },
+  { code: 'hu', name: 'Hungarian' },
+  { code: 'ro', name: 'Romanian' },
+  { code: 'sv', name: 'Swedish' },
+  { code: 'da', name: 'Danish' },
+  { code: 'fi', name: 'Finnish' },
+  { code: 'nb', name: 'Norwegian' },
+  { code: 'el', name: 'Greek' },
+  { code: 'sk', name: 'Slovak' },
+  { code: 'bg', name: 'Bulgarian' },
+  { code: 'hr', name: 'Croatian' },
+  { code: 'lt', name: 'Lithuanian' },
+  { code: 'lv', name: 'Latvian' },
+  { code: 'et', name: 'Estonian' },
+  { code: 'sl', name: 'Slovenian' },
+  { code: 'sw', name: 'Swahili' },
+  { code: 'af', name: 'Afrikaans' },
+  { code: 'zu', name: 'Zulu' },
+  { code: 'fa', name: 'Persian' },
+];
+
+// Date range presets for analytics
+const dateRangePresets = ['Today', 'Last 7 Days', 'Last 30 Days', 'This Month', 'Last Month', 'Custom Range'];
+
+export default function Campaigns() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>(mockCampaigns);
+  const [templates, setTemplates] = useState<MessageTemplate[]>(mockMessageTemplates);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates'>('campaigns');
+  
+  // Campaign creation state
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createStep, setCreateStep] = useState(1);
+  const [newCampaign, setNewCampaign] = useState({
+    name: '',
+    channel: 'whatsapp' as Channel,
+    templateId: '',
+    audienceId: '',
+    scheduleType: 'now' as 'now' | 'scheduled',
+    scheduledDate: '',
+    scheduledTime: '',
+  });
+
+  // Template creation/editing state
+  const [isTemplateOpen, setIsTemplateOpen] = useState(false);
+  const [templateStep, setTemplateStep] = useState<'channel' | 'form'>('channel');
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  const [templateType, setTemplateType] = useState<'standard' | 'carousel'>('standard');
+  const [newTemplate, setNewTemplate] = useState<{
+    name: string;
+    language: string;
+    category: MessageTemplate['category'];
+    channel: TemplateChannel;
+    header: { type: HeaderType; content?: string };
+    body: string;
+    footer: string;
+    buttons: TemplateButton[];
+  }>({
+    name: '',
+    language: 'en',
+    category: 'Marketing',
+    channel: 'whatsapp',
+    header: { type: 'none' },
+    body: '',
+    footer: '',
+    buttons: [],
+  });
+
+  // Language selector popover
+  const [languagePopoverOpen, setLanguagePopoverOpen] = useState(false);
+
+  const [templateAnalyticsOpen, setTemplateAnalyticsOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
+  const [analyticsDateRange, setAnalyticsDateRange] = useState('Last 30 Days');
+
+  // Campaign analytics modal
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+
+  const { toast } = useToast();
+
+  const filteredCampaigns = campaigns.filter((campaign) =>
+    campaign.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredTemplates = templates.filter((template) =>
+    template.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleCampaignComplete = (campaignData: CampaignData) => {
+    const campaign: Campaign = {
+      id: Date.now().toString(),
+      name: campaignData.name,
+      channel: campaignData.channel,
+      status: campaignData.scheduleType === 'scheduled' ? 'scheduled' : 'draft',
+      template: campaignData.templateId,
+      audience: campaignData.audienceCount,
+      sent: 0,
+      delivered: 0,
+      failed: 0,
+      cost: campaignData.estimatedCost,
+      scheduledAt: campaignData.scheduleType === 'scheduled' 
+        ? new Date(`${campaignData.scheduledDate}T${campaignData.scheduledTime}`) 
+        : undefined,
+      createdAt: new Date(),
+    };
+    setCampaigns([campaign, ...campaigns]);
+    setIsCreateOpen(false);
+    setCreateStep(1);
+    toast({
+      title: '🎉 Campaign created!',
+      description: campaignData.scheduleType === 'scheduled' 
+        ? 'Your campaign has been scheduled.' 
+        : campaignData.scheduleType === 'now'
+        ? 'Your campaign is now running!'
+        : 'Your campaign is ready to send.',
+    });
+  };
+
+  const handleStatusChange = (campaignId: string, newStatus: Campaign['status']) => {
+    setCampaigns(campaigns.map((c) => (c.id === campaignId ? { ...c, status: newStatus } : c)));
+    const statusMessages = {
+      running: '🚀 Campaign is now running!',
+      paused: '⏸️ Campaign paused',
+      completed: '✅ Campaign completed',
+      draft: '📝 Saved as draft',
+      scheduled: '📅 Campaign scheduled',
+    };
+    toast({
+      title: statusMessages[newStatus] || 'Campaign updated',
+      description: `Campaign status changed to ${newStatus}.`,
+    });
+  };
+
+  const handleDeleteCampaign = (campaignId: string) => {
+    setCampaigns(campaigns.filter(c => c.id !== campaignId));
+    toast({
+      title: '🗑️ Campaign deleted',
+      description: 'The campaign has been removed.',
+    });
+  };
+
+  const handleDuplicateCampaign = (campaign: Campaign) => {
+    const duplicated: Campaign = {
+      ...campaign,
+      id: Date.now().toString(),
+      name: `${campaign.name} (Copy)`,
+      status: 'draft',
+      sent: 0,
+      delivered: 0,
+      failed: 0,
+      createdAt: new Date(),
+    };
+    setCampaigns([duplicated, ...campaigns]);
+    toast({
+      title: '📋 Campaign duplicated',
+      description: 'A copy of the campaign has been created.',
+    });
+  };
+
+  const extractVariables = (content: string): string[] => {
+    const matches = content.match(/\{\{(\w+)\}\}/g);
+    return matches ? matches.map(m => m.replace(/\{\{|\}\}/g, '')) : [];
+  };
+
+  const handleSaveTemplate = (isDraft: boolean = false) => {
+    const allContent = `${newTemplate.header.content || ''} ${newTemplate.body} ${newTemplate.footer}`;
+    const variables = extractVariables(allContent);
+    
+    if (editingTemplate) {
+      setTemplates(templates.map(t => 
+        t.id === editingTemplate.id 
+          ? { 
+              ...t, 
+              name: newTemplate.name, 
+              language: newTemplate.language,
+              category: newTemplate.category, 
+              channel: newTemplate.channel, 
+              templateType,
+              header: newTemplate.header,
+              body: newTemplate.body,
+              footer: newTemplate.footer || undefined,
+              buttons: newTemplate.buttons,
+              variables,
+              status: isDraft ? 'pending' : t.status,
+            }
+          : t
+      ));
+      toast({
+        title: isDraft ? '📝 Draft saved' : '✅ Template updated',
+        description: isDraft ? 'Your template has been saved as draft.' : 'Your changes have been saved.',
+      });
+    } else {
+      const template: MessageTemplate = {
+        id: Date.now().toString(),
+        name: newTemplate.name,
+        language: newTemplate.language,
+        category: newTemplate.category,
+        channel: newTemplate.channel,
+        templateType,
+        header: newTemplate.header,
+        body: newTemplate.body,
+        footer: newTemplate.footer || undefined,
+        buttons: newTemplate.buttons,
+        variables,
+        status: 'pending',
+        createdAt: new Date(),
+        usageCount: 0,
+      };
+      setTemplates([template, ...templates]);
+      toast({
+        title: isDraft ? '📝 Draft saved' : '🎉 Template submitted!',
+        description: isDraft ? 'Your template has been saved as draft.' : 'Your template has been submitted for approval.',
+      });
+    }
+    setIsTemplateOpen(false);
+    setEditingTemplate(null);
+    resetTemplateForm();
+  };
+
+  const resetTemplateForm = () => {
+    setNewTemplate({ 
+      name: '', 
+      language: 'en',
+      category: 'Marketing', 
+      channel: 'whatsapp', 
+      header: { type: 'none' },
+      body: '',
+      footer: '',
+      buttons: [],
+    });
+    setTemplateType('standard');
+    setTemplateStep('channel');
+  };
+
+  const handleEditTemplate = (template: MessageTemplate) => {
+    setEditingTemplate(template);
+    setTemplateType(template.templateType);
+    setNewTemplate({
+      name: template.name,
+      language: template.language,
+      category: template.category,
+      channel: template.channel,
+      header: template.header,
+      body: template.body,
+      footer: template.footer || '',
+      buttons: template.buttons,
+    });
+    setTemplateStep('form'); // Skip channel selection when editing
+    setIsTemplateOpen(true);
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    setTemplates(templates.filter(t => t.id !== templateId));
+    toast({
+      title: '🗑️ Template deleted',
+      description: 'The template has been removed.',
+    });
+  };
+
+  const addButton = () => {
+    if (newTemplate.buttons.length >= 3) return;
+    setNewTemplate({
+      ...newTemplate,
+      buttons: [...newTemplate.buttons, { id: Date.now().toString(), type: 'quick_reply', label: '', value: '' }],
+    });
+  };
+
+  const updateButton = (id: string, field: keyof TemplateButton, value: string) => {
+    setNewTemplate({
+      ...newTemplate,
+      buttons: newTemplate.buttons.map(b => b.id === id ? { ...b, [field]: value } : b),
+    });
+  };
+
+  const removeButton = (id: string) => {
+    setNewTemplate({
+      ...newTemplate,
+      buttons: newTemplate.buttons.filter(b => b.id !== id),
+    });
+  };
+
+  const addVariable = () => {
+    const variableCount = (newTemplate.body.match(/\{\{\d+\}\}/g) || []).length + 1;
+    setNewTemplate({
+      ...newTemplate,
+      body: newTemplate.body + `{{${variableCount}}}`,
+    });
+  };
+
+  const getDeliveryRate = (campaign: Campaign) => {
+    if (campaign.sent === 0) return 0;
+    return Math.round((campaign.delivered / campaign.sent) * 100);
+  };
+
+  const openAnalytics = (campaign: Campaign) => {
+    setSelectedCampaign(campaign);
+    setAnalyticsOpen(true);
+  };
+
+  const openTemplateAnalytics = (template: MessageTemplate) => {
+    setSelectedTemplate(template);
+    setTemplateAnalyticsOpen(true);
+  };
+
+  const selectedCampaignTemplate = templates.find(t => t.id === newCampaign.templateId);
+  const selectedAudience = audienceSegments.find(a => a.id === newCampaign.audienceId);
+
+  // Stats cards
+  const stats = [
+    { label: 'Total Campaigns', value: campaigns.length, icon: Target, color: 'text-primary' },
+    { label: 'Running', value: campaigns.filter(c => c.status === 'running').length, icon: Zap, color: 'text-success' },
+    { label: 'Scheduled', value: campaigns.filter(c => c.status === 'scheduled').length, icon: Clock, color: 'text-warning' },
+    { label: 'Total Delivered', value: campaigns.reduce((acc, c) => acc + c.delivered, 0).toLocaleString(), icon: TrendingUp, color: 'text-primary' },
+  ];
+
+  // Phone preview content builder - Channel specific
+  const renderPhonePreview = () => {
+    const getHeaderIcon = () => {
+      switch (newTemplate.header.type) {
+        case 'image': return <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Image className="h-8 w-8 text-muted-foreground" /></div>;
+        case 'video': return <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Video className="h-8 w-8 text-muted-foreground" /></div>;
+        case 'document': return <div className="h-20 bg-muted rounded-lg flex items-center justify-center gap-2"><File className="h-6 w-6 text-muted-foreground" /><span className="text-sm text-muted-foreground">Document</span></div>;
+        case 'text': return newTemplate.header.content ? <p className="font-bold text-sm">{newTemplate.header.content}</p> : null;
+        default: return null;
+      }
+    };
+
+    // SMS Preview - Simple phone message style
+    if (newTemplate.channel === 'sms') {
+      return (
+        <div className="flex flex-col h-full">
+          <div className="relative mx-auto">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-10" />
+            <div className="w-[280px] h-[500px] bg-[#F5F5F5] rounded-[2rem] overflow-hidden border-8 border-black relative">
+              {/* Status bar */}
+              <div className="bg-[#007AFF] text-white px-4 py-2 flex items-center gap-3">
+                <ChevronRight className="h-5 w-5 rotate-180" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm font-medium">SMS Message</p>
+                </div>
+              </div>
+              
+              {/* Chat area */}
+              <div className="p-3 h-[calc(100%-120px)] overflow-y-auto">
+                <div className="bg-[#E9E9EB] rounded-2xl p-3 shadow-sm max-w-[85%] space-y-2">
+                  {newTemplate.body ? (
+                    <p className="text-sm whitespace-pre-wrap">{newTemplate.body}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Enter your SMS text...</p>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                  {newTemplate.body.length}/160 characters ({Math.ceil(newTemplate.body.length / 160) || 1} SMS)
+                </p>
+              </div>
+              
+              {/* Input area */}
+              <div className="absolute bottom-0 left-0 right-0 bg-white p-2 flex items-center gap-2 border-t">
+                <div className="flex-1 bg-[#F0F0F0] rounded-full px-4 py-2 text-sm text-muted-foreground">
+                  iMessage
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Email Preview - Email client style
+    if (newTemplate.channel === 'email') {
+      return (
+        <div className="flex flex-col h-full">
+          <div className="w-full max-w-[320px] mx-auto bg-white rounded-lg shadow-lg border overflow-hidden">
+            {/* Email Header */}
+            <div className="bg-muted/50 px-4 py-3 border-b">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <span className="text-xs font-bold text-primary">C</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium">Cell24x7</p>
+                  <p className="text-[10px] text-muted-foreground">noreply@cell24x7.com</p>
+                </div>
+              </div>
+              <p className="font-semibold text-sm truncate">
+                {newTemplate.header.content || 'Subject line...'}
+              </p>
+            </div>
+            
+            {/* Email Body */}
+            <div className="p-4 min-h-[300px] max-h-[350px] overflow-y-auto">
+              {newTemplate.body ? (
+                <div className="text-sm whitespace-pre-wrap">{newTemplate.body}</div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Enter your email body content...</p>
+              )}
+              
+              {/* Footer */}
+              {newTemplate.footer && (
+                <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
+                  {newTemplate.footer}
+                </div>
+              )}
+            </div>
+            
+            {/* Email Footer */}
+            <div className="bg-muted/30 px-4 py-2 border-t">
+              <p className="text-[10px] text-muted-foreground text-center">
+                © 2024 Cell24x7. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // RCS Preview - Rich messaging style
+    if (newTemplate.channel === 'rcs') {
+      return (
+        <div className="flex flex-col h-full">
+          <div className="relative mx-auto">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-10" />
+            <div className="w-[280px] h-[500px] bg-[#F1F3F4] rounded-[2rem] overflow-hidden border-8 border-black relative">
+              {/* Status bar */}
+              <div className="bg-[#1A73E8] text-white px-4 py-2 flex items-center gap-3">
+                <ChevronRight className="h-5 w-5 rotate-180" />
+                <div className="w-8 h-8 rounded-full bg-blue-300" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Business RCS</p>
+                  <p className="text-xs opacity-80">Verified</p>
+                </div>
+              </div>
+              
+              {/* Chat area */}
+              <div className="p-3 h-[calc(100%-120px)] overflow-y-auto">
+                <div className="bg-white rounded-xl p-3 shadow-sm max-w-[90%] space-y-2">
+                  {getHeaderIcon()}
+                  {newTemplate.body ? (
+                    <p className="text-sm whitespace-pre-wrap">{newTemplate.body}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Enter your message body...</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground text-right">10:30 AM</p>
+                </div>
+                
+                {/* Buttons preview */}
+                {newTemplate.buttons.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2 max-w-[90%]">
+                    {newTemplate.buttons.map((btn) => (
+                      <button key={btn.id} className="px-4 py-2 text-sm text-[#1A73E8] font-medium border border-[#1A73E8] rounded-full bg-white">
+                        {btn.label || 'Button'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Input area */}
+              <div className="absolute bottom-0 left-0 right-0 bg-white p-2 flex items-center gap-2">
+                <div className="flex-1 bg-[#F1F3F4] rounded-full px-4 py-2 text-sm text-muted-foreground">
+                  Type a message
+                </div>
+                <div className="w-10 h-10 bg-[#1A73E8] rounded-full flex items-center justify-center">
+                  <Send className="h-5 w-5 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // WhatsApp Preview (default)
+    return (
+      <div className="flex flex-col h-full">
+        {/* Phone Frame */}
+        <div className="relative mx-auto">
+          {/* Phone notch */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-10" />
+          
+          {/* Phone screen */}
+          <div className="w-[280px] h-[500px] bg-[#ECE5DD] rounded-[2rem] overflow-hidden border-8 border-black relative">
+            {/* Status bar */}
+            <div className="bg-[#075E54] text-white px-4 py-2 flex items-center gap-3">
+              <ChevronRight className="h-5 w-5 rotate-180" />
+              <div className="w-8 h-8 rounded-full bg-gray-300" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Business Name</p>
+                <p className="text-xs opacity-80">online</p>
+              </div>
+            </div>
+            
+            {/* Chat area */}
+            <div className="p-3 h-[calc(100%-120px)] overflow-y-auto">
+              {/* Message bubble */}
+              <div className="bg-white rounded-lg p-3 shadow-sm max-w-[90%] space-y-2">
+                {getHeaderIcon()}
+                {newTemplate.body ? (
+                  <p className="text-sm whitespace-pre-wrap">{newTemplate.body}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Enter your message body...</p>
+                )}
+                {newTemplate.footer && (
+                  <p className="text-xs text-muted-foreground">{newTemplate.footer}</p>
+                )}
+                <p className="text-[10px] text-muted-foreground text-right">10:30 AM</p>
+              </div>
+              
+              {/* Buttons preview */}
+              {newTemplate.buttons.length > 0 && (
+                <div className="bg-white rounded-lg mt-1 shadow-sm overflow-hidden max-w-[90%]">
+                  {newTemplate.buttons.map((btn, i) => (
+                    <div key={btn.id}>
+                      {i > 0 && <Separator />}
+                      <button className="w-full py-2.5 text-sm text-[#00A884] font-medium flex items-center justify-center gap-2">
+                        {btn.type === 'url' && <Link className="h-4 w-4" />}
+                        {btn.type === 'phone' && <Phone className="h-4 w-4" />}
+                        {btn.type === 'copy_code' && <Copy className="h-4 w-4" />}
+                        {btn.label || 'Button'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Input area */}
+            <div className="absolute bottom-0 left-0 right-0 bg-[#F0F0F0] p-2 flex items-center gap-2">
+              <div className="flex-1 bg-white rounded-full px-4 py-2 text-sm text-muted-foreground">
+                Type a message
+              </div>
+              <div className="w-10 h-10 bg-[#00A884] rounded-full flex items-center justify-center">
+                <Send className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-6 space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Sparkles className="h-8 w-8 text-primary" />
+            Campaigns
+          </h1>
+          <p className="text-muted-foreground">Create and manage your messaging campaigns</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Campaign
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] w-full h-[90vh] p-0">
+              <CampaignCreationStepper
+                templates={templates}
+                onComplete={handleCampaignComplete}
+                onCancel={() => setIsCreateOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+        {stats.map((stat, i) => (
+          <Card key={i} className="card-elevated">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-lg md:text-2xl font-bold">{stat.value}</p>
+                </div>
+                <stat.icon className={cn("h-6 w-6 md:h-8 md:w-8", stat.color)} />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Tabs for Campaigns and Templates */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates')}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <TabsList>
+            <TabsTrigger value="campaigns" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Campaigns
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Templates
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={`Search ${activeTab}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {activeTab === 'campaigns' && (
+              <div className="flex items-center border rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {activeTab === 'templates' && (
+              <Button onClick={() => { setEditingTemplate(null); resetTemplateForm(); setIsTemplateOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Template
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Campaigns Tab */}
+        <TabsContent value="campaigns" className="mt-6">
+          {viewMode === 'cards' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredCampaigns.map((campaign) => (
+                <Card key={campaign.id} className="card-elevated animate-slide-up group hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg">{campaign.name}</CardTitle>
+                        <ChannelBadge channel={campaign.channel} />
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openAnalytics(campaign)}>
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            View Analytics
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicateCampaign(campaign)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <StatusBadge status={campaign.status} />
+                      {campaign.scheduledAt && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {format(campaign.scheduledAt, 'MMM d, yyyy')}
+                        </div>
+                      )}
+                    </div>
+
+                    {campaign.status !== 'draft' && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Delivery Rate</span>
+                          <span className="font-medium">{getDeliveryRate(campaign)}%</span>
+                        </div>
+                        <Progress value={getDeliveryRate(campaign)} className="h-2" />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 rounded-lg bg-muted">
+                        <p className="text-lg font-bold">{campaign.sent.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Sent</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-success/10">
+                        <p className="text-lg font-bold text-success">{campaign.delivered.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Delivered</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-destructive/10">
+                        <p className="text-lg font-bold text-destructive">{campaign.failed.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Failed</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                      {campaign.status === 'draft' && (
+                        <Button
+                          className="flex-1 gradient-primary"
+                          size="sm"
+                          onClick={() => handleStatusChange(campaign.id, 'running')}
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Now
+                        </Button>
+                      )}
+                      {campaign.status === 'running' && (
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          size="sm"
+                          onClick={() => handleStatusChange(campaign.id, 'paused')}
+                        >
+                          <Pause className="h-4 w-4 mr-2" />
+                          Pause
+                        </Button>
+                      )}
+                      {campaign.status === 'paused' && (
+                        <Button
+                          className="flex-1 gradient-primary"
+                          size="sm"
+                          onClick={() => handleStatusChange(campaign.id, 'running')}
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Resume
+                        </Button>
+                      )}
+                      {(campaign.status === 'completed' || campaign.sent > 0) && (
+                        <Button variant="outline" size="sm" onClick={() => openAnalytics(campaign)}>
+                          <BarChart3 className="h-4 w-4 mr-2" />
+                          Analytics
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Campaign</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Sent</TableHead>
+                    <TableHead className="text-center">Delivered</TableHead>
+                    <TableHead className="text-center">Failed</TableHead>
+                    <TableHead className="text-center">Delivery Rate</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCampaigns.map((campaign) => (
+                    <TableRow key={campaign.id}>
+                      <TableCell className="font-medium">{campaign.name}</TableCell>
+                      <TableCell><ChannelBadge channel={campaign.channel} /></TableCell>
+                      <TableCell><StatusBadge status={campaign.status} /></TableCell>
+                      <TableCell className="text-center">{campaign.sent.toLocaleString()}</TableCell>
+                      <TableCell className="text-center text-success">{campaign.delivered.toLocaleString()}</TableCell>
+                      <TableCell className="text-center text-destructive">{campaign.failed.toLocaleString()}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center gap-2">
+                          <Progress value={getDeliveryRate(campaign)} className="h-2 flex-1" />
+                          <span className="text-sm font-medium w-10">{getDeliveryRate(campaign)}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="flex items-center justify-end gap-1 text-muted-foreground">
+                          <IndianRupee className="h-3 w-3" />
+                          {campaign.cost.toFixed(2)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{format(campaign.createdAt, 'MMM d')}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {campaign.status === 'draft' && (
+                            <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'running')} className="gradient-primary">
+                              <Send className="h-3 w-3 mr-1" />
+                              Send
+                            </Button>
+                          )}
+                          {campaign.status === 'running' && (
+                            <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign.id, 'paused')}>
+                              <Pause className="h-3 w-3 mr-1" />
+                              Pause
+                            </Button>
+                          )}
+                          {campaign.status === 'paused' && (
+                            <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'running')} className="gradient-primary">
+                              <Play className="h-3 w-3 mr-1" />
+                              Resume
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" onClick={() => openAnalytics(campaign)}>
+                            <BarChart3 className="h-4 w-4" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleDuplicateCampaign(campaign)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTemplates.map((template) => (
+              <Card key={template.id} className="card-elevated group hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg font-mono">{template.name}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <ChannelBadge channel={template.channel} />
+                        <Badge variant="outline">{template.category}</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {templateLanguages.find(l => l.code === template.language)?.name || template.language}
+                        </Badge>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        {template.analytics && (
+                          <DropdownMenuItem onClick={() => openTemplateAnalytics(template)}>
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            View Analytics
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTemplate(template.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                    <p className="line-clamp-3">{template.body}</p>
+                  </div>
+                  {template.variables.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {template.variables.map((v) => (
+                        <Badge key={v} variant="secondary" className="text-xs">
+                          {`{{${v}}}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-sm">
+                    <StatusBadge status={template.status} />
+                    <span className="text-muted-foreground">Used {template.usageCount.toLocaleString()} times</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => handleEditTemplate(template)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    {template.analytics && (
+                      <Button variant="outline" size="icon" onClick={() => openTemplateAnalytics(template)}>
+                        <BarChart3 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Template Create/Edit Modal - Channel Specific */}
+      <Dialog open={isTemplateOpen} onOpenChange={(open) => { setIsTemplateOpen(open); if (!open) { setEditingTemplate(null); resetTemplateForm(); } }}>
+        <DialogContent className={cn(
+          "p-0 gap-0",
+          templateStep === 'channel' ? "max-w-[500px]" : "max-w-[1100px] h-[90vh]"
+        )}>
+          {/* Channel Selection Step */}
+          {templateStep === 'channel' && (
+            <>
+              <DialogHeader className="px-6 py-4 border-b">
+                <DialogTitle className="text-xl">Select Channel</DialogTitle>
+                <p className="text-sm text-muted-foreground">Choose a channel for your template</p>
+              </DialogHeader>
+              <div className="p-6 space-y-4">
+                {[
+                  { value: 'whatsapp', label: 'WhatsApp', icon: '📱', description: 'Rich templates with headers, buttons & media' },
+                  { value: 'sms', label: 'SMS', icon: '📲', description: 'Simple text messages up to 160 characters' },
+                  { value: 'rcs', label: 'RCS', icon: '💬', description: 'Rich messaging with buttons & suggested replies' },
+                  { value: 'instagram', label: 'Instagram', icon: '📸', description: 'Direct messages with rich media content' },
+                  { value: 'facebook', label: 'Facebook', icon: '👥', description: 'Messenger templates with quick replies' },
+                  { value: 'email', label: 'Email', icon: '📧', description: 'HTML emails with subject line and rich content' },
+                ].map((channel) => (
+                  <button
+                    key={channel.value}
+                    onClick={() => {
+                      setNewTemplate({ ...newTemplate, channel: channel.value as TemplateChannel });
+                      setTemplateStep('form');
+                    }}
+                    className={cn(
+                      "w-full p-4 rounded-lg border-2 text-left transition-all hover:border-primary hover:bg-primary/5",
+                      "flex items-center gap-4"
+                    )}
+                  >
+                    <span className="text-3xl">{channel.icon}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold">{channel.label}</p>
+                      <p className="text-sm text-muted-foreground">{channel.description}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Template Form Step */}
+          {templateStep === 'form' && (
+            <>
+              <DialogHeader className="px-6 py-4 border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {!editingTemplate && (
+                      <Button variant="ghost" size="icon" onClick={() => setTemplateStep('channel')}>
+                        <ChevronRight className="h-5 w-5 rotate-180" />
+                      </Button>
+                    )}
+                    <div>
+                      <DialogTitle className="text-xl">
+                        {editingTemplate ? 'Edit Template' : 'New Template'}
+                      </DialogTitle>
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        {newTemplate.channel === 'whatsapp' && '📱 WhatsApp Template'}
+                        {newTemplate.channel === 'sms' && '📲 SMS Template'}
+                        {newTemplate.channel === 'rcs' && '💬 RCS Template'}
+                        {newTemplate.channel === 'instagram' && '📸 Instagram Template'}
+                        {newTemplate.channel === 'facebook' && '👥 Facebook Template'}
+                        {newTemplate.channel === 'email' && '📧 Email Template'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => handleSaveTemplate(true)}>
+                      Save draft
+                    </Button>
+                    <Button 
+                      className="gradient-primary" 
+                      onClick={() => handleSaveTemplate(false)}
+                      disabled={!newTemplate.name || !newTemplate.body}
+                    >
+                      Submit for Approval
+                    </Button>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="flex flex-1 overflow-hidden">
+                {/* Left Panel - Form */}
+                <ScrollArea className="flex-1 border-r">
+                  <div className="p-6 space-y-6">
+                    {/* WhatsApp Template Type Tabs - Only for WhatsApp */}
+                    {newTemplate.channel === 'whatsapp' && (
+                      <Tabs value={templateType} onValueChange={(v) => setTemplateType(v as 'standard' | 'carousel')}>
+                        <TabsList className="w-full">
+                          <TabsTrigger value="standard" className="flex-1">Standard Template</TabsTrigger>
+                          <TabsTrigger value="carousel" className="flex-1">Carousel Template</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    )}
+
+                    {/* Template Details */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold">Template Details</h3>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Template Name *</Label>
+                          <Input
+                            placeholder="e.g booking_template"
+                            value={newTemplate.name}
+                            onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                          />
+                          <p className="text-xs text-muted-foreground">Use lowercase letters, numbers, and underscores only</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Language *</Label>
+                          <Popover open={languagePopoverOpen} onOpenChange={setLanguagePopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={languagePopoverOpen}
+                                className="w-full justify-between font-normal"
+                              >
+                                {templateLanguages.find(l => l.code === newTemplate.language)?.name || "Select language..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[280px] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Search language..." />
+                                <CommandList>
+                                  <CommandEmpty>No language found.</CommandEmpty>
+                                  <CommandGroup className="max-h-[250px] overflow-auto">
+                                    {templateLanguages.map((lang) => (
+                                      <CommandItem
+                                        key={lang.code}
+                                        value={lang.name}
+                                        onSelect={() => {
+                                          setNewTemplate({ ...newTemplate, language: lang.code });
+                                          setLanguagePopoverOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            newTemplate.language === lang.code ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {lang.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Category *</Label>
+                        <Select
+                          value={newTemplate.category}
+                          onValueChange={(value) => setNewTemplate({ ...newTemplate, category: value as MessageTemplate['category'] })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Utility">Utility</SelectItem>
+                            <SelectItem value="Marketing">Marketing</SelectItem>
+                            <SelectItem value="Authentication">Authentication</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Header Section - WhatsApp, RCS (media header) and Email (subject line) */}
+                    {(newTemplate.channel === 'whatsapp' || newTemplate.channel === 'rcs') && (
+                      <>
+                        <div className="space-y-4">
+                          <h3 className="font-semibold">Header (Optional)</h3>
+                          <div className="space-y-2">
+                            <Label>Header Type</Label>
+                            <div className="flex gap-2 flex-wrap">
+                              {(newTemplate.channel === 'whatsapp' 
+                                ? ['none', 'text', 'image', 'video', 'document'] as HeaderType[]
+                                : ['none', 'text', 'image'] as HeaderType[]
+                              ).map((type) => (
+                                <Button
+                                  key={type}
+                                  type="button"
+                                  variant={newTemplate.header.type === type ? 'default' : 'outline'}
+                                  size="sm"
+                                  onClick={() => setNewTemplate({ ...newTemplate, header: { type, content: type === 'text' ? '' : undefined } })}
+                                  className="capitalize"
+                                >
+                                  {type === newTemplate.header.type && '✓ '}
+                                  {type.toUpperCase()}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {newTemplate.header.type === 'text' && (
+                            <div className="space-y-2">
+                              <Label>Header Text</Label>
+                              <Input
+                                placeholder="Enter header text..."
+                                value={newTemplate.header.content || ''}
+                                onChange={(e) => setNewTemplate({ ...newTemplate, header: { ...newTemplate.header, content: e.target.value } })}
+                              />
+                            </div>
+                          )}
+                          
+                          {['image', 'video', 'document'].includes(newTemplate.header.type) && (
+                            <div className="p-4 border-2 border-dashed rounded-lg text-center">
+                              <p className="text-sm text-muted-foreground">
+                                {newTemplate.header.type === 'image' && 'Image will be added when sending the message'}
+                                {newTemplate.header.type === 'video' && 'Video will be added when sending the message'}
+                                {newTemplate.header.type === 'document' && 'Document will be added when sending the message'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <Separator />
+                      </>
+                    )}
+
+                    {/* Subject Line - Email only */}
+                    {newTemplate.channel === 'email' && (
+                      <>
+                        <div className="space-y-4">
+                          <h3 className="font-semibold">Subject Line *</h3>
+                          <div className="space-y-2">
+                            <Input
+                              placeholder="Enter email subject line..."
+                              value={newTemplate.header.content || ''}
+                              onChange={(e) => setNewTemplate({ ...newTemplate, header: { type: 'text', content: e.target.value } })}
+                              maxLength={100}
+                            />
+                            <p className="text-xs text-muted-foreground text-right">{(newTemplate.header.content || '').length}/100</p>
+                          </div>
+                        </div>
+                        <Separator />
+                      </>
+                    )}
+
+                    {/* Body Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">
+                          {newTemplate.channel === 'sms' ? 'Message Text *' : newTemplate.channel === 'email' ? 'Email Body *' : 'Body *'}
+                        </h3>
+                        <Button type="button" variant="outline" size="sm" onClick={addVariable}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add variable
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        <Textarea
+                          placeholder={
+                            newTemplate.channel === 'sms' 
+                              ? "Enter your SMS text..." 
+                              : newTemplate.channel === 'email'
+                              ? "Enter your email content here. You can use variables like {{name}} for personalization..."
+                              : "Enter your message body text..."
+                          }
+                          value={newTemplate.body}
+                          onChange={(e) => setNewTemplate({ ...newTemplate, body: e.target.value })}
+                          rows={newTemplate.channel === 'sms' ? 4 : newTemplate.channel === 'email' ? 10 : 6}
+                          className="resize-none"
+                          maxLength={newTemplate.channel === 'sms' ? 320 : newTemplate.channel === 'email' ? 5000 : 1024}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Use {"{{1}}"}, {"{{name}}"}, etc. for dynamic variables</span>
+                          {newTemplate.channel === 'sms' ? (
+                            <span className={cn(
+                              newTemplate.body.length > 160 && "text-warning"
+                            )}>
+                              {newTemplate.body.length}/160 ({Math.ceil(newTemplate.body.length / 160) || 1} SMS)
+                            </span>
+                          ) : newTemplate.channel === 'email' ? (
+                            <span>{newTemplate.body.length} / 5000</span>
+                          ) : (
+                            <span>{newTemplate.body.length} / 1024</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Section - WhatsApp and Email */}
+                    {(newTemplate.channel === 'whatsapp' || newTemplate.channel === 'email') && (
+                      <>
+                        <Separator />
+                        <div className="space-y-4">
+                          <h3 className="font-semibold">
+                            {newTemplate.channel === 'email' ? 'Email Signature / Footer (Optional)' : 'Footer (Optional)'}
+                          </h3>
+                          <div className="space-y-2">
+                            {newTemplate.channel === 'email' ? (
+                              <Textarea
+                                placeholder="Enter your email signature or footer text..."
+                                value={newTemplate.footer}
+                                onChange={(e) => setNewTemplate({ ...newTemplate, footer: e.target.value })}
+                                rows={3}
+                                maxLength={500}
+                              />
+                            ) : (
+                              <Input
+                                placeholder="Enter footer text"
+                                value={newTemplate.footer}
+                                onChange={(e) => setNewTemplate({ ...newTemplate, footer: e.target.value })}
+                                maxLength={60}
+                              />
+                            )}
+                            <p className="text-xs text-muted-foreground text-right">
+                              {newTemplate.footer.length}/{newTemplate.channel === 'email' ? 500 : 60}
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Buttons Section - WhatsApp and RCS only */}
+                    {(newTemplate.channel === 'whatsapp' || newTemplate.channel === 'rcs') && (
+                      <>
+                        <Separator />
+                        <div className="space-y-4">
+                          <h3 className="font-semibold">Buttons (Optional)</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {newTemplate.channel === 'whatsapp' 
+                              ? 'Create buttons that let customers respond to your message or take action. You can add up to 3 buttons.'
+                              : 'Add suggested replies or action buttons. You can add up to 4 buttons.'
+                            }
+                          </p>
+                          
+                          {newTemplate.buttons.map((button, index) => (
+                            <div key={button.id} className="p-4 border rounded-lg space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Button {index + 1}</span>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeButton(button.id)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Button Type</Label>
+                                  <Select
+                                    value={button.type}
+                                    onValueChange={(value) => updateButton(button.id, 'type', value)}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {newTemplate.channel === 'whatsapp' ? (
+                                        <>
+                                          <SelectItem value="url">URL Button</SelectItem>
+                                          <SelectItem value="phone">Phone Number</SelectItem>
+                                          <SelectItem value="quick_reply">Quick Reply</SelectItem>
+                                          <SelectItem value="copy_code">Copy Code</SelectItem>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <SelectItem value="quick_reply">Suggested Reply</SelectItem>
+                                          <SelectItem value="url">Open URL</SelectItem>
+                                          <SelectItem value="phone">Dial Phone</SelectItem>
+                                        </>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Button Label</Label>
+                                  <Input
+                                    placeholder="Button text"
+                                    value={button.label}
+                                    onChange={(e) => updateButton(button.id, 'label', e.target.value)}
+                                    maxLength={25}
+                                  />
+                                </div>
+                              </div>
+                              {(button.type === 'url' || button.type === 'phone') && (
+                                <div className="space-y-2">
+                                  <Label className="text-xs">{button.type === 'url' ? 'URL' : 'Phone Number'}</Label>
+                                  <Input
+                                    placeholder={button.type === 'url' ? 'https://example.com' : '+1234567890'}
+                                    value={button.value}
+                                    onChange={(e) => updateButton(button.id, 'value', e.target.value)}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          
+                          {newTemplate.buttons.length < (newTemplate.channel === 'whatsapp' ? 3 : 4) && (
+                            <Button type="button" variant="outline" className="w-full" onClick={addButton}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add new button
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </ScrollArea>
+
+                {/* Right Panel - Phone Preview */}
+                <div className="w-[350px] bg-muted/30 p-6 flex flex-col">
+                  <h3 className="font-semibold mb-4 text-center">Preview</h3>
+                  {renderPhonePreview()}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Analytics Modal */}
+      <Dialog open={templateAnalyticsOpen} onOpenChange={setTemplateAnalyticsOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Template Analytics
+            </DialogTitle>
+          </DialogHeader>
+          {selectedTemplate && selectedTemplate.analytics && (
+            <div className="space-y-6 py-4">
+              {/* Template Info */}
+              <div className="p-4 rounded-lg bg-muted/50">
+                <p className="font-mono font-semibold">{selectedTemplate.name}</p>
+                <p className="text-sm text-muted-foreground">{selectedTemplate.category} • {selectedTemplate.language}</p>
+              </div>
+
+              {/* Date Range Selector */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">DATE RANGE</Label>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    {dateRangePresets.map((preset) => (
+                      <Button
+                        key={preset}
+                        variant={analyticsDateRange === preset ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setAnalyticsDateRange(preset)}
+                        className={cn(
+                          analyticsDateRange === preset && 'bg-primary text-primary-foreground'
+                        )}
+                      >
+                        {preset}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Dec 14 - Jan 13, 2026
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="text-sm">Sent</span>
+                  </div>
+                  <p className="text-2xl font-bold">{selectedTemplate.analytics.sent.toLocaleString()}</p>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                    <span className="text-sm">Delivered</span>
+                  </div>
+                  <p className="text-2xl font-bold text-success">{selectedTemplate.analytics.deliveredRate}%</p>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                    <Eye className="h-4 w-4" />
+                    <span className="text-sm">Opened</span>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-500">{selectedTemplate.analytics.openedRate}%</p>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="text-sm">Clicked</span>
+                  </div>
+                  <p className="text-2xl font-bold text-pink-500">{selectedTemplate.analytics.clickedRate}%</p>
+                </div>
+              </div>
+
+              {/* Progress Bars */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Delivery Rate</span>
+                    <span className="font-medium">{selectedTemplate.analytics.deliveredRate}%</span>
+                  </div>
+                  <Progress value={selectedTemplate.analytics.deliveredRate} className="h-3 bg-muted [&>div]:bg-success" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Open Rate</span>
+                    <span className="font-medium">{selectedTemplate.analytics.openedRate}%</span>
+                  </div>
+                  <Progress value={selectedTemplate.analytics.openedRate} className="h-3 bg-muted [&>div]:bg-blue-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Click Rate</span>
+                    <span className="font-medium">{selectedTemplate.analytics.clickedRate}%</span>
+                  </div>
+                  <Progress value={selectedTemplate.analytics.clickedRate} className="h-3 bg-muted [&>div]:bg-pink-500" />
+                </div>
+              </div>
+
+              {/* Button Clicks */}
+              {selectedTemplate.analytics.buttonClicks.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-pink-500" />
+                    <h4 className="font-semibold">Button Clicks</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedTemplate.analytics.buttonClicks.map((btn, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div>
+                          <p className="font-medium">{btn.label}</p>
+                          <p className="text-sm text-muted-foreground capitalize">{btn.type.replace('_', ' ')} Button</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-pink-500">{btn.clicks.toLocaleString()}</p>
+                          <p className="text-sm text-muted-foreground">clicks</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground text-center">
+                Last updated: {format(selectedTemplate.analytics.lastUpdated, 'MMM d, yyyy, h:mm a')}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Campaign Analytics Modal */}
+      <Dialog open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Campaign Analytics
+            </DialogTitle>
+            <DialogDescription>{selectedCampaign?.name}</DialogDescription>
+          </DialogHeader>
+          {selectedCampaign && (
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold">{selectedCampaign.audience.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Target Audience</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold">{getDeliveryRate(selectedCampaign)}%</p>
+                    <p className="text-sm text-muted-foreground">Delivery Rate</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold">{selectedCampaign.sent.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Sent</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-success/10">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-success">{selectedCampaign.delivered.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Delivered</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-destructive/10">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-destructive">{selectedCampaign.failed.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Failed</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Delivery Progress</span>
+                  <span>{Math.round((selectedCampaign.sent / selectedCampaign.audience) * 100)}%</span>
+                </div>
+                <Progress value={(selectedCampaign.sent / selectedCampaign.audience) * 100} className="h-3" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-muted-foreground">Channel</p>
+                  <div className="mt-1"><ChannelBadge channel={selectedCampaign.channel} /></div>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-muted-foreground">Status</p>
+                  <div className="mt-1"><StatusBadge status={selectedCampaign.status} /></div>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-muted-foreground">Created</p>
+                  <p className="font-medium mt-1">{format(selectedCampaign.createdAt, 'MMM d, yyyy')}</p>
+                </div>
+                {selectedCampaign.scheduledAt && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-muted-foreground">Scheduled</p>
+                    <p className="font-medium mt-1">{format(selectedCampaign.scheduledAt, 'MMM d, yyyy')}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {filteredCampaigns.length === 0 && activeTab === 'campaigns' && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Send className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-medium mb-1">No campaigns found</h3>
+          <p className="text-muted-foreground">Create your first campaign to get started</p>
+        </div>
+      )}
+
+      {filteredTemplates.length === 0 && activeTab === 'templates' && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <FileText className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-medium mb-1">No templates found</h3>
+          <p className="text-muted-foreground">Create your first template to get started</p>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integrations - Cell24x7</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">C</div>
+        <span class="sidebar-brand">Cell24x7</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          Dashboard
+        </a>
+        <a href="chats.html" class="nav-item">
+          <span class="nav-icon">💬</span>
+          Chats
+        </a>
+        <a href="contacts.html" class="nav-item">
+          <span class="nav-icon">👥</span>
+          Contacts
+        </a>
+        <a href="campaigns.html" class="nav-item">
+          <span class="nav-icon">📤</span>
+          Campaigns
+        </a>
+        <a href="automations.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          Automations
+        </a>
+        <a href="integrations.html" class="nav-item active">
+          <span class="nav-icon">🔌</span>
+          Integrations
+        </a>
+        <a href="settings.html" class="nav-item">
+          <span class="nav-icon">⚙️</span>
+          Settings
+        </a>
+      </nav>
+
+      <div class="wallet-card">
+        <div class="wallet-label">Wallet Balance</div>
+        <div class="wallet-balance">₹550</div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">JS</div>
+          <div class="user-details">
+            <div class="user-name">John Smith</div>
+            <div class="user-role">Admin</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content animate-fade-in">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="page-title">Integrations</h1>
+          <p class="page-subtitle">Connect your favorite tools and services</p>
+        </div>
+        <span class="badge badge-primary" style="padding: 0.5rem 1rem;">6 Connected</span>
+      </div>
+
+      <!-- Search -->
+      <div class="flex items-center gap-4 mb-6">
+        <div class="input-with-icon" style="flex: 1; max-width: 400px;">
+          <span class="icon">🔍</span>
+          <input type="text" class="input" placeholder="Search integrations..." style="padding-left: 2.5rem;">
+        </div>
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="tabs mb-6">
+        <button class="tab active">All</button>
+        <button class="tab">🛒 Ecommerce</button>
+        <button class="tab">💳 Payments</button>
+        <button class="tab">📊 Inventory</button>
+        <button class="tab">👥 CRM</button>
+        <button class="tab">📅 Scheduling</button>
+        <button class="tab">🤖 AI</button>
+        <button class="tab">🔧 Utilities</button>
+      </div>
+
+      <!-- Integrations Grid -->
+      <div class="grid-4">
+        <!-- Shopify - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(149, 191, 71, 0.1);">
+                <span style="font-size: 1.5rem;">🛒</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Shopify</h3>
+                <span class="text-xs text-muted">Ecommerce</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Sync your Shopify store with orders and customers</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- WooCommerce -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(150, 88, 138, 0.1);">
+                <span style="font-size: 1.5rem;">🛍️</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">WooCommerce</h3>
+                <span class="text-xs text-muted">Ecommerce</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Connect your WooCommerce store</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-paused">Disconnected</span>
+              <button class="btn btn-primary btn-sm">Connect</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shiprocket - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(255, 99, 71, 0.1);">
+                <span style="font-size: 1.5rem;">🚀</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Shiprocket</h3>
+                <span class="text-xs text-muted">Ecommerce</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Automated shipping and tracking</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Razorpay - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(2, 137, 255, 0.1);">
+                <span style="font-size: 1.5rem;">💳</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Razorpay</h3>
+                <span class="text-xs text-muted">Payments</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Accept payments via Razorpay</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stripe -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(99, 91, 255, 0.1);">
+                <span style="font-size: 1.5rem;">💰</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Stripe</h3>
+                <span class="text-xs text-muted">Payments</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Global payment processing</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-paused">Disconnected</span>
+              <button class="btn btn-primary btn-sm">Connect</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Zoho Books - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(209, 52, 56, 0.1);">
+                <span style="font-size: 1.5rem;">📚</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Zoho Books</h3>
+                <span class="text-xs text-muted">Inventory</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Accounting and invoicing</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Zoho CRM - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(209, 52, 56, 0.1);">
+                <span style="font-size: 1.5rem;">👥</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Zoho CRM</h3>
+                <span class="text-xs text-muted">CRM</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Customer relationship management</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Salesforce -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(0, 161, 224, 0.1);">
+                <span style="font-size: 1.5rem;">☁️</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Salesforce</h3>
+                <span class="text-xs text-muted">CRM</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Enterprise CRM platform</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-paused">Disconnected</span>
+              <button class="btn btn-primary btn-sm">Connect</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calendly - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(0, 107, 255, 0.1);">
+                <span style="font-size: 1.5rem;">📅</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Calendly</h3>
+                <span class="text-xs text-muted">Scheduling</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Appointment scheduling</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ChatGPT - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(16, 163, 127, 0.1);">
+                <span style="font-size: 1.5rem;">🧠</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">ChatGPT</h3>
+                <span class="text-xs text-muted">AI</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">OpenAI language model</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dialogflow -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(255, 152, 0, 0.1);">
+                <span style="font-size: 1.5rem;">🤖</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Dialogflow</h3>
+                <span class="text-xs text-muted">AI</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Google AI chatbot builder</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-paused">Disconnected</span>
+              <button class="btn btn-primary btn-sm">Connect</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Sheets - Connected -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="stat-icon" style="background: rgba(52, 168, 83, 0.1);">
+                <span style="font-size: 1.5rem;">📋</span>
+              </div>
+              <div>
+                <h3 class="font-semibold">Google Sheets</h3>
+                <span class="text-xs text-muted">Utilities</span>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-4">Spreadsheet automation</p>
+            <div class="flex items-center justify-between">
+              <span class="status-badge status-connected">Connected</span>
+              <button class="btn btn-outline btn-sm">Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

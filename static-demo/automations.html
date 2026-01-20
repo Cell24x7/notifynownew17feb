@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automations - Cell24x7</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">C</div>
+        <span class="sidebar-brand">Cell24x7</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          Dashboard
+        </a>
+        <a href="chats.html" class="nav-item">
+          <span class="nav-icon">💬</span>
+          Chats
+        </a>
+        <a href="contacts.html" class="nav-item">
+          <span class="nav-icon">👥</span>
+          Contacts
+        </a>
+        <a href="campaigns.html" class="nav-item">
+          <span class="nav-icon">📤</span>
+          Campaigns
+        </a>
+        <a href="automations.html" class="nav-item active">
+          <span class="nav-icon">⚡</span>
+          Automations
+        </a>
+        <a href="integrations.html" class="nav-item">
+          <span class="nav-icon">🔌</span>
+          Integrations
+        </a>
+        <a href="settings.html" class="nav-item">
+          <span class="nav-icon">⚙️</span>
+          Settings
+        </a>
+      </nav>
+
+      <div class="wallet-card">
+        <div class="wallet-label">Wallet Balance</div>
+        <div class="wallet-balance">₹550</div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">JS</div>
+          <div class="user-details">
+            <div class="user-name">John Smith</div>
+            <div class="user-role">Admin</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content animate-fade-in">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="page-title">Automations</h1>
+          <p class="page-subtitle">Create and manage automated workflows</p>
+        </div>
+        <button class="btn btn-primary">+ Create Automation</button>
+      </div>
+
+      <!-- Search -->
+      <div class="flex items-center gap-4 mb-6">
+        <div class="input-with-icon" style="flex: 1; max-width: 400px;">
+          <span class="icon">🔍</span>
+          <input type="text" class="input" placeholder="Search automations..." style="padding-left: 2.5rem;">
+        </div>
+      </div>
+
+      <!-- Automations Grid -->
+      <div class="grid-3">
+        <!-- Automation 1 - Active -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center justify-between mb-3">
+              <span class="status-badge status-active">Active</span>
+              <button class="btn btn-ghost btn-icon btn-sm">⋮</button>
+            </div>
+            
+            <h3 class="font-semibold text-lg mb-2">Welcome Message</h3>
+            
+            <div class="flex items-center gap-2 mb-3">
+              <span class="badge badge-secondary">🎯 Trigger:</span>
+              <span class="text-sm">New Contact</span>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4">
+              <div class="channel-icon channel-whatsapp" style="width: 24px; height: 24px; font-size: 0.75rem;">💬</div>
+              <span class="text-sm text-muted">WhatsApp</span>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <div class="flex items-center justify-between mt-3">
+              <div>
+                <div class="text-2xl font-bold" style="color: var(--primary);">1,250</div>
+                <div class="text-xs text-muted">Triggers</div>
+              </div>
+              <div class="text-sm text-muted">
+                Last: 1 hour ago
+              </div>
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-outline btn-sm" style="flex: 1;">⏸️ Pause</button>
+              <button class="btn btn-outline btn-sm" style="flex: 1;">🔧 Builder</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Automation 2 - Active -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center justify-between mb-3">
+              <span class="status-badge status-active">Active</span>
+              <button class="btn btn-ghost btn-icon btn-sm">⋮</button>
+            </div>
+            
+            <h3 class="font-semibold text-lg mb-2">Order Confirmation</h3>
+            
+            <div class="flex items-center gap-2 mb-3">
+              <span class="badge badge-secondary">🎯 Trigger:</span>
+              <span class="text-sm">Order Placed</span>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4">
+              <div class="channel-icon channel-whatsapp" style="width: 24px; height: 24px; font-size: 0.75rem;">💬</div>
+              <span class="text-sm text-muted">WhatsApp</span>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <div class="flex items-center justify-between mt-3">
+              <div>
+                <div class="text-2xl font-bold" style="color: var(--primary);">3,420</div>
+                <div class="text-xs text-muted">Triggers</div>
+              </div>
+              <div class="text-sm text-muted">
+                Last: 30 min ago
+              </div>
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-outline btn-sm" style="flex: 1;">⏸️ Pause</button>
+              <button class="btn btn-outline btn-sm" style="flex: 1;">🔧 Builder</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Automation 3 - Active -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center justify-between mb-3">
+              <span class="status-badge status-active">Active</span>
+              <button class="btn btn-ghost btn-icon btn-sm">⋮</button>
+            </div>
+            
+            <h3 class="font-semibold text-lg mb-2">Abandoned Cart</h3>
+            
+            <div class="flex items-center gap-2 mb-3">
+              <span class="badge badge-secondary">🎯 Trigger:</span>
+              <span class="text-sm">Cart Abandoned</span>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4">
+              <div class="channel-icon channel-sms" style="width: 24px; height: 24px; font-size: 0.75rem;">📱</div>
+              <span class="text-sm text-muted">SMS</span>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <div class="flex items-center justify-between mt-3">
+              <div>
+                <div class="text-2xl font-bold" style="color: var(--primary);">890</div>
+                <div class="text-xs text-muted">Triggers</div>
+              </div>
+              <div class="text-sm text-muted">
+                Last: 2 hours ago
+              </div>
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-outline btn-sm" style="flex: 1;">⏸️ Pause</button>
+              <button class="btn btn-outline btn-sm" style="flex: 1;">🔧 Builder</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Automation 4 - Paused -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center justify-between mb-3">
+              <span class="status-badge status-paused">Paused</span>
+              <button class="btn btn-ghost btn-icon btn-sm">⋮</button>
+            </div>
+            
+            <h3 class="font-semibold text-lg mb-2">Feedback Request</h3>
+            
+            <div class="flex items-center gap-2 mb-3">
+              <span class="badge badge-secondary">🎯 Trigger:</span>
+              <span class="text-sm">Order Delivered</span>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4">
+              <div class="channel-icon channel-email" style="width: 24px; height: 24px; font-size: 0.75rem;">📧</div>
+              <span class="text-sm text-muted">Email</span>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <div class="flex items-center justify-between mt-3">
+              <div>
+                <div class="text-2xl font-bold text-muted">2,100</div>
+                <div class="text-xs text-muted">Triggers</div>
+              </div>
+              <div class="text-sm text-muted">
+                Last: 1 day ago
+              </div>
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-primary btn-sm" style="flex: 1;">▶️ Activate</button>
+              <button class="btn btn-outline btn-sm" style="flex: 1;">🔧 Builder</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Automation 5 - Draft -->
+        <div class="card card-elevated">
+          <div class="card-content">
+            <div class="flex items-center justify-between mb-3">
+              <span class="status-badge status-draft">Draft</span>
+              <button class="btn btn-ghost btn-icon btn-sm">⋮</button>
+            </div>
+            
+            <h3 class="font-semibold text-lg mb-2">Support Ticket Auto-Reply</h3>
+            
+            <div class="flex items-center gap-2 mb-3">
+              <span class="badge badge-secondary">🎯 Trigger:</span>
+              <span class="text-sm">New Message</span>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4">
+              <div class="channel-icon channel-whatsapp" style="width: 24px; height: 24px; font-size: 0.75rem;">💬</div>
+              <span class="text-sm text-muted">WhatsApp</span>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <div class="flex items-center justify-between mt-3">
+              <div>
+                <div class="text-2xl font-bold text-muted">0</div>
+                <div class="text-xs text-muted">Triggers</div>
+              </div>
+              <div class="text-sm text-muted">
+                Not started
+              </div>
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-primary btn-sm" style="flex: 1;">▶️ Activate</button>
+              <button class="btn btn-outline btn-sm" style="flex: 1;">🔧 Builder</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create New Card -->
+        <div class="card" style="border: 2px dashed var(--border); background: transparent;">
+          <div class="card-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 280px;">
+            <div class="empty-state-icon">➕</div>
+            <h3 class="font-semibold mb-2">Create New Automation</h3>
+            <p class="text-sm text-muted text-center mb-4">Set up automated workflows to engage your customers</p>
+            <button class="btn btn-primary">+ Create Automation</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
