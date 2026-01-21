@@ -238,7 +238,7 @@ export function AppSidebar() {
 
 
       {/* Super Admin Link */}
-      <div className="px-2 pb-2">
+      {/* <div className="px-2 pb-2">
         <NavLink to="/super-admin/dashboard">
           <Button
             variant="outline"
@@ -251,7 +251,7 @@ export function AppSidebar() {
             {!collapsed && <span className="text-sm">Super Admin</span>}
           </Button>
         </NavLink>
-      </div>
+      </div> */}
 
       {/* User section with dropdown */}
       <div className="p-4 border-t border-border">

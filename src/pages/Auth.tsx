@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function Auth() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -27,10 +27,26 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+  /* =============================
+     AUTO REDIRECT IF ALREADY LOGGED IN
+  ============================== */
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'admin') {
+        navigate('/super-admin/dashboard', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
+
+  if (isAuthenticated && user) {
+    return <Navigate to={user.role === 'admin' ? '/super-admin/dashboard' : '/dashboard'} replace />;
   }
 
+  /* =============================
+     LOGIN HANDLER
+  ============================== */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -44,22 +60,25 @@ export default function Auth() {
     }
 
     setLoading(true);
+
     try {
       const success = await login(loginEmail, loginPassword);
 
-      if (success) {
-        toast({
-          title: 'Welcome back 👋',
-          description: 'Login successful',
-        });
-        navigate('/dashboard');
-      } else {
+      if (!success) {
         toast({
           title: 'Login failed',
           description: 'Invalid email or password',
           variant: 'destructive',
         });
+        return;
       }
+
+      toast({
+        title: 'Welcome back 👋',
+        description: 'Login successful',
+      });
+
+      // 🔁 redirect is automatically handled by useEffect
     } catch {
       toast({
         title: 'Server Error',
@@ -71,6 +90,9 @@ export default function Auth() {
     }
   };
 
+  /* =============================
+     CHANNEL ICONS
+  ============================== */
   const channels = [
     { icon: MessageSquare, label: 'WhatsApp', color: 'text-green-500' },
     { icon: Phone, label: 'SMS', color: 'text-blue-500' },
@@ -105,7 +127,9 @@ export default function Auth() {
                 <div className="w-12 h-12 rounded-xl bg-white shadow flex items-center justify-center">
                   <c.icon className={`w-6 h-6 ${c.color}`} />
                 </div>
-                <p className="text-xs mt-2 text-muted-foreground">{c.label}</p>
+                <p className="text-xs mt-2 text-muted-foreground">
+                  {c.label}
+                </p>
               </div>
             ))}
           </div>
@@ -148,7 +172,7 @@ export default function Auth() {
               />
             </div>
 
-            {/* Password with Show / Hide */}
+            {/* Password */}
             <div className="space-y-1">
               <Label>Password</Label>
               <div className="relative">
@@ -162,9 +186,9 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                 >
-                  {/* {showPassword ? <EyeOff size={18} /> : <Eye size={18} />} */}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -174,12 +198,15 @@ export default function Auth() {
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={rememberMe}
-                  onCheckedChange={(v) => setRememberMe(v as boolean)}
+                  onCheckedChange={(v) => setRememberMe(Boolean(v))}
                 />
                 <span className="text-sm">Remember me</span>
               </div>
 
-              <a href="/forgot-password" className="text-sm text-primary hover:underline">
+              <a
+                href="/forgot-password"
+                className="text-sm text-primary hover:underline"
+              >
                 Forgot password?
               </a>
             </div>
