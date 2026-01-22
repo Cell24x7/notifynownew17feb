@@ -984,9 +984,16 @@ const billingCategories = [
 ];
 
 const developmentPlatforms = [
-  
+  { value: 'gsma', label: 'GSMA API' },
+  { value: 'google', label: 'Google styled API' },
 ];
 
+// ────────────────────────────────────────────────
+// CHANGE THESE VALUES ACCORDING TO YOUR API
+// ────────────────────────────────────────────────
+const API_ENDPOINT = 'https://api.yourcompany.com/v1/rcs/submit';   
+const API_KEY_HEADER = 'x-api-key';                                 
+const API_KEY_VALUE  = process.env.STRIPE_API_KEY;   // ← remove hardcoded key
 // ────────────────────────────────────────────────
 
 // ────────────────────────────────────────────────
