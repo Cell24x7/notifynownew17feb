@@ -21,6 +21,9 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
+// ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
+import logo from '@/assets/logo.png';
+
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard' },
   { icon: Building2, label: 'Clients', path: '/super-admin/clients' },
@@ -35,7 +38,11 @@ const menuItems = [
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs' },
 ];
 
-export function SuperAdminSidebar() {
+interface SuperAdminSidebarProps {
+  onClose?: () => void;
+}
+
+export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { logout } = useAuth();
@@ -51,7 +58,7 @@ export function SuperAdminSidebar() {
       <div className="flex items-center justify-between h-16 px-4 border-b border-border">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Cell24x7" className="w-8 h-8 rounded-lg" />
+            <img src={logo} alt="Cell24x7" className="w-8 h-8 rounded-lg" />
             <div className="flex flex-col">
               <span className="font-bold text-sm">Cell24x7</span>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Super Admin</span>
@@ -59,12 +66,12 @@ export function SuperAdminSidebar() {
           </div>
         )}
         {collapsed && (
-          <img src="/logo.png" alt="Cell24x7" className="w-8 h-8 rounded-lg" />
+          <img src={logo} alt="Cell24x7" className="w-8 h-8 rounded-lg" />
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 hidden lg:flex"
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -72,7 +79,7 @@ export function SuperAdminSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 overflow-y-auto">
+      <nav className="flex-1 py-4 overflow-y-auto" onClick={onClose}>
         <ul className="space-y-1 px-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
