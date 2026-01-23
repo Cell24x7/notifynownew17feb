@@ -1,132 +1,238 @@
-import { useState } from 'react';
-import { Search, Plus, Eye, Edit, Ban, MoreVertical, Building2, Globe, CreditCard, Users } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Progress } from '@/components/ui/progress';
-import { ChannelIcon } from '@/components/ui/channel-icon';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { mockClients, mockPlans, Client } from '@/lib/superAdminMockData';
+import { ChannelIcon } from '@/components/ui/channel-icon'; // ← yeh add kiya
+import axios from 'axios';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+
+
+
+const API_URL = 'http://localhost:5000/api';
 
 const allChannels = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook'] as const;
+
+const plans = [
+  { id: 'basic', name: 'Basic', price: 99 },
+  { id: 'pro', name: 'Pro', price: 299 },
+  { id: 'enterprise', name: 'Enterprise', price: 999 },
+];
 
 export default function SuperAdminClients() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [planFilter, setPlanFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [planFilter, setPlanFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [clients, setClients] = useState<any[]>([]);
+  const [filteredClients, setFilteredClients] = useState<any[]>([]);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
-  
+  const [loading, setLoading] = useState(false);
+
   // Add Client form state
   const [newClient, setNewClient] = useState({
     name: '',
-    planId: '',
-    creditsAvailable: 0,
-    channelsEnabled: [] as string[],
+    company_name: '',
+    email: '',
+    password: '',
+    contact_phone: '',
+    plan_id: '',
     status: 'active' as 'active' | 'suspended' | 'pending' | 'trial',
-    contactEmail: '',
-    contactPhone: '',
+    credits_available: 0,
+    channels_enabled: [] as string[],
   });
 
-  const filteredClients = mockClients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.domain.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPlan = planFilter === 'all' || client.planId === planFilter;
-    const matchesStatus = statusFilter === 'all' || client.status === statusFilter;
-    return matchesSearch && matchesPlan && matchesStatus;
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-primary/10 text-primary';
-      case 'suspended': return 'bg-destructive/10 text-destructive';
-      case 'pending': return 'bg-warning/10 text-warning';
-      case 'trial': return 'bg-secondary/10 text-secondary';
-      default: return 'bg-muted text-muted-foreground';
+  // Fetch real clients from backend
+  const fetchClients = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/clients`);
+      if (res.data.success) {
+        setClients(res.data.clients || []);
+        setFilteredClients(res.data.clients || []);
+      } else {
+        toast({ title: 'Error', description: res.data.message || 'Failed to load clients', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Failed to load',
+        description: err.response?.data?.message || 'Could not connect to server',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSuspend = (client: Client) => {
-    toast({
-      title: client.status === 'suspended' ? 'Client Activated' : 'Client Suspended',
-      description: `${client.name} has been ${client.status === 'suspended' ? 'activated' : 'suspended'}`,
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  // Real-time filtering
+  useEffect(() => {
+    const filtered = clients.filter(client => {
+      const search = searchQuery.toLowerCase();
+      const matchesSearch =
+        client.name?.toLowerCase().includes(search) ||
+        client.company_name?.toLowerCase().includes(search) ||
+        client.email?.toLowerCase().includes(search);
+      const matchesPlan = planFilter === 'all' || client.plan_id === planFilter;
+      const matchesStatus = statusFilter === 'all' || client.status === statusFilter;
+      return matchesSearch && matchesPlan && matchesStatus;
     });
+    setFilteredClients(filtered);
+  }, [clients, searchQuery, planFilter, statusFilter]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'suspended': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'trial': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
   };
 
   const handleChannelToggle = (channel: string) => {
     setNewClient(prev => ({
       ...prev,
-      channelsEnabled: prev.channelsEnabled.includes(channel)
-        ? prev.channelsEnabled.filter(c => c !== channel)
-        : [...prev.channelsEnabled, channel]
+      channels_enabled: prev.channels_enabled.includes(channel)
+        ? prev.channels_enabled.filter(c => c !== channel)
+        : [...prev.channels_enabled, channel],
     }));
   };
 
-  const handleAddClient = () => {
-    if (!newClient.name.trim() || !newClient.planId) {
+  const handleAddClient = async () => {
+    if (!newClient.name.trim() || !newClient.company_name.trim() || !newClient.email.trim() || !newClient.password.trim() || !newClient.plan_id) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields.',
+        description: 'All required fields must be filled',
         variant: 'destructive',
       });
       return;
     }
-    
-    toast({
-      title: 'Client Added',
-      description: `${newClient.name} has been added successfully.`,
-    });
-    setIsAddClientOpen(false);
-    setNewClient({
-      name: '',
-      planId: '',
-      creditsAvailable: 0,
-      channelsEnabled: [],
-      status: 'active',
-      contactEmail: '',
-      contactPhone: '',
-    });
+
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/clients`, newClient);
+      if (res.data.success) {
+        toast({
+          title: 'Success',
+          description: `${newClient.name} has been added successfully`,
+        });
+        setIsAddClientOpen(false);
+        setNewClient({
+          name: '',
+          company_name: '',
+          email: '',
+          password: '',
+          contact_phone: '',
+          plan_id: '',
+          status: 'active',
+          credits_available: 0,
+          channels_enabled: [],
+        });
+        fetchClients(); // Refresh list
+      } else {
+        toast({ title: 'Failed', description: res.data.message || 'Could not add client', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Something went wrong',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const totalCreditsUsed = filteredClients.reduce((acc, c) => acc + c.creditsUsed, 0);
-  const totalCreditsAvailable = filteredClients.reduce((acc, c) => acc + c.creditsAvailable, 0);
+  const handleSuspend = async (client: any) => {
+    try {
+      const newStatus = client.status === 'suspended' ? 'active' : 'suspended';
+      await axios.put(`${API_URL}/clients/${client.id}`, { status: newStatus });
+      toast({
+        title: 'Success',
+        description: `Client ${newStatus === 'active' ? 'activated' : 'suspended'}`,
+      });
+      fetchClients();
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (client: any) => {
+  if (!window.confirm("Are you sure you want to delete this client?")) return;
+
+  try {
+    const res = await axios.delete(`${API_URL}/clients/${client.id}`);
+    if (res.data.success) {
+      toast({
+        title: 'Success',
+        description: 'Client deleted successfully',
+      });
+      fetchClients(); // refresh your datatable
+    } else {
+      toast({
+        title: 'Error',
+        description: res.data.message || 'Failed to delete client',
+        variant: 'destructive',
+      });
+    }
+  } catch (err: any) {
+    console.error('DELETE CLIENT ERROR:', err);
+    toast({
+      title: 'Error',
+      description: 'Failed to delete client',
+      variant: 'destructive',
+    });
+  }
+};
+
+
+
+
+
+
+  // Real totals from filtered clients
+  const totalClients = filteredClients.length;
+  const totalActiveUsers = filteredClients.reduce((sum, c) => sum + (c.active_users || 0), 0);
+  const totalCreditsUsed = filteredClients.reduce((sum, c) => sum + (c.credits_used || 0), 0);
+  const totalCreditsAvailable = filteredClients.reduce((sum, c) => sum + (c.credits_available || 0), 0);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Clients</h1>
-          <p className="text-muted-foreground">Manage all platform clients</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Clients</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage all platform clients</p>
         </div>
-        <Button className="gradient-primary" onClick={() => setIsAddClientOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Client
+        <Button onClick={() => setIsAddClientOpen(true)} className="w-full sm:w-auto">
+          <Plus className="w-4 h-4 mr-2" /> Add Client
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-primary" />
-              </div>
+              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
               <div>
-                <div className="text-sm text-muted-foreground">Total Clients</div>
-                <div className="text-xl font-bold">{filteredClients.length}</div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Clients</p>
+                <p className="text-lg sm:text-2xl font-bold">{totalClients}</p>
               </div>
             </div>
           </CardContent>
@@ -134,14 +240,10 @@ export default function SuperAdminClients() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Users className="w-5 h-5 text-primary" />
-              </div>
+              <Users className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
               <div>
-                <div className="text-sm text-muted-foreground">Active Users</div>
-                <div className="text-xl font-bold">
-                  {filteredClients.reduce((acc, c) => acc + c.activeUsers, 0)}
-                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Active Users</p>
+                <p className="text-lg sm:text-2xl font-bold">{totalActiveUsers}</p>
               </div>
             </div>
           </CardContent>
@@ -149,12 +251,10 @@ export default function SuperAdminClients() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-secondary" />
-              </div>
+              <CreditCard className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
               <div>
-                <div className="text-sm text-muted-foreground">Credits Used</div>
-                <div className="text-xl font-bold">{(totalCreditsUsed / 1000).toFixed(0)}K</div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Credits Used</p>
+                <p className="text-lg sm:text-2xl font-bold">{(totalCreditsUsed / 1000).toFixed(0)}K</p>
               </div>
             </div>
           </CardContent>
@@ -162,12 +262,10 @@ export default function SuperAdminClients() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-muted-foreground" />
-              </div>
+              <CreditCard className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
               <div>
-                <div className="text-sm text-muted-foreground">Credits Available</div>
-                <div className="text-xl font-bold">{(totalCreditsAvailable / 1000).toFixed(0)}K</div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Available</p>
+                <p className="text-lg sm:text-2xl font-bold">{(totalCreditsAvailable / 1000).toFixed(0)}K</p>
               </div>
             </div>
           </CardContent>
@@ -177,12 +275,12 @@ export default function SuperAdminClients() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name or domain..."
+                  placeholder="Search by name, company or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -190,18 +288,18 @@ export default function SuperAdminClients() {
               </div>
             </div>
             <Select value={planFilter} onValueChange={setPlanFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="All Plans" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Plans</SelectItem>
-                {mockPlans.map(plan => (
+                {plans.map(plan => (
                   <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -218,312 +316,149 @@ export default function SuperAdminClients() {
 
       {/* Clients Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Client Name</TableHead>
-                <TableHead>Domain</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead className="text-center">Channels</TableHead>
-                <TableHead className="text-right">Credits Used</TableHead>
-                <TableHead className="text-right">Available</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="min-w-[150px]">Client Name</TableHead>
+                <TableHead className="min-w-[150px]">Company</TableHead>
+                <TableHead className="min-w-[180px]">Email</TableHead>
+                <TableHead className="min-w-[100px]">Plan</TableHead>
+                <TableHead className="text-center min-w-[120px]">Channels</TableHead>
+                <TableHead className="text-right min-w-[120px]">Used</TableHead>
+                <TableHead className="text-right min-w-[120px]">Available</TableHead>
+                <TableHead className="min-w-[100px]">Status</TableHead>
+                <TableHead className="min-w-[120px]">Created</TableHead>
+                <TableHead className="text-right min-w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredClients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{client.domain}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{client.planName}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1">
-                      {client.channelsEnabled.slice(0, 4).map((channel) => (
-                        <ChannelIcon key={channel} channel={channel} className="w-4 h-4" />
-                      ))}
-                      {client.channelsEnabled.length > 4 && (
-                        <span className="text-xs text-muted-foreground">+{client.channelsEnabled.length - 4}</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{client.creditsUsed.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{client.creditsAvailable.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={cn('text-xs', getStatusColor(client.status))}>
-                      {client.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {format(new Date(client.createdAt), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setSelectedClient(client)}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className={client.status === 'suspended' ? 'text-primary' : 'text-destructive'}
-                          onClick={() => handleSuspend(client)}
-                        >
-                          <Ban className="w-4 h-4 mr-2" />
-                          {client.status === 'suspended' ? 'Activate' : 'Suspend'}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-10">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                    <p className="mt-2 text-muted-foreground">Loading clients...</p>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredClients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                    No clients found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredClients.map((client) => (
+                  <TableRow key={client.id}>
+                    <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableCell>{client.company_name}</TableCell>
+                    <TableCell className="text-sm">{client.email}</TableCell>
+                    <TableCell><Badge variant="outline">{client.plan_id}</Badge></TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex justify-center gap-1 flex-wrap">
+                        {JSON.parse(client.channels_enabled || '[]').slice(0, 4).map((ch: string) => (
+                          <ChannelIcon key={ch} channel={ch} className="w-5 h-5" />
+                        ))}
+                        {JSON.parse(client.channels_enabled || '[]').length > 4 && (
+                          <span className="text-xs text-muted-foreground">+{JSON.parse(client.channels_enabled || '[]').length - 4}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right text-sm">{client.credits_used?.toLocaleString() || '0'}</TableCell>
+                    <TableCell className="text-right text-sm">{client.credits_available.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge className={cn('text-xs', getStatusColor(client.status))}>
+                        {client.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(client.created_at), 'MMM d, yyyy')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setSelectedClient(client)}>
+                            <Eye className="w-4 h-4 mr-2" /> View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDelete(client)}>
+                            <Eye className="w-4 h-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSuspend(client)}>
+                            <Ban className="w-4 h-4 mr-2" />
+                            {client.status === 'suspended' ? 'Activate' : 'Suspend'}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Client Detail Dialog */}
-      <Dialog open={!!selectedClient} onOpenChange={() => setSelectedClient(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" />
-              {selectedClient?.name}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedClient && (
-            <Tabs defaultValue="overview" className="mt-4">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="channels">Channels</TabsTrigger>
-                <TabsTrigger value="api">API Access</TabsTrigger>
-                <TabsTrigger value="usage">Usage</TabsTrigger>
-                <TabsTrigger value="billing">Billing</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4 space-y-3">
-                      <div>
-                        <div className="text-sm text-muted-foreground">Domain</div>
-                        <div className="font-medium flex items-center gap-2">
-                          <Globe className="w-4 h-4" />
-                          {selectedClient.domain}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Contact Email</div>
-                        <div className="font-medium">{selectedClient.contactEmail}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Contact Phone</div>
-                        <div className="font-medium">{selectedClient.contactPhone}</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 space-y-3">
-                      <div>
-                        <div className="text-sm text-muted-foreground">Plan</div>
-                        <Badge variant="outline" className="mt-1">{selectedClient.planName}</Badge>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Status</div>
-                        <Badge className={cn('mt-1', getStatusColor(selectedClient.status))}>
-                          {selectedClient.status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Created</div>
-                        <div className="font-medium">
-                          {format(new Date(selectedClient.createdAt), 'MMMM d, yyyy')}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Quick Stats</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>
-                        <div className="text-sm text-muted-foreground">Active Users</div>
-                        <div className="text-2xl font-bold">{selectedClient.activeUsers}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Total Messages</div>
-                        <div className="text-2xl font-bold">{(selectedClient.totalMessages / 1000).toFixed(0)}K</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Credits Used</div>
-                        <div className="text-2xl font-bold">{(selectedClient.creditsUsed / 1000).toFixed(0)}K</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Available</div>
-                        <div className="text-2xl font-bold">{(selectedClient.creditsAvailable / 1000).toFixed(0)}K</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="channels" className="mt-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      {selectedClient.channelsEnabled.map((channel) => (
-                        <div key={channel} className="flex items-center gap-3 p-3 border rounded-lg">
-                          <ChannelIcon channel={channel} className="w-8 h-8" />
-                          <div>
-                            <div className="font-medium capitalize">{channel}</div>
-                            <div className="text-xs text-primary">Enabled</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="api" className="mt-4">
-                <Card>
-                  <CardContent className="p-4 space-y-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground">API Base URL</div>
-                      <code className="block mt-1 p-2 bg-muted rounded text-sm">
-                        {selectedClient.apiBaseUrl}
-                      </code>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">API Key</div>
-                      <code className="block mt-1 p-2 bg-muted rounded text-sm">
-                        ••••••••••••••••
-                      </code>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="usage" className="mt-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="text-sm">Credit Usage</span>
-                          <span className="text-sm font-medium">
-                            {selectedClient.creditsUsed.toLocaleString()} / {(selectedClient.creditsUsed + selectedClient.creditsAvailable).toLocaleString()}
-                          </span>
-                        </div>
-                        <Progress 
-                          value={(selectedClient.creditsUsed / (selectedClient.creditsUsed + selectedClient.creditsAvailable)) * 100} 
-                          className="h-3"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="billing" className="mt-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-muted-foreground">Billing information will be displayed here.</p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Add Client Dialog */}
       <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl sm:max-w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" />
+            <DialogTitle className="text-xl sm:text-2xl flex items-center gap-3">
+              <Building2 className="w-6 h-6 text-primary" />
               Add New Client
             </DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-4 py-4">
+
+          <div className="space-y-5 sm:space-y-6 py-4">
+            {/* Name & Company */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Client Name *</Label>
+                <Input placeholder="Enter client name" value={newClient.name} onChange={e => setNewClient(prev => ({...prev, name: e.target.value}))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Company Name *</Label>
+                <Input placeholder="Enter company name" value={newClient.company_name} onChange={e => setNewClient(prev => ({...prev, company_name: e.target.value}))} />
+              </div>
+            </div>
+
+            {/* Email & Password */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email *</Label>
+                <Input type="email" placeholder="client@example.com" value={newClient.email} onChange={e => setNewClient(prev => ({...prev, email: e.target.value}))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Password *</Label>
+                <Input type="password" placeholder="Enter password" value={newClient.password} onChange={e => setNewClient(prev => ({...prev, password: e.target.value}))} />
+              </div>
+            </div>
+
+            {/* Contact Phone */}
             <div className="space-y-2">
-              <Label htmlFor="clientName">Client Name <span className="text-destructive">*</span></Label>
-              <Input
-                id="clientName"
-                placeholder="Enter client name"
-                value={newClient.name}
-                onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
-              />
+              <Label>Contact Phone</Label>
+              <Input placeholder="+91 98765 43210" value={newClient.contact_phone} onChange={e => setNewClient(prev => ({...prev, contact_phone: e.target.value}))} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Plan & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="contactEmail">Contact Email</Label>
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  placeholder="admin@example.com"
-                  value={newClient.contactEmail}
-                  onChange={(e) => setNewClient(prev => ({ ...prev, contactEmail: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contactPhone">Contact Phone</Label>
-                <Input
-                  id="contactPhone"
-                  placeholder="+1234567890"
-                  value={newClient.contactPhone}
-                  onChange={(e) => setNewClient(prev => ({ ...prev, contactPhone: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Plan <span className="text-destructive">*</span></Label>
-                <Select
-                  value={newClient.planId}
-                  onValueChange={(value) => setNewClient(prev => ({ ...prev, planId: value }))}
-                >
+                <Label>Plan *</Label>
+                <Select value={newClient.plan_id} onValueChange={v => setNewClient(p => ({...p, plan_id: v}))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a plan" />
+                    <SelectValue placeholder="Select plan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockPlans.filter(p => p.status === 'active').map(plan => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} - ${plan.price}/mo
-                      </SelectItem>
-                    ))}
+                    {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} - ${p.price}/mo</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select
-                  value={newClient.status}
-                  onValueChange={(value: 'active' | 'suspended' | 'pending' | 'trial') => 
-                    setNewClient(prev => ({ ...prev, status: value }))
-                  }
-                >
+                <Select value={newClient.status} onValueChange={v => setNewClient(p => ({...p, status: v as any}))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -537,49 +472,48 @@ export default function SuperAdminClients() {
               </div>
             </div>
 
+            {/* Credits */}
             <div className="space-y-2">
-              <Label htmlFor="credits">Initial Credits</Label>
-              <Input
-                id="credits"
-                type="number"
-                placeholder="0"
-                value={newClient.creditsAvailable || ''}
-                onChange={(e) => setNewClient(prev => ({ ...prev, creditsAvailable: parseInt(e.target.value) || 0 }))}
-              />
+              <Label>Initial Credits</Label>
+              <Input type="number" placeholder="0" value={newClient.credits_available} onChange={e => setNewClient(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))} />
             </div>
 
+            {/* Channels */}
             <div className="space-y-3">
               <Label>Channels Enabled</Label>
-              <div className="grid grid-cols-3 gap-3">
-                {allChannels.map((channel) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {allChannels.map(channel => (
                   <div
                     key={channel}
                     className={cn(
                       'flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors',
-                      newClient.channelsEnabled.includes(channel)
-                        ? 'border-primary bg-primary/5'
-                        : 'hover:bg-muted'
+                      newClient.channels_enabled.includes(channel) && 'border-primary bg-primary/5',
+                      'hover:bg-muted/50'
                     )}
                     onClick={() => handleChannelToggle(channel)}
                   >
-                    <Checkbox
-                      checked={newClient.channelsEnabled.includes(channel)}
-                      onCheckedChange={() => handleChannelToggle(channel)}
-                    />
-                    <ChannelIcon channel={channel} className="w-5 h-5" />
-                    <span className="capitalize text-sm font-medium">{channel}</span>
+                    <Checkbox checked={newClient.channels_enabled.includes(channel)} onCheckedChange={() => handleChannelToggle(channel)} />
+                    <ChannelIcon channel={channel} className="w-6 h-6 flex-shrink-0" />
+                    <span className="capitalize text-sm font-medium truncate">{channel}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddClientOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-3 pt-4 border-t">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddClientOpen(false)}>
               Cancel
             </Button>
-            <Button className="gradient-primary" onClick={handleAddClient}>
-              Add Client
+            <Button className="w-full sm:w-auto gradient-primary" onClick={handleAddClient} disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                'Add Client'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
