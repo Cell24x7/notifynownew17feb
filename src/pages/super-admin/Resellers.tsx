@@ -32,6 +32,7 @@ export default function SuperAdminResellers() {
     domain: '',
     api_base_url: '',
     commission_percent: 10,
+    credits_available: 0,
     status: 'active' as 'active' | 'inactive' | 'pending',
   });
 
@@ -193,6 +194,7 @@ export default function SuperAdminResellers() {
       domain: '',
       api_base_url: '',
       commission_percent: 10,
+      credits_available: 0,
       status: 'active',
     });
   };
@@ -304,6 +306,8 @@ export default function SuperAdminResellers() {
               <TableHead className="text-right min-w-[110px]">Commission %</TableHead>
               <TableHead className="text-right min-w-[110px]">Revenue</TableHead>
               <TableHead className="text-right min-w-[130px]">Pending Payout</TableHead>
+              <TableHead className="text-right min-w-[120px]">Used</TableHead>
+              <TableHead className="text-right min-w-[120px]">Available</TableHead>
               <TableHead className="min-w-[90px]">Status</TableHead>
               <TableHead className="min-w-[100px]">Joined</TableHead>
               <TableHead className="text-right min-w-[80px]">Actions</TableHead>
@@ -312,14 +316,14 @@ export default function SuperAdminResellers() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10">
+                <TableCell colSpan={11} className="text-center py-10">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
                   <p className="mt-2 text-muted-foreground">Loading resellers...</p>
                 </TableCell>
               </TableRow>
             ) : filteredResellers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                   No resellers found
                 </TableCell>
               </TableRow>
@@ -341,6 +345,8 @@ export default function SuperAdminResellers() {
                   <TableCell className="text-right font-medium text-warning">
                     ₹{(reseller.payout_pending || 0).toLocaleString()}
                   </TableCell>
+                  <TableCell className="text-right text-sm">{reseller.credits_used?.toLocaleString() || '0'}</TableCell>
+                  <TableCell className="text-right text-sm">{reseller.credits_available?.toLocaleString() || '0'}</TableCell>
                   <TableCell>
                     <Badge className={cn('text-xs', getStatusColor(reseller.status))}>
                       {reseller.status}
@@ -479,6 +485,18 @@ export default function SuperAdminResellers() {
               </div>
             </div>
 
+            {/* Credits */}
+            <div className="space-y-2">
+              <Label>Initial Credits</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={currentReseller.credits_available}
+                onChange={e => setCurrentReseller(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))}
+                disabled={modalMode === 'view'}
+              />
+            </div>
+
             {/* View Mode Stats */}
             {modalMode === 'view' && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
@@ -529,4 +547,4 @@ export default function SuperAdminResellers() {
       </Dialog>
     </div>
   );
-}
+}   

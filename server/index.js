@@ -390,6 +390,51 @@ app.post('/api/wallet/adjust', async (req, res) => {
 });
 
 
+// =====================================================
+// 🔑 SUPER ADMIN — IMPERSONATE / LOGIN AS CLIENT
+// =====================================================
+app.post('/api/clients/:id/impersonate', async (req, res) => {
+  const clientId = req.params.id;
+
+  try {
+    const [rows] = await pool.promise().query(
+      'SELECT id, name, email, company, role FROM users WHERE id = ? AND role = "user"',
+      [clientId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: 'Client not found' });
+    }
+
+    const client = rows[0];
+
+    // Special impersonation token (1 hour valid)
+    const impersonateToken = jwt.sign(
+      {
+        id: client.id,
+        email: client.email,
+        name: client.name,
+        company: client.company,
+        role: client.role,
+        impersonatedBy: 'superadmin',   // ← isse pata chalega ki yeh admin login hai
+        originalRole: 'user'
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      success: true,
+      token: impersonateToken,
+      redirectTo: '/dashboard'   // ya jo bhi client dashboard ka route hai
+    });
+
+  } catch (err) {
+    console.error('IMPERSONATE ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Add these endpoints to your existing server.js (after the clients endpoints)
 
 // =====================================================

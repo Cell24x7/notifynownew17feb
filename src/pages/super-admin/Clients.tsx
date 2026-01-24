@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -244,33 +244,70 @@ export default function SuperAdminClients() {
     }
   };
 
-  const handleDelete = async (client: any) => {
-    if (!window.confirm("Are you sure you want to delete this client?")) return;
+  // const handleDelete = async (client: any) => {
+  //   if (!window.confirm("Are you sure you want to delete this client?")) return;
 
-    try {
-      const res = await axios.delete(`${API_URL}/clients/${client.id}`);
-      if (res.data.success) {
-        toast({
-          title: 'Success',
-          description: 'Client deleted successfully',
-        });
-        fetchClients(); // refresh your datatable
-      } else {
-        toast({
-          title: 'Error',
-          description: res.data.message || 'Failed to delete client',
-          variant: 'destructive',
-        });
-      }
-    } catch (err: any) {
-      console.error('DELETE CLIENT ERROR:', err);
+  //   try {
+  //     const res = await axios.delete(`${API_URL}/clients/${client.id}`);
+  //     if (res.data.success) {
+  //       toast({
+  //         title: 'Success',
+  //         description: 'Client deleted successfully',
+  //       });
+  //       fetchClients(); // refresh your datatable
+  //     } else {
+  //       toast({
+  //         title: 'Error',
+  //         description: res.data.message || 'Failed to delete client',
+  //         variant: 'destructive',
+  //       });
+  //     }
+  //   } catch (err: any) {
+  //     console.error('DELETE CLIENT ERROR:', err);
+  //     toast({
+  //       title: 'Error',
+  //       description: 'Failed to delete client',
+  //       variant: 'destructive',
+  //     });
+  //   }
+  // };
+
+
+
+
+const handleLoginAsClient = async (client: any) => {
+  if (!window.confirm(`Login as ${client.name} (${client.email})?`)) return;
+
+  try {
+    // Fix: remove the extra /api/
+    const res = await axios.post(`${API_URL}/clients/${client.id}/impersonate`);
+
+    if (res.data.success) {
+      localStorage.setItem('authToken', res.data.token);
+
       toast({
-        title: 'Error',
-        description: 'Failed to delete client',
-        variant: 'destructive',
+        title: "Switching...",
+        description: `Logging in as ${client.name}`,
+      });
+
+      // Open in new tab (recommended for impersonation)
+      window.open('/dashboard', '_blank');
+    } else {
+      toast({
+        title: "Failed",
+        description: res.data.message || "Could not login as client",
+        variant: "destructive",
       });
     }
-  };
+  } catch (err: any) {
+    console.error("Impersonate error:", err);
+    toast({
+      title: "Error",
+      description: err.response?.data?.message || "Failed to connect to server",
+      variant: "destructive",
+    });
+  }
+};
 
   // Real totals from filtered clients
   const totalClients = filteredClients.length;
@@ -472,9 +509,14 @@ export default function SuperAdminClients() {
                           <DropdownMenuItem onClick={() => handleEdit(client)}>
                             <Pencil className="w-4 h-4 mr-2" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(client)}>
+                          {/* <DropdownMenuItem onClick={() => handleDelete(client)}>
                             <Trash2 className="w-4 h-4 mr-2" /> Delete
-                          </DropdownMenuItem>
+                          </DropdownMenuItem> */}
+                     
+
+<DropdownMenuItem onClick={() => handleLoginAsClient(client)}>
+  <LogIn className="w-4 h-4 mr-2" /> Login as Client
+</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleSuspend(client)}>
                             <Ban className="w-4 h-4 mr-2" />
                             {client.status === 'suspended' ? 'Activate' : 'Suspend'}
@@ -662,4 +704,4 @@ export default function SuperAdminClients() {
       </Dialog>
     </div>
   );
-}
+}   
