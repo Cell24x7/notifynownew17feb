@@ -224,27 +224,78 @@ app.post('/api/clients', async (req, res) => {
 });
 
 /* =====================================================
-   🔄 SUPER ADMIN — UPDATE STATUS
+   🔄 SUPER ADMIN — UPDATE CLIENT
 ===================================================== */
 app.put('/api/clients/:id', async (req, res) => {
-  const { status } = req.body;
+  const clientId = req.params.id;
+  const {
+    name,
+    company_name,
+    contact_phone,
+    email,
+    password,
+    plan_id,
+    status,
+    credits_available,
+    channels_enabled
+  } = req.body;
 
-  if (!['active', 'suspended'].includes(status)) {
-    return res.status(400).json({ success: false, message: 'Invalid status' });
+  const fields = [];
+  const values = [];
+
+  if (name !== undefined) {
+    fields.push('name = ?');
+    values.push(name);
+  }
+  if (company_name !== undefined) {
+    fields.push('company = ?');
+    values.push(company_name);
+  }
+  if (contact_phone !== undefined) {
+    fields.push('contact_phone = ?');
+    values.push(contact_phone);
+  }
+  if (email !== undefined) {
+    fields.push('email = ?');
+    values.push(email);
+  }
+  if (plan_id !== undefined) {
+    fields.push('plan_id = ?');
+    values.push(plan_id);
+  }
+  if (status !== undefined) {
+    fields.push('status = ?');
+    values.push(status);
+  }
+  if (credits_available !== undefined) {
+    fields.push('credits_available = ?');
+    values.push(credits_available);
+  }
+  if (channels_enabled !== undefined) {
+    fields.push('channels_enabled = ?');
+    values.push(JSON.stringify(channels_enabled));
+  }
+  if (password && password.trim()) {
+    const hash = await bcrypt.hash(password, 10);
+    fields.push('password = ?');
+    values.push(hash);
+  }
+
+  if (!fields.length) {
+    return res.status(400).json({ success: false, message: 'No fields to update' });
   }
 
   try {
-    const [result] = await pool.promise().query(
-      'UPDATE users SET status = ? WHERE id = ? AND role = "user"',
-      [status, req.params.id]
-    );
+    const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role = "user"`;
+    values.push(clientId);
+    const [result] = await pool.promise().query(query, values);
 
     if (!result.affectedRows)
       return res.status(404).json({ success: false, message: 'Client not found' });
 
     res.json({ success: true });
   } catch (err) {
-    console.error('UPDATE STATUS ERROR:', err.message);
+    console.error('UPDATE CLIENT ERROR:', err.message);
     res.status(500).json({ success: false });
   }
 });
@@ -267,6 +318,199 @@ app.delete('/api/clients/:id', async (req, res) => {
     res.json({ success: true, message: 'Client deleted successfully' });
   } catch (err) {
     console.error('DELETE CLIENT ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* =====================================================
+   💳 SUPER ADMIN — GET WALLET TRANSACTIONS
+===================================================== */
+app.get('/api/wallet/transactions', async (req, res) => {
+  try {
+    const [rows] = await pool.promise().query(`
+      SELECT 
+        t.id,
+        t.type,
+        t.amount,
+        t.credits,
+        t.description,
+        t.status,
+        t.created_at,
+        u.name AS client_name
+      FROM transactions t
+      LEFT JOIN users u ON t.user_id = u.id
+      ORDER BY t.created_at DESC
+    `);
+    res.json({ success: true, transactions: rows });
+  } catch (err) {
+    console.error('TRANSACTIONS ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* =====================================================
+   🔄 SUPER ADMIN — ADJUST CREDITS (ADD/REFUND)
+===================================================== */
+app.post('/api/wallet/adjust', async (req, res) => {
+  const { user_id, type, credits, description } = req.body;
+
+  if (!user_id || !type || !credits || !description) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
+  }
+
+  if (!['adjustment', 'refund'].includes(type)) {
+    return res.status(400).json({ success: false, message: 'Invalid type' });
+  }
+
+  try {
+    // Update user's credits
+    await pool.promise().query(`
+      UPDATE users 
+      SET credits_available = credits_available + ?
+      WHERE id = ? AND role = 'user'
+    `, [credits, user_id]);
+
+    // Log transaction
+    const [result] = await pool.promise().query(`
+      INSERT INTO transactions (
+        user_id,
+        type,
+        amount,
+        credits,
+        description,
+        status
+      ) VALUES (?, ?, 0, ?, ?, 'completed')
+    `, [user_id, type, credits, description]);
+
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    console.error('ADJUST CREDITS ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+// Add these endpoints to your existing server.js (after the clients endpoints)
+
+// =====================================================
+// 👥 SUPER ADMIN — GET RESELLERS
+// =====================================================
+app.get('/api/resellers', async (req, res) => {
+  try {
+    const [rows] = await pool.promise().query(`
+      SELECT 
+        id,
+        name,
+        email,
+        phone,
+        domain,
+        api_base_url,
+        commission_percent,
+        status,
+        revenue_generated,
+        clients_managed,
+        payout_pending,
+        created_at
+      FROM resellers
+      ORDER BY created_at DESC
+    `);
+
+    res.json({ success: true, resellers: rows });
+  } catch (err) {
+    console.error('GET RESELLERS ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch resellers' });
+  }
+});
+
+// =====================================================
+// ➕ SUPER ADMIN — ADD RESELLER
+// =====================================================
+app.post('/api/resellers', async (req, res) => {
+  const {
+    name,
+    email,
+    phone = null,
+    domain = null,
+    api_base_url = null,
+    commission_percent = 10,
+    status = 'active'
+  } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ success: false, message: 'Name and email are required' });
+  }
+
+  try {
+    // Check if email already exists
+    const [exists] = await pool.promise().query(
+      'SELECT id FROM resellers WHERE email = ?',
+      [email]
+    );
+
+    if (exists.length) {
+      return res.status(409).json({ success: false, message: 'Email already registered' });
+    }
+
+    const [result] = await pool.promise().query(`
+      INSERT INTO resellers (
+        name, email, phone, domain, api_base_url, 
+        commission_percent, status, 
+        revenue_generated, clients_managed, payout_pending
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
+    `, [
+      name, email, phone, domain, api_base_url,
+      commission_percent, status
+    ]);
+
+    res.status(201).json({
+      success: true,
+      id: result.insertId,
+      message: 'Reseller added successfully'
+    });
+  } catch (err) {
+    console.error('ADD RESELLER ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =====================================================
+// 🔄 SUPER ADMIN — UPDATE RESELLER (optional, for edit later)
+// =====================================================
+app.put('/api/resellers/:id', async (req, res) => {
+  const resellerId = req.params.id;
+  const {
+    name, email, phone, domain, api_base_url,
+    commission_percent, status
+  } = req.body;
+
+  const fields = [];
+  const values = [];
+
+  if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+  if (email !== undefined) { fields.push('email = ?'); values.push(email); }
+  if (phone !== undefined) { fields.push('phone = ?'); values.push(phone); }
+  if (domain !== undefined) { fields.push('domain = ?'); values.push(domain); }
+  if (api_base_url !== undefined) { fields.push('api_base_url = ?'); values.push(api_base_url); }
+  if (commission_percent !== undefined) { fields.push('commission_percent = ?'); values.push(commission_percent); }
+  if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+
+  if (!fields.length) {
+    return res.status(400).json({ success: false, message: 'No fields to update' });
+  }
+
+  try {
+    const query = `UPDATE resellers SET ${fields.join(', ')} WHERE id = ?`;
+    values.push(resellerId);
+
+    const [result] = await pool.promise().query(query, values);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Reseller not found' });
+    }
+
+    res.json({ success: true, message: 'Reseller updated' });
+  } catch (err) {
+    console.error('UPDATE RESELLER ERROR:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });

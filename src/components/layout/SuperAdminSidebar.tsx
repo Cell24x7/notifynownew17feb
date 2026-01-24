@@ -112,30 +112,28 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
 
       {/* Footer */}
       <div className="p-4 border-t border-border">
-        {!collapsed && (
-          <div className="mb-3 px-2">
-            <div className="text-xs text-muted-foreground">Logged in as</div>
-            <div className="text-sm font-medium truncate">Platform Owner</div>
-          </div>
-        )}
-        <div className="flex gap-2">
-          <NavLink to="/dashboard" className="flex-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn('w-full', collapsed && 'px-2')}
-              title={collapsed ? 'Switch to Client View' : undefined}
-            >
-              {collapsed ? <Building2 className="w-4 h-4" /> : 'Client View'}
-            </Button>
-          </NavLink>
-          {!collapsed && (
-            <Button variant="ghost" size="icon" onClick={logout} title="Logout">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </div>
+  {!collapsed && (
+    <div className="mb-3 px-2">
+      <div className="text-xs text-muted-foreground">Logged in as</div>
+      <div className="text-sm font-medium truncate">Platform Owner</div>
+    </div>
+  )}
+
+  <Button
+    variant="ghost"
+    size={collapsed ? "icon" : "sm"}
+    onClick={logout}
+    className={cn(
+      "w-full flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-50",
+      collapsed && "justify-center"
+    )}
+    title="Logout"
+  >
+    <LogOut className="w-4 h-4" />
+    {!collapsed && <span>Logout</span>}
+  </Button>
+</div>
+
     </aside>
   );
 }

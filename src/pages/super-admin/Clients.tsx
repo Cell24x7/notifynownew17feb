@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2 } from 'lucide-react';
+import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,6 @@ import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -36,12 +34,13 @@ export default function SuperAdminClients() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [clients, setClients] = useState<any[]>([]);
   const [filteredClients, setFilteredClients] = useState<any[]>([]);
-  const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
 
-  // Add Client form state
-  const [newClient, setNewClient] = useState({
+  // Client form state
+  const [currentClient, setCurrentClient] = useState({
+    id: '',
     name: '',
     company_name: '',
     email: '',
@@ -105,7 +104,7 @@ export default function SuperAdminClients() {
   };
 
   const handleChannelToggle = (channel: string) => {
-    setNewClient(prev => ({
+    setCurrentClient(prev => ({
       ...prev,
       channels_enabled: prev.channels_enabled.includes(channel)
         ? prev.channels_enabled.filter(c => c !== channel)
@@ -114,7 +113,7 @@ export default function SuperAdminClients() {
   };
 
   const handleAddClient = async () => {
-    if (!newClient.name.trim() || !newClient.company_name.trim() || !newClient.email.trim() || !newClient.password.trim() || !newClient.plan_id) {
+    if (!currentClient.name.trim() || !currentClient.company_name.trim() || !currentClient.email.trim() || !currentClient.password.trim() || !currentClient.plan_id) {
       toast({
         title: 'Validation Error',
         description: 'All required fields must be filled',
@@ -125,14 +124,15 @@ export default function SuperAdminClients() {
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/clients`, newClient);
+      const res = await axios.post(`${API_URL}/clients`, currentClient);
       if (res.data.success) {
         toast({
           title: 'Success',
-          description: `${newClient.name} has been added successfully`,
+          description: `${currentClient.name} has been added successfully`,
         });
-        setIsAddClientOpen(false);
-        setNewClient({
+        setIsClientModalOpen(false);
+        setCurrentClient({
+          id: '',
           name: '',
           company_name: '',
           email: '',
@@ -158,6 +158,78 @@ export default function SuperAdminClients() {
     }
   };
 
+  const handleUpdateClient = async () => {
+    if (!currentClient.name.trim() || !currentClient.company_name.trim() || !currentClient.email.trim() || !currentClient.plan_id) {
+      toast({
+        title: 'Validation Error',
+        description: 'All required fields must be filled',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = { ...currentClient };
+      if (!payload.password.trim()) {
+        delete payload.password;
+      }
+      const res = await axios.put(`${API_URL}/clients/${currentClient.id}`, payload);
+      if (res.data.success) {
+        toast({
+          title: 'Success',
+          description: `${currentClient.name} has been updated successfully`,
+        });
+        setIsClientModalOpen(false);
+        fetchClients(); // Refresh list
+      } else {
+        toast({ title: 'Failed', description: res.data.message || 'Could not update client', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Something went wrong',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleView = (client: any) => {
+    setCurrentClient({
+      id: client.id,
+      name: client.name,
+      company_name: client.company_name,
+      email: client.email,
+      password: '',
+      contact_phone: client.contact_phone || '',
+      plan_id: client.plan_id || '',
+      status: client.status,
+      credits_available: client.credits_available || 0,
+      channels_enabled: JSON.parse(client.channels_enabled || '[]'),
+    });
+    setModalMode('view');
+    setIsClientModalOpen(true);
+  };
+
+  const handleEdit = (client: any) => {
+    setCurrentClient({
+      id: client.id,
+      name: client.name,
+      company_name: client.company_name,
+      email: client.email,
+      password: '',
+      contact_phone: client.contact_phone || '',
+      plan_id: client.plan_id || '',
+      status: client.status,
+      credits_available: client.credits_available || 0,
+      channels_enabled: JSON.parse(client.channels_enabled || '[]'),
+    });
+    setModalMode('edit');
+    setIsClientModalOpen(true);
+  };
+
   const handleSuspend = async (client: any) => {
     try {
       const newStatus = client.status === 'suspended' ? 'active' : 'suspended';
@@ -173,41 +245,36 @@ export default function SuperAdminClients() {
   };
 
   const handleDelete = async (client: any) => {
-  if (!window.confirm("Are you sure you want to delete this client?")) return;
+    if (!window.confirm("Are you sure you want to delete this client?")) return;
 
-  try {
-    const res = await axios.delete(`${API_URL}/clients/${client.id}`);
-    if (res.data.success) {
-      toast({
-        title: 'Success',
-        description: 'Client deleted successfully',
-      });
-      fetchClients(); // refresh your datatable
-    } else {
+    try {
+      const res = await axios.delete(`${API_URL}/clients/${client.id}`);
+      if (res.data.success) {
+        toast({
+          title: 'Success',
+          description: 'Client deleted successfully',
+        });
+        fetchClients(); // refresh your datatable
+      } else {
+        toast({
+          title: 'Error',
+          description: res.data.message || 'Failed to delete client',
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      console.error('DELETE CLIENT ERROR:', err);
       toast({
         title: 'Error',
-        description: res.data.message || 'Failed to delete client',
+        description: 'Failed to delete client',
         variant: 'destructive',
       });
     }
-  } catch (err: any) {
-    console.error('DELETE CLIENT ERROR:', err);
-    toast({
-      title: 'Error',
-      description: 'Failed to delete client',
-      variant: 'destructive',
-    });
-  }
-};
-
-
-
-
-
+  };
 
   // Real totals from filtered clients
   const totalClients = filteredClients.length;
-  const totalActiveUsers = filteredClients.reduce((sum, c) => sum + (c.active_users || 0), 0);
+  const totalActiveUsers = filteredClients.filter(c => c.status === 'active').length;
   const totalCreditsUsed = filteredClients.reduce((sum, c) => sum + (c.credits_used || 0), 0);
   const totalCreditsAvailable = filteredClients.reduce((sum, c) => sum + (c.credits_available || 0), 0);
 
@@ -219,7 +286,25 @@ export default function SuperAdminClients() {
           <h1 className="text-2xl sm:text-3xl font-bold">Clients</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Manage all platform clients</p>
         </div>
-        <Button onClick={() => setIsAddClientOpen(true)} className="w-full sm:w-auto">
+        <Button
+          onClick={() => {
+            setCurrentClient({
+              id: '',
+              name: '',
+              company_name: '',
+              email: '',
+              password: '',
+              contact_phone: '',
+              plan_id: '',
+              status: 'active',
+              credits_available: 0,
+              channels_enabled: [],
+            });
+            setModalMode('add');
+            setIsClientModalOpen(true);
+          }}
+          className="w-full sm:w-auto"
+        >
           <Plus className="w-4 h-4 mr-2" /> Add Client
         </Button>
       </div>
@@ -352,7 +437,7 @@ export default function SuperAdminClients() {
                     <TableCell className="font-medium">{client.name}</TableCell>
                     <TableCell>{client.company_name}</TableCell>
                     <TableCell className="text-sm">{client.email}</TableCell>
-                    <TableCell><Badge variant="outline">{client.plan_id}</Badge></TableCell>
+                    <TableCell><Badge variant="outline">{plans.find(p => p.id === client.plan_id)?.name || client.plan_id}</Badge></TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center gap-1 flex-wrap">
                         {JSON.parse(client.channels_enabled || '[]').slice(0, 4).map((ch: string) => (
@@ -381,11 +466,14 @@ export default function SuperAdminClients() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedClient(client)}>
+                          <DropdownMenuItem onClick={() => handleView(client)}>
                             <Eye className="w-4 h-4 mr-2" /> View
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(client)}>
+                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDelete(client)}>
-                            <Eye className="w-4 h-4 mr-2" /> Delete
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleSuspend(client)}>
                             <Ban className="w-4 h-4 mr-2" />
@@ -402,13 +490,13 @@ export default function SuperAdminClients() {
         </CardContent>
       </Card>
 
-      {/* Add Client Dialog */}
-      <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+      {/* Client Modal Dialog */}
+      <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
         <DialogContent className="max-w-3xl sm:max-w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl flex items-center gap-3">
               <Building2 className="w-6 h-6 text-primary" />
-              Add New Client
+              {modalMode === 'add' ? 'Add New Client' : modalMode === 'edit' ? `Edit Client: ${currentClient.name}` : `View Client: ${currentClient.name}`}
             </DialogTitle>
           </DialogHeader>
 
@@ -417,11 +505,21 @@ export default function SuperAdminClients() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Client Name *</Label>
-                <Input placeholder="Enter client name" value={newClient.name} onChange={e => setNewClient(prev => ({...prev, name: e.target.value}))} />
+                <Input
+                  placeholder="Enter client name"
+                  value={currentClient.name}
+                  onChange={e => setCurrentClient(prev => ({...prev, name: e.target.value}))}
+                  disabled={modalMode === 'view'}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Company Name *</Label>
-                <Input placeholder="Enter company name" value={newClient.company_name} onChange={e => setNewClient(prev => ({...prev, company_name: e.target.value}))} />
+                <Input
+                  placeholder="Enter company name"
+                  value={currentClient.company_name}
+                  onChange={e => setCurrentClient(prev => ({...prev, company_name: e.target.value}))}
+                  disabled={modalMode === 'view'}
+                />
               </div>
             </div>
 
@@ -429,25 +527,47 @@ export default function SuperAdminClients() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Email *</Label>
-                <Input type="email" placeholder="client@example.com" value={newClient.email} onChange={e => setNewClient(prev => ({...prev, email: e.target.value}))} />
+                <Input
+                  type="email"
+                  placeholder="client@example.com"
+                  value={currentClient.email}
+                  onChange={e => setCurrentClient(prev => ({...prev, email: e.target.value}))}
+                  disabled={modalMode === 'view'}
+                />
               </div>
-              <div className="space-y-2">
-                <Label>Password *</Label>
-                <Input type="password" placeholder="Enter password" value={newClient.password} onChange={e => setNewClient(prev => ({...prev, password: e.target.value}))} />
-              </div>
+              {modalMode !== 'view' && (
+                <div className="space-y-2">
+                  <Label>Password {modalMode === 'add' ? '*' : '(Leave blank to keep current)'}</Label>
+                  <Input
+                    type="password"
+                    placeholder="Enter password"
+                    value={currentClient.password}
+                    onChange={e => setCurrentClient(prev => ({...prev, password: e.target.value}))}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Contact Phone */}
             <div className="space-y-2">
               <Label>Contact Phone</Label>
-              <Input placeholder="+91 98765 43210" value={newClient.contact_phone} onChange={e => setNewClient(prev => ({...prev, contact_phone: e.target.value}))} />
+              <Input
+                placeholder="+91 98765 43210"
+                value={currentClient.contact_phone}
+                onChange={e => setCurrentClient(prev => ({...prev, contact_phone: e.target.value}))}
+                disabled={modalMode === 'view'}
+              />
             </div>
 
             {/* Plan & Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Plan *</Label>
-                <Select value={newClient.plan_id} onValueChange={v => setNewClient(p => ({...p, plan_id: v}))}>
+                <Select
+                  value={currentClient.plan_id}
+                  onValueChange={v => setCurrentClient(p => ({...p, plan_id: v}))}
+                  disabled={modalMode === 'view'}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select plan" />
                   </SelectTrigger>
@@ -458,7 +578,11 @@ export default function SuperAdminClients() {
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={newClient.status} onValueChange={v => setNewClient(p => ({...p, status: v as any}))}>
+                <Select
+                  value={currentClient.status}
+                  onValueChange={v => setCurrentClient(p => ({...p, status: v as any}))}
+                  disabled={modalMode === 'view'}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -475,7 +599,13 @@ export default function SuperAdminClients() {
             {/* Credits */}
             <div className="space-y-2">
               <Label>Initial Credits</Label>
-              <Input type="number" placeholder="0" value={newClient.credits_available} onChange={e => setNewClient(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))} />
+              <Input
+                type="number"
+                placeholder="0"
+                value={currentClient.credits_available}
+                onChange={e => setCurrentClient(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))}
+                disabled={modalMode === 'view'}
+              />
             </div>
 
             {/* Channels */}
@@ -486,13 +616,17 @@ export default function SuperAdminClients() {
                   <div
                     key={channel}
                     className={cn(
-                      'flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors',
-                      newClient.channels_enabled.includes(channel) && 'border-primary bg-primary/5',
-                      'hover:bg-muted/50'
+                      'flex items-center gap-3 p-3 border rounded-lg transition-colors',
+                      currentClient.channels_enabled.includes(channel) && 'border-primary bg-primary/5',
+                      modalMode !== 'view' && 'cursor-pointer hover:bg-muted/50'
                     )}
-                    onClick={() => handleChannelToggle(channel)}
+                    onClick={modalMode !== 'view' ? () => handleChannelToggle(channel) : undefined}
                   >
-                    <Checkbox checked={newClient.channels_enabled.includes(channel)} onCheckedChange={() => handleChannelToggle(channel)} />
+                    <Checkbox
+                      checked={currentClient.channels_enabled.includes(channel)}
+                      onCheckedChange={() => handleChannelToggle(channel)}
+                      disabled={modalMode === 'view'}
+                    />
                     <ChannelIcon channel={channel} className="w-6 h-6 flex-shrink-0" />
                     <span className="capitalize text-sm font-medium truncate">{channel}</span>
                   </div>
@@ -502,19 +636,27 @@ export default function SuperAdminClients() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-3 pt-4 border-t">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddClientOpen(false)}>
-              Cancel
-            </Button>
-            <Button className="w-full sm:w-auto gradient-primary" onClick={handleAddClient} disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                'Add Client'
-              )}
-            </Button>
+            {modalMode !== 'view' && (
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsClientModalOpen(false)}>
+                Cancel
+              </Button>
+            )}
+            {modalMode === 'view' ? (
+              <Button className="w-full sm:w-auto" onClick={() => setIsClientModalOpen(false)}>
+                Close
+              </Button>
+            ) : (
+              <Button className="w-full sm:w-auto gradient-primary" onClick={modalMode === 'add' ? handleAddClient : handleUpdateClient} disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {modalMode === 'add' ? 'Adding...' : 'Updating...'}
+                  </>
+                ) : (
+                  modalMode === 'add' ? 'Add Client' : 'Update Client'
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
