@@ -2,14 +2,14 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
-const API_URL = 'http://localhost:5000';  // agar backend port change kiya ho to yahan update kar dena
+const API_URL = 'http://localhost:5000';  // change only if your backend port is different
 
 interface User {
   id: string;
   name: string;
   email: string;
   company?: string;
-  role?: 'user' | 'admin';
+  role?: 'user' | 'admin' | 'superadmin';
 }
 
 interface AuthContextType {
@@ -31,13 +31,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const decoded: any = jwtDecode(token);
         setUser({
-          id: decoded.id.toString(),
-          name: decoded.name || decoded.email.split('@')[0],
-          email: decoded.email,
+          id: decoded.id?.toString() || '',
+          name: decoded.name || decoded.email?.split('@')[0] || 'User',
+          email: decoded.email || '',
           company: decoded.company,
           role: decoded.role,
         });
       } catch (err) {
+        console.error('Invalid token on load:', err);
         localStorage.removeItem('authToken');
       }
     }
@@ -45,44 +46,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await axios.post(`${API_URL}/api/login`, { email, password });
-      const { token, user: userData } = response.data;
-      if (token) {
+      const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
+
+      const { success, token, user: userData } = response.data;
+
+      if (success && token) {
         localStorage.setItem('authToken', token);
         setUser({
-          id: userData.id.toString(),
-          name: userData.name,
-          email: userData.email,
+          id: userData.id?.toString() || '',
+          name: userData.name || userData.email?.split('@')[0] || 'User',
+          email: userData.email || '',
           company: userData.company,
           role: userData.role,
         });
         return true;
       }
       return false;
-    } catch (err) {
-      console.error('Login error:', err);
+    } catch (err: any) {
+      console.error('Login failed:', err.response?.data || err.message);
       return false;
     }
   };
 
-  const signup = async (name: string, company: string, email: string, password: string): Promise<boolean> => {
+  const signup = async (
+    name: string,
+    company: string,
+    email: string,
+    password: string
+  ): Promise<boolean> => {
     try {
-      const response = await axios.post(`${API_URL}/api/signup`, { name, company, email, password });
-      const { token, user: userData } = response.data;
-      if (token) {
+      const response = await axios.post(`${API_URL}/api/auth/signup`, {
+        name,
+        company,
+        email,
+        password,
+      });
+
+      const { success, token, user: userData } = response.data;
+
+      if (success && token) {
         localStorage.setItem('authToken', token);
         setUser({
-          id: userData.id.toString(),
-          name: userData.name,
-          email: userData.email,
+          id: userData.id?.toString() || '',
+          name: userData.name || userData.email?.split('@')[0] || 'User',
+          email: userData.email || '',
           company: userData.company,
           role: userData.role || 'user',
         });
         return true;
       }
       return false;
-    } catch (err) {
-      console.error('Signup error:', err);
+    } catch (err: any) {
+      console.error('Signup failed:', err.response?.data || err.message);
       return false;
     }
   };
@@ -92,11 +107,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('authToken');
   };
 
-  return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    isAuthenticated: !!user,
+    login,
+    signup,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

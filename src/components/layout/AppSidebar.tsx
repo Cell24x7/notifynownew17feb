@@ -13,11 +13,8 @@ import {
   Wallet,
   Plus,
   Users,
-  Globe,
-  Radio,
-  Mail,
-  Lock,
-  Bell,
+  Package,          // ← Plans ke liye add kiya
+  CreditCard,       // ← optional, lekin achha lagta hai
   Moon,
   Sun,
   ChevronDown,
@@ -31,10 +28,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Switch } from '@/components/ui/switch';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AppSidebarProps {
   onClose?: () => void;
@@ -55,6 +51,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Send, label: 'Campaigns', path: '/campaigns' },
     { icon: Zap, label: 'Automations', path: '/automations' },
     { icon: Puzzle, label: 'Integrations', path: '/integrations' },
+    { icon: Package, label: 'Plans', path: '/userplans' },   // ← yeh wala add kar diya
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
@@ -69,11 +66,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b">
         {!collapsed ? (
           <div className="flex items-center gap-2">
-            <img src="/logo.png" className="w-8 h-8 rounded-lg" />
+            <img src="/logo.png" className="w-8 h-8 rounded-lg" alt="Cell24x7" />
             <span className="font-bold text-lg">Cell24x7</span>
           </div>
         ) : (
-          <img src="/logo.png" className="w-8 h-8 rounded-lg" />
+          <img src="/logo.png" className="w-8 h-8 rounded-lg" alt="Logo" />
         )}
 
         <Button
@@ -105,7 +102,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64">
-            <p className="text-sm">Balance: ₹{walletBalance}</p>
+            <p className="text-sm font-medium">Wallet Balance</p>
+            <p className="text-lg font-bold">₹{walletBalance}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Messages, campaigns aur API ke liye use hota hai
+            </p>
           </PopoverContent>
         </Popover>
       </div>
@@ -122,10 +123,10 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
                 active
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -139,36 +140,33 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       <div className="p-4 border-t">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                {user?.name?.charAt(0) || 'D'}
+            <button className="w-full flex items-center gap-3 hover:bg-accent/50 p-2 rounded-lg transition-colors">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-medium">
+                {user?.name?.charAt(0) || 'U'}
               </div>
               {!collapsed && (
                 <>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium">{user?.name || 'Demo'}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {user?.email}
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {user?.name || 'User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user?.email || 'user@example.com'}
                     </p>
                   </div>
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-4 w-4 opacity-70" />
                 </>
               )}
             </button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent className="w-56">
-            <DropdownMenuItem
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            >
-              {isDark ? <Sun /> : <Moon />}
-              <span className="ml-2">Theme</span>
+          <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuItem onClick={() => setTheme(isDark ? 'light' : 'dark')}>
+              {isDark ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+              Theme Toggle
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={logout}
-            >
+            <DropdownMenuItem className="text-destructive" onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </DropdownMenuItem>

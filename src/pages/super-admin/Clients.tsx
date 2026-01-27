@@ -275,36 +275,54 @@ export default function SuperAdminClients() {
 
 
 
-const handleLoginAsClient = async (client: any) => {
-  if (!window.confirm(`Login as ${client.name} (${client.email})?`)) return;
+const handleLoginAsClient = async (clientId: string | number | undefined) => {
+  // Safety check – prevent [object Object] or invalid ID
+  if (!clientId || typeof clientId === 'object') {
+    console.error('Invalid clientId passed to impersonate:', clientId);
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Invalid client selected. Please try again.",
+    });
+    return;
+  }
+
+  const id = String(clientId); // make sure it's string
+
+  console.log(`Attempting to impersonate client ID: ${id}`);
 
   try {
-    // Fix: remove the extra /api/
-    const res = await axios.post(`${API_URL}/clients/${client.id}/impersonate`);
+    const response = await axios.post(`http://localhost:5000/api/clients/${id}/impersonate`);
 
-    if (res.data.success) {
-      localStorage.setItem('authToken', res.data.token);
+    console.log('Impersonate response:', response.data);
+
+    const { success, token, redirectTo } = response.data;
+
+    if (success && token) {
+      localStorage.setItem('authToken', token);
 
       toast({
-        title: "Switching...",
-        description: `Logging in as ${client.name}`,
+        title: "Success",
+        description: "Successfully logged in as client",
       });
 
-      // Open in new tab (recommended for impersonation)
-      window.open('/dashboard', '_blank');
+      // Redirect to dashboard
+      window.location.href = redirectTo || '/dashboard';
     } else {
-      toast({
-        title: "Failed",
-        description: res.data.message || "Could not login as client",
-        variant: "destructive",
-      });
+      throw new Error('No token received from server');
     }
   } catch (err: any) {
-    console.error("Impersonate error:", err);
+    console.error('Impersonate failed:', err);
+
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      'Failed to login as client. Server may be down or client not found.';
+
     toast({
-      title: "Error",
-      description: err.response?.data?.message || "Failed to connect to server",
       variant: "destructive",
+      title: "Impersonate Failed",
+      description: errorMessage,
     });
   }
 };
@@ -514,7 +532,7 @@ const handleLoginAsClient = async (client: any) => {
                           </DropdownMenuItem> */}
                      
 
-<DropdownMenuItem onClick={() => handleLoginAsClient(client)}>
+<DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
   <LogIn className="w-4 h-4 mr-2" /> Login as Client
 </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleSuspend(client)}>

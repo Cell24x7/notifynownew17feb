@@ -51,16 +51,16 @@ interface EmailEntry {
   label: string;
 }
 
-interface WebsiteEntry {
-  id: string;
-  url: string;
-  label: string;
-}
+// interface WebsiteEntry {
+//   id: string;
+//   url: string;
+//   label: string;
+// }
 
 interface RCSConfig {
   botType: 'domestic' | 'international' | '';
   messageType: 'otp' | 'transactional' | 'promotional' | '';
-  billingCategory: string;
+  // billingCategory: string;
   botName: string;
   brandName: string;
   botLogo: string | null;
@@ -68,15 +68,15 @@ interface RCSConfig {
   bannerImage: string | null;
   bannerImageFile: File | null;
   shortDescription: string;
-  brandColor: string;
+  // brandColor: string;
   phoneNumbers: PhoneEntry[];
   emails: EmailEntry[];
-  websites: WebsiteEntry[];
+  // websites: WebsiteEntry[];
   termsOfUseUrl: string;
   privacyPolicyUrl: string;
-  developmentPlatform: string;
-  chatbotWebhook: string;
-  callbackUrl: string;
+  // developmentPlatform: string;
+  // chatbotWebhook: string;
+  // callbackUrl: string;
   languagesSupported: string;
   agreeToLaunch: boolean;
 }
@@ -90,16 +90,16 @@ const countryCodes = [
   { code: '+61', country: 'AU', flag: '🇦🇺' },
 ];
 
-const billingCategories = [
-  'Conversational',
-  'Single Message',
-  'Basic Message',
-];
+// const billingCategories = [
+//   'Conversational',
+//   'Single Message',
+//   'Basic Message',
+// ];
 
-const developmentPlatforms = [
-  { value: 'gsma', label: 'GSMA API' },
-  { value: 'google', label: 'Google styled API' },
-];
+// const developmentPlatforms = [
+//   { value: 'gsma', label: 'GSMA API' },
+//   { value: 'google', label: 'Google styled API' },
+// ];
 
 export function RCSConfiguration() {
   const { toast } = useToast();
@@ -107,7 +107,7 @@ export function RCSConfiguration() {
   const [config, setConfig] = useState<RCSConfig>({
     botType: '',
     messageType: '',
-    billingCategory: '',
+    // billingCategory: '',
     botName: '',
     brandName: '',
     botLogo: null,
@@ -115,15 +115,15 @@ export function RCSConfiguration() {
     bannerImage: null,
     bannerImageFile: null,
     shortDescription: '',
-    brandColor: '#7C3AED',
+    // brandColor: '#7C3AED',
     phoneNumbers: [{ id: '1', countryCode: '+91', number: '', label: '' }],
     emails: [{ id: '1', email: '', label: '' }],
-    websites: [{ id: '1', url: '', label: '' }],
+    // websites: [{ id: '1', url: '', label: '' }],
     termsOfUseUrl: '',
     privacyPolicyUrl: '',
-    developmentPlatform: '',
-    chatbotWebhook: '',
-    callbackUrl: '',
+    // developmentPlatform: '',
+    // chatbotWebhook: '',
+    // callbackUrl: '',
     languagesSupported: '',
     agreeToLaunch: false,
   });
@@ -223,21 +223,21 @@ export function RCSConfiguration() {
     }
   };
 
-  const addWebsite = () => {
-    setConfig({
-      ...config,
-      websites: [...config.websites, { id: Date.now().toString(), url: '', label: '' }],
-    });
-  };
+  // const addWebsite = () => {
+  //   setConfig({
+  //     ...config,
+  //     websites: [...config.websites, { id: Date.now().toString(), url: '', label: '' }],
+  //   });
+  // };
 
-  const removeWebsite = (id: string) => {
-    if (config.websites.length > 1) {
-      setConfig({
-        ...config,
-        websites: config.websites.filter(w => w.id !== id),
-      });
-    }
-  };
+  // const removeWebsite = (id: string) => {
+  //   if (config.websites.length > 1) {
+  //     setConfig({
+  //       ...config,
+  //       websites: config.websites.filter(w => w.id !== id),
+  //     });
+  //   }
+  // };
 
   const handleSubmit = async () => {
     const errors: string[] = [];
@@ -245,7 +245,7 @@ export function RCSConfiguration() {
     // Required fields
     if (!config.botType) errors.push('Bot Type is required (Domestic or International)');
     if (!config.messageType) errors.push('Message Type is required');
-    if (!config.billingCategory) errors.push('Billing Category is required');
+    // if (!config.billingCategory) errors.push('Billing Category is required');
 
     // Bot Name validation
     if (!config.botName.trim()) {
@@ -288,15 +288,15 @@ export function RCSConfiguration() {
     if (!hasValidEmail) errors.push('At least one valid email address is required');
 
     // At least one valid website
-    const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
-    const hasValidWebsite = config.websites.some(w => w.url.trim() && urlRegex.test(w.url));
-    if (!hasValidWebsite) errors.push('At least one valid website URL is required');
+    // const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+    // const hasValidWebsite = config.websites.some(w => w.url.trim() && urlRegex.test(w.url));
+    // if (!hasValidWebsite) errors.push('At least one valid website URL is required');
 
     // Other required fields
     if (!config.termsOfUseUrl.trim()) errors.push('Terms of Use URL is required');
     if (!config.privacyPolicyUrl.trim()) errors.push('Privacy Policy URL is required');
-    if (!config.developmentPlatform) errors.push('Development Platform is required');
-    if (!config.chatbotWebhook.trim()) errors.push('Chatbot Webhook URL is required');
+    // if (!config.developmentPlatform) errors.push('Development Platform is required');
+    // if (!config.chatbotWebhook.trim()) errors.push('Chatbot Webhook URL is required');
     if (!config.languagesSupported.trim()) errors.push('Languages Supported is required');
 
     if (!config.agreeToLaunch) {
@@ -326,11 +326,11 @@ export function RCSConfiguration() {
           contact_value: e.email,
           label: e.label
         })),
-        ...config.websites.filter(w => w.url.trim()).map(w => ({
-          contact_type: 'WEBSITE' as const,
-          contact_value: w.url,
-          label: w.label
-        }))
+        // ...config.websites.filter(w => w.url.trim()).map(w => ({
+        //   contact_type: 'WEBSITE' as const,
+        //   contact_value: w.url,
+        //   label: w.label
+        // }))
       ];
 
       const messageTypeMap: Record<string, 'OTP' | 'TRANSACTIONAL' | 'PROMOTIONAL'> = {
@@ -343,7 +343,7 @@ export function RCSConfiguration() {
         bot_name: config.botName,
         brand_name: config.brandName,
         short_description: config.shortDescription,
-        brand_color: config.brandColor,
+        // brand_color: config.brandColor,
         bot_logo_url: config.botLogo || '',
         banner_image_url: config.bannerImage || '',
         terms_url: config.termsOfUseUrl,
@@ -351,10 +351,10 @@ export function RCSConfiguration() {
         route_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL') as const,
         bot_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL') as const,
         message_type: messageTypeMap[config.messageType] || 'TRANSACTIONAL' as const,
-        billing_category: config.billingCategory.toUpperCase() as any,
-        development_platform: (config.developmentPlatform === 'gsma' ? 'GSMA_API' : 'GOOGLE_API') as const,
-        webhook_url: config.chatbotWebhook,
-        callback_url: config.callbackUrl,
+        // billing_category: config.billingCategory.toUpperCase() as any,
+        // // development_platform: (config.developmentPlatform === 'gsma' ? 'GSMA_API' : 'GOOGLE_API') as const,
+        // // webhook_url: config.chatbotWebhook,
+        // callback_url: config.callbackUrl,
         languages_supported: config.languagesSupported,
         agree_all_carriers: config.agreeToLaunch,
         status: 'DRAFT' as const,
@@ -487,7 +487,7 @@ export function RCSConfiguration() {
                   </Card>
 
                   {/* Billing Category */}
-                  <Card>
+                  {/* <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">Billing Category <span className="text-destructive">*</span></CardTitle>
                     </CardHeader>
@@ -508,7 +508,7 @@ export function RCSConfiguration() {
                         </SelectContent>
                       </Select>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   {/* Bot Name */}
                   <Card>
@@ -661,7 +661,7 @@ export function RCSConfiguration() {
                   </Card>
 
                   {/* Brand Color */}
-                  <Card>
+                  {/* <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">Brand Color <span className="text-destructive">*</span></CardTitle>
                     </CardHeader>
@@ -681,7 +681,7 @@ export function RCSConfiguration() {
                         />
                       </div>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   <Separator />
 
@@ -736,7 +736,7 @@ export function RCSConfiguration() {
                               />
                             </div>
                           </div>
-                          <div className="md:col-span-5">
+                          {/* <div className="md:col-span-5">
                             <Label className="text-sm">Label for phone number</Label>
                             <div className="mt-1.5">
                               <Input
@@ -753,7 +753,7 @@ export function RCSConfiguration() {
                                 {25 - phone.label.length} characters left
                               </p>
                             </div>
-                          </div>
+                          </div> */}
                           <div className="md:col-span-2 flex items-end pb-6">
                             {index > 0 && (
                               <Button
@@ -799,7 +799,7 @@ export function RCSConfiguration() {
                               className="mt-1.5"
                             />
                           </div>
-                          <div className="md:col-span-5">
+                          {/* <div className="md:col-span-5">
                             <Label className="text-sm">Label for email id</Label>
                             <div className="mt-1.5">
                               <Input
@@ -816,7 +816,7 @@ export function RCSConfiguration() {
                                 {25 - email.label.length} characters left
                               </p>
                             </div>
-                          </div>
+                          </div> */}
                           <div className="md:col-span-2 flex items-end pb-6">
                             {index > 0 && (
                               <Button
@@ -839,7 +839,7 @@ export function RCSConfiguration() {
                   </Card>
 
                   {/* Websites */}
-                  <Card>
+                  {/* <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Globe className="h-4 w-4" />
@@ -899,7 +899,7 @@ export function RCSConfiguration() {
                         Add Website
                       </Button>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   <Separator />
 
@@ -951,7 +951,7 @@ export function RCSConfiguration() {
                     Technical Configuration
                   </h3>
 
-                  <Card>
+                  {/* <Card>
                     <CardHeader className="pb-3">
                       <div className="flex items-center">
                         <CardTitle className="text-base">Development Platform <span className="text-destructive">*</span></CardTitle>
@@ -974,9 +974,9 @@ export function RCSConfiguration() {
                         </SelectContent>
                       </Select>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
-                  <Card>
+                  {/* <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Webhook className="h-4 w-4" />
@@ -990,9 +990,9 @@ export function RCSConfiguration() {
                         placeholder="https://your-server.com/webhook"
                       />
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
-                  <Card>
+                  {/* <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">Callback URL</CardTitle>
                     </CardHeader>
@@ -1003,7 +1003,7 @@ export function RCSConfiguration() {
                         placeholder="https://your-server.com/callback"
                       />
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   <Card>
                     <CardHeader className="pb-3">
@@ -1034,7 +1034,7 @@ export function RCSConfiguration() {
                           onCheckedChange={(checked) => setConfig({ ...config, agreeToLaunch: checked as boolean })}
                         />
                         <Label htmlFor="agree" className="text-sm leading-relaxed cursor-pointer">
-                          I agree to launch the bot on all Indian carriers.
+                          I agree to Submit the bot.
                         </Label>
                       </div>
                     </CardContent>
@@ -1066,7 +1066,7 @@ export function RCSConfiguration() {
                 bannerImage={config.bannerImage}
                 phoneNumber={config.phoneNumbers[0]?.number}
                 email={config.emails[0]?.email}
-                website={config.websites[0]?.url}
+                // website={config.websites[0]?.url}
               />
             </div>
           </div>
