@@ -28,7 +28,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard' },
   { icon: Building2, label: 'Clients', path: '/super-admin/clients' },
   { icon: CreditCard, label: 'Plans', path: '/super-admin/plans' },
-  { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles' },
+  // { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles' },
   { icon: Users, label: 'Resellers', path: '/super-admin/resellers' },
   { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates' },
   { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet' },

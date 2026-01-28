@@ -51,16 +51,12 @@ interface EmailEntry {
   label: string;
 }
 
-// interface WebsiteEntry {
-//   id: string;
-//   url: string;
-//   label: string;
-// }
+
 
 interface RCSConfig {
   botType: 'domestic' | 'international' | '';
   messageType: 'otp' | 'transactional' | 'promotional' | '';
-  // billingCategory: string;
+  
   botName: string;
   brandName: string;
   botLogo: string | null;
@@ -68,15 +64,13 @@ interface RCSConfig {
   bannerImage: string | null;
   bannerImageFile: File | null;
   shortDescription: string;
-  // brandColor: string;
+
   phoneNumbers: PhoneEntry[];
   emails: EmailEntry[];
-  // websites: WebsiteEntry[];
+
   termsOfUseUrl: string;
   privacyPolicyUrl: string;
-  // developmentPlatform: string;
-  // chatbotWebhook: string;
-  // callbackUrl: string;
+ 
   languagesSupported: string;
   agreeToLaunch: boolean;
 }
@@ -90,16 +84,7 @@ const countryCodes = [
   { code: '+61', country: 'AU', flag: '🇦🇺' },
 ];
 
-// const billingCategories = [
-//   'Conversational',
-//   'Single Message',
-//   'Basic Message',
-// ];
 
-// const developmentPlatforms = [
-//   { value: 'gsma', label: 'GSMA API' },
-//   { value: 'google', label: 'Google styled API' },
-// ];
 
 export function RCSConfiguration() {
   const { toast } = useToast();
@@ -107,7 +92,7 @@ export function RCSConfiguration() {
   const [config, setConfig] = useState<RCSConfig>({
     botType: '',
     messageType: '',
-    // billingCategory: '',
+
     botName: '',
     brandName: '',
     botLogo: null,
@@ -115,15 +100,13 @@ export function RCSConfiguration() {
     bannerImage: null,
     bannerImageFile: null,
     shortDescription: '',
-    // brandColor: '#7C3AED',
+
     phoneNumbers: [{ id: '1', countryCode: '+91', number: '', label: '' }],
     emails: [{ id: '1', email: '', label: '' }],
-    // websites: [{ id: '1', url: '', label: '' }],
+ 
     termsOfUseUrl: '',
     privacyPolicyUrl: '',
-    // developmentPlatform: '',
-    // chatbotWebhook: '',
-    // callbackUrl: '',
+ 
     languagesSupported: '',
     agreeToLaunch: false,
   });
@@ -223,21 +206,7 @@ export function RCSConfiguration() {
     }
   };
 
-  // const addWebsite = () => {
-  //   setConfig({
-  //     ...config,
-  //     websites: [...config.websites, { id: Date.now().toString(), url: '', label: '' }],
-  //   });
-  // };
-
-  // const removeWebsite = (id: string) => {
-  //   if (config.websites.length > 1) {
-  //     setConfig({
-  //       ...config,
-  //       websites: config.websites.filter(w => w.id !== id),
-  //     });
-  //   }
-  // };
+  
 
   const handleSubmit = async () => {
     const errors: string[] = [];
@@ -287,16 +256,11 @@ export function RCSConfiguration() {
     const hasValidEmail = config.emails.some(e => e.email.trim() && emailRegex.test(e.email));
     if (!hasValidEmail) errors.push('At least one valid email address is required');
 
-    // At least one valid website
-    // const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
-    // const hasValidWebsite = config.websites.some(w => w.url.trim() && urlRegex.test(w.url));
-    // if (!hasValidWebsite) errors.push('At least one valid website URL is required');
 
     // Other required fields
     if (!config.termsOfUseUrl.trim()) errors.push('Terms of Use URL is required');
     if (!config.privacyPolicyUrl.trim()) errors.push('Privacy Policy URL is required');
-    // if (!config.developmentPlatform) errors.push('Development Platform is required');
-    // if (!config.chatbotWebhook.trim()) errors.push('Chatbot Webhook URL is required');
+
     if (!config.languagesSupported.trim()) errors.push('Languages Supported is required');
 
     if (!config.agreeToLaunch) {
@@ -326,11 +290,7 @@ export function RCSConfiguration() {
           contact_value: e.email,
           label: e.label
         })),
-        // ...config.websites.filter(w => w.url.trim()).map(w => ({
-        //   contact_type: 'WEBSITE' as const,
-        //   contact_value: w.url,
-        //   label: w.label
-        // }))
+ 
       ];
 
       const messageTypeMap: Record<string, 'OTP' | 'TRANSACTIONAL' | 'PROMOTIONAL'> = {
@@ -351,10 +311,7 @@ export function RCSConfiguration() {
         route_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL') as const,
         bot_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL') as const,
         message_type: messageTypeMap[config.messageType] || 'TRANSACTIONAL' as const,
-        // billing_category: config.billingCategory.toUpperCase() as any,
-        // // development_platform: (config.developmentPlatform === 'gsma' ? 'GSMA_API' : 'GOOGLE_API') as const,
-        // // webhook_url: config.chatbotWebhook,
-        // callback_url: config.callbackUrl,
+ 
         languages_supported: config.languagesSupported,
         agree_all_carriers: config.agreeToLaunch,
         status: 'DRAFT' as const,
@@ -487,28 +444,7 @@ export function RCSConfiguration() {
                   </Card>
 
                   {/* Billing Category */}
-                  {/* <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Billing Category <span className="text-destructive">*</span></CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Select
-                        value={config.billingCategory}
-                        onValueChange={(value) => setConfig({ ...config, billingCategory: value })}
-                      >
-                        <SelectTrigger className="w-full md:w-1/2">
-                          <SelectValue placeholder="Select billing category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {billingCategories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </CardContent>
-                  </Card> */}
+               
 
                   {/* Bot Name */}
                   <Card>
@@ -661,27 +597,7 @@ export function RCSConfiguration() {
                   </Card>
 
                   {/* Brand Color */}
-                  {/* <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Brand Color <span className="text-destructive">*</span></CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="color"
-                          value={config.brandColor}
-                          onChange={(e) => setConfig({ ...config, brandColor: e.target.value })}
-                          className="w-12 h-10 rounded border cursor-pointer"
-                        />
-                        <Input
-                          value={config.brandColor}
-                          onChange={(e) => setConfig({ ...config, brandColor: e.target.value })}
-                          placeholder="#7C3AED"
-                          className="w-32"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card> */}
+          
 
                   <Separator />
 
@@ -838,68 +754,8 @@ export function RCSConfiguration() {
                     </CardContent>
                   </Card>
 
-                  {/* Websites */}
-                  {/* <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Globe className="h-4 w-4" />
-                        Websites
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {config.websites.map((website, index) => (
-                        <div key={website.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                          <div className="md:col-span-5">
-                            <Label className="text-sm">{index === 0 ? 'Primary website *' : `Website ${index + 1}`}</Label>
-                            <Input
-                              value={website.url}
-                              onChange={(e) => {
-                                const updated = [...config.websites];
-                                updated[index].url = e.target.value;
-                                setConfig({ ...config, websites: updated });
-                              }}
-                              placeholder="https://"
-                              className="mt-1.5"
-                            />
-                          </div>
-                          <div className="md:col-span-5">
-                            <Label className="text-sm">Label for website</Label>
-                            <div className="mt-1.5">
-                              <Input
-                                value={website.label}
-                                onChange={(e) => {
-                                  const updated = [...config.websites];
-                                  updated[index].label = e.target.value.slice(0, 25);
-                                  setConfig({ ...config, websites: updated });
-                                }}
-                                placeholder="e.g. Main Website"
-                                maxLength={25}
-                              />
-                              <p className="text-xs text-muted-foreground text-right mt-1">
-                                {25 - website.label.length} characters left
-                              </p>
-                            </div>
-                          </div>
-                          <div className="md:col-span-2 flex items-end pb-6">
-                            {index > 0 && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeWebsite(website.id)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      <Button variant="link" onClick={addWebsite} className="text-primary p-0 h-auto">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Website
-                      </Button>
-                    </CardContent>
-                  </Card> */}
+               
+              
 
                   <Separator />
 
@@ -951,60 +807,8 @@ export function RCSConfiguration() {
                     Technical Configuration
                   </h3>
 
-                  {/* <Card>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center">
-                        <CardTitle className="text-base">Development Platform <span className="text-destructive">*</span></CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <Select
-                        value={config.developmentPlatform}
-                        onValueChange={(value) => setConfig({ ...config, developmentPlatform: value })}
-                      >
-                        <SelectTrigger className="w-full md:w-1/2">
-                          <SelectValue placeholder="Development platform" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {developmentPlatforms.map((platform) => (
-                            <SelectItem key={platform.value} value={platform.value}>
-                              {platform.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </CardContent>
-                  </Card> */}
 
-                  {/* <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Webhook className="h-4 w-4" />
-                        Chatbot Webhook <span className="text-destructive ml-1">*</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Input
-                        value={config.chatbotWebhook}
-                        onChange={(e) => setConfig({ ...config, chatbotWebhook: e.target.value })}
-                        placeholder="https://your-server.com/webhook"
-                      />
-                    </CardContent>
-                  </Card> */}
-
-                  {/* <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Callback URL</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Input
-                        value={config.callbackUrl}
-                        onChange={(e) => setConfig({ ...config, callbackUrl: e.target.value })}
-                        placeholder="https://your-server.com/callback"
-                      />
-                    </CardContent>
-                  </Card> */}
-
+      
                   <Card>
                     <CardHeader className="pb-3">
                       <div className="flex items-center">

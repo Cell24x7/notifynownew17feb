@@ -4,7 +4,12 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../config/db');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error('JWT_SECRET missing in .env file! Server cannot start.');
+  process.exit(1); 
+}
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -27,6 +32,7 @@ router.post('/login', async (req, res) => {
     res.json({
       success: true,
       token,
+      user,
       user: {
         id: user.id,
         name: user.name,
@@ -65,6 +71,57 @@ router.post('/signup', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false });
+  }
+});
+
+
+// Middleware
+const authenticate = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'No token provided' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+};
+
+// Get current user (channels_enabled, credits, etc.)
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    const [rows] = await query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    if (!rows.length) return res.status(404).json({ success: false });
+    res.json({ success: true, user: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// Update channels_enabled
+router.put('/channels', authenticate, async (req, res) => {
+  const { channels } = req.body;
+  if (!Array.isArray(channels)) return res.status(400).json({ success: false });
+  try {
+    await query('UPDATE users SET channels_enabled = ? WHERE id = ?', [JSON.stringify(channels), req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+// Get all users (admin only)
+router.get('/users', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Unauthorized' });
+  try {
+    const [rows] = await query('SELECT id, name, email, role, status FROM users');
+    res.json({ success: true, users: rows });
+  } catch (err) {
     res.status(500).json({ success: false });
   }
 });

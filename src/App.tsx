@@ -34,6 +34,7 @@ import SuperAdminReports from "./pages/super-admin/Reports";
 import SuperAdminVendors from "./pages/super-admin/Vendors";
 import SuperAdminNumbers from "./pages/super-admin/Numbers";
 import UserPlans from "./pages/UserPlans";
+import Profile from "./pages/Profile";  
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="/chats" element={<Chats />} />
                 <Route path="/contacts" element={<Contacts />} />
                 <Route path="/campaigns" element={<Campaigns />} />
+                <Route path="/profile" element={<Profile />} />
                 <Route path="/automations" element={<Automations />} />
                 <Route path="/userplans" element={<UserPlans />} />
                 <Route path="/integrations" element={<Integrations />} />
