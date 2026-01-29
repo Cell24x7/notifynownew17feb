@@ -18,7 +18,11 @@ import { cn } from '@/lib/utils';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { FileManager } from '@/components/files/FileManager';
 import { RCSConfiguration } from '@/components/settings/RCSConfiguration';
+import { RCSPreview } from '@/components/settings/RCSPreview';
+import { RCSBotsList } from '@/components/settings/RCSBotsList';
 import { SMSConfiguration } from '@/components/settings/SMSConfiguration';
+import { SMSList } from '@/components/settings/SMSList';
+import { SMSPreview } from '@/components/settings/SMSPreview';
 import { WhatsAppConfiguration } from '@/components/settings/WhatsAppConfiguration';
 import { InstagramConfiguration } from '@/components/settings/InstagramConfiguration';
 import { MessengerConfiguration } from '@/components/settings/MessengerConfiguration';
@@ -27,6 +31,8 @@ import { VoiceBotConfiguration } from '@/components/settings/VoiceBotConfigurati
 import { LanguageSettings } from '@/components/settings/LanguageSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
+import { RCSTemplateApproval } from '@/components/settings/RCSTemplateApproval';
+import { useRole } from '@/contexts/RoleContext';
 
 interface ChannelConfig {
   smsChannelName?: string;
@@ -78,28 +84,37 @@ const walletTransactions = [
 ];
 
 export default function Settings() {
+  const { userRole, hasFeatureAccess, hasPermission } = useRole();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabFromUrl = searchParams.get('tab') || 'channels';
+  
+  // For non-admin users, default to RCS tab
+  const defaultTab = userRole === 'admin' ? 'channels' : 'rcs-setup';
+  const tabFromUrl = searchParams.get('tab') || defaultTab;
   const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) {
+      // If user is not admin and trying to access admin-only tab, redirect to RCS
+      if (userRole !== 'admin' && !['rcs-setup', 'rcs-bots', 'rcs-messages', 'rcs-approval'].includes(tab)) {
+        setActiveTab('rcs-setup');
+        setSearchParams({ tab: 'rcs-setup' });
+        return;
+      }
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, userRole, setSearchParams]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setSearchParams({ tab: value });
   };
   const [channels, setChannels] = useState(channelsList);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [walletBalance] = useState(550);
   const [newUser, setNewUser] = useState({ email: '', role: 'agent' as User['role'], department: '' });
   const [showRCSConfig, setShowRCSConfig] = useState(false);
   const [showSMSConfig, setShowSMSConfig] = useState(false);
@@ -110,54 +125,6 @@ export default function Settings() {
   const [showVoiceBotConfig, setShowVoiceBotConfig] = useState(false);
   const [channelConfigs, setChannelConfigs] = useState<ChannelConfig>({});
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (activeTab === 'users') {
-      fetchUsers();
-    } else if (activeTab === 'wallet') {
-      fetchWallet();
-    }
-  }, [activeTab]);
-
-  const fetchUsers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/profile/team', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setUsers(data.users);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
-  const fetchWallet = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      // Fetch transactions
-      const resTx = await fetch('http://localhost:5000/api/wallet/transactions', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const dataTx = await resTx.json();
-      if (dataTx.success) {
-        setTransactions(dataTx.transactions);
-      }
-      
-      // Fetch profile for balance
-      const resProfile = await fetch('http://localhost:5000/api/profile', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const dataProfile = await resProfile.json();
-      if (dataProfile.success) {
-        setWalletBalance(dataProfile.user.credits_available || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching wallet:', error);
-    }
-  };
 
   const handleRecharge = () => {
     const amount = parseFloat(rechargeAmount);
@@ -211,42 +178,91 @@ export default function Settings() {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 md:space-y-6">
         <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
           <TabsList className="inline-flex w-auto min-w-full md:w-auto md:min-w-0 gap-1">
-            <TabsTrigger value="channels" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+            {/* Admin-only tabs */}
+            {userRole === 'admin' && (
+              <>
+                <TabsTrigger value="channels" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Channels</span>
+                </TabsTrigger>
+              </>
+            )}
+            
+            {/* RCS tabs visible to all users */}
+            <TabsTrigger value="rcs-setup" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Smartphone className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">RCS Setup</span>
+            </TabsTrigger>
+            <TabsTrigger value="rcs-bots" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Bot className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">RCS Bots</span>
+            </TabsTrigger>
+            <TabsTrigger value="rcs-messages" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
               <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Channels</span>
+              <span className="hidden sm:inline">RCS Messages</span>
             </TabsTrigger>
-            <TabsTrigger value="users" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Users className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Users</span>
+            <TabsTrigger value="rcs-approval" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Check className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">RCS Approval</span>
             </TabsTrigger>
-            <TabsTrigger value="roles" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Shield className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Roles</span>
-            </TabsTrigger>
-            <TabsTrigger value="wallet" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Wallet className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Wallet</span>
-            </TabsTrigger>
-            <TabsTrigger value="language" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Globe className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Language</span>
-            </TabsTrigger>
-            <TabsTrigger value="security" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Lock className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Security</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Bell className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Notifications</span>
-            </TabsTrigger>
-            <TabsTrigger value="theme" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Palette className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Theme</span>
-            </TabsTrigger>
-            <TabsTrigger value="files" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <FolderOpen className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Files</span>
-            </TabsTrigger>
+            
+            {/* Admin-only channel tabs */}
+            {userRole === 'admin' && (
+              <>
+                <TabsTrigger value="sms-setup" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Phone className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">SMS Setup</span>
+                </TabsTrigger>
+                <TabsTrigger value="sms-messages" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">SMS Messages</span>
+                </TabsTrigger>
+              </>
+            )}
+            
+            {/* Admin-only management tabs */}
+            {userRole === 'admin' && (
+              <>
+                <TabsTrigger value="users" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Users className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Users</span>
+                </TabsTrigger>
+                <TabsTrigger value="roles" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Shield className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Roles</span>
+                </TabsTrigger>
+                <TabsTrigger value="wallet" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Wallet className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Wallet</span>
+                </TabsTrigger>
+              </>
+            )}
+            
+            {/* Admin-only settings tabs */}
+            {userRole === 'admin' && (
+              <>
+                <TabsTrigger value="language" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Globe className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Language</span>
+                </TabsTrigger>
+                <TabsTrigger value="security" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Lock className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Security</span>
+                </TabsTrigger>
+                <TabsTrigger value="notifications" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Bell className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Notifications</span>
+                </TabsTrigger>
+                <TabsTrigger value="theme" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <Palette className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Theme</span>
+                </TabsTrigger>
+                <TabsTrigger value="files" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+                  <FolderOpen className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Files</span>
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
         </div>
 
@@ -844,7 +860,7 @@ export default function Settings() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {transactions.map((transaction) => (
+                {walletTransactions.map((transaction) => (
                   <div
                     key={transaction.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
@@ -852,9 +868,9 @@ export default function Settings() {
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         'p-2 rounded-full',
-                        transaction.type === 'adjustment' ? 'bg-green-500/10' : 'bg-red-500/10'
+                        transaction.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'
                       )}>
-                        {transaction.type === 'adjustment' ? (
+                        {transaction.type === 'credit' ? (
                           <ArrowDownLeft className="h-4 w-4 text-green-500" />
                         ) : (
                           <ArrowUpRight className="h-4 w-4 text-red-500" />
@@ -862,16 +878,14 @@ export default function Settings() {
                       </div>
                       <div>
                         <p className="font-medium">{transaction.description}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(transaction.created_at).toLocaleDateString()}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{transaction.date}</p>
                       </div>
                     </div>
                     <div className={cn(
                       'font-semibold',
-                      transaction.type === 'adjustment' ? 'text-green-500' : 'text-red-500'
+                      transaction.type === 'credit' ? 'text-green-500' : 'text-red-500'
                     )}>
-                      {transaction.type === 'adjustment' ? '+' : '-'}₹{transaction.credits}
+                      {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
                     </div>
                   </div>
                 ))}
@@ -883,6 +897,41 @@ export default function Settings() {
         {/* Language Tab */}
         <TabsContent value="language">
           <LanguageSettings />
+        </TabsContent>
+
+        {/* RCS Setup Tab */}
+        <TabsContent value="rcs-setup" className="space-y-4">
+          <RCSConfiguration />
+        </TabsContent>
+
+        {/* RCS Bots Tab */}
+        <TabsContent value="rcs-bots" className="space-y-4">
+          <RCSBotsList />
+        </TabsContent>
+
+        {/* RCS Messages/Preview Tab */}
+        <TabsContent value="rcs-messages" className="space-y-4">
+          <RCSPreview />
+        </TabsContent>
+
+        {/* RCS Approval Tab */}
+        <TabsContent value="rcs-approval" className="space-y-4">
+          <RCSTemplateApproval />
+        </TabsContent>
+
+        {/* SMS Setup Tab */}
+        <TabsContent value="sms-setup" className="space-y-4">
+          <SMSConfiguration onSave={() => {
+            toast({
+              title: 'SMS Configuration Saved',
+              description: 'Your SMS settings have been updated.',
+            });
+          }} onCancel={() => {}} />
+        </TabsContent>
+
+        {/* SMS Messages Tab */}
+        <TabsContent value="sms-messages" className="space-y-4">
+          <SMSPreview />
         </TabsContent>
 
         {/* Security Tab */}

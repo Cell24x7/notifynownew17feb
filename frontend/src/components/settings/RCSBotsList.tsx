@@ -2,33 +2,72 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { rcsApi } from '@/services/rcsApi';
 import { 
   Trash2, 
   Edit2, 
   Eye,
+  Plus,
   Loader2,
+  Check,
+  X,
+  Clock,
   Database
 } from 'lucide-react';
-import { rcsApi } from '@/services/rcsApi';
 
-interface BotRecord {
-  id: number;
+interface Bot {
+  id: string;
   bot_name: string;
   brand_name: string;
   short_description: string;
+  bot_type: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'SUSPENDED';
   message_type: string;
-  status: string;
-  webhook_url: string;
   languages_supported: string;
+  bot_logo_url?: string;
+  brand_color?: string;
   created_at: string;
+  submission_date?: string;
 }
+
+const API_URL = `http://${window.location.hostname}:5000`;
 
 export function RCSBotsList() {
   const { toast } = useToast();
-  const [bots, setBots] = useState<BotRecord[]>([]);
+  const [bots, setBots] = useState<Bot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [selectedBot, setSelectedBot] = useState<Bot | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [filter, setFilter] = useState<string>('ALL');
+
+  const [formData, setFormData] = useState({
+    bot_name: '',
+    brand_name: '',
+    short_description: '',
+    bot_type: 'DOMESTIC',
+    route_type: 'DOMESTIC',
+    message_type: 'OTP',
+    languages_supported: 'English',
+    billing_category: 'SINGLE MESSAGE',
+    development_platform: 'GOOGLE_API',
+    brand_color: '#7C3AED',
+    callback_url: '',
+    webhook_url: '',
+    privacy_url: '',
+    terms_url: '',
+    agree_all_carriers: false,
+    bot_logo_url: '',
+    banner_image_url: '',
+    contacts: []
+  });
 
   useEffect(() => {
     fetchBots();
@@ -58,7 +97,7 @@ export function RCSBotsList() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this bot configuration?')) {
       return;
     }

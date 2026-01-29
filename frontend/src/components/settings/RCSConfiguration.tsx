@@ -5,10 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'; // ← Yeh add kiya (error fix)
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -17,23 +22,14 @@ import {
   Upload, 
   Plus, 
   Trash2, 
-  Globe, 
   Mail, 
   Phone, 
   FileText, 
   Shield, 
-  Webhook, 
   Languages,
-  Info,
   Loader2,
   Database
 } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { RCSPreview } from './RCSPreview';
 import { RCSBotsList } from './RCSBotsList';
 import { rcsApi } from '@/services/rcsApi';
@@ -42,21 +38,16 @@ interface PhoneEntry {
   id: string;
   countryCode: string;
   number: string;
-  label: string;
 }
 
 interface EmailEntry {
   id: string;
   email: string;
-  label: string;
 }
-
-
 
 interface RCSConfig {
   botType: 'domestic' | 'international' | '';
   messageType: 'otp' | 'transactional' | 'promotional' | '';
-  
   botName: string;
   brandName: string;
   botLogo: string | null;
@@ -64,13 +55,10 @@ interface RCSConfig {
   bannerImage: string | null;
   bannerImageFile: File | null;
   shortDescription: string;
-
   phoneNumbers: PhoneEntry[];
   emails: EmailEntry[];
-
   termsOfUseUrl: string;
   privacyPolicyUrl: string;
- 
   languagesSupported: string;
   agreeToLaunch: boolean;
 }
@@ -80,11 +68,7 @@ const countryCodes = [
   { code: '+1', country: 'US', flag: '🇺🇸' },
   { code: '+44', country: 'UK', flag: '🇬🇧' },
   { code: '+971', country: 'AE', flag: '🇦🇪' },
-  { code: '+65', country: 'SG', flag: '🇸🇬' },
-  { code: '+61', country: 'AU', flag: '🇦🇺' },
 ];
-
-
 
 export function RCSConfiguration() {
   const { toast } = useToast();
@@ -92,7 +76,6 @@ export function RCSConfiguration() {
   const [config, setConfig] = useState<RCSConfig>({
     botType: '',
     messageType: '',
-
     botName: '',
     brandName: '',
     botLogo: null,
@@ -100,18 +83,14 @@ export function RCSConfiguration() {
     bannerImage: null,
     bannerImageFile: null,
     shortDescription: '',
-
-    phoneNumbers: [{ id: '1', countryCode: '+91', number: '', label: '' }],
-    emails: [{ id: '1', email: '', label: '' }],
- 
+    phoneNumbers: [{ id: '1', countryCode: '+91', number: '' }],
+    emails: [{ id: '1', email: '' }],
     termsOfUseUrl: '',
     privacyPolicyUrl: '',
- 
     languagesSupported: '',
     agreeToLaunch: false,
   });
 
-  // Only letters and spaces allowed
   const isValidText = (text: string) => /^[a-zA-Z\s]*$/.test(text);
 
   const validateImage = (file: File, type: 'logo' | 'banner'): boolean => {
@@ -177,7 +156,7 @@ export function RCSConfiguration() {
   const addPhoneNumber = () => {
     setConfig({
       ...config,
-      phoneNumbers: [...config.phoneNumbers, { id: Date.now().toString(), countryCode: '+91', number: '', label: '' }],
+      phoneNumbers: [...config.phoneNumbers, { id: Date.now().toString(), countryCode: '+91', number: '' }],
     });
   };
 
@@ -193,7 +172,7 @@ export function RCSConfiguration() {
   const addEmail = () => {
     setConfig({
       ...config,
-      emails: [...config.emails, { id: Date.now().toString(), email: '', label: '' }],
+      emails: [...config.emails, { id: Date.now().toString(), email: '' }],
     });
   };
 
@@ -206,17 +185,12 @@ export function RCSConfiguration() {
     }
   };
 
-  
-
   const handleSubmit = async () => {
     const errors: string[] = [];
 
-    // Required fields
     if (!config.botType) errors.push('Bot Type is required (Domestic or International)');
     if (!config.messageType) errors.push('Message Type is required');
-    // if (!config.billingCategory) errors.push('Billing Category is required');
 
-    // Bot Name validation
     if (!config.botName.trim()) {
       errors.push('Bot Name is required');
     } else if (!isValidText(config.botName)) {
@@ -225,7 +199,6 @@ export function RCSConfiguration() {
       errors.push('Bot Name must be maximum 40 characters');
     }
 
-    // Brand Name validation
     if (!config.brandName.trim()) {
       errors.push('Brand Name is required');
     } else if (!isValidText(config.brandName)) {
@@ -234,40 +207,32 @@ export function RCSConfiguration() {
       errors.push('Brand Name must be maximum 40 characters');
     }
 
-    // Images
     if (!config.botLogo) errors.push('Bot Logo is required');
     if (!config.bannerImage) errors.push('Banner Image is required');
 
-    // Short Description
     if (!config.shortDescription.trim()) {
       errors.push('Short Description is required');
     } else if (config.shortDescription.length > 100) {
       errors.push('Short Description must be maximum 100 characters');
     }
 
-    // At least one valid phone
     const hasValidPhone = config.phoneNumbers.some(p => 
       p.number.trim() && /^\d{7,15}$/.test(p.number.trim())
     );
     if (!hasValidPhone) errors.push('At least one valid phone number (7-15 digits) is required');
 
-    // At least one valid email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const hasValidEmail = config.emails.some(e => e.email.trim() && emailRegex.test(e.email));
     if (!hasValidEmail) errors.push('At least one valid email address is required');
 
-
-    // Other required fields
     if (!config.termsOfUseUrl.trim()) errors.push('Terms of Use URL is required');
     if (!config.privacyPolicyUrl.trim()) errors.push('Privacy Policy URL is required');
-
     if (!config.languagesSupported.trim()) errors.push('Languages Supported is required');
 
     if (!config.agreeToLaunch) {
       errors.push('You must agree to launch the bot on all carriers');
     }
 
-    // Show first error
     if (errors.length > 0) {
       toast({
         title: 'Validation Error',
@@ -283,14 +248,13 @@ export function RCSConfiguration() {
         ...config.phoneNumbers.filter(p => p.number.trim()).map(p => ({
           contact_type: 'PHONE' as const,
           contact_value: p.countryCode + p.number,
-          label: p.label
+          label: ''
         })),
         ...config.emails.filter(e => e.email.trim()).map(e => ({
           contact_type: 'EMAIL' as const,
           contact_value: e.email,
-          label: e.label
+          label: ''
         })),
- 
       ];
 
       const messageTypeMap: Record<string, 'OTP' | 'TRANSACTIONAL' | 'PROMOTIONAL'> = {
@@ -303,7 +267,6 @@ export function RCSConfiguration() {
         bot_name: config.botName,
         brand_name: config.brandName,
         short_description: config.shortDescription,
-        // brand_color: config.brandColor,
         bot_logo_url: config.botLogo || '',
         banner_image_url: config.bannerImage || '',
         terms_url: config.termsOfUseUrl,
@@ -311,7 +274,6 @@ export function RCSConfiguration() {
         route_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL') as const,
         bot_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL') as const,
         message_type: messageTypeMap[config.messageType] || 'TRANSACTIONAL' as const,
- 
         languages_supported: config.languagesSupported,
         agree_all_carriers: config.agreeToLaunch,
         status: 'DRAFT' as const,
@@ -337,19 +299,6 @@ export function RCSConfiguration() {
       setIsLoading(false);
     }
   };
-
-  const InfoTooltip = ({ content }: { content: string }) => (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Info className="h-4 w-4 text-muted-foreground cursor-help ml-1" />
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p>{content}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
 
   return (
     <div className="w-full space-y-6">
@@ -442,9 +391,6 @@ export function RCSConfiguration() {
                       </RadioGroup>
                     </CardContent>
                   </Card>
-
-                  {/* Billing Category */}
-               
 
                   {/* Bot Name */}
                   <Card>
@@ -596,9 +542,6 @@ export function RCSConfiguration() {
                     </CardContent>
                   </Card>
 
-                  {/* Brand Color */}
-          
-
                   <Separator />
 
                   <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -616,8 +559,8 @@ export function RCSConfiguration() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {config.phoneNumbers.map((phone, index) => (
-                        <div key={phone.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                          <div className="md:col-span-5">
+                        <div key={phone.id} className="grid grid-cols-1 md:grid-cols-9 gap-3 items-start">
+                          <div className="md:col-span-7">
                             <Label className="text-sm">{index === 0 ? 'Primary phone number *' : `Phone number ${index + 1}`}</Label>
                             <div className="flex gap-2 mt-1.5">
                               <Select
@@ -652,24 +595,6 @@ export function RCSConfiguration() {
                               />
                             </div>
                           </div>
-                          {/* <div className="md:col-span-5">
-                            <Label className="text-sm">Label for phone number</Label>
-                            <div className="mt-1.5">
-                              <Input
-                                value={phone.label}
-                                onChange={(e) => {
-                                  const updated = [...config.phoneNumbers];
-                                  updated[index].label = e.target.value.slice(0, 25);
-                                  setConfig({ ...config, phoneNumbers: updated });
-                                }}
-                                placeholder="e.g. Support"
-                                maxLength={25}
-                              />
-                              <p className="text-xs text-muted-foreground text-right mt-1">
-                                {25 - phone.label.length} characters left
-                              </p>
-                            </div>
-                          </div> */}
                           <div className="md:col-span-2 flex items-end pb-6">
                             {index > 0 && (
                               <Button
@@ -701,8 +626,8 @@ export function RCSConfiguration() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {config.emails.map((email, index) => (
-                        <div key={email.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                          <div className="md:col-span-5">
+                        <div key={email.id} className="grid grid-cols-1 md:grid-cols-9 gap-3 items-start">
+                          <div className="md:col-span-7">
                             <Label className="text-sm">{index === 0 ? 'Primary email id *' : `Email ${index + 1}`}</Label>
                             <Input
                               value={email.email}
@@ -715,24 +640,6 @@ export function RCSConfiguration() {
                               className="mt-1.5"
                             />
                           </div>
-                          {/* <div className="md:col-span-5">
-                            <Label className="text-sm">Label for email id</Label>
-                            <div className="mt-1.5">
-                              <Input
-                                value={email.label}
-                                onChange={(e) => {
-                                  const updated = [...config.emails];
-                                  updated[index].label = e.target.value.slice(0, 25);
-                                  setConfig({ ...config, emails: updated });
-                                }}
-                                placeholder="e.g. Support"
-                                maxLength={25}
-                              />
-                              <p className="text-xs text-muted-foreground text-right mt-1">
-                                {25 - email.label.length} characters left
-                              </p>
-                            </div>
-                          </div> */}
                           <div className="md:col-span-2 flex items-end pb-6">
                             {index > 0 && (
                               <Button
@@ -753,9 +660,6 @@ export function RCSConfiguration() {
                       </Button>
                     </CardContent>
                   </Card>
-
-               
-              
 
                   <Separator />
 
@@ -802,13 +706,6 @@ export function RCSConfiguration() {
 
                   <Separator />
 
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Webhook className="h-5 w-5" />
-                    Technical Configuration
-                  </h3>
-
-
-      
                   <Card>
                     <CardHeader className="pb-3">
                       <div className="flex items-center">
@@ -838,7 +735,7 @@ export function RCSConfiguration() {
                           onCheckedChange={(checked) => setConfig({ ...config, agreeToLaunch: checked as boolean })}
                         />
                         <Label htmlFor="agree" className="text-sm leading-relaxed cursor-pointer">
-                          I agree to Submit the bot.
+                          I agree to launch the bot on all Indian carriers.
                         </Label>
                       </div>
                     </CardContent>
@@ -865,12 +762,11 @@ export function RCSConfiguration() {
                 botName={config.botName}
                 brandName={config.brandName}
                 shortDescription={config.shortDescription}
-                brandColor={config.brandColor}
+                brandColor="#7C3AED"
                 botLogo={config.botLogo}
                 bannerImage={config.bannerImage}
                 phoneNumber={config.phoneNumbers[0]?.number}
                 email={config.emails[0]?.email}
-                // website={config.websites[0]?.url}
               />
             </div>
           </div>

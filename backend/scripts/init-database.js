@@ -23,7 +23,7 @@ async function initializeDatabase() {
 
     // Close and reconnect to the specific database
     await connection.end();
-    
+
     connection = await mysql.createConnection({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,

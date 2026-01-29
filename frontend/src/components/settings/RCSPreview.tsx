@@ -8,9 +8,9 @@ import {
   Shield,
   Plus,
   Smile,
-  Image,
+  Image as ImageIcon,
   Mic,
-  X
+  X,
 } from "lucide-react";
 
 interface RCSPreviewProps {
@@ -22,7 +22,7 @@ interface RCSPreviewProps {
   bannerImage: string | null;
   phoneNumber?: string;
   email?: string;
-  website?: string;
+  // website?: string;   // commented out as per your last version
 }
 
 export function RCSPreview({
@@ -34,202 +34,154 @@ export function RCSPreview({
   bannerImage,
   phoneNumber,
   email,
-  website,
 }: RCSPreviewProps) {
-  const displayBotName = botName || "Bot Name";
-  const displayBrandName = brandName || "Brand Name";
-  const displayDescription =
-    shortDescription || "Short description";
+  const displayBotName = botName.trim() || "Your Bot";
+  const displayBrandName = brandName.trim() || "Your Brand";
+  const displayDesc = shortDescription.trim() || "Welcome to our official RCS channel";
+
+  const hasBanner = !!bannerImage;
+  const hasLogo = !!botLogo;
 
   return (
-    <div className="sticky top-0">
-      <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">
-        Preview of Business Info
+    <div className="sticky top-4">
+      <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
+        RCS Business Chat Preview
       </h3>
 
-      {/* Phone Frame */}
-      <div className="mx-auto w-[270px] h-[560px] bg-gray-900 rounded-[2.3rem] p-2 shadow-2xl">
-        <div className="relative h-full">
-          {/* Notch */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-4 bg-black rounded-full z-10" />
+      {/* Phone mockup – slightly larger & cleaner */}
+      <div className="mx-auto w-[300px] bg-black rounded-[3rem] p-3 shadow-2xl border border-gray-800">
+        <div className="bg-gray-950 rounded-[2.4rem] overflow-hidden h-[580px] flex flex-col relative">
 
-          {/* Screen */}
-          <div className="bg-gray-950 rounded-[1.9rem] overflow-hidden h-full flex flex-col">
+          {/* Dynamic notch / pill */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-black rounded-full z-20 shadow-inner" />
 
-            {/* Status Bar */}
-            <div className="h-7 flex items-center justify-between px-5 text-white text-[10px]">
-              <span>10:00</span>
-              <span>📶 🔋</span>
+          {/* Status bar */}
+          <div className="h-9 flex items-center justify-between px-6 text-white text-xs z-10 relative">
+            <span>9:41</span>
+            <div className="flex items-center gap-2">
+              <span>5G</span>
+              <span>92%</span>
             </div>
+          </div>
 
-            {/* Header */}
-            <div className="bg-gray-900 px-3 py-2 flex items-center gap-2 border-b border-gray-800">
-              <ArrowLeft className="h-4 w-4 text-white" />
-              <div
-                className="w-7 h-7 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center"
-                style={{ backgroundColor: brandColor }}
-              >
-                {botLogo ? (
-                  <img
-                    src={botLogo}
-                    alt="Bot Logo"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white text-xs font-bold">
-                    {displayBotName.charAt(0)}
-                  </span>
-                )}
-              </div>
-              <span className="text-white text-sm font-medium flex-1 truncate">
-                {displayBotName}
-              </span>
-              <Shield className="h-4 w-4 text-blue-400" />
-              <MoreVertical className="h-4 w-4 text-gray-400" />
+          {/* Chat header */}
+          <div className="bg-gradient-to-b from-gray-900 to-gray-950 px-4 py-3 flex items-center gap-3 border-b border-gray-800/70 z-10">
+            <ArrowLeft className="h-5 w-5 text-gray-300" />
+            <div
+              className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 shadow-md"
+              style={{ backgroundColor: brandColor || "#6366f1" }}
+            >
+              {hasLogo ? (
+                <img src={botLogo} alt="logo" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white font-bold text-xl">
+                  {displayBotName.charAt(0)}
+                </div>
+              )}
             </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-white font-semibold text-base truncate">{displayBotName}</div>
+              <div className="text-gray-400 text-xs">Business • Verified</div>
+            </div>
+            <Shield className="h-5 w-5 text-cyan-400" />
+            <MoreVertical className="h-5 w-5 text-gray-400" />
+          </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto">
+          {/* Scrollable area */}
+          <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-950 to-gray-900">
 
-              {/* Info & Options */}
-              <div className="bg-gray-900 px-4 py-2 border-b border-gray-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ArrowLeft className="h-3 w-3 text-gray-400" />
-                  <span className="text-white text-xs font-medium">
-                    Info & Options
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3 text-blue-400" />
-                  <MoreVertical className="h-3 w-3 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Banner */}
+            {/* Banner + avatar overlap */}
+            <div className="relative">
               <div
-                className="h-24 relative flex items-end justify-center"
+                className="h-40 bg-cover bg-center"
                 style={{
-                  backgroundImage: bannerImage
-                    ? `url(${bannerImage})`
-                    : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  backgroundColor: brandColor + "30",
+                  backgroundImage: hasBanner ? `url(${bannerImage})` : undefined,
+                  backgroundColor: brandColor ? brandColor + "22" : "#4f46e522",
                 }}
-              >
+              />
+              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
                 <div
-                  className="absolute -bottom-6 w-14 h-14 rounded-full border-4 border-gray-950 overflow-hidden flex items-center justify-center"
-                  style={{ backgroundColor: brandColor }}
+                  className="w-20 h-20 rounded-full border-4 border-gray-950 overflow-hidden shadow-2xl"
+                  style={{ backgroundColor: brandColor || "#6366f1" }}
                 >
-                  {botLogo ? (
-                    <img
-                      src={botLogo}
-                      alt="Bot Logo"
-                      className="w-full h-full object-cover"
-                    />
+                  {hasLogo ? (
+                    <img src={botLogo} alt="logo" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-white font-bold">
+                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-2xl">
                       {displayBotName.charAt(0)}
-                    </span>
+                    </div>
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Bot Info */}
-              <div className="pt-8 pb-4 px-4 text-center">
-                <h4 className="text-white text-sm font-semibold">
-                  {displayBotName}
-                </h4>
-                <p className="text-gray-400 text-xs mt-1">
-                  {displayDescription}
-                </p>
-              </div>
+            {/* Business name + desc */}
+            <div className="pt-14 pb-6 px-5 text-center">
+              <h4 className="text-white text-xl font-bold">{displayBrandName}</h4>
+              <p className="text-gray-400 text-sm mt-1.5 leading-relaxed max-w-xs mx-auto">
+                {displayDesc}
+              </p>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-center gap-8 py-3 border-t border-b border-gray-800">
-                {phoneNumber && (
-                  <div className="flex flex-col items-center">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-[10px] text-gray-400 mt-1">
-                      Call
-                    </span>
+            {/* Quick actions */}
+            <div className="flex justify-center gap-10 py-5 border-t border-gray-800/50 bg-gray-950/50">
+              {phoneNumber && (
+                <div className="flex flex-col items-center">
+                  <div className="w-11 h-11 rounded-full bg-gray-800 flex items-center justify-center mb-1.5">
+                    <Phone className="h-5 w-5 text-gray-300" />
                   </div>
-                )}
-                {website && (
-                  <div className="flex flex-col items-center">
-                    <Globe className="h-4 w-4 text-gray-400" />
-                    <span className="text-[10px] text-gray-400 mt-1">
-                      Website
-                    </span>
-                  </div>
-                )}
-                {email && (
-                  <div className="flex flex-col items-center">
-                    <Mail className="h-4 w-4 text-gray-400" />
-                    <span className="text-[10px] text-gray-400 mt-1">
-                      Email
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Tabs */}
-              <div className="flex">
-                <div className="flex-1 py-2 text-center border-b-2 border-blue-500">
-                  <span className="text-blue-500 text-xs">Info</span>
+                  <span className="text-xs text-gray-400">Call</span>
                 </div>
-                <div className="flex-1 py-2 text-center border-b border-gray-700">
-                  <span className="text-gray-400 text-xs">Options</span>
+              )}
+              {email && (
+                <div className="flex flex-col items-center">
+                  <div className="w-11 h-11 rounded-full bg-gray-800 flex items-center justify-center mb-1.5">
+                    <Mail className="h-5 w-5 text-gray-300" />
+                  </div>
+                  <span className="text-xs text-gray-400">Email</span>
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Message Preview */}
-              <div className="px-3 py-4">
-                <div className="bg-gray-800 rounded-xl max-w-[200px] overflow-hidden">
-                  <div
-                    className="h-16 flex items-center justify-center"
-                    style={{ backgroundColor: brandColor + "40" }}
+            {/* Sample rich message card */}
+            <div className="px-5 py-6">
+              <div className="bg-gray-800/70 rounded-2xl overflow-hidden border border-gray-700 max-w-[260px] mx-auto">
+                <div
+                  className="h-28 flex items-center justify-center"
+                  style={{ backgroundColor: brandColor + "30" || "#6366f133" }}
+                >
+                  <span className="text-white/90 font-medium">{displayBrandName}</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-white text-sm font-medium">Hello! 👋</p>
+                  <p className="text-gray-300 text-xs mt-1.5 leading-relaxed">
+                    {displayDesc.length > 10 ? displayDesc : "Thank you for connecting with us."}
+                  </p>
+                  <button
+                    className="mt-4 w-full py-2.5 rounded-xl text-sm font-medium text-white"
+                    style={{ backgroundColor: brandColor || "#6366f1" }}
                   >
-                    <span className="text-white text-xs font-medium">
-                      {displayBrandName}
-                    </span>
-                  </div>
-                  <div className="p-2">
-                    <p className="text-white text-[10px] font-medium">
-                      Welcome Message
-                    </p>
-                    <p className="text-gray-400 text-[9px] mt-1 line-clamp-2">
-                      {displayDescription}
-                    </p>
-                  </div>
+                    Visit Website
+                  </button>
                 </div>
-
-                <p className="text-center text-gray-500 text-[10px] mt-2">
-                  10:00
-                </p>
               </div>
-            </div>
 
-            {/* Unsubscribe */}
-            <div className="bg-amber-50 px-3 py-2 flex items-center justify-between">
-              <span className="text-[10px] text-amber-800">
-                <span className="underline cursor-pointer">Unsubscribe</span>{" "}
-                to stop receiving messages
-              </span>
-              <X className="h-3 w-3 text-amber-600" />
-            </div>
-
-            {/* Input */}
-            <div className="bg-gray-900 px-3 py-2 flex items-center gap-2 border-t border-gray-800">
-              <Plus className="h-4 w-4 text-gray-400" />
-              <div className="flex-1 bg-gray-800 rounded-full px-3 py-1.5">
-                <span className="text-gray-500 text-xs">RCS message</span>
-              </div>
-              <Smile className="h-4 w-4 text-gray-400" />
-              <Image className="h-4 w-4 text-gray-400" />
-              <Mic className="h-4 w-4 text-gray-400" />
+              <p className="text-center text-gray-600 text-xs mt-4">10:42</p>
             </div>
           </div>
+
+          {/* Input bar */}
+          <div className="bg-gray-900 border-t border-gray-800 px-4 py-3 flex items-center gap-3">
+            <Plus className="h-6 w-6 text-gray-400" />
+            <div className="flex-1 bg-gray-800 rounded-full py-3 px-5">
+              <span className="text-gray-500 text-sm">Message</span>
+            </div>
+            <Smile className="h-6 w-6 text-gray-400" />
+            <ImageIcon className="h-6 w-6 text-gray-400" />
+          </div>
+
+          {/* Home indicator */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-28 h-1 bg-gray-700 rounded-full" />
         </div>
       </div>
     </div>

@@ -268,12 +268,12 @@ export interface MessageTemplate {
 }
 
 export const mockMessageTemplates: MessageTemplate[] = [
-  { 
-    id: '1', 
-    name: 'welcome_message', 
+  {
+    id: '1',
+    name: 'welcome_message',
     language: 'English',
-    category: 'Marketing', 
-    channel: 'whatsapp', 
+    category: 'Marketing',
+    channel: 'whatsapp',
     templateType: 'standard',
     header: { type: 'text', content: 'Welcome to {{1}}!' },
     body: 'Hi {{1}}! Welcome to our store. We\'re excited to have you here. 🎉\n\nExplore our latest collection and enjoy exclusive offers.',
@@ -282,9 +282,9 @@ export const mockMessageTemplates: MessageTemplate[] = [
       { id: '1', type: 'url', label: 'Shop Now', value: 'https://store.example.com' },
       { id: '2', type: 'quick_reply', label: 'View Offers', value: 'view_offers' },
     ],
-    variables: ['1'], 
-    status: 'approved', 
-    createdAt: new Date(Date.now() - 2592000000), 
+    variables: ['1'],
+    status: 'approved',
+    createdAt: new Date(Date.now() - 2592000000),
     usageCount: 1250,
     analytics: {
       sent: 8920,
@@ -301,12 +301,12 @@ export const mockMessageTemplates: MessageTemplate[] = [
       lastUpdated: new Date(Date.now() - 3600000),
     }
   },
-  { 
-    id: '2', 
-    name: 'order_confirmation', 
+  {
+    id: '2',
+    name: 'order_confirmation',
     language: 'English',
-    category: 'Utility', 
-    channel: 'whatsapp', 
+    category: 'Utility',
+    channel: 'whatsapp',
     templateType: 'standard',
     header: { type: 'text', content: 'Order Confirmed! 📦' },
     body: 'Hi {{1}}! Your order #{{2}} has been confirmed.\n\nTotal: ₹{{3}}\nEstimated Delivery: {{4}}',
@@ -314,9 +314,9 @@ export const mockMessageTemplates: MessageTemplate[] = [
     buttons: [
       { id: '1', type: 'url', label: 'Track Order', value: 'https://track.example.com/{{2}}' },
     ],
-    variables: ['1', '2', '3', '4'], 
-    status: 'approved', 
-    createdAt: new Date(Date.now() - 1296000000), 
+    variables: ['1', '2', '3', '4'],
+    status: 'approved',
+    createdAt: new Date(Date.now() - 1296000000),
     usageCount: 3420,
     analytics: {
       sent: 15230,
@@ -332,19 +332,19 @@ export const mockMessageTemplates: MessageTemplate[] = [
       lastUpdated: new Date(Date.now() - 1800000),
     }
   },
-  { 
-    id: '3', 
-    name: 'shipping_update', 
+  {
+    id: '3',
+    name: 'shipping_update',
     language: 'English',
-    category: 'Utility', 
-    channel: 'sms', 
+    category: 'Utility',
+    channel: 'sms',
     templateType: 'standard',
     header: { type: 'none' },
     body: 'Great news! Your order #{{1}} has been shipped. Track here: {{2}}',
     buttons: [],
-    variables: ['1', '2'], 
-    status: 'approved', 
-    createdAt: new Date(Date.now() - 864000000), 
+    variables: ['1', '2'],
+    status: 'approved',
+    createdAt: new Date(Date.now() - 864000000),
     usageCount: 2100,
     analytics: {
       sent: 9870,
@@ -358,12 +358,12 @@ export const mockMessageTemplates: MessageTemplate[] = [
       lastUpdated: new Date(Date.now() - 7200000),
     }
   },
-  { 
-    id: '4', 
-    name: 'feedback_request', 
+  {
+    id: '4',
+    name: 'feedback_request',
     language: 'English',
-    category: 'Marketing', 
-    channel: 'whatsapp', 
+    category: 'Marketing',
+    channel: 'whatsapp',
     templateType: 'standard',
     header: { type: 'image' },
     body: 'Hi {{1}}! We hope you loved your recent purchase! ⭐\n\nYour feedback helps us improve. Would you mind leaving a quick review?',
@@ -372,9 +372,9 @@ export const mockMessageTemplates: MessageTemplate[] = [
       { id: '1', type: 'url', label: 'Leave Review', value: 'https://review.example.com' },
       { id: '2', type: 'quick_reply', label: 'Later', value: 'remind_later' },
     ],
-    variables: ['1'], 
-    status: 'approved', 
-    createdAt: new Date(Date.now() - 604800000), 
+    variables: ['1'],
+    status: 'approved',
+    createdAt: new Date(Date.now() - 604800000),
     usageCount: 890,
     analytics: {
       sent: 5420,
@@ -391,12 +391,12 @@ export const mockMessageTemplates: MessageTemplate[] = [
       lastUpdated: new Date(Date.now() - 86400000),
     }
   },
-  { 
-    id: '5', 
-    name: 'flash_sale_alert', 
+  {
+    id: '5',
+    name: 'flash_sale_alert',
     language: 'English',
-    category: 'Marketing', 
-    channel: 'whatsapp', 
+    category: 'Marketing',
+    channel: 'whatsapp',
     templateType: 'standard',
     header: { type: 'video' },
     body: '🔥 FLASH SALE! 🔥\n\nUse code {{1}} for {{2}}% off your next order!\n\n⏰ Valid for 24 hours only!',
@@ -405,9 +405,9 @@ export const mockMessageTemplates: MessageTemplate[] = [
       { id: '1', type: 'url', label: 'Shop Now', value: 'https://sale.example.com' },
       { id: '2', type: 'copy_code', label: 'Copy Code', value: '{{1}}' },
     ],
-    variables: ['1', '2'], 
-    status: 'approved', 
-    createdAt: new Date(Date.now() - 432000000), 
+    variables: ['1', '2'],
+    status: 'approved',
+    createdAt: new Date(Date.now() - 432000000),
     usageCount: 4500,
     analytics: {
       sent: 22450,
@@ -424,21 +424,21 @@ export const mockMessageTemplates: MessageTemplate[] = [
       lastUpdated: new Date(Date.now() - 43200000),
     }
   },
-  { 
-    id: '6', 
-    name: 'otp_verification', 
+  {
+    id: '6',
+    name: 'otp_verification',
     language: 'English',
-    category: 'Authentication', 
-    channel: 'whatsapp', 
+    category: 'Authentication',
+    channel: 'whatsapp',
     templateType: 'standard',
     header: { type: 'none' },
     body: 'Your verification code is: {{1}}\n\nThis code expires in 10 minutes. Do not share this code with anyone.',
     buttons: [
       { id: '1', type: 'copy_code', label: 'Copy Code', value: '{{1}}' },
     ],
-    variables: ['1'], 
-    status: 'approved', 
-    createdAt: new Date(Date.now() - 259200000), 
+    variables: ['1'],
+    status: 'approved',
+    createdAt: new Date(Date.now() - 259200000),
     usageCount: 12780,
     analytics: {
       sent: 45000,
@@ -454,12 +454,12 @@ export const mockMessageTemplates: MessageTemplate[] = [
       lastUpdated: new Date(Date.now() - 600000),
     }
   },
-  { 
-    id: '7', 
-    name: 'cart_reminder', 
+  {
+    id: '7',
+    name: 'cart_reminder',
     language: 'English',
-    category: 'Marketing', 
-    channel: 'rcs', 
+    category: 'Marketing',
+    channel: 'rcs',
     templateType: 'standard',
     header: { type: 'image' },
     body: 'Hey {{1}}! 🛒\n\nYou left {{2}} items in your cart worth ₹{{3}}.\n\nComplete your purchase now and get free shipping!',
@@ -468,24 +468,24 @@ export const mockMessageTemplates: MessageTemplate[] = [
       { id: '1', type: 'url', label: 'Complete Purchase', value: 'https://cart.example.com' },
       { id: '2', type: 'quick_reply', label: 'Remind Later', value: 'remind_later' },
     ],
-    variables: ['1', '2', '3'], 
-    status: 'pending', 
-    createdAt: new Date(Date.now() - 86400000), 
+    variables: ['1', '2', '3'],
+    status: 'pending',
+    createdAt: new Date(Date.now() - 86400000),
     usageCount: 0
   },
-  { 
-    id: '8', 
-    name: 'birthday_wish', 
+  {
+    id: '8',
+    name: 'birthday_wish',
     language: 'English',
-    category: 'Marketing', 
-    channel: 'sms', 
+    category: 'Marketing',
+    channel: 'sms',
     templateType: 'standard',
     header: { type: 'none' },
     body: 'Happy Birthday, {{1}}! 🎂 Enjoy {{2}}% off on us! Use code: BDAY{{3}}',
     buttons: [],
-    variables: ['1', '2', '3'], 
-    status: 'approved', 
-    createdAt: new Date(Date.now() - 172800000), 
+    variables: ['1', '2', '3'],
+    status: 'approved',
+    createdAt: new Date(Date.now() - 172800000),
     usageCount: 320,
     analytics: {
       sent: 3200,
@@ -933,3 +933,288 @@ export const agentAnalytics = [
     resolutionRate: 94,
   },
 ];
+
+// RCS Template Types
+export interface RCSTemplate {
+  id: string;
+  name: string;
+  language: string;
+  category: 'Utility' | 'Marketing' | 'Authentication';
+  headerType: HeaderType;
+  headerContent?: string;
+  body: string;
+  footer?: string;
+  templateType: 'standard' | 'carousel';
+  status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  createdBy: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  createdAt: Date;
+  usageCount: number;
+  lastUsedAt?: Date;
+  buttons: RCSButton[];
+  variables: RCSVariable[];
+  analytics?: RCSAnalytics;
+}
+
+export interface RCSButton {
+  id: string;
+  type: 'action' | 'suggestion';
+  actionType: 'openurl' | 'dlaction' | 'viewlocation' | 'calldialog';
+  displayText: string;
+  uriOrPhoneNumber?: string;
+  postbackData?: string;
+  suggestedReplyText?: string;
+  position: number;
+}
+
+export interface RCSVariable {
+  id: string;
+  name: string;
+  position: number;
+  sampleValue?: string;
+}
+
+export interface RCSAnalytics {
+  sentCount: number;
+  deliveredCount: number;
+  deliveredRate: number;
+  openedCount: number;
+  openedRate: number;
+  clickedCount: number;
+  clickedRate: number;
+  actionButtonsClicked: number;
+  suggestionRepliesClicked: number;
+  lastUpdated: Date;
+}
+
+// Mock RCS Templates
+export const mockRCSTemplates: RCSTemplate[] = [
+  {
+    id: 'rcs_1',
+    name: 'promotional_banner',
+    language: 'English',
+    category: 'Marketing',
+    headerType: 'image',
+    headerContent: 'https://images.example.com/promo.jpg',
+    body: 'Hey {{1}}! 🎉\n\nEnjoy {{2}}% OFF on our entire collection!\n\nLimited time offer - Valid for 48 hours only',
+    footer: 'Offer ends at midnight',
+    templateType: 'standard',
+    status: 'approved',
+    createdBy: 'user_1',
+    approvedBy: 'admin_1',
+    approvedAt: new Date(Date.now() - 2592000000),
+    createdAt: new Date(Date.now() - 2592000000),
+    usageCount: 1500,
+    buttons: [
+      {
+        id: 'btn_1',
+        type: 'action',
+        actionType: 'openurl',
+        displayText: 'Shop Now',
+        uriOrPhoneNumber: 'https://shop.example.com/sale',
+        position: 0,
+      },
+      {
+        id: 'btn_2',
+        type: 'suggestion',
+        actionType: 'openurl',
+        displayText: 'View Details',
+        suggestedReplyText: 'View Details',
+        position: 1,
+      },
+    ],
+    variables: [
+      { id: 'var_1', name: 'customer_name', position: 0, sampleValue: 'John' },
+      { id: 'var_2', name: 'discount_percent', position: 1, sampleValue: '50' },
+    ],
+    analytics: {
+      sentCount: 12450,
+      deliveredCount: 12100,
+      deliveredRate: 97.2,
+      openedCount: 10800,
+      openedRate: 89.3,
+      clickedCount: 5420,
+      clickedRate: 43.5,
+      actionButtonsClicked: 4200,
+      suggestionRepliesClicked: 1220,
+      lastUpdated: new Date(Date.now() - 3600000),
+    },
+  },
+  {
+    id: 'rcs_2',
+    name: 'order_tracking',
+    language: 'English',
+    category: 'Utility',
+    headerType: 'text',
+    headerContent: 'Your Order is On The Way! 📦',
+    body: 'Hi {{1}}! Your order #{{2}} will arrive tomorrow between {{3}} AM - {{4}} PM.\n\nTrack your package in real-time.',
+    footer: 'Need help? Tap below',
+    templateType: 'standard',
+    status: 'approved',
+    createdBy: 'user_1',
+    approvedBy: 'admin_1',
+    approvedAt: new Date(Date.now() - 1728000000),
+    createdAt: new Date(Date.now() - 1728000000),
+    usageCount: 3200,
+    buttons: [
+      {
+        id: 'btn_3',
+        type: 'action',
+        actionType: 'openurl',
+        displayText: 'Track Order',
+        uriOrPhoneNumber: 'https://track.example.com/{{2}}',
+        position: 0,
+      },
+      {
+        id: 'btn_4',
+        type: 'action',
+        actionType: 'calldialog',
+        displayText: 'Call Support',
+        uriOrPhoneNumber: '+919876543210',
+        position: 1,
+      },
+    ],
+    variables: [
+      { id: 'var_3', name: 'customer_name', position: 0, sampleValue: 'John' },
+      { id: 'var_4', name: 'order_id', position: 1, sampleValue: 'ORD12345' },
+      { id: 'var_5', name: 'start_hour', position: 2, sampleValue: '10' },
+      { id: 'var_6', name: 'end_hour', position: 3, sampleValue: '2' },
+    ],
+    analytics: {
+      sentCount: 28900,
+      deliveredCount: 28650,
+      deliveredRate: 99.1,
+      openedCount: 25200,
+      openedRate: 88.0,
+      clickedCount: 18900,
+      clickedRate: 65.4,
+      actionButtonsClicked: 16700,
+      suggestionRepliesClicked: 2200,
+      lastUpdated: new Date(Date.now() - 1800000),
+    },
+  },
+  {
+    id: 'rcs_3',
+    name: 'product_card_catalog',
+    language: 'English',
+    category: 'Marketing',
+    headerType: 'image',
+    headerContent: 'https://images.example.com/catalog.jpg',
+    body: 'Browse our latest collection:\n\n{{1}} - ₹{{2}}\n\nAvailable in {{3}} colors',
+    footer: 'Free shipping on orders above ₹500',
+    templateType: 'carousel',
+    status: 'pending_approval',
+    createdBy: 'user_2',
+    createdAt: new Date(Date.now() - 86400000),
+    usageCount: 0,
+    buttons: [
+      {
+        id: 'btn_5',
+        type: 'action',
+        actionType: 'openurl',
+        displayText: 'View Product',
+        uriOrPhoneNumber: 'https://shop.example.com/products/{{product_id}}',
+        position: 0,
+      },
+      {
+        id: 'btn_6',
+        type: 'suggestion',
+        actionType: 'openurl',
+        displayText: 'Add to Cart',
+        suggestedReplyText: 'Add to Cart',
+        position: 1,
+      },
+    ],
+    variables: [
+      { id: 'var_7', name: 'product_name', position: 0, sampleValue: 'Premium Shoes' },
+      { id: 'var_8', name: 'product_price', position: 1, sampleValue: '2999' },
+      { id: 'var_9', name: 'color_count', position: 2, sampleValue: '5' },
+    ],
+  },
+  {
+    id: 'rcs_4',
+    name: 'authentication_otp',
+    language: 'English',
+    category: 'Authentication',
+    headerType: 'text',
+    headerContent: 'Your OTP Verification',
+    body: '🔐 Your one-time password is: {{1}}\n\nThis code is valid for 10 minutes.\nDo not share this with anyone.',
+    templateType: 'standard',
+    status: 'approved',
+    createdBy: 'user_1',
+    approvedBy: 'admin_1',
+    approvedAt: new Date(Date.now() - 1209600000),
+    createdAt: new Date(Date.now() - 1209600000),
+    usageCount: 45000,
+    buttons: [
+      {
+        id: 'btn_7',
+        type: 'action',
+        actionType: 'dlaction',
+        displayText: 'Copy OTP',
+        postbackData: 'copy_otp_{{1}}',
+        position: 0,
+      },
+    ],
+    variables: [
+      { id: 'var_10', name: 'otp_code', position: 0, sampleValue: '123456' },
+    ],
+    analytics: {
+      sentCount: 125600,
+      deliveredCount: 123400,
+      deliveredRate: 98.2,
+      openedCount: 118900,
+      openedRate: 96.4,
+      clickedCount: 89340,
+      clickedRate: 71.0,
+      actionButtonsClicked: 89340,
+      suggestionRepliesClicked: 0,
+      lastUpdated: new Date(Date.now() - 900000),
+    },
+  },
+  {
+    id: 'rcs_5',
+    name: 'feedback_survey',
+    language: 'English',
+    category: 'Marketing',
+    headerType: 'none',
+    body: 'We\'d love your feedback! 🌟\n\nHow would you rate your experience with us?\n\nYour {{1}} seconds feedback helps us improve.',
+    templateType: 'standard',
+    status: 'draft',
+    createdBy: 'user_3',
+    createdAt: new Date(Date.now() - 43200000),
+    usageCount: 0,
+    buttons: [
+      {
+        id: 'btn_8',
+        type: 'suggestion',
+        actionType: 'openurl',
+        displayText: '⭐⭐⭐⭐⭐ Excellent',
+        suggestedReplyText: 'Excellent',
+        position: 0,
+      },
+      {
+        id: 'btn_9',
+        type: 'suggestion',
+        actionType: 'openurl',
+        displayText: '⭐⭐⭐⭐ Good',
+        suggestedReplyText: 'Good',
+        position: 1,
+      },
+      {
+        id: 'btn_10',
+        type: 'suggestion',
+        actionType: 'openurl',
+        displayText: '⭐⭐⭐ Average',
+        suggestedReplyText: 'Average',
+        position: 2,
+      },
+    ],
+    variables: [
+      { id: 'var_11', name: 'survey_duration', position: 0, sampleValue: '30' },
+    ],
+  },
+];
+

@@ -1,6 +1,15 @@
 // API service for RCS Bot Configuration
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = `http://${window.location.hostname}:5000/api/rcs`;
+
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
 
 interface RCSBotData {
   bot_name: string;
@@ -36,7 +45,9 @@ export const rcsApi = {
   // Get all bots
   async getAllBots() {
     try {
-      const response = await fetch(`${API_BASE_URL}/rcs/bots`);
+      const response = await fetch(`${API_BASE_URL}/bots`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch bots');
       return await response.json();
     } catch (error) {
@@ -48,7 +59,9 @@ export const rcsApi = {
   // Get bot by ID
   async getBotById(id: string | number) {
     try {
-      const response = await fetch(`${API_BASE_URL}/bots/${id}`);
+      const response = await fetch(`${API_BASE_URL}/bots/${id}`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Bot not found');
       return await response.json();
     } catch (error) {
@@ -62,9 +75,7 @@ export const rcsApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/bots`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to create bot');
@@ -80,9 +91,7 @@ export const rcsApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/bots/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to update bot');
@@ -93,11 +102,12 @@ export const rcsApi = {
     }
   },
 
-  // Delete bot configuration
+  // Delete bot
   async deleteBot(id: string | number) {
     try {
       const response = await fetch(`${API_BASE_URL}/bots/${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       if (!response.ok) throw new Error('Failed to delete bot');
       return await response.json();
@@ -107,3 +117,4 @@ export const rcsApi = {
     }
   },
 };
+
