@@ -69,14 +69,14 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
         {collapsed && (
           <img src={logo} alt="Cell24x7" className="w-8 h-8 rounded-lg" />
         )}
-        <Button
+        {/* <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8 hidden lg:flex"
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </Button>
+        </Button> */}
       </div>
 
       {/* Navigation */}

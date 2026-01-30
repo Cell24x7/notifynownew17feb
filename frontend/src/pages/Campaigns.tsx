@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee } from 'lucide-react';
+import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +36,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
+import RCSTemplateManagement from '@/components/campaigns/RCSTemplateManagement';
 
 // WhatsApp Business API supported template languages
 const templateLanguages = [
@@ -107,7 +108,7 @@ export default function Campaigns() {
   const [templates, setTemplates] = useState<MessageTemplate[]>(mockMessageTemplates);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates'>('campaigns');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates' | 'rcs-templates'>('campaigns');
   
   // Campaign creation state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -669,7 +670,7 @@ export default function Campaigns() {
       </div>
 
       {/* Tabs for Campaigns and Templates */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates')}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates' | 'rcs-templates')}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <TabsList>
             <TabsTrigger value="campaigns" className="flex items-center gap-2">
@@ -679,6 +680,10 @@ export default function Campaigns() {
             <TabsTrigger value="templates" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Templates
+            </TabsTrigger>
+            <TabsTrigger value="rcs-templates" className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4" />
+              RCS Templates
             </TabsTrigger>
           </TabsList>
 
@@ -1003,6 +1008,11 @@ export default function Campaigns() {
             ))}
           </div>
         </TabsContent>
+
+        {/* RCS Templates Tab */}
+        <TabsContent value="rcs-templates" className="mt-6">
+          <RCSTemplateManagement />
+        </TabsContent>
       </Tabs>
 
       {/* Template Create/Edit Modal - Channel Specific */}
@@ -1101,6 +1111,8 @@ export default function Campaigns() {
                           <TabsTrigger value="standard" className="flex-1">Standard Template</TabsTrigger>
                           <TabsTrigger value="carousel" className="flex-1">Carousel Template</TabsTrigger>
                         </TabsList>
+                        <TabsContent value="standard" />
+                        <TabsContent value="carousel" />
                       </Tabs>
                     )}
 

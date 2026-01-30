@@ -83,7 +83,7 @@ export function RCSBotsManager() {
   const fetchBots = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_URL}/api/rcs/bots`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -109,7 +109,7 @@ export function RCSBotsManager() {
   const handleCreateBot = async () => {
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_URL}/api/rcs/bots`, {
         method: 'POST',
         headers: {
@@ -164,7 +164,7 @@ export function RCSBotsManager() {
   const handleSubmitBot = async (botId: string) => {
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_URL}/api/rcs/bots/${botId}/submit`, {
         method: 'POST',
         headers: {
@@ -198,7 +198,7 @@ export function RCSBotsManager() {
     if (!window.confirm('Are you sure you want to delete this bot?')) return;
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_URL}/api/rcs/bots/${botId}`, {
         method: 'DELETE',
         headers: {

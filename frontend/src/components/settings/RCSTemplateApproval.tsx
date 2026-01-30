@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { CheckCircle, XCircle, Eye, MessageSquare, Clock, User, Calendar, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle, XCircle, Eye, MessageSquare, Clock, User, Calendar, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,56 +7,80 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { mockRCSTemplates, type RCSTemplate } from '@/lib/mockData';
+import { rcsTemplatesService } from '@/services/rcsTemplatesService';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
-interface TemplateApprovalRequest {
+interface RCSTemplate {
   id: string;
-  template: RCSTemplate;
-  requestedBy: string;
-  requestedAt: Date;
-  status: 'pending' | 'approved' | 'rejected';
+  name: string;
+  category: string;
+  status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  body: string;
+  headerType: string;
+  headerContent: string;
+  buttons: any[];
+  variables: any[];
+  footer?: string;
+  language: string;
+  createdBy: string;
+  createdAt: string | Date;
   rejectionReason?: string;
 }
 
 export function RCSTemplateApproval() {
-  const [approvalRequests, setApprovalRequests] = useState<TemplateApprovalRequest[]>(
-    mockRCSTemplates
-      .filter(t => t.status === 'pending_approval' || t.status === 'draft')
-      .map((template, idx) => ({
-        id: `approval_${idx}`,
-        template,
-        requestedBy: template.createdBy,
-        requestedAt: template.createdAt,
-        status: 'pending',
-      }))
-  );
-
-  const [selectedRequest, setSelectedRequest] = useState<TemplateApprovalRequest | null>(null);
+  const [templates, setTemplates] = useState<RCSTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<RCSTemplate | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectingId, setIsRejectingId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const { toast } = useToast();
 
-  const handleApprove = (id: string) => {
-    setApprovalRequests(
-      approvalRequests.map((req) =>
-        req.id === id
-          ? {
-              ...req,
-              status: 'approved',
-              template: { ...req.template, status: 'approved' as const },
-            }
-          : req
-      )
-    );
-    toast({
-      title: 'Success',
-      description: 'Template approved successfully',
-    });
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      setIsLoading(true);
+      const data = await rcsTemplatesService.getAllTemplates();
+      setTemplates(data || []);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load templates for approval',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleReject = (id: string) => {
+  const handleApprove = async (id: string) => {
+    try {
+      setIsProcessing(true);
+      await rcsTemplatesService.approveTemplate(id, 'admin');
+      toast({
+        title: 'Success',
+        description: 'Template approved successfully',
+      });
+      fetchTemplates();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to approve template',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = async (id: string) => {
     if (!rejectionReason.trim()) {
       toast({
         title: 'Error',
@@ -66,105 +90,101 @@ export function RCSTemplateApproval() {
       return;
     }
 
-    setApprovalRequests(
-      approvalRequests.map((req) =>
-        req.id === id
-          ? {
-              ...req,
-              status: 'rejected',
-              rejectionReason,
-              template: {
-                ...req.template,
-                status: 'rejected' as const,
-                rejectionReason,
-              },
-            }
-          : req
-      )
-    );
-    setIsRejectingId(null);
-    setRejectionReason('');
-    toast({
-      title: 'Success',
-      description: 'Template rejected',
-    });
+    try {
+      setIsProcessing(true);
+      await rcsTemplatesService.rejectTemplate(id, rejectionReason, 'admin');
+      setIsRejectingId(null);
+      setRejectionReason('');
+      toast({
+        title: 'Success',
+        description: 'Template rejected',
+      });
+      fetchTemplates();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to reject template',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const pendingRequests = approvalRequests.filter((r) => r.status === 'pending');
-  const approvedRequests = approvalRequests.filter((r) => r.status === 'approved');
-  const rejectedRequests = approvalRequests.filter((r) => r.status === 'rejected');
+  const pendingTemplates = templates.filter((t) => t.status === 'pending_approval' || t.status === 'draft');
+  const approvedTemplates = templates.filter((t) => t.status === 'approved');
+  const rejectedTemplates = templates.filter((t) => t.status === 'rejected');
 
-  const ApprovalCard = ({ request }: { request: TemplateApprovalRequest }) => (
+  const TemplateCard = ({ template }: { template: RCSTemplate }) => (
     <Card className="card-elevated hover:shadow-lg transition-all">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg">{request.template.name}</CardTitle>
-            <CardDescription>{request.template.category}</CardDescription>
+            <CardTitle className="text-lg">{template.name}</CardTitle>
+            <CardDescription>{template.category}</CardDescription>
           </div>
-          <Badge variant={request.status === 'approved' ? 'default' : request.status === 'rejected' ? 'destructive' : 'secondary'}>
-            {request.status === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
-            {request.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
-            {request.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
-            {request.status}
+          <Badge variant={template.status === 'approved' ? 'default' : template.status === 'rejected' ? 'destructive' : 'secondary'}>
+            {template.status === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
+            {template.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
+            {(template.status === 'pending_approval' || template.status === 'draft') && <Clock className="h-3 w-3 mr-1" />}
+            {template.status.replace('_', ' ')}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Template Preview */}
         <div className="bg-muted p-3 rounded-lg text-sm max-h-20 overflow-hidden">
           <p className="font-medium text-xs text-muted-foreground mb-1">PREVIEW</p>
-          <p className="line-clamp-3">{request.template.body}</p>
+          <p className="line-clamp-3">{template.body}</p>
         </div>
 
-        {/* Metadata */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center gap-2">
             <User className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">Requested by: {request.requestedBy}</span>
+            <span className="text-muted-foreground truncate">By: {template.createdBy}</span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">{request.requestedAt.toLocaleDateString()}</span>
+            <span className="text-muted-foreground">
+              {template.createdAt ? format(new Date(template.createdAt), 'dd MMM yyyy') : 'N/A'}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <MessageSquare className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">{request.template.buttons.length} buttons</span>
+            <span className="text-muted-foreground">{template.buttons?.length || 0} buttons</span>
           </div>
           <div className="flex items-center gap-2">
             <FileText className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">v{request.template.language}</span>
+            <span className="text-muted-foreground">{template.language}</span>
           </div>
         </div>
 
-        {/* Rejection Reason */}
-        {request.rejectionReason && (
+        {template.rejectionReason && (
           <div className="p-3 bg-destructive/10 rounded-lg">
             <p className="text-xs font-medium text-destructive mb-1">Rejection Reason</p>
-            <p className="text-xs text-destructive/80">{request.rejectionReason}</p>
+            <p className="text-xs text-destructive/80">{template.rejectionReason}</p>
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
             size="sm"
             className="flex-1"
             onClick={() => {
-              setSelectedRequest(request);
+              setSelectedTemplate(template);
               setIsDetailsOpen(true);
             }}
           >
             <Eye className="h-4 w-4 mr-2" />
-            View Details
+            Details
           </Button>
-          {request.status === 'pending' && (
+          {(template.status === 'pending_approval' || template.status === 'draft') && (
             <>
               <Button
                 size="sm"
                 className="flex-1 bg-green-600 hover:bg-green-700"
-                onClick={() => handleApprove(request.id)}
+                onClick={() => handleApprove(template.id)}
+                disabled={isProcessing}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Approve
@@ -172,7 +192,8 @@ export function RCSTemplateApproval() {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => setIsRejectingId(request.id)}
+                onClick={() => setIsRejectingId(template.id)}
+                disabled={isProcessing}
               >
                 <XCircle className="h-4 w-4" />
               </Button>
@@ -180,8 +201,7 @@ export function RCSTemplateApproval() {
           )}
         </div>
 
-        {/* Rejection Reason Input */}
-        {isRejectingId === request.id && (
+        {isRejectingId === template.id && (
           <div className="space-y-2 pt-2 border-t">
             <Label className="text-xs">Rejection Reason</Label>
             <Textarea
@@ -206,9 +226,10 @@ export function RCSTemplateApproval() {
                 size="sm"
                 variant="destructive"
                 className="flex-1"
-                onClick={() => handleReject(request.id)}
+                onClick={() => handleReject(template.id)}
+                disabled={isProcessing}
               >
-                Confirm Rejection
+                Confirm
               </Button>
             </div>
           </div>
@@ -217,22 +238,29 @@ export function RCSTemplateApproval() {
     </Card>
   );
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+        <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+        <p className="text-muted-foreground font-medium">Fetching templates from database...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">RCS Template Approvals</h1>
-        <p className="text-muted-foreground mt-1">Review and approve pending RCS templates</p>
+        <p className="text-muted-foreground mt-1">Review and approve pending RCS templates from your campaigns</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="card-elevated">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{pendingRequests.length}</p>
+                <p className="text-2xl font-bold text-yellow-600">{pendingTemplates.length}</p>
               </div>
               <Clock className="h-8 w-8 text-yellow-500 opacity-50" />
             </div>
@@ -243,7 +271,7 @@ export function RCSTemplateApproval() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Approved</p>
-                <p className="text-2xl font-bold text-green-600">{approvedRequests.length}</p>
+                <p className="text-2xl font-bold text-green-600">{approvedTemplates.length}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500 opacity-50" />
             </div>
@@ -254,7 +282,7 @@ export function RCSTemplateApproval() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Rejected</p>
-                <p className="text-2xl font-bold text-red-600">{rejectedRequests.length}</p>
+                <p className="text-2xl font-bold text-red-600">{rejectedTemplates.length}</p>
               </div>
               <XCircle className="h-8 w-8 text-red-500 opacity-50" />
             </div>
@@ -262,104 +290,91 @@ export function RCSTemplateApproval() {
         </Card>
       </div>
 
-      {/* Pending Approvals */}
-      {pendingRequests.length > 0 && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Pending Review</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pendingRequests.map((request) => (
-              <ApprovalCard key={request.id} request={request} />
+      {pendingTemplates.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Clock className="h-5 w-5 text-yellow-500" />
+            Pending Review
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingTemplates.map((tpl) => (
+              <TemplateCard key={tpl.id} template={tpl} />
             ))}
           </div>
         </div>
       )}
 
-      {/* Approved Templates */}
-      {approvedRequests.length > 0 && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Approved Templates</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {approvedRequests.map((request) => (
-              <ApprovalCard key={request.id} request={request} />
+      {approvedTemplates.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            Approved Templates
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {approvedTemplates.map((tpl) => (
+              <TemplateCard key={tpl.id} template={tpl} />
             ))}
           </div>
         </div>
       )}
 
-      {/* Rejected Templates */}
-      {rejectedRequests.length > 0 && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Rejected Templates</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {rejectedRequests.map((request) => (
-              <ApprovalCard key={request.id} request={request} />
+      {rejectedTemplates.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <XCircle className="h-5 w-5 text-red-500" />
+            Rejected Templates
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {rejectedTemplates.map((tpl) => (
+              <TemplateCard key={tpl.id} template={tpl} />
             ))}
           </div>
         </div>
       )}
 
-      {approvalRequests.length === 0 && (
-        <div className="text-center py-12">
-          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-medium mb-1">All templates processed</h3>
-          <p className="text-muted-foreground">There are no templates pending approval</p>
+      {templates.length === 0 && (
+        <div className="text-center py-20 bg-muted/20 rounded-2xl border-2 border-dashed">
+          <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <h3 className="text-lg font-medium mb-1">No templates found in database</h3>
+          <p className="text-muted-foreground">Create a template in the Campaigns tab to see it here.</p>
         </div>
       )}
 
-      {/* Details Dialog */}
-      {selectedRequest && (
+      {selectedTemplate && (
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Template Details: {selectedRequest.template.name}</DialogTitle>
+              <DialogTitle>Template Details: {selectedTemplate.name}</DialogTitle>
             </DialogHeader>
             <div className="space-y-6 py-4">
-              {/* Header */}
-              {selectedRequest.template.headerType !== 'none' && (
+              {selectedTemplate.headerType !== 'none' && (
                 <div>
-                  <p className="text-sm font-medium mb-2">Header ({selectedRequest.template.headerType.toUpperCase()})</p>
+                  <p className="text-sm font-medium mb-2">Header ({selectedTemplate.headerType.toUpperCase()})</p>
                   <div className="bg-muted p-4 rounded-lg">
-                    {selectedRequest.template.headerType === 'image' && (
-                      <img src="/placeholder.svg" alt="header" className="w-full h-32 object-cover rounded" />
+                    {selectedTemplate.headerType === 'image' && (
+                      <img src={selectedTemplate.headerContent || "/placeholder.svg"} alt="header" className="w-full h-32 object-cover rounded" />
                     )}
-                    {selectedRequest.template.headerType === 'text' && (
-                      <p className="font-medium">{selectedRequest.template.headerContent}</p>
+                    {(selectedTemplate.headerType === 'text' || selectedTemplate.headerType === 'video' || selectedTemplate.headerType === 'document') && (
+                      <p className="font-medium">{selectedTemplate.headerContent}</p>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Body */}
               <div>
                 <p className="text-sm font-medium mb-2">Message Body</p>
                 <div className="bg-primary/5 p-4 rounded-lg whitespace-pre-wrap text-sm font-mono">
-                  {selectedRequest.template.body}
+                  {selectedTemplate.body}
                 </div>
               </div>
 
-              {/* Variables */}
-              {selectedRequest.template.variables.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium mb-2">Variables</p>
-                  <div className="space-y-2">
-                    {selectedRequest.template.variables.map((variable, idx) => (
-                      <div key={variable.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <span className="text-sm font-mono">{`{{${variable.name}}}`}</span>
-                        <span className="text-xs text-muted-foreground">{variable.sampleValue}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Buttons */}
-              {selectedRequest.template.buttons.length > 0 && (
+              {selectedTemplate.buttons && selectedTemplate.buttons.length > 0 && (
                 <div>
                   <p className="text-sm font-medium mb-2">Buttons</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {selectedRequest.template.buttons.map((btn) => (
+                    {selectedTemplate.buttons.map((btn, idx) => (
                       <Button
-                        key={btn.id}
+                        key={idx}
                         variant={btn.type === 'action' ? 'default' : 'outline'}
                         size="sm"
                         className="w-full"
@@ -371,33 +386,33 @@ export function RCSTemplateApproval() {
                 </div>
               )}
 
-              {/* Footer */}
-              {selectedRequest.template.footer && (
+              {selectedTemplate.footer && (
                 <div>
                   <p className="text-sm font-medium mb-2">Footer</p>
                   <div className="text-xs text-muted-foreground text-center border p-3 rounded">
-                    {selectedRequest.template.footer}
+                    {selectedTemplate.footer}
                   </div>
                 </div>
               )}
 
-              {/* Metadata */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-3 bg-muted rounded">
-                  <p className="text-muted-foreground">Category</p>
-                  <p className="font-medium mt-1">{selectedRequest.template.category}</p>
+                  <p className="text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">Category</p>
+                  <p className="font-medium mt-1">{selectedTemplate.category}</p>
                 </div>
                 <div className="p-3 bg-muted rounded">
-                  <p className="text-muted-foreground">Language</p>
-                  <p className="font-medium mt-1">{selectedRequest.template.language}</p>
+                  <p className="text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">Language</p>
+                  <p className="font-medium mt-1">{selectedTemplate.language}</p>
                 </div>
                 <div className="p-3 bg-muted rounded">
-                  <p className="text-muted-foreground">Created By</p>
-                  <p className="font-medium mt-1">{selectedRequest.requestedBy}</p>
+                  <p className="text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">Created By</p>
+                  <p className="font-medium mt-1">{selectedTemplate.createdBy}</p>
                 </div>
                 <div className="p-3 bg-muted rounded">
-                  <p className="text-muted-foreground">Requested On</p>
-                  <p className="font-medium mt-1">{selectedRequest.requestedAt.toLocaleDateString()}</p>
+                  <p className="text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">Requested On</p>
+                  <p className="font-medium mt-1">
+                    {selectedTemplate.createdAt ? format(new Date(selectedTemplate.createdAt), 'dd MMM yyyy HH:mm') : 'N/A'}
+                  </p>
                 </div>
               </div>
             </div>

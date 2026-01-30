@@ -62,15 +62,16 @@ export default function Profile() {
     setLoading(true);
     try {
       const res = await axios.put(`${API_URL}/profile`, formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
       });
 
       if (res.data.success) {
+        // Update local context state
         updateUser(res.data.user);
         toast({ title: "Saved", description: "Profile updated successfully" });
         setIsEditing(false);
       }
-    } catch (err) {
+    } catch (err: any) {
       toast({
         variant: "destructive",
         title: "Failed",
@@ -98,17 +99,17 @@ const res = await axios.put(`${API_URL}/profile/change-password`, {
   currentPassword: passwordForm.currentPassword,
   newPassword: passwordForm.newPassword,
 }, {
-  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+  headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
 });
       if (res.data.success) {
-        toast({ title: "Success", description: "Password changed" });
+        toast({ title: "Success", description: "Password changed successfully" });
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       }
-    } catch (err) {
+    } catch (err: any) {
       toast({
         variant: "destructive",
         title: "Failed",
-        description: err.response?.data?.message || "Current password wrong",
+        description: err.response?.data?.message || "Current password incorrect or server error",
       });
     } finally {
       setPasswordLoading(false);

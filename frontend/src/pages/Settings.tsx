@@ -177,7 +177,7 @@ export default function Settings() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 md:space-y-6">
         <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
-          <TabsList className="inline-flex w-auto min-w-full md:w-auto md:min-w-0 gap-1">
+          <TabsList className="flex w-full overflow-x-auto overflow-y-hidden justify-start md:w-auto md:min-w-0 gap-1 scrollbar-hide py-1">
             {/* Admin-only tabs */}
             {userRole === 'admin' && (
               <>
@@ -910,8 +910,15 @@ export default function Settings() {
         </TabsContent>
 
         {/* RCS Messages/Preview Tab */}
-        <TabsContent value="rcs-messages" className="space-y-4">
-          <RCSPreview />
+        <TabsContent value="rcs-messages" className="space-y-4 flex flex-col items-center">
+          <div className="max-w-md w-full">
+            <RCSPreview 
+              botName="Official Support"
+              brandName="Cell24x7"
+              shortDescription="Welcome to our official customer support channel."
+              brandColor="#7C3AED"
+            />
+          </div>
         </TabsContent>
 
         {/* RCS Approval Tab */}

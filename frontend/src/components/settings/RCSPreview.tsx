@@ -14,30 +14,29 @@ import {
 } from "lucide-react";
 
 interface RCSPreviewProps {
-  botName: string;
-  brandName: string;
-  shortDescription: string;
-  brandColor: string;
-  botLogo: string | null;
-  bannerImage: string | null;
+  botName?: string;
+  brandName?: string;
+  shortDescription?: string;
+  brandColor?: string;
+  botLogo?: string | null;
+  bannerImage?: string | null;
   phoneNumber?: string;
   email?: string;
-  // website?: string;   // commented out as per your last version
 }
 
 export function RCSPreview({
-  botName,
-  brandName,
-  shortDescription,
-  brandColor,
-  botLogo,
-  bannerImage,
-  phoneNumber,
-  email,
+  botName = "",
+  brandName = "",
+  shortDescription = "",
+  brandColor = "#7C3AED",
+  botLogo = null,
+  bannerImage = null,
+  phoneNumber = "",
+  email = "",
 }: RCSPreviewProps) {
-  const displayBotName = botName.trim() || "Your Bot";
-  const displayBrandName = brandName.trim() || "Your Brand";
-  const displayDesc = shortDescription.trim() || "Welcome to our official RCS channel";
+  const displayBotName = (botName || "").trim() || "Your Bot";
+  const displayBrandName = (brandName || "").trim() || "Your Brand";
+  const displayDesc = (shortDescription || "").trim() || "Welcome to our official RCS channel";
 
   const hasBanner = !!bannerImage;
   const hasLogo = !!botLogo;

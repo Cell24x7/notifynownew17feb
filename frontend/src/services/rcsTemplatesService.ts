@@ -1,13 +1,23 @@
 // RCS Templates Service
 // Frontend service to communicate with RCS Templates API
 
-const API_BASE = '/api/rcs-templates';
+const API_BASE = `http://${window.location.hostname}:5000/api/rcs-templates`;
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
 
 export const rcsTemplatesService = {
   // Get all templates
   async getAllTemplates() {
     try {
-      const response = await fetch(`${API_BASE}/templates`);
+      const response = await fetch(`${API_BASE}/templates`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch templates');
       return await response.json();
     } catch (error) {
@@ -17,9 +27,11 @@ export const rcsTemplatesService = {
   },
 
   // Get single template
-  async getTemplate(id) {
+  async getTemplate(id: string) {
     try {
-      const response = await fetch(`${API_BASE}/templates/${id}`);
+      const response = await fetch(`${API_BASE}/templates/${id}`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch template');
       return await response.json();
     } catch (error) {
@@ -29,17 +41,18 @@ export const rcsTemplatesService = {
   },
 
   // Create new template
-  async createTemplate(templateData) {
+  async createTemplate(templateData: any) {
     try {
       const response = await fetch(`${API_BASE}/templates`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(templateData),
       });
 
-      if (!response.ok) throw new Error('Failed to create template');
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to create template');
+      }
       return await response.json();
     } catch (error) {
       console.error('Error creating template:', error);
@@ -48,13 +61,11 @@ export const rcsTemplatesService = {
   },
 
   // Update template
-  async updateTemplate(id, templateData) {
+  async updateTemplate(id: string, templateData: any) {
     try {
       const response = await fetch(`${API_BASE}/templates/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(templateData),
       });
 
@@ -67,13 +78,11 @@ export const rcsTemplatesService = {
   },
 
   // Delete template
-  async deleteTemplate(id) {
+  async deleteTemplate(id: string) {
     try {
       const response = await fetch(`${API_BASE}/templates/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) throw new Error('Failed to delete template');
@@ -85,13 +94,11 @@ export const rcsTemplatesService = {
   },
 
   // Approve template
-  async approveTemplate(id, approvedBy = 'system') {
+  async approveTemplate(id: string, approvedBy = 'system') {
     try {
       const response = await fetch(`${API_BASE}/templates/${id}/approve`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ approved_by: approvedBy }),
       });
 
@@ -104,13 +111,11 @@ export const rcsTemplatesService = {
   },
 
   // Reject template
-  async rejectTemplate(id, rejectionReason, rejectedBy = 'system') {
+  async rejectTemplate(id: string, rejectionReason: string, rejectedBy = 'system') {
     try {
       const response = await fetch(`${API_BASE}/templates/${id}/reject`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           rejection_reason: rejectionReason,
           rejected_by: rejectedBy,
@@ -126,9 +131,11 @@ export const rcsTemplatesService = {
   },
 
   // Get templates by status
-  async getTemplatesByStatus(status) {
+  async getTemplatesByStatus(status: string) {
     try {
-      const response = await fetch(`${API_BASE}/templates/status/${status}`);
+      const response = await fetch(`${API_BASE}/templates/status/${status}`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch templates');
       return await response.json();
     } catch (error) {
@@ -140,7 +147,9 @@ export const rcsTemplatesService = {
   // Get pending templates for approval
   async getPendingTemplates() {
     try {
-      const response = await fetch(`${API_BASE}/templates/pending/approval`);
+      const response = await fetch(`${API_BASE}/templates/pending/approval`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch pending templates');
       return await response.json();
     } catch (error) {

@@ -101,13 +101,14 @@ export default function RCSTemplateManagement() {
         header_content: formData.headerContent || null,
         footer: formData.footer || null,
         created_by: 'current_user',
+        status: 'pending_approval',
         buttons: [],
         variables: [],
       };
 
       const newTemplate = await rcsTemplatesService.createTemplate(templateData);
       
-      setTemplates([...templates, newTemplate]);
+      setTemplates([newTemplate, ...templates]);
       setIsCreateOpen(false);
       setFormData({
         name: '',
@@ -121,13 +122,13 @@ export default function RCSTemplateManagement() {
 
       toast({
         title: 'Success',
-        description: 'RCS template created and saved to database successfully! ✅',
+        description: 'RCS template created and sent for approval! ✅',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating template:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create template',
+        description: error.message || 'Failed to create template',
         variant: 'destructive',
       });
     } finally {

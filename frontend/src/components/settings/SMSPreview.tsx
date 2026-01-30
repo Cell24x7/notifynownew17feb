@@ -1,24 +1,24 @@
 import { Card, CardContent } from '@/components/ui/card';
 
 interface SMSPreviewProps {
-  senderId: string;
-  companyName: string;
-  logo: string | null;
-  sampleMessage: string;
-  header: string;
-  footer: string;
+  senderId?: string;
+  companyName?: string;
+  logo?: string | null;
+  sampleMessage?: string;
+  header?: string;
+  footer?: string;
 }
 
 export function SMSPreview({ 
-  senderId, 
-  companyName, 
-  logo, 
-  sampleMessage, 
-  header, 
-  footer 
+  senderId = '', 
+  companyName = '', 
+  logo = null, 
+  sampleMessage = '', 
+  header = '', 
+  footer = '' 
 }: SMSPreviewProps) {
-  const displaySender = senderId.trim() || 'SENDERID';
-  const displayMessage = header + (sampleMessage || 'Your sample message preview...') + '\n' + footer + '\n-' + (companyName || 'Your Brand');
+  const displaySender = (senderId || '').trim() || 'SENDERID';
+  const displayMessage = (header || '') + (sampleMessage || 'Your sample message preview...') + '\n' + (footer || '') + '\n-' + (companyName || 'Your Brand');
 
   return (
     <Card className="overflow-hidden shadow-md sticky top-4">

@@ -26,8 +26,8 @@ export function SuperAdminLayout() {
 
   return (
     <div className="flex min-h-screen w-full bg-background overflow-hidden">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block">
+      {/* Desktop Fixed Sidebar */}
+      <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:border-r lg:border-border">
         <SuperAdminSidebar />
       </div>
 
@@ -48,8 +48,8 @@ export function SuperAdminLayout() {
         <SuperAdminSidebar onClose={() => setMobileSidebarOpen(false)} />
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-auto">
+      {/* Main Content – offset by sidebar width on desktop */}
+      <main className="flex-1 flex flex-col overflow-auto lg:ml-64">
         {/* 🔥 MOBILE HEADER STRIP */}
         <header className="sticky top-0 z-30 lg:hidden h-16 border-b bg-background">
           <div className="flex h-full items-center justify-between px-4">
@@ -80,7 +80,9 @@ export function SuperAdminLayout() {
           </div>
         </header>
 
-        <Outlet />
+        <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

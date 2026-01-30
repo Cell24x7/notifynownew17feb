@@ -317,10 +317,10 @@ export function RCSConfiguration() {
         </TabsList>
 
         <TabsContent value="create" className="space-y-4">
-          <div className="flex gap-6">
-            <div className="flex-1 min-w-0">
-              <ScrollArea className="h-[calc(100vh-200px)]">
-                <div className="space-y-6 pr-4">
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 min-w-0 order-2 lg:order-1">
+              <ScrollArea className="h-[calc(100vh-280px)] md:h-[calc(100vh-200px)]">
+                <div className="space-y-6 pr-0 md:pr-4">
 
                   {/* Header */}
                   <div className="flex items-center gap-3">
@@ -757,7 +757,7 @@ export function RCSConfiguration() {
               </ScrollArea>
             </div>
 
-            <div className="hidden lg:block w-[320px] flex-shrink-0">
+            <div className="w-full lg:w-[320px] flex-shrink-0 order-1 lg:order-2">
               <RCSPreview
                 botName={config.botName}
                 brandName={config.brandName}

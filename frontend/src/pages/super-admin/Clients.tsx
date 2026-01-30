@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -327,6 +327,43 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
   }
 };
 
+  // Scroll & Drag functionality
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftState, setScrollLeftState] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeftState(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // Scroll speed
+    scrollRef.current.scrollLeft = scrollLeftState - walk;
+  };
+
+  const scrollHorizontally = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
+      const scrollTo = direction === 'left' ? scrollLeft - 400 : scrollLeft + 400;
+      scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+    }
+  };
+
   // Real totals from filtered clients
   const totalClients = filteredClients.length;
   const totalActiveUsers = filteredClients.filter(c => c.status === 'active').length;
@@ -365,179 +402,236 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Total Clients</p>
-                <p className="text-lg sm:text-2xl font-bold">{totalClients}</p>
-              </div>
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-primary/5">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Clients</p>
+              <p className="text-2xl font-black text-primary">{totalClients}</p>
+            </div>
+            <div className="bg-primary/10 p-2.5 rounded-xl">
+               <Building2 className="w-6 h-6 text-primary" />
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Active Users</p>
-                <p className="text-lg sm:text-2xl font-bold">{totalActiveUsers}</p>
-              </div>
+        
+        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-green-50/50 dark:bg-green-950/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Users</p>
+              <p className="text-2xl font-black text-green-600">{totalActiveUsers}</p>
+            </div>
+            <div className="bg-green-100 dark:bg-green-900/30 p-2.5 rounded-xl">
+               <Users className="w-6 h-6 text-green-600" />
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <CreditCard className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Credits Used</p>
-                <p className="text-lg sm:text-2xl font-bold">{(totalCreditsUsed / 1000).toFixed(0)}K</p>
-              </div>
+
+        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-red-50/50 dark:bg-red-950/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Credits Used</p>
+              <p className="text-2xl font-black text-red-600">{(totalCreditsUsed / 1000).toFixed(1)}K</p>
+            </div>
+            <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
+               <CreditCard className="w-6 h-6 text-red-600" />
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <CreditCard className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Available</p>
-                <p className="text-lg sm:text-2xl font-bold">{(totalCreditsAvailable / 1000).toFixed(0)}K</p>
-              </div>
+
+        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-blue-50/50 dark:bg-blue-950/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Available</p>
+              <p className="text-2xl font-black text-blue-600">{(totalCreditsAvailable / 1000).toFixed(1)}K</p>
+            </div>
+            <div className="bg-blue-100 dark:bg-blue-900/30 p-2.5 rounded-xl">
+               <CreditCard className="w-6 h-6 text-blue-600" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="border-none shadow-sm bg-muted/20">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, company or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="md:col-span-6 relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <Input
+                placeholder="Search by name, company or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-background/50 border-none focus-visible:ring-1 focus-visible:ring-primary h-11"
+              />
             </div>
-            <Select value={planFilter} onValueChange={setPlanFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="All Plans" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Plans</SelectItem>
-                {plans.map(plan => (
-                  <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="trial">Trial</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="md:col-span-3">
+              <Select value={planFilter} onValueChange={setPlanFilter}>
+                <SelectTrigger className="h-11 bg-background/50 border-none focus:ring-1 focus:ring-primary">
+                  <SelectValue placeholder="All Plans" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Plans</SelectItem>
+                  {plans.map(plan => (
+                    <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-11 bg-background/50 border-none focus:ring-1 focus:ring-primary">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active Account</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="pending">Pending Review</SelectItem>
+                  <SelectItem value="trial">Free Trial</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Clients Table */}
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[150px]">Client Name</TableHead>
-                <TableHead className="min-w-[150px]">Company</TableHead>
-                <TableHead className="min-w-[180px]">Email</TableHead>
-                <TableHead className="min-w-[100px]">Plan</TableHead>
-                <TableHead className="text-center min-w-[120px]">Channels</TableHead>
-                <TableHead className="text-right min-w-[120px]">Used</TableHead>
-                <TableHead className="text-right min-w-[120px]">Available</TableHead>
-                <TableHead className="min-w-[100px]">Status</TableHead>
-                <TableHead className="min-w-[120px]">Created</TableHead>
-                <TableHead className="text-right min-w-[80px]">Actions</TableHead>
+      {/* Clients Table with Header Scroll Controls */}
+      <Card className="relative overflow-hidden border-none shadow-lg">
+        <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-lg">Client List</h2>
+            <Badge variant="secondary" className="hidden sm:inline-flex">{totalClients} Total</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-background"
+              onClick={(e) => {
+                e.stopPropagation();
+                scrollHorizontally('left');
+              }}
+              title="Scroll Left"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-background"
+              onClick={(e) => {
+                e.stopPropagation();
+                scrollHorizontally('right');
+              }}
+              title="Scroll Right"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        {/* OUR CUSTOM SCROLLING CONTAINER */}
+        <div 
+          ref={scrollRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className={cn(
+            "w-full overflow-x-auto overflow-y-hidden select-none touch-pan-x",
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          )}
+        >
+          <table className="w-full caption-bottom text-sm border-collapse min-w-[1000px]">
+            <TableHeader className="bg-muted/30 sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[200px] whitespace-nowrap">Client Name</TableHead>
+                <TableHead className="w-[180px] whitespace-nowrap">Company</TableHead>
+                <TableHead className="w-[220px] whitespace-nowrap">Email</TableHead>
+                <TableHead className="w-[120px] whitespace-nowrap">Plan</TableHead>
+                <TableHead className="text-center w-[150px] whitespace-nowrap">Channels</TableHead>
+                <TableHead className="text-right w-[120px] whitespace-nowrap">Used</TableHead>
+                <TableHead className="text-right w-[120px] whitespace-nowrap">Available</TableHead>
+                <TableHead className="w-[120px] whitespace-nowrap text-center">Status</TableHead>
+                <TableHead className="w-[140px] whitespace-nowrap">Created</TableHead>
+                <TableHead className="text-right w-[80px] sticky right-0 bg-background/95 backdrop-blur-sm z-20 border-l shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-10">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                    <p className="mt-2 text-muted-foreground">Loading clients...</p>
+                  <TableCell colSpan={10} className="text-center py-20">
+                    <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
+                    <p className="mt-4 text-sm font-medium text-muted-foreground italic">Fetching data from server...</p>
                   </TableCell>
                 </TableRow>
               ) : filteredClients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
-                    No clients found
+                  <TableCell colSpan={10} className="text-center py-20 text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                       <Search className="w-12 h-12 opacity-20" />
+                       <p className="font-medium">No clients found matching your filters</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredClients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell className="font-medium">{client.name}</TableCell>
-                    <TableCell>{client.company_name}</TableCell>
-                    <TableCell className="text-sm">{client.email}</TableCell>
-                    <TableCell><Badge variant="outline">{plans.find(p => p.id === client.plan_id)?.name || client.plan_id}</Badge></TableCell>
+                  <TableRow key={client.id} className="hover:bg-muted/50 transition-colors">
+                    <TableCell className="font-semibold text-primary">{client.name}</TableCell>
+                    <TableCell className="font-medium">{client.company_name}</TableCell>
+                    <TableCell className="text-xs font-mono">{client.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {plans.find(p => p.id === client.plan_id)?.name || client.plan_id}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex justify-center gap-1 flex-wrap">
-                        {JSON.parse(client.channels_enabled || '[]').slice(0, 4).map((ch: string) => (
-                          <ChannelIcon key={ch} channel={ch} className="w-5 h-5" />
+                      <div className="flex justify-center gap-1.5">
+                        {JSON.parse(client.channels_enabled || '[]').slice(0, 4).map((ch: any) => (
+                          <ChannelIcon key={ch} channel={ch} className="w-5 h-5 shadow-sm" />
                         ))}
                         {JSON.parse(client.channels_enabled || '[]').length > 4 && (
-                          <span className="text-xs text-muted-foreground">+{JSON.parse(client.channels_enabled || '[]').length - 4}</span>
+                          <Badge variant="secondary" className="text-[10px] h-5 px-1">
+                            +{JSON.parse(client.channels_enabled || '[]').length - 4}
+                          </Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-sm">{client.credits_used?.toLocaleString() || '0'}</TableCell>
-                    <TableCell className="text-right text-sm">{client.credits_available.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge className={cn('text-xs', getStatusColor(client.status))}>
+                    <TableCell className="text-right font-medium">
+                      {client.credits_used?.toLocaleString() || '0'}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-green-600">
+                      {client.credits_available.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={cn('text-[10px] px-2 py-0.5 rounded-full uppercase tracking-tighter', getStatusColor(client.status))}>
                         {client.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {format(new Date(client.created_at), 'MMM d, yyyy')}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right sticky right-0 bg-background/95 backdrop-blur-sm z-20 border-l shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
                             <MoreVertical className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleView(client)}>
-                            <Eye className="w-4 h-4 mr-2" /> View
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => handleView(client)} className="gap-2">
+                            <Eye className="w-4 h-4 text-blue-500" /> View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEdit(client)}>
-                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                          <DropdownMenuItem onClick={() => handleEdit(client)} className="gap-2">
+                            <Pencil className="w-4 h-4 text-amber-500" /> Edit Client
                           </DropdownMenuItem>
-                          {/* <DropdownMenuItem onClick={() => handleDelete(client)}>
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete
-                          </DropdownMenuItem> */}
-                     
-
-<DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
-  <LogIn className="w-4 h-4 mr-2" /> Login as Client
-</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleSuspend(client)}>
-                            <Ban className="w-4 h-4 mr-2" />
-                            {client.status === 'suspended' ? 'Activate' : 'Suspend'}
+                          <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)} className="gap-2">
+                            <LogIn className="w-4 h-4 text-primary" /> Login as Client
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSuspend(client)} className="gap-2">
+                            <Ban className="w-4 h-4 text-red-500" />
+                            {client.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -546,8 +640,8 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                 ))
               )}
             </TableBody>
-          </Table>
-        </CardContent>
+          </table>
+        </div>
       </Card>
 
       {/* Client Modal Dialog */}
