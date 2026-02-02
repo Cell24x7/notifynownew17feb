@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Crown,
-  LogOut
+  LogOut,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,7 @@ import logo from '@/assets/logo.png';
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard' },
   { icon: Building2, label: 'Clients', path: '/super-admin/clients' },
+  { icon: FileText, label: 'Templates', path: '/super-admin/templates' },
   { icon: CreditCard, label: 'Plans', path: '/super-admin/plans' },
   // { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles' },
   { icon: Users, label: 'Resellers', path: '/super-admin/resellers' },

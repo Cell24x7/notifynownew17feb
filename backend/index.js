@@ -21,7 +21,7 @@ app.use(cors({
     // Add your production frontend URL here later, e.g. 'https://yourdomain.com'
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -38,6 +38,8 @@ app.use('/api/profile', require('./routes/profile'));
 app.use('/api/rcs', require('./routes/rcs'));
 app.use('/api/rcs-templates', require('./routes/rcs-templates'));
 app.use('/api/affiliates', require('./routes/affiliates'));
+app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/templates', require('./routes/templates'));
 
 // Health check & root route
 app.get('/', (req, res) => {

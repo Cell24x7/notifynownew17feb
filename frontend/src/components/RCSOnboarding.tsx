@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import API_BASE_URL from "../config/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileUpload, CheckCircle, Clock, AlertCircle, Upload, Eye, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -220,12 +221,14 @@ export default function RCSOnboarding() {
         }
       });
 
-      // Submit to backend
-      const response = await fetch(`http://${window.location.hostname}:5000/api/rcs/onboarding`, {
-        method: 'POST',
-        body: submitData
-      });
-
+    // Submit to backend
+const response = await fetch(
+  `${API_BASE_URL}/api/rcs/onboarding`,
+  {
+    method: 'POST',
+    body: submitData
+  }
+);
       if (response.ok) {
         toast({
           title: 'Onboarding Submitted',

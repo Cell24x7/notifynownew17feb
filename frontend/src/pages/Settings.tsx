@@ -11,18 +11,25 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { mockUsers, type User } from '@/lib/mockData';
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'manager' | 'agent' | 'superadmin';
+  status: 'online' | 'offline' | 'busy';
+  department?: string;
+  channels_enabled?: string[] | string | null;
+}
+import { mockUsers } from '@/lib/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { FileManager } from '@/components/files/FileManager';
 import { RCSConfiguration } from '@/components/settings/RCSConfiguration';
-import { RCSPreview } from '@/components/settings/RCSPreview';
-import { RCSBotsList } from '@/components/settings/RCSBotsList';
 import { SMSConfiguration } from '@/components/settings/SMSConfiguration';
-import { SMSList } from '@/components/settings/SMSList';
-import { SMSPreview } from '@/components/settings/SMSPreview';
 import { WhatsAppConfiguration } from '@/components/settings/WhatsAppConfiguration';
 import { InstagramConfiguration } from '@/components/settings/InstagramConfiguration';
 import { MessengerConfiguration } from '@/components/settings/MessengerConfiguration';
@@ -31,8 +38,6 @@ import { VoiceBotConfiguration } from '@/components/settings/VoiceBotConfigurati
 import { LanguageSettings } from '@/components/settings/LanguageSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
-import { RCSTemplateApproval } from '@/components/settings/RCSTemplateApproval';
-import { useRole } from '@/contexts/RoleContext';
 
 interface ChannelConfig {
   smsChannelName?: string;
@@ -84,26 +89,16 @@ const walletTransactions = [
 ];
 
 export default function Settings() {
-  const { userRole, hasFeatureAccess, hasPermission } = useRole();
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  // For non-admin users, default to RCS tab
-  const defaultTab = userRole === 'admin' ? 'channels' : 'rcs-setup';
-  const tabFromUrl = searchParams.get('tab') || defaultTab;
+  const tabFromUrl = searchParams.get('tab') || 'channels';
   const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) {
-      // If user is not admin and trying to access admin-only tab, redirect to RCS
-      if (userRole !== 'admin' && !['rcs-setup', 'rcs-bots', 'rcs-messages', 'rcs-approval'].includes(tab)) {
-        setActiveTab('rcs-setup');
-        setSearchParams({ tab: 'rcs-setup' });
-        return;
-      }
       setActiveTab(tab);
     }
-  }, [searchParams, userRole, setSearchParams]);
+  }, [searchParams]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -125,6 +120,44 @@ export default function Settings() {
   const [showVoiceBotConfig, setShowVoiceBotConfig] = useState(false);
   const [channelConfigs, setChannelConfigs] = useState<ChannelConfig>({});
   const { toast } = useToast();
+  const { user: authUser, refreshUser } = useAuth();
+  const [dbUser, setDbUser] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.get('http://localhost:5000/api/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          const user = response.data.user;
+          setDbUser(user);
+          
+          // Parse channels_enabled
+          let enabledChannels: string[] = [];
+          if (user.channels_enabled) {
+            try {
+              enabledChannels = typeof user.channels_enabled === 'string' 
+                ? JSON.parse(user.channels_enabled) 
+                : user.channels_enabled;
+            } catch (e) {
+              console.error('Error parsing channels_enabled:', e);
+            }
+          }
+
+          // Update channels list based on DB
+          setChannels(prev => prev.map(c => ({
+            ...c,
+            connected: enabledChannels.includes(c.id)
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleRecharge = () => {
     const amount = parseFloat(rechargeAmount);
@@ -138,15 +171,61 @@ export default function Settings() {
     }
   };
 
-  const handleChannelToggle = (channelId: string) => {
-    setChannels(channels.map(c => 
+  const isChannelAuthorized = (channelId: string) => {
+    if (dbUser?.role === 'admin' || dbUser?.role === 'superadmin') return true;
+    let enabledChannels: string[] = [];
+    if (dbUser?.channels_enabled) {
+      try {
+        enabledChannels = typeof dbUser.channels_enabled === 'string' 
+          ? JSON.parse(dbUser.channels_enabled) 
+          : dbUser.channels_enabled;
+      } catch (e) {
+        console.error('Error parsing channels_enabled:', e);
+      }
+    }
+    return enabledChannels.includes(channelId);
+  };
+
+  const handleChannelToggle = async (channelId: string) => {
+    if (!isChannelAuthorized(channelId)) {
+      toast({
+        title: 'Access Denied',
+        description: "You haven't purchased this service yet. Please contact support to activate this channel.",
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const newChannels = channels.map(c => 
       c.id === channelId ? { ...c, connected: !c.connected } : c
-    ));
-    const channel = channels.find(c => c.id === channelId);
-    toast({
-      title: channel?.connected ? 'Channel disconnected' : 'Channel connected',
-      description: `${channel?.name} has been ${channel?.connected ? 'disconnected' : 'connected'}.`,
-    });
+    );
+    
+    const isConnecting = !channels.find(c => c.id === channelId)?.connected;
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const enabledIds = newChannels.filter(c => c.connected).map(c => c.id);
+      
+      await axios.put('http://localhost:5000/api/auth/channels', 
+        { channels: enabledIds },
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+
+      setChannels(newChannels);
+      await refreshUser();
+
+      toast({
+        title: isConnecting ? 'Channel connected' : 'Channel disconnected',
+        description: `${channels.find(c => c.id === channelId)?.name} has been ${isConnecting ? 'connected' : 'disconnected'}.`,
+      });
+    } catch (err) {
+      console.error('Error toggling channel:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to update channel status.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleInviteUser = () => {
@@ -177,92 +256,43 @@ export default function Settings() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 md:space-y-6">
         <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
-          <TabsList className="flex w-full overflow-x-auto overflow-y-hidden justify-start md:w-auto md:min-w-0 gap-1 scrollbar-hide py-1">
-            {/* Admin-only tabs */}
-            {userRole === 'admin' && (
-              <>
-                <TabsTrigger value="channels" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Channels</span>
-                </TabsTrigger>
-              </>
-            )}
-            
-            {/* RCS tabs visible to all users */}
-            <TabsTrigger value="rcs-setup" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Smartphone className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">RCS Setup</span>
-            </TabsTrigger>
-            <TabsTrigger value="rcs-bots" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Bot className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">RCS Bots</span>
-            </TabsTrigger>
-            <TabsTrigger value="rcs-messages" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+          <TabsList className="inline-flex w-auto min-w-full md:w-auto md:min-w-0 gap-1">
+            <TabsTrigger value="channels" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
               <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">RCS Messages</span>
+              <span className="hidden sm:inline">Channels</span>
             </TabsTrigger>
-            <TabsTrigger value="rcs-approval" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Check className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">RCS Approval</span>
+            <TabsTrigger value="users" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Users className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Users</span>
             </TabsTrigger>
-            
-            {/* Admin-only channel tabs */}
-            {userRole === 'admin' && (
-              <>
-                <TabsTrigger value="sms-setup" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Phone className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">SMS Setup</span>
-                </TabsTrigger>
-                <TabsTrigger value="sms-messages" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">SMS Messages</span>
-                </TabsTrigger>
-              </>
-            )}
-            
-            {/* Admin-only management tabs */}
-            {userRole === 'admin' && (
-              <>
-                <TabsTrigger value="users" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Users className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Users</span>
-                </TabsTrigger>
-                <TabsTrigger value="roles" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Shield className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Roles</span>
-                </TabsTrigger>
-                <TabsTrigger value="wallet" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Wallet className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Wallet</span>
-                </TabsTrigger>
-              </>
-            )}
-            
-            {/* Admin-only settings tabs */}
-            {userRole === 'admin' && (
-              <>
-                <TabsTrigger value="language" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Globe className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Language</span>
-                </TabsTrigger>
-                <TabsTrigger value="security" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Lock className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Security</span>
-                </TabsTrigger>
-                <TabsTrigger value="notifications" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Bell className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Notifications</span>
-                </TabsTrigger>
-                <TabsTrigger value="theme" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <Palette className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Theme</span>
-                </TabsTrigger>
-                <TabsTrigger value="files" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-                  <FolderOpen className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Files</span>
-                </TabsTrigger>
-              </>
-            )}
+            <TabsTrigger value="roles" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Shield className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Roles</span>
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Wallet className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Wallet</span>
+            </TabsTrigger>
+            <TabsTrigger value="language" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Globe className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Language</span>
+            </TabsTrigger>
+            <TabsTrigger value="security" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Lock className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Security</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Bell className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="theme" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <Palette className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Theme</span>
+            </TabsTrigger>
+            <TabsTrigger value="files" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <FolderOpen className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Files</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -488,28 +518,46 @@ export default function Settings() {
                           )}
                         </div>
                       </div>
-                      <Switch
-                        checked={channel.connected}
-                        onCheckedChange={() => {
-                          if (channel.id === 'sms' && !channel.connected) {
-                            setShowSMSConfig(true);
-                          } else if (channel.id === 'rcs' && !channel.connected) {
-                            setShowRCSConfig(true);
-                          } else if (channel.id === 'whatsapp' && !channel.connected) {
-                            setShowWhatsAppConfig(true);
-                          } else if (channel.id === 'instagram' && !channel.connected) {
-                            setShowInstagramConfig(true);
-                          } else if (channel.id === 'facebook' && !channel.connected) {
-                            setShowMessengerConfig(true);
-                          } else if (channel.id === 'email' && !channel.connected) {
-                            setShowEmailConfig(true);
-                          } else if (channel.id === 'voicebot' && !channel.connected) {
-                            setShowVoiceBotConfig(true);
-                          } else {
-                            handleChannelToggle(channel.id);
+                      <div 
+                        className={!isChannelAuthorized(channel.id) ? "cursor-not-allowed" : ""}
+                        onClick={(e) => {
+                          if (!isChannelAuthorized(channel.id)) {
+                            e.preventDefault();
+                            toast({
+                              title: 'Access Denied',
+                              description: "You haven't purchased this service yet. Please contact support to activate this channel.",
+                              variant: 'destructive'
+                            });
                           }
                         }}
-                      />
+                      >
+                        <Switch
+                          checked={channel.connected}
+                          disabled={!isChannelAuthorized(channel.id)}
+                          style={{ pointerEvents: !isChannelAuthorized(channel.id) ? 'none' : 'auto' }}
+                          onCheckedChange={() => {
+                            if (!isChannelAuthorized(channel.id)) return;
+
+                            if (channel.id === 'sms' && !channel.connected) {
+                              setShowSMSConfig(true);
+                            } else if (channel.id === 'rcs' && !channel.connected) {
+                              setShowRCSConfig(true);
+                            } else if (channel.id === 'whatsapp' && !channel.connected) {
+                              setShowWhatsAppConfig(true);
+                            } else if (channel.id === 'instagram' && !channel.connected) {
+                              setShowInstagramConfig(true);
+                            } else if (channel.id === 'facebook' && !channel.connected) {
+                              setShowMessengerConfig(true);
+                            } else if (channel.id === 'email' && !channel.connected) {
+                              setShowEmailConfig(true);
+                            } else if (channel.id === 'voicebot' && !channel.connected) {
+                              setShowVoiceBotConfig(true);
+                            } else {
+                              handleChannelToggle(channel.id);
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                     {channel.connected && (
                       <div className="mt-4 pt-4 border-t border-border flex gap-2">
@@ -538,6 +586,7 @@ export default function Settings() {
                               });
                             }
                           }}
+                          disabled={!isChannelAuthorized(channel.id)}
                         >
                           <Settings2 className="h-4 w-4 mr-2" />
                           Manage
@@ -548,6 +597,7 @@ export default function Settings() {
                             size="sm"
                             className="text-destructive hover:text-destructive"
                             onClick={() => handleChannelToggle(channel.id)}
+                            disabled={!isChannelAuthorized(channel.id)}
                           >
                             Disable
                           </Button>
@@ -897,48 +947,6 @@ export default function Settings() {
         {/* Language Tab */}
         <TabsContent value="language">
           <LanguageSettings />
-        </TabsContent>
-
-        {/* RCS Setup Tab */}
-        <TabsContent value="rcs-setup" className="space-y-4">
-          <RCSConfiguration />
-        </TabsContent>
-
-        {/* RCS Bots Tab */}
-        <TabsContent value="rcs-bots" className="space-y-4">
-          <RCSBotsList />
-        </TabsContent>
-
-        {/* RCS Messages/Preview Tab */}
-        <TabsContent value="rcs-messages" className="space-y-4 flex flex-col items-center">
-          <div className="max-w-md w-full">
-            <RCSPreview 
-              botName="Official Support"
-              brandName="Cell24x7"
-              shortDescription="Welcome to our official customer support channel."
-              brandColor="#7C3AED"
-            />
-          </div>
-        </TabsContent>
-
-        {/* RCS Approval Tab */}
-        <TabsContent value="rcs-approval" className="space-y-4">
-          <RCSTemplateApproval />
-        </TabsContent>
-
-        {/* SMS Setup Tab */}
-        <TabsContent value="sms-setup" className="space-y-4">
-          <SMSConfiguration onSave={() => {
-            toast({
-              title: 'SMS Configuration Saved',
-              description: 'Your SMS settings have been updated.',
-            });
-          }} onCancel={() => {}} />
-        </TabsContent>
-
-        {/* SMS Messages Tab */}
-        <TabsContent value="sms-messages" className="space-y-4">
-          <SMSPreview />
         </TabsContent>
 
         {/* Security Tab */}

@@ -14,6 +14,7 @@ interface User {
   profile_picture?: string;
   plan_id?: string;
   created_at?: string;
+  channels_enabled?: string[]; // Add this
 }
 
 interface AuthContextType {
@@ -24,6 +25,7 @@ interface AuthContextType {
   signup: (name: string, company: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: decoded.email || '',
           company: decoded.company,
           role: decoded.role,
+          channels_enabled: decoded.channels_enabled || [],
         });
       } catch (err) {
         console.error('Invalid token on load:', err);
@@ -66,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: userData.email || '',
           company: userData.company,
           role: userData.role,
+          channels_enabled: typeof userData.channels_enabled === 'string' ? JSON.parse(userData.channels_enabled) : (userData.channels_enabled || []),
         });
         return true;
       }
@@ -100,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: userData.email || '',
           company: userData.company,
           role: userData.role || 'user',
+          channels_enabled: typeof userData.channels_enabled === 'string' ? JSON.parse(userData.channels_enabled) : (userData.channels_enabled || []),
         });
         return true;
       }
@@ -119,6 +124,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(prev => prev ? { ...prev, ...userData } as User : null);
   };
 
+  const refreshUser = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        const userData = response.data.user;
+        setUser({
+          ...userData,
+          channels_enabled: typeof userData.channels_enabled === 'string' 
+            ? JSON.parse(userData.channels_enabled) 
+            : (userData.channels_enabled || [])
+        });
+      }
+    } catch (err) {
+      console.error('Error refreshing user:', err);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -127,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     logout,
     updateUser,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

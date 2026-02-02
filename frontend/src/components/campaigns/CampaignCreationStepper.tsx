@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ export interface CampaignData {
   name: string;
   channel: Channel;
   templateId: string;
+  audienceId: string;
   contactSource: 'existing' | 'upload';
   selectedContacts: string[];
   uploadedFile: File | null;
@@ -59,11 +61,15 @@ const channelOptions = [
 const mockCsvColumns = ['Name', 'Phone', 'Email', 'City', 'Order ID', 'Amount'];
 
 export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {
+  const { user } = useAuth();
+  const enabledChannels = user?.channels_enabled || [];
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
     channel: 'whatsapp',
     templateId: '',
+    audienceId: '',
     contactSource: 'existing',
     selectedContacts: [],
     uploadedFile: null,
@@ -133,6 +139,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
     if (audience) {
       setCampaignData(prev => ({ 
         ...prev, 
+        audienceId: audienceId,
         audienceCount: audience.count,
         selectedContacts: [audienceId]
       }));
@@ -295,7 +302,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                 <div className="space-y-2">
                   <Label>Select Channel *</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {channelOptions.map((channel) => (
+                    {channelOptions.filter(opt => enabledChannels.includes(opt.value)).map((channel) => (
                       <button
                         key={channel.value}
                         onClick={() => setCampaignData({ ...campaignData, channel: channel.value as Channel, templateId: '' })}
@@ -310,6 +317,13 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                       </button>
                     ))}
                   </div>
+                  {enabledChannels.length === 0 && (
+                    <div className="p-8 border-2 border-dashed rounded-lg text-center bg-muted/30">
+                      <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No channels active in your profile.</p>
+                      <p className="text-sm text-muted-foreground">Please contact administrator or enable them in settings.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -365,11 +379,13 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                       <Separator />
                       <div className="space-y-2">
                         <p className="text-sm">{selectedTemplate.body}</p>
-                        {selectedTemplate.variables.length > 0 && (
+                        {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
                           <div className="flex gap-1 flex-wrap">
                             <span className="text-xs text-muted-foreground">Variables:</span>
-                            {selectedTemplate.variables.map(v => (
-                              <Badge key={v} variant="secondary" className="text-xs">{`{{${v}}}`}</Badge>
+                            {selectedTemplate.variables.map((v: any) => (
+                              <Badge key={typeof v === 'string' ? v : v.name} variant="secondary" className="text-xs">
+                                {`{{${typeof v === 'string' ? v : (v.name || v)}}}`}
+                              </Badge>
                             ))}
                           </div>
                         )}

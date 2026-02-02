@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee, Smartphone } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChannelBadge } from '@/components/ui/channel-icon';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { mockCampaigns, mockMessageTemplates, audienceSegments, type Campaign, type Channel, type MessageTemplate, type TemplateChannel, type HeaderType, type TemplateButton } from '@/lib/mockData';
+import { audienceSegments, type Channel, type TemplateChannel, type HeaderType } from '@/lib/mockData';
+import { campaignService, type Campaign } from '@/services/campaignService';
+import { templateService, type MessageTemplate, type TemplateButton } from '@/services/templateService';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -36,7 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
-import RCSTemplateManagement from '@/components/campaigns/RCSTemplateManagement';
+import { useAuth } from '@/contexts/AuthContext';
 
 // WhatsApp Business API supported template languages
 const templateLanguages = [
@@ -104,18 +106,51 @@ const templateLanguages = [
 const dateRangePresets = ['Today', 'Last 7 Days', 'Last 30 Days', 'This Month', 'Last Month', 'Custom Range'];
 
 export default function Campaigns() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(mockCampaigns);
-  const [templates, setTemplates] = useState<MessageTemplate[]>(mockMessageTemplates);
+  const { toast } = useToast();
+  const { user, refreshUser } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const enabledChannels = user?.channels_enabled || [];
+
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates' | 'rcs-templates'>('campaigns');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates'>('campaigns');
+  const [templateSubTab, setTemplateSubTab] = useState<'all' | 'pending'>('all');
+
+  useEffect(() => {
+    fetchData();
+    refreshUser();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [campaignsData, templatesData] = await Promise.all([
+        campaignService.getCampaigns(),
+        templateService.getTemplates()
+      ]);
+      setCampaigns(campaignsData);
+      setTemplates(templatesData);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch campaigns or templates. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Campaign creation state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStep, setCreateStep] = useState(1);
   const [newCampaign, setNewCampaign] = useState({
     name: '',
-    channel: 'whatsapp' as Channel,
+    channel: 'whatsapp' as const,
     templateId: '',
     audienceId: '',
     scheduleType: 'now' as 'now' | 'scheduled',
@@ -140,8 +175,8 @@ export default function Campaigns() {
   }>({
     name: '',
     language: 'en',
-    category: 'Marketing',
-    channel: 'whatsapp',
+    category: 'Marketing' as const,
+    channel: 'whatsapp' as const,
     header: { type: 'none' },
     body: '',
     footer: '',
@@ -159,85 +194,126 @@ export default function Campaigns() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
-  const { toast } = useToast();
-
   const filteredCampaigns = campaigns.filter((campaign) =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleApproveTemplate = async (templateId: string, status: 'approved' | 'rejected') => {
+    try {
+      await templateService.updateTemplateStatus(templateId, status);
+      fetchData();
+      toast({
+        title: status === 'approved' ? '✅ Template Approved' : '❌ Template Rejected',
+        description: `Template status has been updated to ${status}.`,
+      });
+    } catch (err: any) {
+      console.error('Approve template error:', err);
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to update template status',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const filteredTemplates = templates.filter((template) =>
     template.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCampaignComplete = (campaignData: CampaignData) => {
-    const campaign: Campaign = {
-      id: Date.now().toString(),
-      name: campaignData.name,
-      channel: campaignData.channel,
-      status: campaignData.scheduleType === 'scheduled' ? 'scheduled' : 'draft',
-      template: campaignData.templateId,
-      audience: campaignData.audienceCount,
-      sent: 0,
-      delivered: 0,
-      failed: 0,
-      cost: campaignData.estimatedCost,
-      scheduledAt: campaignData.scheduleType === 'scheduled' 
-        ? new Date(`${campaignData.scheduledDate}T${campaignData.scheduledTime}`) 
-        : undefined,
-      createdAt: new Date(),
-    };
-    setCampaigns([campaign, ...campaigns]);
-    setIsCreateOpen(false);
-    setCreateStep(1);
-    toast({
-      title: '🎉 Campaign created!',
-      description: campaignData.scheduleType === 'scheduled' 
-        ? 'Your campaign has been scheduled.' 
-        : campaignData.scheduleType === 'now'
-        ? 'Your campaign is now running!'
-        : 'Your campaign is ready to send.',
-    });
+  const handleCampaignComplete = async (campaignData: CampaignData) => {
+    try {
+      await campaignService.createCampaign({
+        name: campaignData.name,
+        channel: campaignData.channel,
+        template_id: campaignData.templateId,
+        audience_id: campaignData.audienceId,
+        audience_count: campaignData.audienceCount,
+        status: campaignData.scheduleType === 'scheduled' ? 'scheduled' : 'running',
+        scheduled_at: campaignData.scheduleType === 'scheduled' 
+          ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
+          : undefined,
+      });
+      
+      fetchData(); // Refresh list
+      setIsCreateOpen(false);
+      setCreateStep(1);
+      toast({
+        title: '🎉 Campaign created!',
+        description: campaignData.scheduleType === 'scheduled' 
+          ? 'Your campaign has been scheduled.' 
+          : 'Your campaign is now running!',
+      });
+    } catch (err) {
+      console.error('Create campaign error:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to create campaign.',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const handleStatusChange = (campaignId: string, newStatus: Campaign['status']) => {
-    setCampaigns(campaigns.map((c) => (c.id === campaignId ? { ...c, status: newStatus } : c)));
-    const statusMessages = {
-      running: '🚀 Campaign is now running!',
-      paused: '⏸️ Campaign paused',
-      completed: '✅ Campaign completed',
-      draft: '📝 Saved as draft',
-      scheduled: '📅 Campaign scheduled',
-    };
-    toast({
-      title: statusMessages[newStatus] || 'Campaign updated',
-      description: `Campaign status changed to ${newStatus}.`,
-    });
+  const handleStatusChange = async (campaignId: string, newStatus: Campaign['status']) => {
+    try {
+      await campaignService.updateStatus(campaignId, newStatus);
+      setCampaigns(campaigns.map((c) => (c.id === campaignId ? { ...c, status: newStatus } : c)));
+      
+      const statusMessages = {
+        running: '🚀 Campaign is now running!',
+        paused: '⏸️ Campaign paused',
+        completed: '✅ Campaign completed',
+        draft: '📝 Saved as draft',
+        scheduled: '📅 Campaign scheduled',
+        sent: '📤 Campaign sent',
+      };
+      toast({
+        title: statusMessages[newStatus] || 'Campaign updated',
+        description: `Campaign status changed to ${newStatus}.`,
+      });
+    } catch (err) {
+      console.error('Update status error:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to update campaign status.',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const handleDeleteCampaign = (campaignId: string) => {
-    setCampaigns(campaigns.filter(c => c.id !== campaignId));
-    toast({
-      title: '🗑️ Campaign deleted',
-      description: 'The campaign has been removed.',
-    });
+  const handleDeleteCampaign = async (campaignId: string) => {
+    try {
+      await campaignService.deleteCampaign(campaignId);
+      setCampaigns(campaigns.filter(c => c.id !== campaignId));
+      toast({
+        title: '🗑️ Campaign deleted',
+        description: 'The campaign has been removed.',
+      });
+    } catch (err) {
+      console.error('Delete campaign error:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete campaign.',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const handleDuplicateCampaign = (campaign: Campaign) => {
-    const duplicated: Campaign = {
-      ...campaign,
-      id: Date.now().toString(),
-      name: `${campaign.name} (Copy)`,
-      status: 'draft',
-      sent: 0,
-      delivered: 0,
-      failed: 0,
-      createdAt: new Date(),
-    };
-    setCampaigns([duplicated, ...campaigns]);
-    toast({
-      title: '📋 Campaign duplicated',
-      description: 'A copy of the campaign has been created.',
-    });
+  const handleDuplicateCampaign = async (campaign: Campaign) => {
+    try {
+      await campaignService.duplicateCampaign(campaign.id);
+      fetchData(); // Refresh list to get the new copy
+      toast({
+        title: '📋 Campaign duplicated',
+        description: 'A copy of the campaign has been created.',
+      });
+    } catch (err) {
+      console.error('Duplicate campaign error:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to duplicate campaign.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const extractVariables = (content: string): string[] => {
@@ -245,59 +321,48 @@ export default function Campaigns() {
     return matches ? matches.map(m => m.replace(/\{\{|\}\}/g, '')) : [];
   };
 
-  const handleSaveTemplate = (isDraft: boolean = false) => {
-    const allContent = `${newTemplate.header.content || ''} ${newTemplate.body} ${newTemplate.footer}`;
-    const variables = extractVariables(allContent);
-    
-    if (editingTemplate) {
-      setTemplates(templates.map(t => 
-        t.id === editingTemplate.id 
-          ? { 
-              ...t, 
-              name: newTemplate.name, 
-              language: newTemplate.language,
-              category: newTemplate.category, 
-              channel: newTemplate.channel, 
-              templateType,
-              header: newTemplate.header,
-              body: newTemplate.body,
-              footer: newTemplate.footer || undefined,
-              buttons: newTemplate.buttons,
-              variables,
-              status: isDraft ? 'pending' : t.status,
-            }
-          : t
-      ));
-      toast({
-        title: isDraft ? '📝 Draft saved' : '✅ Template updated',
-        description: isDraft ? 'Your template has been saved as draft.' : 'Your changes have been saved.',
-      });
-    } else {
-      const template: MessageTemplate = {
-        id: Date.now().toString(),
+  const handleSaveTemplate = async (isDraft: boolean = false) => {
+    try {
+      const templateData = {
         name: newTemplate.name,
         language: newTemplate.language,
         category: newTemplate.category,
         channel: newTemplate.channel,
-        templateType,
-        header: newTemplate.header,
+        template_type: templateType,
+        header_type: newTemplate.header.type,
+        header_content: newTemplate.header.content,
         body: newTemplate.body,
         footer: newTemplate.footer || undefined,
         buttons: newTemplate.buttons,
-        variables,
-        status: 'pending',
-        createdAt: new Date(),
-        usageCount: 0,
+        status: (isDraft ? 'draft' : 'pending') as any,
       };
-      setTemplates([template, ...templates]);
+
+      if (editingTemplate) {
+        await templateService.updateTemplate(editingTemplate.id, templateData);
+        toast({
+          title: '✅ Template updated',
+          description: 'Your changes have been saved.',
+        });
+      } else {
+        await templateService.createTemplate(templateData);
+        toast({
+          title: isDraft ? '📝 Draft saved' : '🎉 Template submitted!',
+          description: isDraft ? 'Your template has been saved as draft.' : 'Your template has been submitted for approval.',
+        });
+      }
+      
+      fetchData();
+      setIsTemplateOpen(false);
+      setEditingTemplate(null);
+      resetTemplateForm();
+    } catch (err) {
+      console.error('Save template error:', err);
       toast({
-        title: isDraft ? '📝 Draft saved' : '🎉 Template submitted!',
-        description: isDraft ? 'Your template has been saved as draft.' : 'Your template has been submitted for approval.',
+        title: 'Error',
+        description: 'Failed to save template.',
+        variant: 'destructive'
       });
     }
-    setIsTemplateOpen(false);
-    setEditingTemplate(null);
-    resetTemplateForm();
   };
 
   const resetTemplateForm = () => {
@@ -317,34 +382,47 @@ export default function Campaigns() {
 
   const handleEditTemplate = (template: MessageTemplate) => {
     setEditingTemplate(template);
-    setTemplateType(template.templateType);
+    setTemplateType(template.template_type);
     setNewTemplate({
       name: template.name,
       language: template.language,
       category: template.category,
       channel: template.channel,
-      header: template.header,
+      header: { 
+        type: template.header_type as HeaderType, 
+        content: template.header_content || undefined 
+      },
       body: template.body,
       footer: template.footer || '',
-      buttons: template.buttons,
+      buttons: template.buttons.map(b => ({ ...b, id: b.id.toString() })),
     });
     setTemplateStep('form'); // Skip channel selection when editing
     setIsTemplateOpen(true);
   };
 
-  const handleDeleteTemplate = (templateId: string) => {
-    setTemplates(templates.filter(t => t.id !== templateId));
-    toast({
-      title: '🗑️ Template deleted',
-      description: 'The template has been removed.',
-    });
+  const handleDeleteTemplate = async (templateId: string) => {
+    try {
+      await templateService.deleteTemplate(templateId);
+      setTemplates(templates.filter(t => t.id !== templateId));
+      toast({
+        title: '🗑️ Template deleted',
+        description: 'The template has been removed.',
+      });
+    } catch (err) {
+      console.error('Delete template error:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete template.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const addButton = () => {
     if (newTemplate.buttons.length >= 3) return;
     setNewTemplate({
       ...newTemplate,
-      buttons: [...newTemplate.buttons, { id: Date.now().toString(), type: 'quick_reply', label: '', value: '' }],
+      buttons: [...newTemplate.buttons, { id: Date.now().toString(), type: 'quick_reply', label: '', value: '', position: newTemplate.buttons.length }],
     });
   };
 
@@ -371,8 +449,8 @@ export default function Campaigns() {
   };
 
   const getDeliveryRate = (campaign: Campaign) => {
-    if (campaign.sent === 0) return 0;
-    return Math.round((campaign.delivered / campaign.sent) * 100);
+    if (campaign.sent_count === 0) return 0;
+    return Math.round((campaign.delivered_count / campaign.sent_count) * 100);
   };
 
   const openAnalytics = (campaign: Campaign) => {
@@ -393,7 +471,7 @@ export default function Campaigns() {
     { label: 'Total Campaigns', value: campaigns.length, icon: Target, color: 'text-primary' },
     { label: 'Running', value: campaigns.filter(c => c.status === 'running').length, icon: Zap, color: 'text-success' },
     { label: 'Scheduled', value: campaigns.filter(c => c.status === 'scheduled').length, icon: Clock, color: 'text-warning' },
-    { label: 'Total Delivered', value: campaigns.reduce((acc, c) => acc + c.delivered, 0).toLocaleString(), icon: TrendingUp, color: 'text-primary' },
+    { label: 'Total Delivered', value: campaigns.reduce((acc, c) => acc + (c.delivered_count || 0), 0).toLocaleString(), icon: TrendingUp, color: 'text-primary' },
   ];
 
   // Phone preview content builder - Channel specific
@@ -670,7 +748,7 @@ export default function Campaigns() {
       </div>
 
       {/* Tabs for Campaigns and Templates */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates' | 'rcs-templates')}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates')}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <TabsList>
             <TabsTrigger value="campaigns" className="flex items-center gap-2">
@@ -680,10 +758,6 @@ export default function Campaigns() {
             <TabsTrigger value="templates" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Templates
-            </TabsTrigger>
-            <TabsTrigger value="rcs-templates" className="flex items-center gap-2">
-              <Smartphone className="h-4 w-4" />
-              RCS Templates
             </TabsTrigger>
           </TabsList>
 
@@ -734,7 +808,7 @@ export default function Campaigns() {
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <CardTitle className="text-lg">{campaign.name}</CardTitle>
-                        <ChannelBadge channel={campaign.channel} />
+                        <ChannelBadge channel={campaign.channel as any} />
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -762,11 +836,11 @@ export default function Campaigns() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <StatusBadge status={campaign.status} />
-                      {campaign.scheduledAt && (
+                      <StatusBadge status={campaign.status as any} />
+                      {campaign.scheduled_at && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          {format(campaign.scheduledAt, 'MMM d, yyyy')}
+                          {format(new Date(campaign.scheduled_at), 'MMM d, yyyy')}
                         </div>
                       )}
                     </div>
@@ -783,15 +857,15 @@ export default function Campaigns() {
 
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div className="p-2 rounded-lg bg-muted">
-                        <p className="text-lg font-bold">{campaign.sent.toLocaleString()}</p>
+                        <p className="text-lg font-bold">{campaign.sent_count.toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">Sent</p>
                       </div>
                       <div className="p-2 rounded-lg bg-success/10">
-                        <p className="text-lg font-bold text-success">{campaign.delivered.toLocaleString()}</p>
+                        <p className="text-lg font-bold text-success">{campaign.delivered_count.toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">Delivered</p>
                       </div>
                       <div className="p-2 rounded-lg bg-destructive/10">
-                        <p className="text-lg font-bold text-destructive">{campaign.failed.toLocaleString()}</p>
+                        <p className="text-lg font-bold text-destructive">{campaign.failed_count.toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">Failed</p>
                       </div>
                     </div>
@@ -828,7 +902,7 @@ export default function Campaigns() {
                           Resume
                         </Button>
                       )}
-                      {(campaign.status === 'completed' || campaign.sent > 0) && (
+                      {(campaign.status === 'completed' || campaign.sent_count > 0) && (
                         <Button variant="outline" size="sm" onClick={() => openAnalytics(campaign)}>
                           <BarChart3 className="h-4 w-4 mr-2" />
                           Analytics
@@ -860,11 +934,11 @@ export default function Campaigns() {
                   {filteredCampaigns.map((campaign) => (
                     <TableRow key={campaign.id}>
                       <TableCell className="font-medium">{campaign.name}</TableCell>
-                      <TableCell><ChannelBadge channel={campaign.channel} /></TableCell>
-                      <TableCell><StatusBadge status={campaign.status} /></TableCell>
-                      <TableCell className="text-center">{campaign.sent.toLocaleString()}</TableCell>
-                      <TableCell className="text-center text-success">{campaign.delivered.toLocaleString()}</TableCell>
-                      <TableCell className="text-center text-destructive">{campaign.failed.toLocaleString()}</TableCell>
+                      <TableCell><ChannelBadge channel={campaign.channel as any} /></TableCell>
+                      <TableCell><StatusBadge status={campaign.status as any} /></TableCell>
+                      <TableCell className="text-center">{campaign.sent_count.toLocaleString()}</TableCell>
+                      <TableCell className="text-center text-success">{campaign.delivered_count.toLocaleString()}</TableCell>
+                      <TableCell className="text-center text-destructive">{campaign.failed_count.toLocaleString()}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center gap-2">
                           <Progress value={getDeliveryRate(campaign)} className="h-2 flex-1" />
@@ -874,10 +948,10 @@ export default function Campaigns() {
                       <TableCell className="text-right">
                         <span className="flex items-center justify-end gap-1 text-muted-foreground">
                           <IndianRupee className="h-3 w-3" />
-                          {campaign.cost.toFixed(2)}
+                          {Number(campaign.cost).toFixed(2)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{format(campaign.createdAt, 'MMM d')}</TableCell>
+                      <TableCell className="text-muted-foreground">{format(new Date(campaign.created_at), 'MMM d')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           {campaign.status === 'draft' && (
@@ -930,8 +1004,29 @@ export default function Campaigns() {
 
         {/* Templates Tab */}
         <TabsContent value="templates" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredTemplates.map((template) => (
+          {/* Sub-tabs for Templates */}
+          <Tabs value={templateSubTab} onValueChange={(v) => setTemplateSubTab(v as 'all' | 'pending')} className="mb-6">
+            <TabsList>
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                All Templates
+                <Badge variant="secondary" className="ml-1">{templates.length}</Badge>
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="pending" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Pending Approvals
+                  <Badge variant="warning" className="ml-1 bg-amber-100 text-amber-700">
+                    {templates.filter(t => t.status === 'pending').length}
+                  </Badge>
+                </TabsTrigger>
+              )}
+            </TabsList>
+
+            {/* All Templates */}
+            <TabsContent value="all" className="mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredTemplates.map((template) => (
               <Card key={template.id} className="card-elevated group hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -943,15 +1038,54 @@ export default function Campaigns() {
                         <Badge variant="secondary" className="text-xs">
                           {templateLanguages.find(l => l.code === template.language)?.name || template.language}
                         </Badge>
+                        {template.status === 'pending' && (
+                          <Badge variant="warning" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200 animate-pulse">
+                            Pending Approval
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <DropdownMenu>
+                    <div className="flex items-center gap-2">
+                      {isAdmin && template.status === 'pending' && (
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-success hover:text-success hover:bg-success/10 border-success/30"
+                            onClick={() => handleApproveTemplate(template.id, 'approved')}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                            onClick={() => handleApproveTemplate(template.id, 'rejected')}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {isAdmin && template.status === 'pending' && (
+                          <>
+                            <DropdownMenuItem className="text-success" onClick={() => handleApproveTemplate(template.id, 'approved')}>
+                              <Check className="h-4 w-4 mr-2" />
+                              Approve Template
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleApproveTemplate(template.id, 'rejected')}>
+                              <X className="h-4 w-4 mr-2" />
+                              Reject Template
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
                         <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
@@ -974,23 +1108,24 @@ export default function Campaigns() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </CardHeader>
+                </div>
+              </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-3 rounded-lg bg-muted/50 text-sm">
                     <p className="line-clamp-3">{template.body}</p>
                   </div>
-                  {template.variables.length > 0 && (
+                  {template.variables && template.variables.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {template.variables.map((v) => (
-                        <Badge key={v} variant="secondary" className="text-xs">
-                          {`{{${v}}}`}
+                      {template.variables.map((v: any, idx: number) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {`{{${v.name || v}}}`}
                         </Badge>
                       ))}
                     </div>
                   )}
                   <div className="flex items-center justify-between text-sm">
                     <StatusBadge status={template.status} />
-                    <span className="text-muted-foreground">Used {template.usageCount.toLocaleString()} times</span>
+                    <span className="text-muted-foreground">Used {template.usage_count.toLocaleString()} times</span>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" className="flex-1" onClick={() => handleEditTemplate(template)}>
@@ -1006,12 +1141,132 @@ export default function Campaigns() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        </TabsContent>
+              </div>
+            </TabsContent>
 
-        {/* RCS Templates Tab */}
-        <TabsContent value="rcs-templates" className="mt-6">
-          <RCSTemplateManagement />
+            {/* Pending Approvals Tab - Admin Only */}
+            {isAdmin && (
+              <TabsContent value="pending" className="mt-6">
+                {templates.filter(t => t.status === 'pending').length === 0 ? (
+                  <Card className="p-12">
+                    <div className="text-center">
+                      <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
+                        <Check className="h-8 w-8 text-success" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-1">All caught up!</h3>
+                      <p className="text-muted-foreground">No templates pending approval</p>
+                    </div>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {templates.filter(t => t.status === 'pending').map((template) => (
+                      <Card key={template.id} className="card-elevated">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            {/* Template Info */}
+                            <div className="flex-1 space-y-4">
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="text-lg font-semibold font-mono">{template.name}</h3>
+                                  <Badge variant="warning" className="bg-amber-100 text-amber-700 animate-pulse">
+                                    Pending Approval
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <ChannelBadge channel={template.channel} />
+                                  <Badge variant="outline">{template.category}</Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {templateLanguages.find(l => l.code === template.language)?.name || template.language}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              {/* Template Preview */}
+                              <div className="space-y-3">
+                                {template.header_type !== 'none' && (
+                                  <div className="p-3 rounded-lg bg-muted/30 border">
+                                    <p className="text-xs text-muted-foreground mb-1">Header ({template.header_type})</p>
+                                    {template.header_type === 'text' && template.header_content && (
+                                      <p className="font-semibold">{template.header_content}</p>
+                                    )}
+                                    {['image', 'video', 'document'].includes(template.header_type) && (
+                                      <p className="text-sm text-muted-foreground italic">Media will be added when sending</p>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                <div className="p-3 rounded-lg bg-muted/50">
+                                  <p className="text-xs text-muted-foreground mb-1">Body</p>
+                                  <p className="text-sm whitespace-pre-wrap">{template.body}</p>
+                                </div>
+
+                                {template.footer && (
+                                  <div className="p-3 rounded-lg bg-muted/30">
+                                    <p className="text-xs text-muted-foreground mb-1">Footer</p>
+                                    <p className="text-sm text-muted-foreground">{template.footer}</p>
+                                  </div>
+                                )}
+
+                                {template.buttons && template.buttons.length > 0 && (
+                                  <div className="p-3 rounded-lg bg-muted/30">
+                                    <p className="text-xs text-muted-foreground mb-2">Buttons ({template.buttons.length})</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {template.buttons.map((btn, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs">
+                                          {btn.type === 'url' && <Link className="h-3 w-3 mr-1" />}
+                                          {btn.type === 'phone' && <Phone className="h-3 w-3 mr-1" />}
+                                          {btn.label}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span>Created: {format(new Date(template.created_at), 'MMM d, yyyy h:mm a')}</span>
+                                <span>•</span>
+                                <span>Type: {template.template_type}</span>
+                              </div>
+                            </div>
+
+                            {/* Approval Actions */}
+                            <div className="flex flex-col gap-2 min-w-[140px]">
+                              <Button
+                                className="gradient-primary w-full"
+                                onClick={() => handleApproveTemplate(template.id, 'approved')}
+                              >
+                                <Check className="h-4 w-4 mr-2" />
+                                Approve
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                className="w-full"
+                                onClick={() => handleApproveTemplate(template.id, 'rejected')}
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Reject
+                              </Button>
+                              <Separator className="my-1" />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditTemplate(template)}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Preview
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            )}
+          </Tabs>
         </TabsContent>
       </Tabs>
 
@@ -1036,7 +1291,7 @@ export default function Campaigns() {
                   { value: 'instagram', label: 'Instagram', icon: '📸', description: 'Direct messages with rich media content' },
                   { value: 'facebook', label: 'Facebook', icon: '👥', description: 'Messenger templates with quick replies' },
                   { value: 'email', label: 'Email', icon: '📧', description: 'HTML emails with subject line and rich content' },
-                ].map((channel) => (
+                ].filter(c => enabledChannels.includes(c.value)).map((channel) => (
                   <button
                     key={channel.value}
                     onClick={() => {
@@ -1056,6 +1311,12 @@ export default function Campaigns() {
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </button>
                 ))}
+                {enabledChannels.length === 0 && (
+                  <div className="text-center p-8 bg-muted/30 rounded-lg">
+                    <p className="text-muted-foreground">No channels active in your profile.</p>
+                    <Button variant="link" className="mt-2">Go to Settings to enable channels</Button>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -1111,8 +1372,6 @@ export default function Campaigns() {
                           <TabsTrigger value="standard" className="flex-1">Standard Template</TabsTrigger>
                           <TabsTrigger value="carousel" className="flex-1">Carousel Template</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="standard" />
-                        <TabsContent value="carousel" />
                       </Tabs>
                     )}
 
@@ -1446,13 +1705,22 @@ export default function Campaigns() {
               <BarChart3 className="h-5 w-5 text-primary" />
               Template Analytics
             </DialogTitle>
+            <DialogDescription>
+              {selectedTemplate?.name} - {selectedTemplate?.channel.toUpperCase()} Template Performance
+            </DialogDescription>
           </DialogHeader>
-          {selectedTemplate && selectedTemplate.analytics && (
+          {selectedTemplate && selectedTemplate.usage_count !== undefined && (
             <div className="space-y-6 py-4">
               {/* Template Info */}
-              <div className="p-4 rounded-lg bg-muted/50">
-                <p className="font-mono font-semibold">{selectedTemplate.name}</p>
-                <p className="text-sm text-muted-foreground">{selectedTemplate.category} • {selectedTemplate.language}</p>
+              <div className="p-4 rounded-lg bg-muted/50 flex justify-between items-start">
+                <div>
+                  <p className="font-mono font-semibold">{selectedTemplate.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedTemplate.category} • {selectedTemplate.language}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold">{selectedTemplate.usage_count.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Total Usage</p>
+                </div>
               </div>
 
               {/* Date Range Selector */}
@@ -1488,27 +1756,27 @@ export default function Campaigns() {
                     <MessageSquare className="h-4 w-4" />
                     <span className="text-sm">Sent</span>
                   </div>
-                  <p className="text-2xl font-bold">{selectedTemplate.analytics.sent.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{(selectedTemplate.analytics?.sent || 0).toLocaleString()}</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
                     <span className="text-sm">Delivered</span>
                   </div>
-                  <p className="text-2xl font-bold text-success">{selectedTemplate.analytics.deliveredRate}%</p>
+                  <p className="text-2xl font-bold text-success">{(selectedTemplate.analytics?.deliveredRate || 0)}%</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
                     <Eye className="h-4 w-4" />
                     <span className="text-sm">Opened</span>
                   </div>
-                  <p className="text-2xl font-bold text-blue-500">{selectedTemplate.analytics.openedRate}%</p>
+                  <p className="text-2xl font-bold text-blue-500">{(selectedTemplate.analytics?.openedRate || 0)}%</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">
                     <Sparkles className="h-4 w-4" />
                     <span className="text-sm">Clicked</span>
                   </div>
-                  <p className="text-2xl font-bold text-pink-500">{selectedTemplate.analytics.clickedRate}%</p>
+                  <p className="text-2xl font-bold text-pink-500">{(selectedTemplate.analytics?.clickedRate || 0)}%</p>
                 </div>
               </div>
 
@@ -1517,28 +1785,28 @@ export default function Campaigns() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Delivery Rate</span>
-                    <span className="font-medium">{selectedTemplate.analytics.deliveredRate}%</span>
+                    <span className="font-medium">{selectedTemplate.analytics?.deliveredRate || 0}%</span>
                   </div>
-                  <Progress value={selectedTemplate.analytics.deliveredRate} className="h-3 bg-muted [&>div]:bg-success" />
+                  <Progress value={selectedTemplate.analytics?.deliveredRate || 0} className="h-3 bg-muted [&>div]:bg-success" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Open Rate</span>
-                    <span className="font-medium">{selectedTemplate.analytics.openedRate}%</span>
+                    <span className="font-medium">{selectedTemplate.analytics?.openedRate || 0}%</span>
                   </div>
-                  <Progress value={selectedTemplate.analytics.openedRate} className="h-3 bg-muted [&>div]:bg-blue-500" />
+                  <Progress value={selectedTemplate.analytics?.openedRate || 0} className="h-3 bg-muted [&>div]:bg-blue-500" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Click Rate</span>
-                    <span className="font-medium">{selectedTemplate.analytics.clickedRate}%</span>
+                    <span className="font-medium">{selectedTemplate.analytics?.clickedRate || 0}%</span>
                   </div>
-                  <Progress value={selectedTemplate.analytics.clickedRate} className="h-3 bg-muted [&>div]:bg-pink-500" />
+                  <Progress value={selectedTemplate.analytics?.clickedRate || 0} className="h-3 bg-muted [&>div]:bg-pink-500" />
                 </div>
               </div>
 
               {/* Button Clicks */}
-              {selectedTemplate.analytics.buttonClicks.length > 0 && (
+              {selectedTemplate.analytics?.buttonClicks && selectedTemplate.analytics.buttonClicks.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-pink-500" />
@@ -1561,9 +1829,11 @@ export default function Campaigns() {
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground text-center">
-                Last updated: {format(selectedTemplate.analytics.lastUpdated, 'MMM d, yyyy, h:mm a')}
-              </p>
+              {selectedTemplate.analytics?.lastUpdated && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Last updated: {format(new Date(selectedTemplate.analytics.lastUpdated), 'MMM d, yyyy, h:mm a')}
+                </p>
+              )}
             </div>
           )}
         </DialogContent>
@@ -1584,7 +1854,7 @@ export default function Campaigns() {
               <div className="grid grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-3xl font-bold">{selectedCampaign.audience.toLocaleString()}</p>
+                    <p className="text-3xl font-bold">{selectedCampaign.audience_count.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Target Audience</p>
                   </CardContent>
                 </Card>
@@ -1599,19 +1869,19 @@ export default function Campaigns() {
               <div className="grid grid-cols-3 gap-4">
                 <Card className="bg-muted/50">
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold">{selectedCampaign.sent.toLocaleString()}</p>
+                    <p className="text-2xl font-bold">{selectedCampaign.sent_count.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Sent</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-success/10">
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold text-success">{selectedCampaign.delivered.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-success">{selectedCampaign.delivered_count.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Delivered</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-destructive/10">
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold text-destructive">{selectedCampaign.failed.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-destructive">{selectedCampaign.failed_count.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Failed</p>
                   </CardContent>
                 </Card>
@@ -1620,28 +1890,28 @@ export default function Campaigns() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Delivery Progress</span>
-                  <span>{Math.round((selectedCampaign.sent / selectedCampaign.audience) * 100)}%</span>
+                  <span>{selectedCampaign.audience_count > 0 ? Math.round((selectedCampaign.sent_count / selectedCampaign.audience_count) * 100) : 0}%</span>
                 </div>
-                <Progress value={(selectedCampaign.sent / selectedCampaign.audience) * 100} className="h-3" />
+                <Progress value={selectedCampaign.audience_count > 0 ? (selectedCampaign.sent_count / selectedCampaign.audience_count) * 100 : 0} className="h-3" />
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-muted-foreground">Channel</p>
-                  <div className="mt-1"><ChannelBadge channel={selectedCampaign.channel} /></div>
+                  <div className="mt-1"><ChannelBadge channel={selectedCampaign.channel as any} /></div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-muted-foreground">Status</p>
-                  <div className="mt-1"><StatusBadge status={selectedCampaign.status} /></div>
+                  <div className="mt-1"><StatusBadge status={selectedCampaign.status as any} /></div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-muted-foreground">Created</p>
-                  <p className="font-medium mt-1">{format(selectedCampaign.createdAt, 'MMM d, yyyy')}</p>
+                  <p className="font-medium mt-1">{format(new Date(selectedCampaign.created_at), 'MMM d, yyyy')}</p>
                 </div>
-                {selectedCampaign.scheduledAt && (
+                {selectedCampaign.scheduled_at && (
                   <div className="p-3 rounded-lg bg-muted/50">
                     <p className="text-muted-foreground">Scheduled</p>
-                    <p className="font-medium mt-1">{format(selectedCampaign.scheduledAt, 'MMM d, yyyy')}</p>
+                    <p className="font-medium mt-1">{format(new Date(selectedCampaign.scheduled_at), 'MMM d, yyyy')}</p>
                   </div>
                 )}
               </div>

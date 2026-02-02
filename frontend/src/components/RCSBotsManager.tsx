@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import API_BASE_URL from "../config/api";
 import { useToast } from '@/hooks/use-toast';
 import { 
   Trash2, 
@@ -19,7 +20,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-const API_URL = `http://${window.location.hostname}:5000`;
+
+const API_URL = API_BASE_URL;
 
 interface Bot {
   id: string;

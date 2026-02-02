@@ -48,7 +48,14 @@ router.post('/login', async (req, res) => {
     if (!match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, name: user.name, company: user.company },
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        company: user.company,
+        channels_enabled: user.channels_enabled
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -61,7 +68,8 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         company: user.company,
-        role: user.role
+        role: user.role,
+        channels_enabled: user.channels_enabled
       }
     });
   } catch (err) {
@@ -183,7 +191,13 @@ router.post('/signup', async (req, res) => {
     );
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: 'user', name: name || 'User' },
+      {
+        id: user.id,
+        email: user.email,
+        role: 'user',
+        name: name || 'User',
+        channels_enabled: user.channels_enabled
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -191,7 +205,14 @@ router.post('/signup', async (req, res) => {
     res.status(201).json({
       success: true,
       token,
-      user: { id: user.id, name: name || 'User', email: user.email, company, role: 'user' }
+      user: {
+        id: user.id,
+        name: name || 'User',
+        email: user.email,
+        company,
+        role: 'user',
+        channels_enabled: user.channels_enabled
+      }
     });
   } catch (err) {
     console.error(err);

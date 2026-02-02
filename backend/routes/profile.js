@@ -20,7 +20,7 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const [rows] = await query(
       `SELECT id, name, email, company, contact_phone, plan_id, 
-              credits_available, credits_used, status, created_at, role, channels_config 
+              credits_available, credits_used, status, created_at, role, channels_enabled 
        FROM users WHERE id = ?`,
       [req.user.id]
     );
@@ -82,7 +82,7 @@ router.put('/', authenticate, async (req, res) => {
 
     // Return updated user
     const [updated] = await query(
-      `SELECT id, name, email, company, contact_phone, plan_id, credits_available 
+      `SELECT id, name, email, company, contact_phone, plan_id, credits_available, channels_enabled 
        FROM users WHERE id = ?`,
       [req.user.id]
     );

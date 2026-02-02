@@ -55,6 +55,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Send, label: 'Campaigns', path: '/campaigns' },
     { icon: Zap, label: 'Automations', path: '/automations' },
     { icon: Puzzle, label: 'Integrations', path: '/integrations' },
+    { icon: Package, label: 'User Plans', path: '/user-plans' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
