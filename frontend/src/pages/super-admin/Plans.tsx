@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { API_BASE_URL } from '@/config/api';
 
 const planSchema = z.object({
   name: z.string().min(2, "Plan name must be at least 2 characters"),
@@ -80,7 +81,7 @@ export default function SuperAdminPlans() {
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/plans?admin=true');
+      const res = await fetch(`${API_BASE_URL}/api/plans?admin=true`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
@@ -112,8 +113,8 @@ export default function SuperAdminPlans() {
   const onSubmit = async (data: PlanFormValues) => {
     try {
       const url = isCreating
-        ? 'http://localhost:5000/api/plans'
-        : `http://localhost:5000/api/plans/${form.getValues('id') || ''}`;
+        ? `${API_BASE_URL}/api/plans`
+        : `${API_BASE_URL}/api/plans/${form.getValues('id') || ''}`;
 
       const method = isCreating ? 'POST' : 'PUT';
 
@@ -174,7 +175,7 @@ export default function SuperAdminPlans() {
   const handleDeleteConfirm = async () => {
     if (!planToDelete) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/plans/${planToDelete}`, {
+      const res = await fetch(`${API_BASE_URL}/api/plans/${planToDelete}`, {
         method: 'DELETE',
       });
 
@@ -201,7 +202,7 @@ export default function SuperAdminPlans() {
 
   const handleToggleStatus = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/plans/${id}/toggle`, {
+      const res = await fetch(`${API_BASE_URL}/api/plans/${id}/toggle`, {
         method: 'PATCH',
       });
 

@@ -17,7 +17,9 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-const API_URL = 'http://localhost:5000/api';
+import { API_BASE_URL } from '@/config/api';
+
+const API_URL = `${API_BASE_URL}/api`;
 
 const allChannels = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook'] as const;
 
@@ -292,7 +294,7 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
   console.log(`Attempting to impersonate client ID: ${id}`);
 
   try {
-    const response = await axios.post(`http://localhost:5000/api/clients/${id}/impersonate`);
+    const response = await axios.post(`${API_BASE_URL}/api/clients/${id}/impersonate`);
 
     console.log('Impersonate response:', response.data);
 

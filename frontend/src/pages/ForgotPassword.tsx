@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Mail, Loader2, CheckCircle2, KeyRound, ShieldCheck } from 'lucide-react';
 import { OtpVerification } from '@/components/auth/OtpVerification'; // Reusing components
 import { PasswordCreation } from '@/components/auth/PasswordCreation';
+import { API_BASE_URL } from '@/config/api';
 
 export default function ForgotPassword() {
   const [step, setStep] = useState<'email' | 'otp' | 'password' | 'success'>('email');
@@ -23,7 +24,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/forgot-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -76,7 +77,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/reset-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp, newPassword }),

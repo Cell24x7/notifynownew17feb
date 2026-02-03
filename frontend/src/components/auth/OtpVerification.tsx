@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { API_BASE_URL } from '@/config/api';
 
 interface OtpVerificationProps {
   email: string;
@@ -56,7 +57,7 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/verify-otp`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp }),
@@ -81,7 +82,7 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
 
   const handleResendOtp = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/send-otp`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

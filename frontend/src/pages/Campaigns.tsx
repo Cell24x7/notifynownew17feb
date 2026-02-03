@@ -194,7 +194,7 @@ export default function Campaigns() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
-  const filteredCampaigns = campaigns.filter((campaign) =>
+  const filteredCampaigns = (campaigns || []).filter((campaign) =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

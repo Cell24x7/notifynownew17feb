@@ -19,6 +19,7 @@ import {
   Headphones,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { API_BASE_URL } from '@/config/api';
 import { dashboardStats, agentAnalytics, channelAnalytics, satisfactionTrends, botVsHumanResolution } from '@/lib/mockData';
 import { ChannelIcon, channelConfig } from '@/components/ui/channel-icon';
 import { Progress } from '@/components/ui/progress';
@@ -115,7 +116,7 @@ export default function Dashboard() {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        const res = await fetch('http://localhost:5000/api/dashboard/stats', {
+        const res = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();

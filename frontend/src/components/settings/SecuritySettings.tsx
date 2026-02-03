@@ -8,7 +8,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
+import { API_BASE_URL } from '@/config/api';
+
+const API_URL = `${API_BASE_URL}/api`;
 
 export function SecuritySettings() {
   const { user, updateUser } = useAuth();

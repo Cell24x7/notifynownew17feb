@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { StatusBadge } from '@/components/ui/status-badge';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { API_BASE_URL } from '@/config/api';
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -99,7 +100,7 @@ export default function Settings() {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await axios.get('http://localhost:5000/api/profile', {
+        const response = await axios.get(`${API_BASE_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
@@ -178,7 +179,7 @@ export default function Settings() {
       const token = localStorage.getItem('authToken');
       const enabledIds = newChannels.filter(c => c.connected).map(c => c.id);
       
-      await axios.put('http://localhost:5000/api/auth/channels', 
+      await axios.put(`${API_BASE_URL}/api/auth/channels`, 
         { channels: enabledIds },
         { headers: { Authorization: `Bearer ${token}` }}
       );

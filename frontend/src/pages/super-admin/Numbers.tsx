@@ -32,7 +32,9 @@ import * as z from 'zod';
 import axios from 'axios';
 
 // API Base URL
-const API_BASE = 'http://localhost:5000/api/numbers';
+import { API_BASE_URL } from '@/config/api';
+
+const API_BASE = `${API_BASE_URL}/api/numbers`;
 
 // Schemas for form validation
 const vmnSchema = z.object({

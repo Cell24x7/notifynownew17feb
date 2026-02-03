@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_BASE_URL } from '@/config/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +34,7 @@ export function ProfilePopup({ isOpen, email, onProfileUpdated, onSkip }: Profil
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/update-profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/update-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

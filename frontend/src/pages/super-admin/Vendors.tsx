@@ -22,7 +22,9 @@ import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 import { cn } from '@/lib/utils';
 
-const API_URL = 'http://localhost:5000/api/vendors';
+import { API_BASE_URL } from '@/config/api';
+
+const API_URL = `${API_BASE_URL}/api/vendors`;
 
 const channelOptions = ['sms', 'whatsapp', 'rcs', 'email', 'voice'] as const;
 
@@ -87,7 +89,7 @@ export default function Vendors() {
   // Fetch users (from /api/clients)
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/clients');
+      const res = await axios.get(`${API_BASE_URL}/api/clients`);
       if (res.data.success) {
         setUsers(res.data.clients || []);
       }

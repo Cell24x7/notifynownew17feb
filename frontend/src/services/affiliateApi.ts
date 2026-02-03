@@ -1,6 +1,8 @@
 // API service for Affiliate Management
 
-const API_BASE_URL = `http://${window.location.hostname}:5000/api/affiliates`;
+import { API_BASE_URL } from '@/config/api';
+
+const API_BASE_URL_AFFILIATE = `${API_BASE_URL}/api/affiliates`;
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('authToken');

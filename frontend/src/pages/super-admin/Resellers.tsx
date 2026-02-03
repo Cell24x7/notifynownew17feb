@@ -14,7 +14,9 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-const API_URL = 'http://localhost:5000/api';
+import { API_BASE_URL } from '@/config/api';
+
+const API_URL = `${API_BASE_URL}/api`;
 
 export default function SuperAdminResellers() {
   const { toast } = useToast();

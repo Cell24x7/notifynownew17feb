@@ -1,7 +1,9 @@
 // RCS Templates Service
 // Frontend service to communicate with RCS Templates API
 
-const API_BASE = `http://${window.location.hostname}:5000/api/rcs-templates`;
+import { API_BASE_URL } from '@/config/api';
+
+const API_BASE = `${API_BASE_URL}/api/rcs-templates`;
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('authToken');

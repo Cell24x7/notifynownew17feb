@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api/campaigns';
+import { API_BASE_URL } from '@/config/api';
+
+const API_BASE_URL_CAMPAIGNS = `${API_BASE_URL}/api/campaigns`;
 
 const getAuthHeader = () => {
     const token = localStorage.getItem('authToken');
@@ -28,32 +30,32 @@ export interface Campaign {
 
 export const campaignService = {
     async getCampaigns() {
-        const response = await axios.get(API_BASE_URL, { headers: getAuthHeader() });
+        const response = await axios.get(API_BASE_URL_CAMPAIGNS, { headers: getAuthHeader() });
         return response.data.campaigns as Campaign[];
     },
 
     async getCampaign(id: string) {
-        const response = await axios.get(`${API_BASE_URL}/${id}`, { headers: getAuthHeader() });
+        const response = await axios.get(`${API_BASE_URL_CAMPAIGNS}/${id}`, { headers: getAuthHeader() });
         return response.data.campaign as Campaign;
     },
 
     async createCampaign(data: Partial<Campaign>) {
-        const response = await axios.post(API_BASE_URL, data, { headers: getAuthHeader() });
+        const response = await axios.post(API_BASE_URL_CAMPAIGNS, data, { headers: getAuthHeader() });
         return response.data;
     },
 
     async updateStatus(id: string, status: Campaign['status']) {
-        const response = await axios.put(`${API_BASE_URL}/${id}/status`, { status }, { headers: getAuthHeader() });
+        const response = await axios.put(`${API_BASE_URL_CAMPAIGNS}/${id}/status`, { status }, { headers: getAuthHeader() });
         return response.data;
     },
 
     async duplicateCampaign(id: string) {
-        const response = await axios.post(`${API_BASE_URL}/${id}/duplicate`, {}, { headers: getAuthHeader() });
+        const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/${id}/duplicate`, {}, { headers: getAuthHeader() });
         return response.data;
     },
 
     async deleteCampaign(id: string) {
-        const response = await axios.delete(`${API_BASE_URL}/${id}`, { headers: getAuthHeader() });
+        const response = await axios.delete(`${API_BASE_URL_CAMPAIGNS}/${id}`, { headers: getAuthHeader() });
         return response.data;
     }
 };

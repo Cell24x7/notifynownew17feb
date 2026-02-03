@@ -1,6 +1,6 @@
-// API service for RCS Bot Configuration
+import { API_BASE_URL } from '@/config/api';
 
-const API_BASE_URL = `http://${window.location.hostname}:5000/api/rcs`;
+const API_RCS_URL = `${API_BASE_URL}/api/rcs`;
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
@@ -45,7 +45,7 @@ export const rcsApi = {
   // Get all bots
   async getAllBots() {
     try {
-      const response = await fetch(`${API_BASE_URL}/bots`, {
+      const response = await fetch(`${API_RCS_URL}/bots`, {
         headers: getAuthHeaders(),
       });
       if (!response.ok) throw new Error('Failed to fetch bots');
@@ -59,7 +59,7 @@ export const rcsApi = {
   // Get bot by ID
   async getBotById(id: string | number) {
     try {
-      const response = await fetch(`${API_BASE_URL}/bots/${id}`, {
+      const response = await fetch(`${API_RCS_URL}/bots/${id}`, {
         headers: getAuthHeaders(),
       });
       if (!response.ok) throw new Error('Bot not found');
@@ -73,7 +73,7 @@ export const rcsApi = {
   // Create new bot configuration
   async createBot(data: RCSBotData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/bots`, {
+      const response = await fetch(`${API_RCS_URL}/bots`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
@@ -89,7 +89,7 @@ export const rcsApi = {
   // Update bot configuration
   async updateBot(id: string | number, data: Partial<RCSBotData>) {
     try {
-      const response = await fetch(`${API_BASE_URL}/bots/${id}`, {
+      const response = await fetch(`${API_RCS_URL}/bots/${id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
@@ -105,7 +105,7 @@ export const rcsApi = {
   // Delete bot
   async deleteBot(id: string | number) {
     try {
-      const response = await fetch(`${API_BASE_URL}/bots/${id}`, {
+      const response = await fetch(`${API_RCS_URL}/bots/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

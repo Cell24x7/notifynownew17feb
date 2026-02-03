@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
-const API_URL = 'http://localhost:5000';  // change only if your backend port is different
+import { API_BASE_URL } from '../config/api';
+
+const API_URL = API_BASE_URL; // Using central config
 
 interface User {
   id: string;

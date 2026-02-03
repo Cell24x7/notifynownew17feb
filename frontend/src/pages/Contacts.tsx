@@ -333,7 +333,7 @@ export default function Contacts() {
     return colors[category] || 'bg-muted text-muted-foreground';
   };
 
-  const filteredContacts = contacts.filter(contact => {
+  const filteredContacts = (contacts || []).filter(contact => {
     const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contact.phone.includes(searchQuery) ||
       (contact.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);

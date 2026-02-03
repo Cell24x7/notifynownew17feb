@@ -1,4 +1,8 @@
 // RCS Campaign API Service
+import { API_BASE_URL } from '@/config/api';
+// Note: This needs significant refactoring as it uses window.location.hostname multiple times.
+// I will start by adding the import and then replace the occurrences in a multi_replace step for cleanliness if needed,
+// but for now I see multiple hardcoded strings. I'll use multi_replace for this file specifically in next step.
 // Handles sending RCS campaigns to multiple contacts
 
 export const rcsCampaignApi = {
@@ -31,7 +35,7 @@ export const rcsCampaignApi = {
 
     try {
       const response = await fetch(
-        `http://${window.location.hostname}:5000/api/rcs/send-campaign`,
+        `${API_BASE_URL}/api/rcs/send-campaign`,
         {
           method: 'POST',
           headers: {
@@ -76,7 +80,7 @@ export const rcsCampaignApi = {
 
     try {
       const response = await fetch(
-        `http://${window.location.hostname}:5000/api/rcs/send-message`,
+        `${API_BASE_URL}/api/rcs/send-message`,
         {
           method: 'POST',
           headers: {
@@ -106,7 +110,7 @@ export const rcsCampaignApi = {
   async getTemplates() {
     try {
       const response = await fetch(
-        `http://${window.location.hostname}:5000/api/rcs/templates`,
+        `${API_BASE_URL}/api/rcs/templates`,
         {
           method: 'GET',
           headers: {
@@ -138,7 +142,7 @@ export const rcsCampaignApi = {
 
     try {
       const response = await fetch(
-        `http://${window.location.hostname}:5000/api/rcs/campaign/${campaignId}`,
+        `${API_BASE_URL}/api/rcs/campaign/${campaignId}`,
         {
           method: 'GET',
           headers: {

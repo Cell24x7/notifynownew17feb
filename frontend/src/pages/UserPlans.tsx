@@ -14,6 +14,7 @@ import {
 import { ChannelIcon } from '@/components/ui/channel-icon';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { API_BASE_URL } from '@/config/api';
 
 type Plan = {
   id: string;
@@ -39,7 +40,7 @@ export default function UserPlans() {
     const fetchPlans = async () => {
       try {
         setLoading(true);
-        const res = await fetch('http://localhost:5000/api/plans');
+        const res = await fetch(`${API_BASE_URL}/api/plans`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
