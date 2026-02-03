@@ -1,18 +1,21 @@
-import { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, Shield, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Mail, Lock, Eye, EyeOff, Shield, Check, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
+
+const API_URL = 'http://localhost:5000/api';
 
 export function SecuritySettings() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { toast } = useToast();
   
   const [emailForm, setEmailForm] = useState({
-    currentEmail: user?.email || '',
+    currentEmail: '',
     newEmail: '',
     confirmEmail: '',
   });
@@ -29,8 +32,19 @@ export function SecuritySettings() {
     confirm: false,
   });
 
-  const handleEmailChange = (e: React.FormEvent) => {
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  // Update current email when user changes
+  useEffect(() => {
+    if (user?.email) {
+      setEmailForm(prev => ({ ...prev, currentEmail: user.email }));
+    }
+  }, [user]);
+
+  const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (emailForm.newEmail !== emailForm.confirmEmail) {
       toast({
         title: 'Error',
@@ -39,15 +53,61 @@ export function SecuritySettings() {
       });
       return;
     }
-    toast({
-      title: 'Email Update Requested',
-      description: 'Please check your new email for verification link.',
-    });
-    setEmailForm({ ...emailForm, newEmail: '', confirmEmail: '' });
+
+    if (emailForm.newEmail === emailForm.currentEmail) {
+      toast({
+        title: 'Error',
+        description: 'New email must be different from current email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setEmailLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      console.log('Sending email change request:', { newEmail: emailForm.newEmail });
+      
+      const response = await axios.put(
+        `${API_URL}/profile/change-email`,
+        { newEmail: emailForm.newEmail },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        // Update token and user context
+        if (response.data.token) {
+          localStorage.setItem('authToken', response.data.token);
+        }
+        if (response.data.user) {
+          updateUser(response.data.user);
+        }
+
+        toast({
+          title: 'Email Updated',
+          description: 'Your email address has been changed successfully.',
+        });
+        setEmailForm({ 
+          currentEmail: emailForm.newEmail, 
+          newEmail: '', 
+          confirmEmail: '' 
+        });
+      }
+    } catch (err: any) {
+      console.error('Email change error:', err.response?.data);
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || err.message || 'Failed to update email',
+        variant: 'destructive',
+      });
+    } finally {
+      setEmailLoading(false);
+    }
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast({
         title: 'Error',
@@ -56,6 +116,7 @@ export function SecuritySettings() {
       });
       return;
     }
+    
     if (passwordForm.newPassword.length < 8) {
       toast({
         title: 'Error',
@@ -65,42 +126,33 @@ export function SecuritySettings() {
       return;
     }
 
+    setPasswordLoading(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:5000/api/profile/change-password', {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({
+      const response = await axios.put(
+        `${API_URL}/profile/change-password`,
+        {
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword
-        }),
-      });
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (response.data.success) {
         toast({
-          title: 'Error',
-          description: data.message || 'Failed to update password',
-          variant: 'destructive',
+          title: 'Password Updated',
+          description: 'Your password has been changed successfully.',
         });
-        return;
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       }
-
-      toast({
-        title: 'Password Updated',
-        description: 'Your password has been changed successfully.',
-      });
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (err) {
+    } catch (err: any) {
       toast({
         title: 'Error',
-        description: 'Something went wrong. Please try again.',
+        description: err.response?.data?.message || 'Failed to update password',
         variant: 'destructive',
       });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -142,6 +194,7 @@ export function SecuritySettings() {
                 value={emailForm.newEmail}
                 onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
                 required
+                disabled={emailLoading}
               />
             </div>
             <div className="space-y-2">
@@ -153,11 +206,21 @@ export function SecuritySettings() {
                 value={emailForm.confirmEmail}
                 onChange={(e) => setEmailForm({ ...emailForm, confirmEmail: e.target.value })}
                 required
+                disabled={emailLoading}
               />
             </div>
-            <Button type="submit" className="gradient-primary">
-              <Check className="h-4 w-4 mr-2" />
-              Update Email
+            <Button type="submit" className="gradient-primary" disabled={emailLoading}>
+              {emailLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Update Email
+                </>
+              )}
             </Button>
           </form>
         </CardContent>
@@ -190,6 +253,7 @@ export function SecuritySettings() {
                   value={passwordForm.currentPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                   required
+                  disabled={passwordLoading}
                 />
                 <button
                   type="button"
@@ -210,6 +274,7 @@ export function SecuritySettings() {
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                   required
+                  disabled={passwordLoading}
                 />
                 <button
                   type="button"
@@ -230,6 +295,7 @@ export function SecuritySettings() {
                   value={passwordForm.confirmPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                   required
+                  disabled={passwordLoading}
                 />
                 <button
                   type="button"
@@ -240,9 +306,18 @@ export function SecuritySettings() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="gradient-primary">
-              <Shield className="h-4 w-4 mr-2" />
-              Update Password
+            <Button type="submit" className="gradient-primary" disabled={passwordLoading}>
+              {passwordLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Update Password
+                </>
+              )}
             </Button>
           </form>
         </CardContent>

@@ -33,8 +33,13 @@ export interface CampaignData {
   uploadedFile: File | null;
   fieldMapping: Record<string, { type: 'field' | 'custom'; value: string }>;
   scheduleType: 'now' | 'scheduled';
+  schedulingMode: 'one-time' | 'repeat';
+  frequency: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  repeatDays: string[];
   scheduledDate: string;
   scheduledTime: string;
+  endDate: string;
+  endTime: string;
   estimatedCost: number;
   audienceCount: number;
 }
@@ -75,8 +80,13 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
     uploadedFile: null,
     fieldMapping: {},
     scheduleType: 'now',
+    schedulingMode: 'one-time',
+    frequency: 'daily',
+    repeatDays: [],
     scheduledDate: '',
     scheduledTime: '',
+    endDate: '',
+    endTime: '',
     estimatedCost: 0,
     audienceCount: 0,
   });
@@ -92,7 +102,16 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
 
   const selectedTemplate = templates.find(t => t.id === campaignData.templateId);
-  const templateVariables = selectedTemplate?.variables || [];
+  
+  // Dynamically extract variables from template body
+  const templateVariables = useMemo(() => {
+    if (!selectedTemplate?.body) return [];
+    const matches = selectedTemplate.body.match(/\{\{([^}]+)\}\}/g);
+    if (!matches) return [];
+    // Extract content between {{ }} and remove duplicates
+    return Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}/g, ''))));
+  }, [selectedTemplate]);
+
   const channelConfig = channelOptions.find(c => c.value === campaignData.channel);
 
   // Calculate estimated cost
@@ -229,7 +248,14 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
         });
       case 5:
         if (campaignData.scheduleType === 'scheduled') {
-          return campaignData.scheduledDate && campaignData.scheduledTime;
+          if (campaignData.schedulingMode === 'one-time') {
+            return campaignData.scheduledDate && campaignData.scheduledTime;
+          } else {
+             // Repeat validation
+             if (!campaignData.scheduledDate || !campaignData.scheduledTime || !campaignData.endDate || !campaignData.endTime) return false;
+             if (campaignData.frequency === 'weekly' && campaignData.repeatDays.length === 0) return false;
+             return true;
+          }
         }
         return true;
       default:
@@ -659,7 +685,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                         <div key={variable} className="space-y-3">
                           <div className="flex items-center gap-4">
                             <div className="w-32">
-                              <Badge variant="secondary" className="mb-1">{`{{${variable}}}`}</Badge>
+                              <Badge className="mb-1 bg-purple-100 text-purple-700 hover:bg-purple-100 border-purple-200">{`{{${variable}}}`}</Badge>
                               <p className="text-sm text-muted-foreground">Template variable</p>
                             </div>
                             <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -667,8 +693,12 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                               <div className="flex gap-2">
                                 <Button
                                   type="button"
-                                  variant={mapping.type === 'field' ? 'default' : 'outline'}
+                                  variant="outline"
                                   size="sm"
+                                  className={cn(
+                                    "transition-all",
+                                    mapping.type === 'field' && "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white border-emerald-500"
+                                  )}
                                   onClick={() => setCampaignData({
                                     ...campaignData,
                                     fieldMapping: { 
@@ -681,8 +711,26 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                 </Button>
                                 <Button
                                   type="button"
-                                  variant={mapping.type === 'custom' ? 'default' : 'outline'}
+                                  variant="outline"
                                   size="sm"
+                                  className={cn(
+                                    "transition-all",
+                                    mapping.type === 'custom' && "bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" // Inactive style for screenshot match? Wait, screenshot shows Active=Green, Inactive=White
+                                    // Actually screenshot shows: Active tab has background.
+                                    // Let's stick to: Active = Green, Inactive = Outline/Default
+                                  )}
+                                  // Wait, simpler approach:
+                                  // Active: bg-emerald-500 text-white
+                                  // Inactive: bg-background border
+                                /> */
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "transition-all",
+                                    mapping.type === 'custom' && "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white border-emerald-500"
+                                  )}
                                   onClick={() => setCampaignData({
                                     ...campaignData,
                                     fieldMapping: { 
@@ -863,24 +911,159 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                 </RadioGroup>
 
                 {campaignData.scheduleType === 'scheduled' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Date</Label>
-                      <Input
-                        type="date"
-                        value={campaignData.scheduledDate}
-                        onChange={(e) => setCampaignData({ ...campaignData, scheduledDate: e.target.value })}
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Time</Label>
-                      <Input
-                        type="time"
-                        value={campaignData.scheduledTime}
-                        onChange={(e) => setCampaignData({ ...campaignData, scheduledTime: e.target.value })}
-                      />
-                    </div>
+                  <div className="space-y-6 animate-fade-in border rounded-lg p-4 bg-muted/30">
+                     <div className="space-y-3">
+                        <Label>Campaign Schedule</Label>
+                        <RadioGroup
+                          value={campaignData.schedulingMode}
+                          onValueChange={(value) => setCampaignData({ ...campaignData, schedulingMode: value as 'one-time' | 'repeat' })}
+                          className="flex items-center gap-6"
+                        >
+                          <div className="flex items-center space-x-2">
+                             <RadioGroupItem value="one-time" id="one-time" />
+                             <Label htmlFor="one-time">One Time</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                             <RadioGroupItem value="repeat" id="repeat" />
+                             <Label htmlFor="repeat">Repeat Mode</Label>
+                          </div>
+                        </RadioGroup>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>{campaignData.schedulingMode === 'repeat' ? 'Start Date' : 'Date'}</Label>
+                          <Input
+                            type="date"
+                            value={campaignData.scheduledDate}
+                            onChange={(e) => setCampaignData({ ...campaignData, scheduledDate: e.target.value })}
+                            min={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{campaignData.schedulingMode === 'repeat' ? 'Start Time' : 'Time'}</Label>
+                          <Input
+                            type="time"
+                            value={campaignData.scheduledTime}
+                            onChange={(e) => setCampaignData({ ...campaignData, scheduledTime: e.target.value })}
+                          />
+                        </div>
+                     </div>
+
+                     {campaignData.schedulingMode === 'repeat' && (
+                       <div className="space-y-4 animate-fade-in">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Frequency</Label>
+                              <Select 
+                                value={campaignData.frequency} 
+                                onValueChange={(v) => setCampaignData({ ...campaignData, frequency: v as any, repeatDays: [] })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select frequency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="hourly">Hourly</SelectItem>
+                                  <SelectItem value="daily">Daily</SelectItem>
+                                  <SelectItem value="weekly">Weekly</SelectItem>
+                                  <SelectItem value="monthly">Monthly</SelectItem>
+                                  <SelectItem value="yearly">Yearly</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Secondary Option: Hidden for Daily */}
+                            {campaignData.frequency !== 'daily' && (
+                              <div className="space-y-2">
+                                <Label>
+                                  {campaignData.frequency === 'hourly' && "Select Interval (Hours)"}
+                                  {campaignData.frequency === 'weekly' && "Select Day"}
+                                  {campaignData.frequency === 'monthly' && "Select Date"}
+                                  {campaignData.frequency === 'yearly' && "Select Month"}
+                                </Label>
+                                
+                                {campaignData.frequency === 'weekly' ? (
+                                  <Select
+                                    value={campaignData.repeatDays[0] || ''}
+                                    onValueChange={(v) => setCampaignData({ ...campaignData, repeatDays: [v] })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select day" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                                        <SelectItem key={day} value={day}>{day}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : campaignData.frequency === 'monthly' ? (
+                                  <Select
+                                    value={campaignData.repeatDays[0] || ''}
+                                    onValueChange={(v) => setCampaignData({ ...campaignData, repeatDays: [v] })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select date" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                        <SelectItem key={day} value={day.toString()}>{day}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : campaignData.frequency === 'yearly' ? (
+                                  <Select
+                                    value={campaignData.repeatDays[0] || ''}
+                                    onValueChange={(v) => setCampaignData({ ...campaignData, repeatDays: [v] })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select month" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                      {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(month => (
+                                        <SelectItem key={month} value={month}>{month}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Select
+                                    value={campaignData.repeatDays[0] || '1'}
+                                    onValueChange={(v) => setCampaignData({ ...campaignData, repeatDays: [v] })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select interval" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                      {Array.from({ length: 24 }, (_, i) => i + 1).map(num => (
+                                        <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>End Date</Label>
+                              <Input
+                                type="date"
+                                value={campaignData.endDate}
+                                onChange={(e) => setCampaignData({ ...campaignData, endDate: e.target.value })}
+                                min={campaignData.scheduledDate || new Date().toISOString().split('T')[0]}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>End Time</Label>
+                              <Input
+                                type="time"
+                                value={campaignData.endTime}
+                                onChange={(e) => setCampaignData({ ...campaignData, endTime: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                       </div>
+                     )}
                   </div>
                 )}
               </div>
@@ -904,11 +1087,21 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             </>
           )}
         </Button>
-        <Button
-          onClick={handleNext}
-          disabled={!canProceed()}
-          className="gradient-primary"
-        >
+        <div className="flex items-center gap-4">
+          {!canProceed() && (
+            <p className="text-xs text-destructive font-medium animate-pulse">
+              {currentStep === 1 && !campaignData.name.trim() && "Enter campaign name"}
+              {currentStep === 1 && campaignData.name.trim() && !campaignData.channel && "Select channel"}
+              {currentStep === 2 && !campaignData.templateId && "Select a template"}
+              {currentStep === 3 && campaignData.audienceCount === 0 && "Select contacts"}
+              {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
+            </p>
+          )}
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed()}
+            className="gradient-primary"
+          >
           {currentStep === 5 ? (
             <>
               {campaignData.scheduleType === 'now' ? 'Send Campaign' : 'Schedule Campaign'}
@@ -921,6 +1114,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             </>
           )}
         </Button>
+      </div>
       </div>
     </div>
   );

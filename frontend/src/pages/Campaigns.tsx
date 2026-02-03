@@ -226,7 +226,7 @@ export default function Campaigns() {
         name: campaignData.name,
         channel: campaignData.channel,
         template_id: campaignData.templateId,
-        audience_id: campaignData.audienceId,
+        audience_id: campaignData.audienceId || undefined,
         audience_count: campaignData.audienceCount,
         status: campaignData.scheduleType === 'scheduled' ? 'scheduled' : 'running',
         scheduled_at: campaignData.scheduleType === 'scheduled' 
@@ -243,11 +243,11 @@ export default function Campaigns() {
           ? 'Your campaign has been scheduled.' 
           : 'Your campaign is now running!',
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Create campaign error:', err);
       toast({
         title: 'Error',
-        description: 'Failed to create campaign.',
+        description: err.response?.data?.message || 'Failed to create campaign.',
         variant: 'destructive'
       });
     }
@@ -359,7 +359,7 @@ export default function Campaigns() {
       console.error('Save template error:', err);
       toast({
         title: 'Error',
-        description: 'Failed to save template.',
+        description: err.response?.data?.message || 'Failed to save template.',
         variant: 'destructive'
       });
     }
@@ -701,25 +701,27 @@ export default function Campaigns() {
   };
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-4 md:p-6 space-y-6 animate-fade-in w-full max-w-[100vw] overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="h-8 w-8 text-primary" />
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
             Campaigns
           </h1>
-          <p className="text-muted-foreground">Create and manage your messaging campaigns</p>
+          <p className="text-sm md:text-base text-muted-foreground">Create and manage your messaging campaigns</p>
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary">
+              <Button className="gradient-primary w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Campaign
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] w-full h-[90vh] p-0">
+              <DialogTitle className="sr-only">Create New Campaign</DialogTitle>
+              <DialogDescription className="sr-only">Create a new messaging campaign</DialogDescription>
               <CampaignCreationStepper
                 templates={templates}
                 onComplete={handleCampaignComplete}
@@ -1006,14 +1008,14 @@ export default function Campaigns() {
         <TabsContent value="templates" className="mt-6">
           {/* Sub-tabs for Templates */}
           <Tabs value={templateSubTab} onValueChange={(v) => setTemplateSubTab(v as 'all' | 'pending')} className="mb-6">
-            <TabsList>
-              <TabsTrigger value="all" className="flex items-center gap-2">
+            <TabsList className="p-1 h-auto flex flex-wrap gap-2 bg-muted/50 rounded-lg w-full sm:w-auto overflow-x-auto">
+              <TabsTrigger value="all" className="flex items-center gap-2 flex-1 sm:flex-none">
                 <FileText className="h-4 w-4" />
                 All Templates
                 <Badge variant="secondary" className="ml-1">{templates.length}</Badge>
               </TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value="pending" className="flex items-center gap-2">
+                <TabsTrigger value="pending" className="flex items-center gap-2 flex-1 sm:flex-none">
                   <Clock className="h-4 w-4" />
                   Pending Approvals
                   <Badge variant="warning" className="ml-1 bg-amber-100 text-amber-700">
@@ -1025,14 +1027,14 @@ export default function Campaigns() {
 
             {/* All Templates */}
             <TabsContent value="all" className="mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredTemplates.map((template) => (
               <Card key={template.id} className="card-elevated group hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-lg font-mono">{template.name}</CardTitle>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <ChannelBadge channel={template.channel} />
                         <Badge variant="outline">{template.category}</Badge>
                         <Badge variant="secondary" className="text-xs">
@@ -1096,10 +1098,6 @@ export default function Campaigns() {
                             View Analytics
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicate
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTemplate(template.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
@@ -1276,6 +1274,7 @@ export default function Campaigns() {
           "p-0 gap-0",
           templateStep === 'channel' ? "max-w-[500px]" : "max-w-[1100px] h-[90vh]"
         )}>
+          <DialogDescription className="sr-only">Create or edit a message template</DialogDescription>
           {/* Channel Selection Step */}
           {templateStep === 'channel' && (
             <>

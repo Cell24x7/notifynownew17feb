@@ -40,6 +40,7 @@ app.use('/api/rcs-templates', require('./routes/rcs-templates'));
 app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/templates', require('./routes/templates'));
+app.use('/api/contacts', require('./routes/contacts'));
 
 // Health check & root route
 app.get('/', (req, res) => {

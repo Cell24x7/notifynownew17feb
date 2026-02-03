@@ -185,17 +185,6 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
           </DropdownMenuTrigger>
 
           <DropdownMenuContent className="w-64" align="end" sideOffset={8}>
-           <DropdownMenuItem
-  className="gap-2 py-2.5 cursor-pointer"
-  onClick={() => {
-    navigate('/profile');
-    onClose?.();          
-  }}
->
-  <UserCircle className="h-4 w-4" />
-  My Profile
-</DropdownMenuItem>
-
             <DropdownMenuItem
               className="gap-2 py-2.5 cursor-pointer"
               onClick={() => setTheme(isDark ? 'light' : 'dark')}

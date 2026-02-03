@@ -1,33 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Check, Users, Shield, Building, Wallet, Plus, ArrowUpRight, ArrowDownLeft, CreditCard, History, Mail, Bot, Palette, FolderOpen, Settings2, Globe, Bell, Lock } from 'lucide-react';
+import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Wallet, Plus, ArrowUpRight, ArrowDownLeft, CreditCard, History, Mail, Bot, Settings2, Globe, Lock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { StatusBadge } from '@/components/ui/status-badge';
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'manager' | 'agent' | 'superadmin';
-  status: 'online' | 'offline' | 'busy';
-  department?: string;
-  channels_enabled?: string[] | string | null;
-}
-import { mockUsers } from '@/lib/mockData';
+
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { ThemeSettings } from '@/components/settings/ThemeSettings';
-import { FileManager } from '@/components/files/FileManager';
+
 import { RCSConfiguration } from '@/components/settings/RCSConfiguration';
 import { SMSConfiguration } from '@/components/settings/SMSConfiguration';
 import { WhatsAppConfiguration } from '@/components/settings/WhatsAppConfiguration';
@@ -37,7 +25,6 @@ import { EmailConfiguration } from '@/components/settings/EmailConfiguration';
 import { VoiceBotConfiguration } from '@/components/settings/VoiceBotConfiguration';
 import { LanguageSettings } from '@/components/settings/LanguageSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
-import { NotificationSettings } from '@/components/settings/NotificationSettings';
 
 interface ChannelConfig {
   smsChannelName?: string;
@@ -64,21 +51,7 @@ const channelsList = [
   { id: 'voicebot', name: 'Voice BOT', icon: Bot, color: 'text-cyan-500', connected: false },
 ];
 
-const permissions = [
-  { id: 'view_chats', label: 'View Chats' },
-  { id: 'reply_chats', label: 'Reply to Chats' },
-  { id: 'manage_campaigns', label: 'Manage Campaigns' },
-  { id: 'edit_automations', label: 'Edit Automations' },
-  { id: 'manage_integrations', label: 'Manage Integrations' },
-  { id: 'access_billing', label: 'Access Billing' },
-  { id: 'manage_settings', label: 'Manage Settings' },
-];
 
-const rolePermissions: Record<string, string[]> = {
-  admin: permissions.map(p => p.id),
-  manager: ['view_chats', 'reply_chats', 'manage_campaigns', 'edit_automations'],
-  agent: ['view_chats', 'reply_chats'],
-};
 
 const walletTransactions = [
   { id: '1', type: 'credit', amount: 500, description: 'Wallet Recharge', date: '2024-01-15', status: 'completed' },
@@ -105,12 +78,11 @@ export default function Settings() {
     setSearchParams({ tab: value });
   };
   const [channels, setChannels] = useState(channelsList);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
+
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [walletBalance] = useState(550);
-  const [newUser, setNewUser] = useState({ email: '', role: 'agent' as User['role'], department: '' });
+
   const [showRCSConfig, setShowRCSConfig] = useState(false);
   const [showSMSConfig, setShowSMSConfig] = useState(false);
   const [showWhatsAppConfig, setShowWhatsAppConfig] = useState(false);
@@ -228,23 +200,7 @@ export default function Settings() {
     }
   };
 
-  const handleInviteUser = () => {
-    const user: User = {
-      id: Date.now().toString(),
-      name: newUser.email.split('@')[0],
-      email: newUser.email,
-      role: newUser.role,
-      status: 'offline',
-      department: newUser.department,
-    };
-    setUsers([...users, user]);
-    setIsInviteOpen(false);
-    setNewUser({ email: '', role: 'agent', department: '' });
-    toast({
-      title: 'Invitation sent',
-      description: `An invitation has been sent to ${newUser.email}.`,
-    });
-  };
+
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in overflow-auto">
@@ -261,14 +217,7 @@ export default function Settings() {
               <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Channels</span>
             </TabsTrigger>
-            <TabsTrigger value="users" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Users className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Shield className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Roles</span>
-            </TabsTrigger>
+
             <TabsTrigger value="wallet" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
               <Wallet className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Wallet</span>
@@ -281,18 +230,7 @@ export default function Settings() {
               <Lock className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Bell className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Notifications</span>
-            </TabsTrigger>
-            <TabsTrigger value="theme" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Palette className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Theme</span>
-            </TabsTrigger>
-            <TabsTrigger value="files" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <FolderOpen className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Files</span>
-            </TabsTrigger>
+
           </TabsList>
         </div>
 
@@ -533,8 +471,8 @@ export default function Settings() {
                       >
                         <Switch
                           checked={channel.connected}
-                          disabled={!isChannelAuthorized(channel.id)}
-                          style={{ pointerEvents: !isChannelAuthorized(channel.id) ? 'none' : 'auto' }}
+                          disabled={!isChannelAuthorized(channel.id) || channel.connected}
+                          style={{ pointerEvents: (!isChannelAuthorized(channel.id) || channel.connected) ? 'none' : 'auto' }}
                           onCheckedChange={() => {
                             if (!isChannelAuthorized(channel.id)) return;
 
@@ -591,17 +529,7 @@ export default function Settings() {
                           <Settings2 className="h-4 w-4 mr-2" />
                           Manage
                         </Button>
-                        {(channel.id === 'sms' || channel.id === 'whatsapp' || channel.id === 'rcs' || channel.id === 'instagram' || channel.id === 'facebook' || channel.id === 'email' || channel.id === 'voicebot') && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleChannelToggle(channel.id)}
-                            disabled={!isChannelAuthorized(channel.id)}
-                          >
-                            Disable
-                          </Button>
-                        )}
+
                       </div>
                     )}
                   </CardContent>
@@ -611,178 +539,9 @@ export default function Settings() {
           )}
         </TabsContent>
 
-        {/* Users Tab */}
-        <TabsContent value="users" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-lg font-semibold">Team Members</h2>
-              <p className="text-sm text-muted-foreground">{users.length} members in your team</p>
-            </div>
-            <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-              <DialogTrigger asChild>
-                <Button className="gradient-primary">
-                  <Users className="h-4 w-4 mr-2" />
-                  Invite User
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Invite Team Member</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="colleague@company.com"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select
-                      value={newUser.role}
-                      onValueChange={(value: User['role']) => setNewUser({ ...newUser, role: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="agent">Agent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Select
-                      value={newUser.department}
-                      onValueChange={(value) => setNewUser({ ...newUser, department: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Support">Support</SelectItem>
-                        <SelectItem value="Sales">Sales</SelectItem>
-                        <SelectItem value="Marketing">Marketing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={() => setIsInviteOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleInviteUser} className="gradient-primary">
-                      Send Invitation
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
 
-          <div className="space-y-3">
-            {users.map((user) => (
-              <Card key={user.id} className="card-elevated">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="font-medium text-primary">
-                          {user.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{user.name}</span>
-                          <Badge variant={user.status === 'online' ? 'default' : 'secondary'} className="text-xs">
-                            {user.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <Badge variant="outline" className="capitalize">{user.role}</Badge>
-                        {user.department && (
-                          <p className="text-xs text-muted-foreground mt-1">{user.department}</p>
-                        )}
-                      </div>
-                      <Button variant="ghost" size="sm">
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
 
-        {/* Roles Tab */}
-        <TabsContent value="roles" className="space-y-6">
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle>Permission Matrix</CardTitle>
-              <CardDescription>Configure what each role can access and modify</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 font-medium">Permission</th>
-                      <th className="text-center py-3 px-4 font-medium">
-                        <div className="flex items-center justify-center gap-2">
-                          <Shield className="h-4 w-4 text-primary" />
-                          Admin
-                        </div>
-                      </th>
-                      <th className="text-center py-3 px-4 font-medium">
-                        <div className="flex items-center justify-center gap-2">
-                          <Building className="h-4 w-4 text-secondary" />
-                          Manager
-                        </div>
-                      </th>
-                      <th className="text-center py-3 px-4 font-medium">
-                        <div className="flex items-center justify-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          Agent
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {permissions.map((permission) => (
-                      <tr key={permission.id} className="border-b border-border/50">
-                        <td className="py-3 px-4">{permission.label}</td>
-                        {['admin', 'manager', 'agent'].map((role) => (
-                          <td key={role} className="text-center py-3 px-4">
-                            <div className="flex justify-center">
-                              <Checkbox
-                                checked={rolePermissions[role].includes(permission.id)}
-                                disabled={role === 'admin'}
-                                className="data-[state=checked]:bg-primary"
-                              />
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-end mt-4">
-                <Button className="gradient-primary">Save Changes</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
 
         {/* Wallet Tab */}
         <TabsContent value="wallet" className="space-y-6">
@@ -954,20 +713,9 @@ export default function Settings() {
           <SecuritySettings />
         </TabsContent>
 
-        {/* Notifications Tab */}
-        <TabsContent value="notifications">
-          <NotificationSettings />
-        </TabsContent>
 
-        {/* Theme Tab */}
-        <TabsContent value="theme">
-          <ThemeSettings />
-        </TabsContent>
 
-        {/* File Manager Tab */}
-        <TabsContent value="files">
-          <FileManager />
-        </TabsContent>
+
       </Tabs>
     </div>
   );

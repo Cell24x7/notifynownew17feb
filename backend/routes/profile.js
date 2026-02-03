@@ -119,4 +119,55 @@ router.put('/change-password', authenticate, async (req, res) => {
   }
 });
 
+// PUT /api/profile/change-email
+router.put('/change-email', authenticate, async (req, res) => {
+  const { newEmail } = req.body;
+
+  if (!newEmail || !newEmail.trim()) {
+    return res.status(400).json({ success: false, message: 'New email required' });
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(newEmail)) {
+    return res.status(400).json({ success: false, message: 'Invalid email format' });
+  }
+
+  try {
+    // Check if email already exists
+    const [existing] = await query('SELECT id FROM users WHERE email = ? AND id != ?', [newEmail, req.user.id]);
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already in use' });
+    }
+
+    // Update email
+    await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, req.user.id]);
+
+    // Generate new token with updated email
+    const [updated] = await query('SELECT id, name, email, role, company, channels_enabled FROM users WHERE id = ?', [req.user.id]);
+    const token = jwt.sign(
+      {
+        id: updated[0].id,
+        email: updated[0].email,
+        role: updated[0].role,
+        name: updated[0].name,
+        company: updated[0].company,
+        channels_enabled: updated[0].channels_enabled
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Email updated successfully',
+      token,
+      user: updated[0]
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;

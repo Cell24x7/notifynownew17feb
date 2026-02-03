@@ -72,30 +72,10 @@ router.post('/', authenticateToken, async (req, res) => {
             header_type, header_content, body, footer, status, buttons
         } = req.body;
 
-        // Validate channel against user profile
-        const [userRows] = await query('SELECT channels_enabled FROM users WHERE id = ?', [userId]);
-        if (userRows.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+        // Validate channel against user profile - REMOVED per user request to allow simple saving
+        // const [userRows] = await query('SELECT channels_enabled FROM users WHERE id = ?', [userId]);
+        // [Logic removed to allow saving]
 
-        let enabledChannels = [];
-        try {
-            enabledChannels = userRows[0].channels_enabled
-                ? JSON.parse(userRows[0].channels_enabled)
-                : [];
-        } catch (e) {
-            console.error('Error parsing channels_enabled:', e);
-            enabledChannels = [];
-        }
-
-        if (enabledChannels.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'No channels are enabled for your account. Please contact admin.'
-            });
-        }
-
-        if (!enabledChannels.includes(channel)) {
-            return res.status(403).json({ success: false, message: `Channel ${channel} is not enabled for this account` });
-        }
 
         const templateId = `TPL${Date.now()}`;
 
@@ -244,5 +224,32 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 
 
 // DELETE template
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        // Check if template exists and belongs to user (or user is admin)
+        const [existing] = await query('SELECT id FROM message_templates WHERE id = ?', [id]);
+        if (existing.length === 0) return res.status(404).json({ success: false, message: 'Template not found' });
+
+        // If not admin, check ownership
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+            const [owned] = await query('SELECT id FROM message_templates WHERE id = ? AND user_id = ?', [id, userId]);
+            if (owned.length === 0) return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        // Delete buttons first (foreign key)
+        await query('DELETE FROM template_buttons WHERE template_id = ?', [id]);
+
+        // Delete template
+        await query('DELETE FROM message_templates WHERE id = ?', [id]);
+
+        res.json({ success: true, message: 'Template deleted successfully' });
+    } catch (error) {
+        console.error('Delete template error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete template' });
+    }
+});
 
 module.exports = router;

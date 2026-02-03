@@ -38,7 +38,6 @@ const menuItems = [
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors' },
   { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers' },
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs' },
-  { icon: Users, label: 'My Profile', path: '/super-admin/profile' },
 ];
 
 interface SuperAdminSidebarProps {
