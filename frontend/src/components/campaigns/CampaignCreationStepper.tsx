@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,12 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChannelBadge } from '@/components/ui/channel-icon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { type Channel, type MessageTemplate, audienceSegments, mockContacts } from '@/lib/mockData';
+import { type Channel, type MessageTemplate, audienceSegments } from '@/lib/mockData';
+import { contactService, type Contact } from '@/services/contactService';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface CampaignCreationStepperProps {
   templates: MessageTemplate[];
@@ -62,11 +65,9 @@ const channelOptions = [
   { value: 'voicebot', label: 'Voice Bot', icon: '🎙️', costPerMessage: 0.50 },
 ];
 
-// Mock CSV columns that would be detected from uploaded file
-const mockCsvColumns = ['Name', 'Phone', 'Email', 'City', 'Order ID', 'Amount'];
-
 export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const enabledChannels = user?.channels_enabled || [];
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -93,13 +94,41 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
   const [selectedAudienceId, setSelectedAudienceId] = useState('');
   const [csvPreview, setCsvPreview] = useState<string[][]>([]);
-  const [detectedColumns, setDetectedColumns] = useState<string[]>(mockCsvColumns);
+  const [detectedColumns, setDetectedColumns] = useState<string[]>([]);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  
+  // Real Contacts State
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
   
   // Contact table filters
   const [contactSearch, setContactSearch] = useState('');
   const [segmentFilter, setSegmentFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+
+  // Fetch real contacts
+  useEffect(() => {
+    if (currentStep === 3 && campaignData.contactSource === 'existing') {
+      const fetchContacts = async () => {
+        setLoadingContacts(true);
+        try {
+          const data = await contactService.getContacts();
+          setContacts(data);
+        } catch (error) {
+          console.error("Failed to fetch contacts", error);
+          toast({
+             title: "Error",
+             description: "Failed to load contacts.",
+             variant: "destructive"
+          });
+        } finally {
+          setLoadingContacts(false);
+        }
+      };
+      fetchContacts();
+    }
+  }, [currentStep, campaignData.contactSource]);
 
   const selectedTemplate = templates.find(t => t.id === campaignData.templateId);
   
@@ -108,7 +137,6 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
     if (!selectedTemplate?.body) return [];
     const matches = selectedTemplate.body.match(/\{\{([^}]+)\}\}/g);
     if (!matches) return [];
-    // Extract content between {{ }} and remove duplicates
     return Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}/g, ''))));
   }, [selectedTemplate]);
 
@@ -141,47 +169,54 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setCampaignData({ ...campaignData, uploadedFile: file });
-      // Simulate CSV parsing - in real app, parse the file
-      setCsvPreview([
-        ['John Doe', '+1234567890', 'john@email.com', 'New York', 'ORD001', '299'],
-        ['Jane Smith', '+0987654321', 'jane@email.com', 'Los Angeles', 'ORD002', '450'],
-        ['Bob Wilson', '+1122334455', 'bob@email.com', 'Chicago', 'ORD003', '199'],
-      ]);
-      setCampaignData(prev => ({ ...prev, audienceCount: 150 })); // Mock count
+      // Parse file properly
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const rows = text.split('\n').map(row => row.split(','));
+        const headers = rows[0].map(h => h.trim());
+        
+        setDetectedColumns(headers);
+        setCsvPreview(rows.slice(1, 6)); // Preview first 5 rows
+        setCampaignData({ 
+            ...campaignData, 
+            uploadedFile: file,
+            audienceCount: rows.length - 1 // Exclude header
+        });
+      };
+      reader.readAsText(file);
     }
   };
-
-  const handleAudienceSelect = (audienceId: string) => {
-    setSelectedAudienceId(audienceId);
-    const audience = audienceSegments.find(a => a.id === audienceId);
-    if (audience) {
-      setCampaignData(prev => ({ 
-        ...prev, 
-        audienceId: audienceId,
-        audienceCount: audience.count,
-        selectedContacts: [audienceId]
+  
+  const handleConfirmUpload = () => {
+      setIsUploadDialogOpen(false);
+      setCampaignData(prev => ({
+          ...prev,
+          contactSource: 'upload'
       }));
-    }
+      toast({
+          title: "File Uploaded",
+          description: `${campaignData.audienceCount} contacts ready for campaign.`
+      });
   };
 
   // Filtered contacts based on search and filters
   const filteredContacts = useMemo(() => {
-    return mockContacts.filter(contact => {
+    return contacts.filter(contact => {
       // Search filter
       const searchMatch = contactSearch === '' || 
         contact.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
         contact.phone.includes(contactSearch) ||
-        contact.email.toLowerCase().includes(contactSearch.toLowerCase());
+        (contact.email && contact.email.toLowerCase().includes(contactSearch.toLowerCase()));
       
       // Segment filter
-      const segmentMatch = segmentFilter === 'all' || contact.segment === segmentFilter;
+      const segmentMatch = segmentFilter === 'all' || (contact.category || 'lead') === segmentFilter.toLowerCase(); // Map segment to category
       
       // Date filter
       let dateMatch = true;
-      if (dateFilter !== 'all' && contact.createdAt) {
+      if (dateFilter !== 'all' && contact.created_at) {
         const now = new Date();
-        const contactDate = new Date(contact.createdAt);
+        const contactDate = new Date(contact.created_at);
         const daysDiff = Math.floor((now.getTime() - contactDate.getTime()) / (1000 * 60 * 60 * 24));
         
         if (dateFilter === 'last7') dateMatch = daysDiff <= 7;
@@ -191,7 +226,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       
       return searchMatch && segmentMatch && dateMatch;
     });
-  }, [contactSearch, segmentFilter, dateFilter]);
+  }, [contacts, contactSearch, segmentFilter, dateFilter]); // Added contacts to dependency
 
   // Handle contact selection
   const toggleContactSelection = (contactId: string) => {
@@ -222,7 +257,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
   };
 
   const downloadSampleFile = () => {
-    const sampleData = 'Name,Phone,Email,City,Order ID,Amount\nJohn Doe,+1234567890,john@email.com,New York,ORD001,299\nJane Smith,+0987654321,jane@email.com,Los Angeles,ORD002,450';
+    const sampleData = 'Name,Phone,Email,City,Order ID,Amount\nJohn Doe,+919876543210,john@email.com,Mumbai,ORD001,299\nJane Smith,+919876543211,jane@email.com,Delhi,ORD002,450';
     const blob = new Blob([sampleData], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -241,7 +276,6 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       case 3:
         return campaignData.audienceCount > 0;
       case 4:
-        // Check if all template variables are mapped with values
         return templateVariables.every(v => {
           const mapping = campaignData.fieldMapping[v];
           return mapping && mapping.value && mapping.value.trim() !== '';
@@ -251,7 +285,6 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
           if (campaignData.schedulingMode === 'one-time') {
             return campaignData.scheduledDate && campaignData.scheduledTime;
           } else {
-             // Repeat validation
              if (!campaignData.scheduledDate || !campaignData.scheduledTime || !campaignData.endDate || !campaignData.endTime) return false;
              if (campaignData.frequency === 'weekly' && campaignData.repeatDays.length === 0) return false;
              return true;
@@ -428,54 +461,34 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-semibold mb-1">Select Audience</h2>
-                <p className="text-muted-foreground">Choose existing contacts or upload a file</p>
+                <p className="text-muted-foreground">Choose existing contacts or upload a file (Real Data)</p>
               </div>
 
-              <RadioGroup
-                value={campaignData.contactSource}
-                onValueChange={(value) => {
-                  setCampaignData({ 
-                    ...campaignData, 
-                    contactSource: value as 'existing' | 'upload',
-                    audienceCount: 0,
-                    uploadedFile: null,
-                    selectedContacts: []
-                  });
-                  setSelectedContactIds([]);
-                }}
-                className="grid grid-cols-2 gap-4 max-w-2xl"
-              >
-                <div>
-                  <RadioGroupItem value="existing" id="existing" className="peer sr-only" />
-                  <Label
-                    htmlFor="existing"
-                    className={cn(
-                      "flex flex-col items-center justify-between rounded-lg border-2 p-6 cursor-pointer transition-all",
-                      "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5",
-                      campaignData.contactSource === 'existing' && "border-primary bg-primary/5"
-                    )}
-                  >
-                    <Users className="h-10 w-10 mb-3 text-primary" />
-                    <span className="font-semibold">Choose from Contacts</span>
-                    <span className="text-sm text-muted-foreground text-center mt-1">Select from your contact database</span>
-                  </Label>
-                </div>
-                <div>
-                  <RadioGroupItem value="upload" id="upload" className="peer sr-only" />
-                  <Label
-                    htmlFor="upload"
-                    className={cn(
-                      "flex flex-col items-center justify-between rounded-lg border-2 p-6 cursor-pointer transition-all",
-                      "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5",
-                      campaignData.contactSource === 'upload' && "border-primary bg-primary/5"
-                    )}
-                  >
-                    <Upload className="h-10 w-10 mb-3 text-primary" />
-                    <span className="font-semibold">Upload File</span>
-                    <span className="text-sm text-muted-foreground text-center mt-1">Upload CSV or Excel file</span>
-                  </Label>
-                </div>
-              </RadioGroup>
+               <div className="grid grid-cols-2 gap-4 max-w-2xl">
+                   <div 
+                      onClick={() => setCampaignData({...campaignData, contactSource: 'existing'})}
+                      className={cn(
+                          "flex flex-col items-center justify-between rounded-lg border-2 p-6 cursor-pointer transition-all hover:bg-muted/50",
+                          campaignData.contactSource === 'existing' && "border-primary bg-primary/5"
+                      )}
+                    >
+                      <Users className="h-10 w-10 mb-3 text-primary" />
+                      <span className="font-semibold">Choose from Contacts</span>
+                      <span className="text-sm text-muted-foreground text-center mt-1">Select from real database contacts</span>
+                    </div>
+
+                    <div 
+                      onClick={() => setIsUploadDialogOpen(true)}
+                       className={cn(
+                          "flex flex-col items-center justify-between rounded-lg border-2 p-6 cursor-pointer transition-all hover:bg-muted/50",
+                          campaignData.contactSource === 'upload' && "border-primary bg-primary/5"
+                      )}
+                    >
+                      <Upload className="h-10 w-10 mb-3 text-primary" />
+                      <span className="font-semibold">Upload File</span>
+                      <span className="text-sm text-muted-foreground text-center mt-1">Upload new CSV/Excel list</span>
+                    </div>
+               </div>
 
               {campaignData.contactSource === 'existing' && (
                 <div className="space-y-4">
@@ -497,41 +510,34 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                       </SelectTrigger>
                       <SelectContent className="bg-background z-50">
                         <SelectItem value="all">All Segments</SelectItem>
-                        {audienceSegments.map(seg => (
-                          <SelectItem key={seg.id} value={seg.name}>{seg.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={dateFilter} onValueChange={setDateFilter}>
-                      <SelectTrigger className="w-[180px]">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Created Date" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        <SelectItem value="all">All Time</SelectItem>
-                        <SelectItem value="last7">Last 7 days</SelectItem>
-                        <SelectItem value="last30">Last 30 days</SelectItem>
-                        <SelectItem value="last90">Last 90 days</SelectItem>
+                        <SelectItem value="guest">Guest</SelectItem>
+                        <SelectItem value="lead">Lead</SelectItem>
+                        <SelectItem value="customer">Customer</SelectItem>
+                        <SelectItem value="vip">VIP</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   {/* Contacts Table */}
-                  <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
+                  <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto relative">
+                    {loadingContacts && (
+                        <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        </div>
+                    )}
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
                           <TableHead className="w-12">
                             <Checkbox 
-                              checked={selectedContactIds.length === filteredContacts.length && filteredContacts.length > 0}
+                              checked={filteredContacts.length > 0 && selectedContactIds.length === filteredContacts.length}
                               onCheckedChange={toggleAllContacts}
                             />
                           </TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Email</TableHead>
-                          <TableHead>Segment</TableHead>
-                          <TableHead>City</TableHead>
+                          <TableHead>Category</TableHead>
                           <TableHead>Created</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -554,20 +560,19 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                               </TableCell>
                               <TableCell className="font-medium">{contact.name}</TableCell>
                               <TableCell className="text-muted-foreground">{contact.phone}</TableCell>
-                              <TableCell className="text-muted-foreground">{contact.email}</TableCell>
+                              <TableCell className="text-muted-foreground">{contact.email || '-'}</TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="text-xs">{contact.segment || 'N/A'}</Badge>
+                                <Badge variant="outline" className="text-xs uppercase">{contact.category || 'lead'}</Badge>
                               </TableCell>
-                              <TableCell className="text-muted-foreground">{contact.city || 'N/A'}</TableCell>
                               <TableCell className="text-muted-foreground">
-                                {contact.createdAt ? format(contact.createdAt, 'dd MMM yyyy') : 'N/A'}
+                                {contact.created_at ? format(new Date(contact.created_at), 'dd MMM yyyy') : 'N/A'}
                               </TableCell>
                             </TableRow>
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                              No contacts found matching your filters
+                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                              {loadingContacts ? 'Loading contacts...' : 'No contacts found matching your filters'}
                             </TableCell>
                           </TableRow>
                         )}
@@ -581,67 +586,93 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                 </div>
               )}
 
-              {campaignData.contactSource === 'upload' && (
-                <div className="space-y-4 max-w-2xl">
-                  <div className="flex items-center justify-between">
-                    <Label>Upload Contact File</Label>
-                    <Button variant="outline" size="sm" onClick={downloadSampleFile}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Sample CSV
-                    </Button>
-                  </div>
-                  
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                    <input
-                      type="file"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                      {campaignData.uploadedFile ? (
+              {campaignData.contactSource === 'upload' && campaignData.uploadedFile && (
+                 <div className="space-y-4 max-w-2xl border p-4 rounded-lg bg-green-50 border-green-200">
+                    <div className="flex items-center gap-4">
+                        <FileSpreadsheet className="h-8 w-8 text-green-600" />
                         <div>
-                          <p className="font-medium text-primary">{campaignData.uploadedFile.name}</p>
-                          <p className="text-sm text-muted-foreground">{campaignData.audienceCount} contacts detected</p>
+                            <p className="font-medium text-green-900 line-clamp-1">{campaignData.uploadedFile.name}</p>
+                            <p className="text-sm text-green-700">{campaignData.audienceCount} contacts ready</p>
                         </div>
-                      ) : (
-                        <div>
-                          <p className="font-medium">Drop your file here or click to browse</p>
-                          <p className="text-sm text-muted-foreground">Supports CSV, XLSX, XLS</p>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-
-                  {csvPreview.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Preview (first 3 rows)</Label>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted">
-                            <tr>
-                              {detectedColumns.map((col, i) => (
-                                <th key={i} className="px-3 py-2 text-left font-medium">{col}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {csvPreview.map((row, i) => (
-                              <tr key={i} className="border-t">
-                                {row.map((cell, j) => (
-                                  <td key={j} className="px-3 py-2 text-muted-foreground">{cell}</td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                         <Button variant="outline" size="sm" className="ml-auto" onClick={() => setIsUploadDialogOpen(true)}>
+                            Change File
+                        </Button>
                     </div>
-                  )}
-                </div>
+                 </div>
               )}
+
+              <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                  <DialogContent className="max-w-3xl">
+                      <DialogHeader>
+                          <DialogTitle>Upload Contact List</DialogTitle>
+                          <DialogDescription>
+                              Upload a CSV file to use for this campaign.
+                          </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="grid grid-cols-1 gap-6 py-4">
+                          <div className="border-2 border-dashed rounded-lg p-8 text-center transition-colors hover:bg-muted/50">
+                                <input
+                                  type="file"
+                                  accept=".csv,.xlsx,.xls"
+                                  onChange={handleFileUpload}
+                                  className="hidden"
+                                  id="popup-file-upload"
+                                />
+                                <label htmlFor="popup-file-upload" className="cursor-pointer block w-full h-full">
+                                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                                  <p className="font-medium">Click to upload CSV</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Supported: .csv, .xlsx</p>
+                                </label>
+                          </div>
+                          
+                          <div className="text-center">
+                              <Button variant="link" onClick={downloadSampleFile} size="sm">
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download Sample Template
+                              </Button>
+                          </div>
+
+                          {csvPreview.length > 0 && (
+                            <div className="space-y-2">
+                              <Label>Preview (first 5 rows)</Label>
+                              <div className="border rounded-lg overflow-hidden max-h-[200px] overflow-y-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      {detectedColumns.map((col, i) => (
+                                        <TableHead key={i} className="h-8 py-1">{col}</TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {csvPreview.map((row, i) => (
+                                      <TableRow key={i}>
+                                        {row.map((cell, j) => (
+                                          <TableCell key={j} className="py-2 text-xs">{cell}</TableCell>
+                                        ))}
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+
+                      <DialogFooter>
+                          <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>Cancel</Button>
+                          <Button 
+                             disabled={!campaignData.uploadedFile} 
+                             onClick={handleConfirmUpload}
+                             className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                             <Check className="h-4 w-4 mr-2" />
+                             Confrim & Use File
+                          </Button>
+                      </DialogFooter>
+                  </DialogContent>
+              </Dialog>
 
               {campaignData.audienceCount > 0 && (
                 <Card className="bg-primary/5 border-primary/20 max-w-2xl">
