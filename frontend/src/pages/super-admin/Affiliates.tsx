@@ -170,7 +170,7 @@ export default function SuperAdminAffiliates() {
     tableContainerRef.current.scrollLeft = scrollLeft - walk;
   };
 
-  const filteredAffiliates = affiliates.filter(affiliate => 
+  const filteredAffiliates = (affiliates || []).filter(affiliate => 
     affiliate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     affiliate.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     affiliate.referral_code.toLowerCase().includes(searchQuery.toLowerCase())

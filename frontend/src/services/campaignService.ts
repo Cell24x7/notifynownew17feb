@@ -57,5 +57,10 @@ export const campaignService = {
     async deleteCampaign(id: string) {
         const response = await axios.delete(`${API_BASE_URL_CAMPAIGNS}/${id}`, { headers: getAuthHeader() });
         return response.data;
+    },
+
+    async sendTest(data: { channel: string; template_id: string; destination: string; variables: any }) {
+        const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/test-send`, data, { headers: getAuthHeader() });
+        return response.data;
     }
 };

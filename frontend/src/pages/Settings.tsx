@@ -26,6 +26,7 @@ import { EmailConfiguration } from '@/components/settings/EmailConfiguration';
 import { VoiceBotConfiguration } from '@/components/settings/VoiceBotConfiguration';
 import { LanguageSettings } from '@/components/settings/LanguageSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
+import { walletApi, Transaction } from '@/services/walletApi';
 
 interface ChannelConfig {
   smsChannelName?: string;
@@ -52,16 +53,6 @@ const channelsList = [
   { id: 'voicebot', name: 'Voice BOT', icon: Bot, color: 'text-cyan-500', connected: false },
 ];
 
-
-
-const walletTransactions = [
-  { id: '1', type: 'credit', amount: 500, description: 'Wallet Recharge', date: '2024-01-15', status: 'completed' },
-  { id: '2', type: 'debit', amount: 50, description: 'WhatsApp Messages (1000)', date: '2024-01-14', status: 'completed' },
-  { id: '3', type: 'debit', amount: 25, description: 'SMS Campaign', date: '2024-01-13', status: 'completed' },
-  { id: '4', type: 'credit', amount: 200, description: 'Bonus Credits', date: '2024-01-10', status: 'completed' },
-  { id: '5', type: 'debit', amount: 75, description: 'WhatsApp Messages (1500)', date: '2024-01-08', status: 'completed' },
-];
-
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') || 'channels';
@@ -82,7 +73,8 @@ export default function Settings() {
 
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
-  const [walletBalance] = useState(550);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletTransactions, setWalletTransactions] = useState<Transaction[]>([]);
 
   const [showRCSConfig, setShowRCSConfig] = useState(false);
   const [showSMSConfig, setShowSMSConfig] = useState(false);
@@ -132,15 +124,62 @@ export default function Settings() {
     fetchProfile();
   }, []);
 
-  const handleRecharge = () => {
+  // Fetch Wallet Data
+  useEffect(() => {
+    if (activeTab === 'wallet') {
+      const fetchWalletData = async () => {
+        try {
+          const [balanceData, transactionsData] = await Promise.all([
+            walletApi.getBalance(),
+            walletApi.getTransactions()
+          ]);
+
+          if (balanceData.success) {
+            setWalletBalance(balanceData.balance);
+          }
+          if (transactionsData.success) {
+            setWalletTransactions(transactionsData.transactions);
+          }
+        } catch (error) {
+          console.error('Error fetching wallet data:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to fetch wallet information.',
+            variant: 'destructive'
+          });
+        }
+      };
+
+      fetchWalletData();
+    }
+  }, [activeTab]);
+
+  const handleRecharge = async () => {
     const amount = parseFloat(rechargeAmount);
     if (amount > 0) {
-      toast({
-        title: 'Recharge Successful',
-        description: `₹${amount} has been added to your wallet.`,
-      });
-      setIsRechargeOpen(false);
-      setRechargeAmount('');
+      try {
+        const response = await walletApi.rechargeWallet(amount);
+        if (response.success) {
+            toast({
+              title: 'Recharge Successful',
+              description: `₹${amount} has been added to your wallet.`,
+            });
+            setIsRechargeOpen(false);
+            setRechargeAmount('');
+            // Refresh balance and transactions
+            setWalletBalance(response.balance);
+            const transactionsData = await walletApi.getTransactions();
+            if (transactionsData.success) {
+                setWalletTransactions(transactionsData.transactions);
+            }
+        }
+      } catch (error: any) {
+        toast({
+            title: 'Recharge Failed',
+            description: error.response?.data?.message || 'Failed to recharge wallet.',
+            variant: 'destructive'
+        });
+      }
     }
   };
 
@@ -201,7 +240,14 @@ export default function Settings() {
     }
   };
 
+  // Calculate stats
+  const totalCredited = walletTransactions
+    .filter(t => t.type === 'credit')
+    .reduce((acc, t) => acc + parseFloat(t.amount.toString()), 0);
 
+  const totalSpent = walletTransactions
+    .filter(t => t.type === 'debit')
+    .reduce((acc, t) => acc + parseFloat(t.amount.toString()), 0);
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in overflow-auto">
@@ -626,7 +672,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Credited</p>
-                    <p className="text-xl font-bold">₹700</p>
+                    <p className="text-xl font-bold">₹{totalCredited.toLocaleString()}</p>
                   </div>
                 </div>
               </CardContent>
@@ -639,7 +685,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Spent</p>
-                    <p className="text-xl font-bold">₹150</p>
+                    <p className="text-xl font-bold">₹{totalSpent.toLocaleString()}</p>
                   </div>
                 </div>
               </CardContent>
@@ -669,37 +715,43 @@ export default function Settings() {
               <CardDescription>Your recent wallet transactions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {walletTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
+              {walletTransactions.length > 0 ? (
+                <div className="space-y-3">
+                  {walletTransactions.map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          'p-2 rounded-full',
+                          transaction.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'
+                        )}>
+                          {transaction.type === 'credit' ? (
+                            <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <ArrowUpRight className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{transaction.description}</p>
+                          <p className="text-sm text-muted-foreground">{new Date(transaction.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
                       <div className={cn(
-                        'p-2 rounded-full',
-                        transaction.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'
+                        'font-semibold',
+                        transaction.type === 'credit' ? 'text-green-500' : 'text-red-500'
                       )}>
-                        {transaction.type === 'credit' ? (
-                          <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <ArrowUpRight className="h-4 w-4 text-red-500" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{transaction.description}</p>
-                        <p className="text-sm text-muted-foreground">{transaction.date}</p>
+                        {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
                       </div>
                     </div>
-                    <div className={cn(
-                      'font-semibold',
-                      transaction.type === 'credit' ? 'text-green-500' : 'text-red-500'
-                    )}>
-                      {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No transactions found.
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

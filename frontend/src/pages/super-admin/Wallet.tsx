@@ -36,7 +36,10 @@ export default function SuperAdminWallet() {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/wallet/transactions`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/wallet/transactions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setTransactions(res.data.transactions || []);
       } else {
@@ -56,7 +59,10 @@ export default function SuperAdminWallet() {
   // Fetch clients for dropdown
   const fetchClients = async () => {
     try {
-      const res = await axios.get(`${API_URL}/clients`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/clients`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setClients(res.data.clients || []);
       }
@@ -98,8 +104,11 @@ export default function SuperAdminWallet() {
   };
 
   const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((acc, t) => acc + (t.amount || 0), 0);
-  const totalCreditsIssued = transactions.filter(t => (t.credits || 0) > 0).reduce((acc, t) => acc + (t.credits || 0), 0);
-  const totalDeductions = transactions.filter(t => t.type === 'deduction').reduce((acc, t) => acc + Math.abs(t.credits || 0), 0);
+  // In the new system, 'credits' in the context of Wallet = Amount (Money). 
+  // Any credit transaction (add money) contributes to 'Credits Issued'.
+  const totalCreditsIssued = transactions.filter(t => t.amount > 0 && (t.type === 'credit' || t.type === 'adjustment' || t.type === 'refund')).reduce((acc, t) => acc + (t.amount || 0), 0);
+  // Deductions are debit transactions
+  const totalDeductions = transactions.filter(t => t.type === 'deduction' || t.type === 'debit').reduce((acc, t) => acc + (t.amount || 0), 0);
 
   const handleAdjustment = async () => {
     if (!adjustForm.clientId || adjustForm.amount <= 0 || !adjustForm.description.trim()) {
@@ -112,13 +121,16 @@ export default function SuperAdminWallet() {
     }
 
     try {
+      const token = localStorage.getItem('authToken');
       const payload = {
         user_id: adjustForm.clientId,
         type: adjustType === 'add' ? 'adjustment' : 'refund',
         credits: adjustType === 'add' ? adjustForm.amount : -adjustForm.amount, // For refund, negative credits?
         description: adjustForm.description,
       };
-      const res = await axios.post(`${API_URL}/wallet/adjust`, payload);
+      const res = await axios.post(`${API_URL}/wallet/adjust`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         toast({
           title: adjustType === 'add' ? 'Credits Added' : 'Refund Processed',
@@ -301,18 +313,21 @@ export default function SuperAdminWallet() {
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{txn.client_name || txn.clientName}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>{txn.client_name || 'Unknown'}</div>
+                      <div className="text-xs text-muted-foreground">{txn.client_email}</div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground max-w-[300px] truncate">
                       {txn.description}
                     </TableCell>
                     <TableCell className="text-right">
-                      {txn.amount > 0 ? `$${txn.amount.toLocaleString()}` : '-'}
+                      {txn.amount > 0 ? `₹${txn.amount.toLocaleString()}` : '-'}
                     </TableCell>
                     <TableCell className={cn(
                       'text-right font-medium',
-                      (txn.credits || 0) > 0 ? 'text-primary' : 'text-destructive'
+                      'text-primary'
                     )}>
-                      {txn.credits > 0 ? '+' : ''}{txn.credits.toLocaleString()}
+                       {txn.type === 'credit' ? '+' : ''}₹{txn.amount.toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">

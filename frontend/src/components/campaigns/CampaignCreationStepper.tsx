@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { cn } from '@/lib/utils';
 import { type Channel, type MessageTemplate, audienceSegments } from '@/lib/mockData';
 import { contactService, type Contact } from '@/services/contactService';
+import { campaignService } from '@/services/campaignService';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -106,6 +107,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
   const [segmentFilter, setSegmentFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+
+  // Test Campaign State
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [testDestination, setTestDestination] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Fetch real contacts
   useEffect(() => {
@@ -265,6 +271,54 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
     a.download = 'sample_contacts.csv';
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSendTest = async () => {
+    if (!testDestination) return;
+    
+    setIsSendingTest(true);
+    try {
+      // Prepare variables (using custom values or mock data for fields)
+      const variables: Record<string, string> = {};
+      templateVariables.forEach(v => {
+        const mapping = campaignData.fieldMapping[v];
+        if (mapping) {
+           if (mapping.type === 'custom') {
+             variables[v] = mapping.value;
+           } else if (csvPreview.length > 0) {
+             const colIndex = detectedColumns.indexOf(mapping.value);
+             variables[v] = colIndex >= 0 ? csvPreview[0][colIndex] : `[${mapping.value}]`;
+           } else {
+             variables[v] = `[${mapping.value}]`;
+           }
+        }
+      });
+
+      const response = await campaignService.sendTest({
+        channel: campaignData.channel,
+        template_id: campaignData.templateId,
+        destination: testDestination,
+        variables
+      });
+
+      if (response.success) {
+        toast({
+          title: "Test Sent",
+          description: "Message sent successfully. Check the preview in the response.",
+        });
+        // We could also show the preview in a dialog or toast
+        setIsTestDialogOpen(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to send test message",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSendingTest(false);
+    }
   };
 
   const canProceed = () => {
@@ -1103,7 +1157,38 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
         </div>
       </div>
 
-      {/* Footer */}
+        {/* Test Campaign Dialog */}
+         <Dialog open={isTestDialogOpen} onOpenChange={setIsTestDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Send Test Message</DialogTitle>
+                    <DialogDescription>
+                        Enter a phone number or email to receive a test message.
+                        This will use the currently selected template and variables.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Destination (Phone/Email)</Label>
+                        <Input 
+                            placeholder={campaignData.channel === 'email' ? 'Enter email...' : 'Enter phone number...'}
+                            value={testDestination}
+                            onChange={(e) => setTestDestination(e.target.value)}
+                        />
+                         <p className="text-xs text-muted-foreground">
+                            Make sure to include country code for phone numbers (e.g., +91...)
+                        </p>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsTestDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSendTest} disabled={!testDestination || isSendingTest}>
+                        {isSendingTest ? "Sending..." : "Send Test"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      {/* Footer */ }
       <div className="flex-shrink-0 px-6 py-4 border-t bg-background flex items-center justify-between">
         <Button variant="outline" onClick={currentStep === 1 ? onCancel : handleBack}>
           {currentStep === 1 ? (
@@ -1128,11 +1213,20 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
               {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
             </p>
           )}
-          <Button
-            onClick={handleNext}
-            disabled={!canProceed()}
-            className="gradient-primary"
-          >
+          {currentStep === 5 && (
+             <Button 
+                variant="outline"
+                className="mr-2 border-primary/20 hover:bg-primary/5 text-primary" 
+                onClick={() => setIsTestDialogOpen(true)}
+             >
+                Test Campaign
+             </Button>
+           )}
+           <Button
+             onClick={handleNext}
+             disabled={!canProceed()}
+             className="gradient-primary"
+           >
           {currentStep === 5 ? (
             <>
               {campaignData.scheduleType === 'now' ? 'Send Campaign' : 'Schedule Campaign'}

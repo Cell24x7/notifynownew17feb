@@ -14,12 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS - allow only trusted origins
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',   // Vite default
-    'http://localhost:8080',
-    // Add your production frontend URL here later, e.g. 'https://yourdomain.com'
-  ],
+  origin: true, // Allow all origins (simplest for local dev with dynamic IPs)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

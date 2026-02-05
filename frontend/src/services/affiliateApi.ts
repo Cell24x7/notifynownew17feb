@@ -28,7 +28,7 @@ export interface Affiliate {
 export const affiliateApi = {
     // Get all affiliates
     async getAll() {
-        const response = await fetch(API_BASE_URL, {
+        const response = await fetch(API_BASE_URL_AFFILIATE, {
             headers: getAuthHeaders(),
         });
         const result = await response.json();
@@ -38,7 +38,7 @@ export const affiliateApi = {
 
     // Create affiliate
     async create(data: { name: string; email: string; referral_code?: string }) {
-        const response = await fetch(API_BASE_URL, {
+        const response = await fetch(API_BASE_URL_AFFILIATE, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
@@ -50,7 +50,7 @@ export const affiliateApi = {
 
     // Update affiliate
     async update(id: string, data: Partial<Affiliate>) {
-        const response = await fetch(`${API_BASE_URL}/${id}`, {
+        const response = await fetch(`${API_BASE_URL_AFFILIATE}/${id}`, {
             method: 'PUT',
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
@@ -62,7 +62,7 @@ export const affiliateApi = {
 
     // Delete affiliate
     async delete(id: string) {
-        const response = await fetch(`${API_BASE_URL}/${id}`, {
+        const response = await fetch(`${API_BASE_URL_AFFILIATE}/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders(),
         });

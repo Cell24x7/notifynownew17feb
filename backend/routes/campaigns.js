@@ -150,6 +150,38 @@ router.post('/:id/duplicate', authenticateToken, async (req, res) => {
     }
 });
 
+// TEST SEND campaign
+router.post('/test-send', authenticateToken, async (req, res) => {
+    try {
+        const { channel, template_id, destination, variables } = req.body;
+
+        // Fetch template to get body
+        const [templates] = await query('SELECT * FROM message_templates WHERE id = ?', [template_id]);
+        if (templates.length === 0) return res.status(404).json({ success: false, message: 'Template not found' });
+
+        let body = templates[0].body;
+
+        // Replace variables
+        if (variables) {
+            Object.keys(variables).forEach(key => {
+                const regex = new RegExp(`{{${key}}}`, 'g');
+                body = body.replace(regex, variables[key] || '');
+            });
+        }
+
+        // Send logic (Simulated for now)
+        // In a real implementation, this would call the respective provider API
+        console.log(`[TEST SEND] channel=${channel}, to=${destination}, body=${body}`);
+
+        // Return success with the rendered body
+        res.json({ success: true, message: 'Test message sent successfully', preview: body });
+
+    } catch (error) {
+        console.error('Test send error:', error);
+        res.status(500).json({ success: false, message: 'Failed to send test message' });
+    }
+});
+
 // DELETE campaign
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
