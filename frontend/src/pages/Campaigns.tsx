@@ -575,6 +575,56 @@ export default function Campaigns() {
       );
     }
 
+    // Voice Bot Preview
+    if (newTemplate.channel === 'voicebot') {
+      return (
+        <div className="flex flex-col h-full">
+          <div className="relative mx-auto">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-10" />
+            <div className="w-[280px] h-[500px] bg-white rounded-[2rem] overflow-hidden border-8 border-black relative">
+              {/* Status bar */}
+              <div className="bg-slate-800 text-white px-4 py-2 flex items-center gap-3">
+                <ChevronRight className="h-5 w-5 rotate-180" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm font-medium">Voice Call</p>
+                </div>
+              </div>
+              
+              {/* Call Interface */}
+              <div className="h-full flex flex-col items-center justify-center p-6 bg-slate-50">
+                <div className="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                  <Phone className="h-10 w-10 text-slate-500" />
+                </div>
+                
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Incoming Call</h3>
+                <p className="text-sm text-muted-foreground mb-8">Voice Bot Demo</p>
+                
+                <div className="w-full bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-8 max-h-[200px] overflow-y-auto">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">SCRIPT PREVIEW</p>
+                  {newTemplate.body ? (
+                    <p className="text-sm text-slate-700 leading-relaxed font-mono">
+                      "{newTemplate.body}"
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Enter voice script...</p>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-8 mt-auto mb-12">
+                  <div className="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
+                    <Phone className="h-6 w-6 text-white rotate-[135deg]" />
+                  </div>
+                  <div className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                    <Phone className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // RCS Preview - Rich messaging style
     if (newTemplate.channel === 'rcs') {
       return (
@@ -1290,6 +1340,7 @@ export default function Campaigns() {
                   { value: 'instagram', label: 'Instagram', icon: '📸', description: 'Direct messages with rich media content' },
                   { value: 'facebook', label: 'Facebook', icon: '👥', description: 'Messenger templates with quick replies' },
                   { value: 'email', label: 'Email', icon: '📧', description: 'HTML emails with subject line and rich content' },
+                  { value: 'voicebot', label: 'Voice Bot', icon: '🗣️', description: 'Text-to-speech scripts for voice calls' },
                 ].filter(c => enabledChannels.includes(c.value)).map((channel) => (
                   <button
                     key={channel.value}
@@ -1342,6 +1393,7 @@ export default function Campaigns() {
                         {newTemplate.channel === 'instagram' && '📸 Instagram Template'}
                         {newTemplate.channel === 'facebook' && '👥 Facebook Template'}
                         {newTemplate.channel === 'email' && '📧 Email Template'}
+                        {newTemplate.channel === 'voicebot' && '🗣️ Voice Bot Template'}
                       </p>
                     </div>
                   </div>
@@ -1529,7 +1581,7 @@ export default function Campaigns() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold">
-                          {newTemplate.channel === 'sms' ? 'Message Text *' : newTemplate.channel === 'email' ? 'Email Body *' : 'Body *'}
+                          {newTemplate.channel === 'sms' ? 'Message Text *' : newTemplate.channel === 'email' ? 'Email Body *' : newTemplate.channel === 'voicebot' ? 'Voice Script *' : 'Body *'}
                         </h3>
                         <Button type="button" variant="outline" size="sm" onClick={addVariable}>
                           <Plus className="h-4 w-4 mr-1" />

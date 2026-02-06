@@ -48,7 +48,7 @@ type Plan = {
   status: 'active' | 'inactive';
 };
 
-const channelsList = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook'];
+const channelsList = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook', 'voicebot'];
 
 export default function SuperAdminPlans() {
   const { toast } = useToast();
@@ -85,17 +85,17 @@ export default function SuperAdminPlans() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      // Map backend snake_case → frontend camelCase
+      // Map backend camelCase (from routes/plans.js) → frontend camelCase
       const mappedPlans: Plan[] = data.map((p: any) => ({
         id: p.id,
         name: p.name,
         price: Number(p.price),
-        monthlyCredits: Number(p.monthly_credits || 0),
-        clientCount: Number(p.client_count || 1),
-        channelsAllowed: Array.isArray(p.channels_allowed) ? p.channels_allowed : [],
-        automationLimit: Number(p.automation_limit || -1),
-        campaignLimit: Number(p.campaign_limit || -1),
-        apiAccess: Boolean(p.api_access),
+        monthlyCredits: Number(p.monthlyCredits || 0),
+        clientCount: Number(p.clientCount || 1),
+        channelsAllowed: Array.isArray(p.channelsAllowed) ? p.channelsAllowed : [],
+        automationLimit: Number(p.automationLimit ?? -1),
+        campaignLimit: Number(p.campaignLimit ?? -1),
+        apiAccess: Boolean(p.apiAccess),
         status: p.status || 'active',
       }));
 
@@ -131,17 +131,17 @@ export default function SuperAdminPlans() {
 
       const result = await res.json();
 
-      // Map new/updated plan to frontend format
+      // map new/updated plan
       const updatedPlan: Plan = {
         id: result.id || form.getValues('id'),
-        name: result.name || data.name,
-        price: Number(result.price || data.price),
-        monthlyCredits: Number(result.monthly_credits || data.monthly_credits),
-        clientCount: Number(result.client_count || data.client_count),
-        channelsAllowed: result.channels_allowed || data.channels_allowed,
-        automationLimit: Number(result.automation_limit || data.automation_limit),
-        campaignLimit: Number(result.campaign_limit || data.campaign_limit),
-        apiAccess: Boolean(result.api_access ?? data.api_access),
+        name: result.name,
+        price: Number(result.price),
+        monthlyCredits: Number(result.monthlyCredits),
+        clientCount: Number(result.clientCount),
+        channelsAllowed: result.channelsAllowed || [],
+        automationLimit: Number(result.automationLimit),
+        campaignLimit: Number(result.campaignLimit),
+        apiAccess: Boolean(result.apiAccess),
         status: result.status || 'active',
       };
 

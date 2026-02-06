@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { 
   Building2, 
   Users, 
@@ -9,50 +10,99 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
-import { superAdminDashboardStats } from '@/lib/superAdminMockData';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { superAdminApi, SuperAdminStats } from '@/services/superAdminApi';
 
-const statCards = [
-  {
-    title: 'Total Clients',
-    value: superAdminDashboardStats.totalClients.toLocaleString(),
-    change: '+12 this month',
-    trend: 'up',
-    icon: Building2,
-  },
-  {
-    title: 'Active Plans',
-    value: superAdminDashboardStats.activePlans,
-    change: '3 active plans',
-    trend: 'neutral',
-    icon: CreditCard,
-  },
-  {
-    title: 'Messages Processed',
-    value: (superAdminDashboardStats.totalMessagesProcessed / 1000000).toFixed(2) + 'M',
-    change: '+156K today',
-    trend: 'up',
-    icon: MessageSquare,
-  },
-  {
-    title: 'Credits Today',
-    value: superAdminDashboardStats.creditsConsumedToday.toLocaleString(),
-    change: `${(superAdminDashboardStats.creditsConsumedMonth / 1000).toFixed(0)}K this month`,
-    trend: 'up',
-    icon: Zap,
-  },
-  {
-    title: 'Revenue Today',
-    value: `$${superAdminDashboardStats.revenueToday.toLocaleString()}`,
-    change: `$${(superAdminDashboardStats.revenueMonth / 1000).toFixed(0)}K this month`,
-    trend: 'up',
-    icon: DollarSign,
-  },
-];
+const channelColors: Record<string, string> = {
+  whatsapp: '#22c55e', // Bright Green
+  sms: '#3b82f6',      // Bright Blue
+  email: '#f59e0b',    // Amber
+  rcs: '#8b5cf6',      // Violet
+  instagram: '#ec4899', // Pink
+  facebook: '#1d4ed8',  // Dark Blue
+};
 
-const pieColors = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#f87171'];
+const COLORS_LIST = ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#1d4ed8', '#06b6d4', '#14b8a6'];
 
 export default function SuperAdminDashboard() {
+  const [stats, setStats] = useState<SuperAdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      const data = await superAdminApi.getDashboardStats();
+      setStats(data);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="p-6 text-center text-red-500 bg-red-50 rounded-lg mx-6 mt-6">
+        <p>{error || 'No data available'}</p>
+        <button onClick={fetchStats} className="mt-2 text-primary hover:underline">Retry</button>
+      </div>
+    );
+  }
+
+  const statCards = [
+    {
+      title: 'Total Clients',
+      value: stats.totalClients.toLocaleString(),
+      change: `${stats.activeClients} Active`,
+      trend: 'neutral',
+      icon: Building2,
+    },
+    {
+      title: 'Active Plans',
+      value: stats.activePlans.toString(),
+      change: 'All time',
+      trend: 'neutral',
+      icon: CreditCard,
+    },
+    {
+      title: 'Messages Processed',
+      value: (stats.totalMessagesProcessed > 1000000) 
+        ? (stats.totalMessagesProcessed / 1000000).toFixed(2) + 'M' 
+        : stats.totalMessagesProcessed.toLocaleString(),
+      change: `+${stats.messagesToday.toLocaleString()} today`,
+      trend: 'up',
+      icon: MessageSquare,
+    },
+    {
+      title: 'Revenue (Total)',
+      value: `$${stats.revenueTotal.toLocaleString()}`,
+      change: `$${stats.revenueMonth.toLocaleString()} this month`,
+      trend: 'up',
+      icon: DollarSign,
+    },
+    {
+      title: 'Credits Consumed',
+      value: stats.creditsConsumedMonth.toLocaleString(),
+      change: `${stats.creditsConsumedToday.toLocaleString()} today`,
+      trend: 'up',
+      icon: Zap,
+    },
+  ];
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -63,7 +113,7 @@ export default function SuperAdminDashboard() {
         </div>
         <div className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg">
           <Users className="w-4 h-4" />
-          <span className="font-medium">{superAdminDashboardStats.activeClients} Active Clients</span>
+          <span className="font-medium">{stats.activeClients} Active Clients</span>
         </div>
       </div>
 
@@ -78,7 +128,7 @@ export default function SuperAdminDashboard() {
                   <p className="text-2xl font-bold">{stat.value}</p>
                   <div className="flex items-center gap-1 text-xs">
                     {stat.trend === 'up' && <TrendingUp className="w-3 h-3 text-primary" />}
-                    {stat.trend === 'down' && <TrendingDown className="w-3 h-3 text-destructive" />}
+                    {stat.trend === 'neutral' && <TrendingDown className="w-3 h-3 text-muted-foreground rotate-0" />}
                     <span className="text-muted-foreground">{stat.change}</span>
                   </div>
                 </div>
@@ -91,7 +141,7 @@ export default function SuperAdminDashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Weekly Messages */}
         <Card>
@@ -102,10 +152,10 @@ export default function SuperAdminDashboard() {
           <CardContent>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={superAdminDashboardStats.weeklyMessages}>
+                <BarChart data={stats.weeklyMessages}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="day" className="text-xs" />
-                  <YAxis className="text-xs" tickFormatter={(v) => `${v/1000}K`} />
+                  <YAxis className="text-xs" tickFormatter={(v) => v >= 1000 ? `${v/1000}K` : v} />
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: 'hsl(var(--card))', 
@@ -132,17 +182,21 @@ export default function SuperAdminDashboard() {
               <ResponsiveContainer width="50%" height="100%">
                 <PieChart>
                   <Pie
-                    data={superAdminDashboardStats.channelUsage}
+                    data={stats.channelUsage}
                     dataKey="messages"
                     nameKey="channel"
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
+                    innerRadius={60}
+                    outerRadius={90}
                     paddingAngle={2}
                   >
-                    {superAdminDashboardStats.channelUsage.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                    {stats.channelUsage.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={channelColors[entry.channel.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length]} 
+                        strokeWidth={0}
+                      />
                     ))}
                   </Pie>
                   <Tooltip 
@@ -155,84 +209,106 @@ export default function SuperAdminDashboard() {
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex-1 space-y-2">
-                {superAdminDashboardStats.channelUsage.map((item, index) => (
+              <div className="flex-1 space-y-3 max-h-[250px] overflow-y-auto px-4">
+                {stats.channelUsage.filter(i => i.percentage > 0).length === 0 ? (
+                    <div className="text-center text-muted-foreground text-sm">
+                      <p>No activity yet.</p>
+                      <p className="text-xs mt-1">Start sending campaigns to see stats.</p>
+                    </div>
+                ) : (
+                    stats.channelUsage.filter(i => i.percentage > 0).map((item, index) => (
                   <div key={item.channel} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: pieColors[index] }}
+                        className="w-3 h-3 rounded-full ring-2 ring-background ring-offset-1" 
+                        style={{ backgroundColor: channelColors[item.channel.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length] }}
                       />
-                      <span>{item.channel}</span>
+                      <span className="capitalize font-medium">{item.channel}</span>
                     </div>
-                    <span className="font-medium">{item.percentage}%</span>
+                    <span className="font-bold">{item.percentage}%</span>
                   </div>
-                ))}
+                )))}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Bottom Row */}
+      {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Client Growth */}
+        {/* Plan Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Client Growth</CardTitle>
-            <CardDescription>New clients over time</CardDescription>
+            <CardTitle className="text-base">Clients by Plan</CardTitle>
+            <CardDescription>Distribution of subscription plans</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={superAdminDashboardStats.clientGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" className="text-xs" />
-                  <YAxis className="text-xs" />
+            <div className="h-[240px] flex items-center">
+              <ResponsiveContainer width="50%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.planDistribution}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={2}
+                  >
+                    {stats.planDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={channelColors[entry.name.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length]} strokeWidth={0} />
+                    ))}
+                  </Pie>
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
+                    contentStyle={{ borderRadius: '8px' }}
+                    formatter={(value: number) => [value, 'Clients']}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="clients" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--primary))' }}
-                  />
-                </LineChart>
+                </PieChart>
               </ResponsiveContainer>
+              <div className="flex-1 space-y-2">
+                 {stats.planDistribution.map((item, index) => (
+                    <div key={item.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channelColors[item.name.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length] }} />
+                        <span>{item.name}</span>
+                      </div>
+                      <span className="font-bold">{item.value}</span>
+                    </div>
+                 ))}
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Credits by Plan */}
+        {/* Top Wallet Balances */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Credits by Plan</CardTitle>
-            <CardDescription>Credit consumption per plan type</CardDescription>
+            <CardTitle className="text-base">Wallet Leaderboard</CardTitle>
+            <CardDescription>Top users by available credits</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={superAdminDashboardStats.creditsByPlan} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" className="text-xs" tickFormatter={(v) => `${v/1000000}M`} />
-                  <YAxis type="category" dataKey="plan" className="text-xs" width={80} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number) => [value.toLocaleString(), 'Credits']}
-                  />
-                  <Bar dataKey="credits" fill="hsl(var(--secondary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-[240px] flex flex-col justify-center space-y-4">
+              {stats.topClients.length === 0 ? (
+                <p className="text-center text-muted-foreground">No users found</p>
+              ) : (
+                stats.topClients.map((client, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                        {i + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium leading-none">{client.name}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                       <span className="font-bold text-sm">{client.balance.toLocaleString()}</span>
+                       <span className="text-xs text-muted-foreground ml-1">credits</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

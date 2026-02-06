@@ -13,12 +13,38 @@ app.use(express.json({ limit: '10mb' })); // Increase limit if you handle large 
 app.use(express.urlencoded({ extended: true }));
 
 // CORS - allow only trusted origins
-app.use(cors({
-  origin: true, // Allow all origins (simplest for local dev with dynamic IPs)
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173', // Vite local dev
+      'http://localhost:5000', // Backend local
+      'http://localhost:8080', // Frontend local (alternative port)
+      'https://project.pingchannel.com', // Production Frontend
+      'https://api.pingchannel.com' // Production Backend (self)
+    ];
+
+    // Log origin for debugging (check cPanel logs if issues persist)
+    // console.log('Request Origin:', origin);
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) === -1) {
+      // DEBUG: Temporarily allow blocked origins to see if it fixes the issue
+      // console.log('BLOCKED ORIGIN:', origin);
+      // return callback(new Error('CORS Policy Error'), false); 
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable Pre-Flight for all routes explicitly
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -36,9 +62,23 @@ app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/contacts', require('./routes/contacts'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/logs', require('./routes/logs'));
 
 // Health check & root route
 app.get('/', (req, res) => {
+  const { getDbError } = require('./config/db');
+  const dbError = getDbError();
+
+  if (dbError) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server is running but Database connection failed.',
+      error: dbError,
+      tip: 'Check your .env file and cPanel Database User Permissions.'
+    });
+  }
+
   res.json({
     success: true,
     message: 'Backend server is running 🚀',

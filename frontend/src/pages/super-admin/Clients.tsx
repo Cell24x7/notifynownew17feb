@@ -1,27 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChannelIcon } from '@/components/ui/channel-icon'; // ← yeh add kiya
+import { ChannelIcon } from '@/components/ui/channel-icon';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
 import { API_BASE_URL } from '@/config/api';
 
 const API_URL = `${API_BASE_URL}/api`;
 
-const allChannels = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook'] as const;
+const allChannels = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook', 'voicebot'] as const;
 
 const plans = [
   { id: 'basic', name: 'Basic', price: 99 },
@@ -58,7 +56,7 @@ export default function SuperAdminClients() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/clients`);
+      const res = await axios.get(`${API_URL}/clients?_t=${Date.now()}`);
       if (res.data.success) {
         setClients(res.data.clients || []);
         setFilteredClients(res.data.clients || []);
@@ -97,11 +95,11 @@ export default function SuperAdminClients() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'suspended': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'trial': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+      case 'active': return 'bg-green-500/10 text-green-600 border-green-200/50';
+      case 'suspended': return 'bg-red-500/10 text-red-600 border-red-200/50';
+      case 'pending': return 'bg-yellow-500/10 text-yellow-600 border-yellow-200/50';
+      case 'trial': return 'bg-blue-500/10 text-blue-600 border-blue-200/50';
+      default: return 'bg-muted text-muted-foreground border-border/50';
     }
   };
 
@@ -112,6 +110,19 @@ export default function SuperAdminClients() {
         ? prev.channels_enabled.filter(c => c !== channel)
         : [...prev.channels_enabled, channel],
     }));
+  };
+
+  // Helper to safely parse channels which might be string or array
+  const parseChannels = (channels: any): string[] => {
+      if (Array.isArray(channels)) return channels;
+      if (typeof channels === 'string') {
+          try {
+              return JSON.parse(channels);
+          } catch (e) {
+              return [];
+          }
+      }
+      return [];
   };
 
   const handleAddClient = async () => {
@@ -133,19 +144,8 @@ export default function SuperAdminClients() {
           description: `${currentClient.name} has been added successfully`,
         });
         setIsClientModalOpen(false);
-        setCurrentClient({
-          id: '',
-          name: '',
-          company_name: '',
-          email: '',
-          password: '',
-          contact_phone: '',
-          plan_id: '',
-          status: 'active',
-          credits_available: 0,
-          channels_enabled: [],
-        });
-        fetchClients(); // Refresh list
+        resetForm();
+        fetchClients();
       } else {
         toast({ title: 'Failed', description: res.data.message || 'Could not add client', variant: 'destructive' });
       }
@@ -174,7 +174,7 @@ export default function SuperAdminClients() {
     try {
       const payload = { ...currentClient };
       if (!payload.password.trim()) {
-        delete payload.password;
+        delete (payload as any).password;
       }
       const res = await axios.put(`${API_URL}/clients/${currentClient.id}`, payload);
       if (res.data.success) {
@@ -183,7 +183,7 @@ export default function SuperAdminClients() {
           description: `${currentClient.name} has been updated successfully`,
         });
         setIsClientModalOpen(false);
-        fetchClients(); // Refresh list
+        fetchClients();
       } else {
         toast({ title: 'Failed', description: res.data.message || 'Could not update client', variant: 'destructive' });
       }
@@ -198,6 +198,21 @@ export default function SuperAdminClients() {
     }
   };
 
+  const resetForm = () => {
+    setCurrentClient({
+        id: '',
+        name: '',
+        company_name: '',
+        email: '',
+        password: '',
+        contact_phone: '',
+        plan_id: '',
+        status: 'active',
+        credits_available: 0,
+        channels_enabled: [],
+      });
+  }
+
   const handleView = (client: any) => {
     setCurrentClient({
       id: client.id,
@@ -209,7 +224,7 @@ export default function SuperAdminClients() {
       plan_id: client.plan_id || '',
       status: client.status,
       credits_available: client.credits_available || 0,
-      channels_enabled: JSON.parse(client.channels_enabled || '[]'),
+      channels_enabled: parseChannels(client.channels_enabled),
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -226,7 +241,7 @@ export default function SuperAdminClients() {
       plan_id: client.plan_id || '',
       status: client.status,
       credits_available: client.credits_available || 0,
-      channels_enabled: JSON.parse(client.channels_enabled || '[]'),
+       channels_enabled: parseChannels(client.channels_enabled),
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -246,90 +261,42 @@ export default function SuperAdminClients() {
     }
   };
 
-  // const handleDelete = async (client: any) => {
-  //   if (!window.confirm("Are you sure you want to delete this client?")) return;
-
-  //   try {
-  //     const res = await axios.delete(`${API_URL}/clients/${client.id}`);
-  //     if (res.data.success) {
-  //       toast({
-  //         title: 'Success',
-  //         description: 'Client deleted successfully',
-  //       });
-  //       fetchClients(); // refresh your datatable
-  //     } else {
-  //       toast({
-  //         title: 'Error',
-  //         description: res.data.message || 'Failed to delete client',
-  //         variant: 'destructive',
-  //       });
-  //     }
-  //   } catch (err: any) {
-  //     console.error('DELETE CLIENT ERROR:', err);
-  //     toast({
-  //       title: 'Error',
-  //       description: 'Failed to delete client',
-  //       variant: 'destructive',
-  //     });
-  //   }
-  // };
-
-
-
-
 const handleLoginAsClient = async (clientId: string | number | undefined) => {
-  // Safety check – prevent [object Object] or invalid ID
   if (!clientId || typeof clientId === 'object') {
-    console.error('Invalid clientId passed to impersonate:', clientId);
     toast({
       variant: "destructive",
       title: "Error",
-      description: "Invalid client selected. Please try again.",
+      description: "Invalid client selected.",
     });
     return;
   }
 
-  const id = String(clientId); // make sure it's string
-
-  console.log(`Attempting to impersonate client ID: ${id}`);
+  const id = String(clientId);
 
   try {
     const response = await axios.post(`${API_BASE_URL}/api/clients/${id}/impersonate`);
-
-    console.log('Impersonate response:', response.data);
-
     const { success, token, redirectTo } = response.data;
 
     if (success && token) {
       localStorage.setItem('authToken', token);
-
       toast({
         title: "Success",
         description: "Successfully logged in as client",
       });
-
-      // Redirect to dashboard
       window.location.href = redirectTo || '/dashboard';
     } else {
-      throw new Error('No token received from server');
+      throw new Error('No token received');
     }
   } catch (err: any) {
-    console.error('Impersonate failed:', err);
-
-    const errorMessage =
-      err.response?.data?.message ||
-      err.message ||
-      'Failed to login as client. Server may be down or client not found.';
-
     toast({
       variant: "destructive",
       title: "Impersonate Failed",
-      description: errorMessage,
+      description: err.response?.data?.message || 'Failed to login as client.',
     });
   }
 };
 
-  // Scroll & Drag functionality
+  // Scroll logic
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -341,32 +308,25 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
     setStartX(e.pageX - scrollRef.current.offsetLeft);
     setScrollLeftState(scrollRef.current.scrollLeft);
   };
-
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
+  const handleMouseLeave = () => setIsDragging(false);
+  const handleMouseUp = () => setIsDragging(false);
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !scrollRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // Scroll speed
+    const walk = (x - startX) * 2; 
     scrollRef.current.scrollLeft = scrollLeftState - walk;
   };
 
   const scrollHorizontally = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const { scrollLeft, clientWidth } = scrollRef.current;
+      const { scrollLeft } = scrollRef.current;
       const scrollTo = direction === 'left' ? scrollLeft - 400 : scrollLeft + 400;
       scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
     }
   };
 
-  // Real totals from filtered clients
+  // Stats
   const totalClients = filteredClients.length;
   const totalActiveUsers = filteredClients.filter(c => c.status === 'active').length;
   const totalCreditsUsed = filteredClients.reduce((sum, c) => sum + (c.credits_used || 0), 0);
@@ -377,81 +337,51 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Clients</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Manage all platform clients</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Clients</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage and monitor all platform clients</p>
         </div>
         <Button
           onClick={() => {
-            setCurrentClient({
-              id: '',
-              name: '',
-              company_name: '',
-              email: '',
-              password: '',
-              contact_phone: '',
-              plan_id: '',
-              status: 'active',
-              credits_available: 0,
-              channels_enabled: [],
-            });
+            resetForm();
             setModalMode('add');
             setIsClientModalOpen(true);
           }}
-          className="w-full sm:w-auto"
+          className="w-full sm:w-auto shadow-sm"
         >
           <Plus className="w-4 h-4 mr-2" /> Add Client
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-primary/5">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Clients</p>
-              <p className="text-2xl font-black text-primary">{totalClients}</p>
-            </div>
-            <div className="bg-primary/10 p-2.5 rounded-xl">
-               <Building2 className="w-6 h-6 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-green-50/50 dark:bg-green-950/20">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Users</p>
-              <p className="text-2xl font-black text-green-600">{totalActiveUsers}</p>
-            </div>
-            <div className="bg-green-100 dark:bg-green-900/30 p-2.5 rounded-xl">
-               <Users className="w-6 h-6 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-red-50/50 dark:bg-red-950/20">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Credits Used</p>
-              <p className="text-2xl font-black text-red-600">{(totalCreditsUsed / 1000).toFixed(1)}K</p>
-            </div>
-            <div className="bg-red-100 dark:bg-red-900/30 p-2.5 rounded-xl">
-               <CreditCard className="w-6 h-6 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow duration-200 border-none bg-blue-50/50 dark:bg-blue-950/20">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Available</p>
-              <p className="text-2xl font-black text-blue-600">{(totalCreditsAvailable / 1000).toFixed(1)}K</p>
-            </div>
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-2.5 rounded-xl">
-               <CreditCard className="w-6 h-6 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard 
+            title="Total Clients" 
+            value={totalClients} 
+            icon={Users} 
+            color="text-primary" 
+            bg="bg-primary/10" 
+        />
+        <StatsCard 
+            title="Active Users" 
+            value={totalActiveUsers} 
+            icon={Check} 
+            color="text-green-600" 
+            bg="bg-green-500/10" 
+        />
+        <StatsCard 
+            title="Credits Used" 
+            value={(totalCreditsUsed / 1000).toFixed(1) + 'K'} 
+            icon={CreditCard} 
+            color="text-red-600" 
+            bg="bg-red-500/10" 
+        />
+        <StatsCard 
+            title="Available Credits" 
+            value={(totalCreditsAvailable / 1000).toFixed(1) + 'K'} 
+            icon={CreditCard} 
+            color="text-blue-600" 
+            bg="bg-blue-500/10" 
+        />
       </div>
 
       {/* Filters */}
@@ -464,12 +394,12 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                 placeholder="Search by name, company or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background/50 border-none focus-visible:ring-1 focus-visible:ring-primary h-11"
+                className="pl-10 bg-background/50 border-input/50 focus-visible:ring-1 focus-visible:ring-primary h-10"
               />
             </div>
             <div className="md:col-span-3">
               <Select value={planFilter} onValueChange={setPlanFilter}>
-                <SelectTrigger className="h-11 bg-background/50 border-none focus:ring-1 focus:ring-primary">
+                <SelectTrigger className="h-10 bg-background/50 border-input/50">
                   <SelectValue placeholder="All Plans" />
                 </SelectTrigger>
                 <SelectContent>
@@ -482,7 +412,7 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
             </div>
             <div className="md:col-span-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-11 bg-background/50 border-none focus:ring-1 focus:ring-primary">
+                <SelectTrigger className="h-10 bg-background/50 border-input/50">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -498,42 +428,23 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
         </CardContent>
       </Card>
 
-      {/* Clients Table with Header Scroll Controls */}
-      <Card className="relative overflow-hidden border-none shadow-lg">
-        <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+      {/* Clients Table */}
+      <Card className="relative overflow-hidden border shadow-sm">
+        <div className="flex items-center justify-between p-4 border-b bg-muted/5">
           <div className="flex items-center gap-2">
-            <h2 className="font-bold text-lg">Client List</h2>
-            <Badge variant="secondary" className="hidden sm:inline-flex">{totalClients} Total</Badge>
+            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Client List</h2>
+            <Badge variant="secondary" className="hidden sm:inline-flex bg-muted text-muted-foreground h-5 px-1.5 text-[10px]">{totalClients}</Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full bg-background"
-              onClick={(e) => {
-                e.stopPropagation();
-                scrollHorizontally('left');
-              }}
-              title="Scroll Left"
-            >
+          <div className="flex items-center gap-1 sm:hidden">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => scrollHorizontally('left')}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full bg-background"
-              onClick={(e) => {
-                e.stopPropagation();
-                scrollHorizontally('right');
-              }}
-              title="Scroll Right"
-            >
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => scrollHorizontally('right')}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
         
-        {/* OUR CUSTOM SCROLLING CONTAINER */}
         <div 
           ref={scrollRef}
           onMouseDown={handleMouseDown}
@@ -541,98 +452,102 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
           className={cn(
-            "w-full overflow-x-auto overflow-y-hidden select-none touch-pan-x",
+            "w-full overflow-x-auto",
             isDragging ? "cursor-grabbing" : "cursor-grab"
           )}
         >
-          <table className="w-full caption-bottom text-sm border-collapse min-w-[1000px]">
-            <TableHeader className="bg-muted/30 sticky top-0 z-10">
+          <Table className="min-w-[1000px]">
+            <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[200px] whitespace-nowrap">Client Name</TableHead>
-                <TableHead className="w-[180px] whitespace-nowrap">Company</TableHead>
-                <TableHead className="w-[220px] whitespace-nowrap">Email</TableHead>
-                <TableHead className="w-[120px] whitespace-nowrap">Plan</TableHead>
-                <TableHead className="text-center w-[150px] whitespace-nowrap">Channels</TableHead>
-                <TableHead className="text-right w-[120px] whitespace-nowrap">Used</TableHead>
-                <TableHead className="text-right w-[120px] whitespace-nowrap">Available</TableHead>
-                <TableHead className="w-[120px] whitespace-nowrap text-center">Status</TableHead>
-                <TableHead className="w-[140px] whitespace-nowrap">Created</TableHead>
-                <TableHead className="text-right w-[80px] sticky right-0 bg-background/95 backdrop-blur-sm z-20 border-l shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">Actions</TableHead>
+                <TableHead className="w-[200px]">Client Name</TableHead>
+                <TableHead className="w-[180px]">Company</TableHead>
+                <TableHead className="w-[220px]">Email</TableHead>
+                <TableHead className="w-[120px]">Plan</TableHead>
+                <TableHead className="text-center w-[150px]">Channels</TableHead>
+                <TableHead className="text-right w-[100px]">Credits</TableHead>
+                <TableHead className="w-[120px] text-center">Status</TableHead>
+                <TableHead className="w-[140px]">Created</TableHead>
+                <TableHead className="text-right w-[80px] sticky right-0 bg-background/95 backdrop-blur-sm shadow-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-20">
-                    <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-                    <p className="mt-4 text-sm font-medium text-muted-foreground italic">Fetching data from server...</p>
+                  <TableCell colSpan={9} className="text-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                    <p className="mt-2 text-sm text-muted-foreground">Loading clients...</p>
                   </TableCell>
                 </TableRow>
               ) : filteredClients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-20 text-muted-foreground">
-                    <div className="flex flex-col items-center gap-2">
-                       <Search className="w-12 h-12 opacity-20" />
-                       <p className="font-medium">No clients found matching your filters</p>
-                    </div>
+                  <TableCell colSpan={9} className="text-center py-20 text-muted-foreground">
+                    No clients found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredClients.map((client) => (
-                  <TableRow key={client.id} className="hover:bg-muted/50 transition-colors">
-                    <TableCell className="font-semibold text-primary">{client.name}</TableCell>
-                    <TableCell className="font-medium">{client.company_name}</TableCell>
-                    <TableCell className="text-xs font-mono">{client.email}</TableCell>
+                  <TableRow key={client.id} className="group">
+                    <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{client.company_name}</TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground">{client.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="capitalize">
+                      <Badge variant="outline" className="capitalize font-normal">
                         {plans.find(p => p.id === client.plan_id)?.name || client.plan_id}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex justify-center gap-1.5">
-                        {JSON.parse(client.channels_enabled || '[]').slice(0, 4).map((ch: any) => (
-                          <ChannelIcon key={ch} channel={ch} className="w-5 h-5 shadow-sm" />
+                      <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
+                        {parseChannels(client.channels_enabled).slice(0, 4).map((ch: any) => (
+                          <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
+                              <div className="bg-background rounded-full p-0.5 shadow-sm border">
+                                <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
+                              </div>
+                          </div>
                         ))}
-                        {JSON.parse(client.channels_enabled || '[]').length > 4 && (
-                          <Badge variant="secondary" className="text-[10px] h-5 px-1">
-                            +{JSON.parse(client.channels_enabled || '[]').length - 4}
-                          </Badge>
+                        {parseChannels(client.channels_enabled).length > 4 && (
+                          <div className="bg-muted text-[10px] h-6 w-6 rounded-full border flex items-center justify-center relative z-0">
+                            +{parseChannels(client.channels_enabled).length - 4}
+                          </div>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {client.credits_used?.toLocaleString() || '0'}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-green-600">
-                      {client.credits_available.toLocaleString()}
+                    <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-xs font-medium text-green-600">
+                                {client.credits_available.toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                                Used: {client.credits_used?.toLocaleString() || '0'}
+                            </span>
+                        </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge className={cn('text-[10px] px-2 py-0.5 rounded-full uppercase tracking-tighter', getStatusColor(client.status))}>
+                      <Badge className={cn('text-[10px] px-2 py-0.5 rounded-full capitalize shadow-none border', getStatusColor(client.status))}>
                         {client.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    <TableCell className="text-xs text-muted-foreground">
                       {format(new Date(client.created_at), 'MMM d, yyyy')}
                     </TableCell>
-                    <TableCell className="text-right sticky right-0 bg-background/95 backdrop-blur-sm z-20 border-l shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">
+                    <TableCell className="text-right sticky right-0 bg-background/95 backdrop-blur-sm shadow-sm group-hover:bg-muted/5">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreVertical className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => handleView(client)} className="gap-2">
-                            <Eye className="w-4 h-4 text-blue-500" /> View Details
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={() => handleView(client)}>
+                            <Eye className="w-4 h-4 mr-2" /> View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEdit(client)} className="gap-2">
-                            <Pencil className="w-4 h-4 text-amber-500" /> Edit Client
+                          <DropdownMenuItem onClick={() => handleEdit(client)}>
+                            <Pencil className="w-4 h-4 mr-2" /> Edit Client
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)} className="gap-2">
-                            <LogIn className="w-4 h-4 text-primary" /> Login as Client
+                          <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
+                            <LogIn className="w-4 h-4 mr-2" /> Login as Client
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleSuspend(client)} className="gap-2">
-                            <Ban className="w-4 h-4 text-red-500" />
+                          <DropdownMenuItem onClick={() => handleSuspend(client)} className="text-red-600 focus:text-red-600">
+                            <Ban className="w-4 h-4 mr-2" />
                             {client.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -642,180 +557,206 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                 ))
               )}
             </TableBody>
-          </table>
+          </Table>
         </div>
       </Card>
 
-      {/* Client Modal Dialog */}
+      {/* Redesigned Client Modal */}
       <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
-        <DialogContent className="max-w-3xl sm:max-w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl sm:text-2xl flex items-center gap-3">
-              <Building2 className="w-6 h-6 text-primary" />
-              {modalMode === 'add' ? 'Add New Client' : modalMode === 'edit' ? `Edit Client: ${currentClient.name}` : `View Client: ${currentClient.name}`}
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          <DialogHeader className="p-6 border-b bg-muted/20 sticky top-0 z-10 backdrop-blur-xl">
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Building2 className="w-5 h-5 text-primary" />
+              </div>
+              {modalMode === 'add' ? 'Add New Client' : modalMode === 'edit' ? 'Edit Client Details' : 'Client Details'}
             </DialogTitle>
+            <DialogDescription>
+                {modalMode === 'add' ? 'Create a new client account with specific permissions and credits.' : 'Manage client information and settings.'}
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 sm:space-y-6 py-4">
-            {/* Name & Company */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Client Name *</Label>
-                <Input
-                  placeholder="Enter client name"
-                  value={currentClient.name}
-                  onChange={e => setCurrentClient(prev => ({...prev, name: e.target.value}))}
-                  disabled={modalMode === 'view'}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Company Name *</Label>
-                <Input
-                  placeholder="Enter company name"
-                  value={currentClient.company_name}
-                  onChange={e => setCurrentClient(prev => ({...prev, company_name: e.target.value}))}
-                  disabled={modalMode === 'view'}
-                />
-              </div>
-            </div>
-
-            {/* Email & Password */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Email *</Label>
-                <Input
-                  type="email"
-                  placeholder="client@example.com"
-                  value={currentClient.email}
-                  onChange={e => setCurrentClient(prev => ({...prev, email: e.target.value}))}
-                  disabled={modalMode === 'view'}
-                />
-              </div>
-              {modalMode !== 'view' && (
-                <div className="space-y-2">
-                  <Label>Password {modalMode === 'add' ? '*' : '(Leave blank to keep current)'}</Label>
-                  <Input
-                    type="password"
-                    placeholder="Enter password"
-                    value={currentClient.password}
-                    onChange={e => setCurrentClient(prev => ({...prev, password: e.target.value}))}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Contact Phone */}
-            <div className="space-y-2">
-              <Label>Contact Phone</Label>
-              <Input
-                placeholder="+91 98765 43210"
-                value={currentClient.contact_phone}
-                onChange={e => setCurrentClient(prev => ({...prev, contact_phone: e.target.value}))}
-                disabled={modalMode === 'view'}
-              />
-            </div>
-
-            {/* Plan & Status */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Plan *</Label>
-                <Select
-                  value={currentClient.plan_id}
-                  onValueChange={v => setCurrentClient(p => ({...p, plan_id: v}))}
-                  disabled={modalMode === 'view'}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select plan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} - ${p.price}/mo</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={currentClient.status}
-                  onValueChange={v => setCurrentClient(p => ({...p, status: v as any}))}
-                  disabled={modalMode === 'view'}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="trial">Trial</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Credits */}
-            <div className="space-y-2">
-              <Label>Initial Credits</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={currentClient.credits_available}
-                onChange={e => setCurrentClient(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))}
-                disabled={modalMode === 'view'}
-              />
-            </div>
-
-            {/* Channels */}
-            <div className="space-y-3">
-              <Label>Channels Enabled</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {allChannels.map(channel => (
-                  <div
-                    key={channel}
-                    className={cn(
-                      'flex items-center gap-3 p-3 border rounded-lg transition-colors',
-                      currentClient.channels_enabled.includes(channel) && 'border-primary bg-primary/5',
-                      modalMode !== 'view' && 'cursor-pointer hover:bg-muted/50'
+          <div className="p-6 space-y-8">
+            {/* Section 1: Basic Info */}
+            <div className="space-y-4">
+                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4" /> Account Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label>Client Name <span className="text-red-500">*</span></Label>
+                        <Input
+                        placeholder="e.g. John Doe"
+                        value={currentClient.name}
+                        onChange={e => setCurrentClient(prev => ({...prev, name: e.target.value}))}
+                        disabled={modalMode === 'view'}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Company Name <span className="text-red-500">*</span></Label>
+                        <Input
+                        placeholder="e.g. Acme Corp"
+                        value={currentClient.company_name}
+                        onChange={e => setCurrentClient(prev => ({...prev, company_name: e.target.value}))}
+                        disabled={modalMode === 'view'}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Email Address <span className="text-red-500">*</span></Label>
+                        <Input
+                        type="email"
+                        placeholder="name@company.com"
+                        value={currentClient.email}
+                        onChange={e => setCurrentClient(prev => ({...prev, email: e.target.value}))}
+                        disabled={modalMode === 'view'}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Contact Phone</Label>
+                        <Input
+                        placeholder="+1 (555) 000-0000"
+                        value={currentClient.contact_phone}
+                        onChange={e => setCurrentClient(prev => ({...prev, contact_phone: e.target.value}))}
+                        disabled={modalMode === 'view'}
+                        />
+                    </div>
+                     {modalMode !== 'view' && (
+                        <div className="space-y-2 md:col-span-2">
+                            <Label>Password {modalMode === 'add' && <span className="text-red-500">*</span>}</Label>
+                            <Input
+                                type="password"
+                                placeholder={modalMode === 'add' ? "Create a secure password" : "Leave blank to keep current password"}
+                                value={currentClient.password}
+                                onChange={e => setCurrentClient(prev => ({...prev, password: e.target.value}))}
+                            />
+                        </div>
                     )}
-                    onClick={modalMode !== 'view' ? () => handleChannelToggle(channel) : undefined}
-                  >
-                    <Checkbox
-                      checked={currentClient.channels_enabled.includes(channel)}
-                      onCheckedChange={() => handleChannelToggle(channel)}
-                      disabled={modalMode === 'view'}
-                    />
-                    <ChannelIcon channel={channel} className="w-6 h-6 flex-shrink-0" />
-                    <span className="capitalize text-sm font-medium truncate">{channel}</span>
-                  </div>
-                ))}
-              </div>
+                </div>
             </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Section 2: Plan & Credits */}
+            <div className="space-y-4">
+                 <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" /> Subscription & Credits
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                        <Label>Assign Plan <span className="text-red-500">*</span></Label>
+                        <Select
+                        value={currentClient.plan_id}
+                        onValueChange={v => setCurrentClient(p => ({...p, plan_id: v}))}
+                        disabled={modalMode === 'view'}
+                        >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select Plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (${p.price})</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Account Status</Label>
+                        <Select
+                        value={currentClient.status}
+                        onValueChange={v => setCurrentClient(p => ({...p, status: v as any}))}
+                        disabled={modalMode === 'view'}
+                        >
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="trial">Trial</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="suspended">Suspended</SelectItem>
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Initial Credits</Label>
+                        <Input
+                        type="number"
+                        min="0"
+                        value={currentClient.credits_available}
+                        onChange={e => setCurrentClient(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))}
+                        disabled={modalMode === 'view'}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+             {/* Section 3: Channels */}
+             <div className="space-y-4">
+                 <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <Globe className="w-4 h-4" /> Enabled Channels
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {allChannels.map(channel => {
+                        const isSelected = currentClient.channels_enabled.includes(channel);
+                        return (
+                            <div
+                                key={channel}
+                                onClick={modalMode !== 'view' ? () => handleChannelToggle(channel) : undefined}
+                                className={cn(
+                                'flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 select-none',
+                                isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-primary/50',
+                                modalMode !== 'view' && 'cursor-pointer active:scale-95'
+                                )}
+                            >
+                                <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => handleChannelToggle(channel)}
+                                    disabled={modalMode === 'view'}
+                                    className="pointer-events-none" // Handle click via parent div
+                                />
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <ChannelIcon channel={channel} className="w-5 h-5 flex-shrink-0" />
+                                    <span className="capitalize text-sm font-medium truncate">{channel}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+             </div>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-3 pt-4 border-t">
-            {modalMode !== 'view' && (
-              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsClientModalOpen(false)}>
-                Cancel
-              </Button>
-            )}
-            {modalMode === 'view' ? (
-              <Button className="w-full sm:w-auto" onClick={() => setIsClientModalOpen(false)}>
-                Close
-              </Button>
+          <DialogFooter className="p-6 border-t bg-muted/20 sm:justify-end gap-3 sticky bottom-0 z-10 backdrop-blur-xl">
+             {modalMode === 'view' ? (
+              <Button variant="outline" onClick={() => setIsClientModalOpen(false)}>Close</Button>
             ) : (
-              <Button className="w-full sm:w-auto gradient-primary" onClick={modalMode === 'add' ? handleAddClient : handleUpdateClient} disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {modalMode === 'add' ? 'Adding...' : 'Updating...'}
-                  </>
-                ) : (
-                  modalMode === 'add' ? 'Add Client' : 'Update Client'
-                )}
-              </Button>
+                <>
+                <Button variant="outline" onClick={() => setIsClientModalOpen(false)} disabled={loading}>Cancel</Button>
+                <Button onClick={modalMode === 'add' ? handleAddClient : handleUpdateClient} disabled={loading} className="gradient-primary">
+                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {modalMode === 'add' ? 'Create Client' : 'Save Changes'}
+                </Button>
+                </>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-}   
+}
+
+// Sub-component for consistency
+function StatsCard({ title, value, icon: Icon, color, bg }: any) {
+    return (
+        <Card className="border-none shadow-sm hover:shadow-md transition-all duration-200">
+            <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
+                    <p className={cn("text-2xl font-bold", color)}>{value}</p>
+                </div>
+                <div className={cn("p-3 rounded-xl", bg)}>
+                    <Icon className={cn("w-6 h-6", color)} />
+                </div>
+            </CardContent>
+        </Card>
+    )
+}

@@ -37,13 +37,19 @@ router.get('/', async (req, res) => {
       let channelsAllowed = [];
 
       // Safe JSON parsing – never crash
+      // Safe JSON parsing or usage if already parsed
       if (p.channels_allowed) {
-        try {
-          const parsed = JSON.parse(p.channels_allowed);
-          channelsAllowed = Array.isArray(parsed) ? parsed : [];
-        } catch (parseErr) {
-          console.warn(`Invalid JSON in channels_allowed for plan ${p.id}:`, parseErr.message);
-          channelsAllowed = [];
+        if (typeof p.channels_allowed === 'string') {
+          try {
+            const parsed = JSON.parse(p.channels_allowed);
+            channelsAllowed = Array.isArray(parsed) ? parsed : [];
+          } catch (parseErr) {
+            console.warn(`Invalid JSON in channels_allowed for plan ${p.id}:`, parseErr.message);
+            channelsAllowed = [];
+          }
+        } else if (Array.isArray(p.channels_allowed)) {
+          // Already parsed by mysql driver
+          channelsAllowed = p.channels_allowed;
         }
       }
 

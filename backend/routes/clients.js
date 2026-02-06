@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
         IFNULL(channels_enabled, '[]') AS channels_enabled,
         status, created_at
       FROM users
-      WHERE role = 'user'
+      WHERE role IN ('client', 'user')
       ORDER BY id DESC
     `);
 
@@ -99,7 +99,7 @@ router.put('/:id', async (req, res) => {
   }
 
   try {
-    const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role = "user"`;
+    const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role IN ('client', 'user')`;
     values.push(clientId);
 
     const [result] = await query(sql, values);
@@ -119,7 +119,7 @@ router.delete('/:id', async (req, res) => {
 
   try {
     const [result] = await query(
-      'DELETE FROM users WHERE id = ? AND role = "user"',
+      'DELETE FROM users WHERE id = ? AND role IN ("client", "user")',
       [clientId]
     );
 
@@ -149,7 +149,7 @@ router.post('/:id/impersonate', async (req, res) => {
 
     console.log('[IMPERSONATE] Querying database...');
     const [rows] = await query(
-      'SELECT id, name, email, company, role FROM users WHERE id = ? AND role = "user"',
+      'SELECT id, name, email, company, role FROM users WHERE id = ? AND role IN ("client", "user")',
       [clientId]
     );
 

@@ -1,27 +1,55 @@
-import { useState } from 'react';
-import { Search, Filter, AlertTriangle, Info, AlertCircle, User, Globe, CreditCard, Shield } from 'lucide-react';
+
+import { useState, useEffect } from 'react';
+import { Search, Filter, AlertTriangle, Info, AlertCircle, User, Globe, CreditCard, Shield, RotateCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { mockSystemLogs, SystemLog } from '@/lib/superAdminMockData';
+import { logsApi, SystemLog, LogsStats } from '@/api/logsApi';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export default function SuperAdminLogs() {
+  const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [stats, setStats] = useState<LogsStats>({ total: 0, errors: 0, warnings: 0, info: 0 });
+  const [loading, setLoading] = useState(true);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const filteredLogs = mockSystemLogs.filter(log => {
-    const matchesSearch = log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (log.clientName && log.clientName.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesType = typeFilter === 'all' || log.type === typeFilter;
-    const matchesSeverity = severityFilter === 'all' || log.severity === severityFilter;
-    return matchesSearch && matchesType && matchesSeverity;
-  });
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const data = await logsApi.getLogs({
+        type: typeFilter,
+        severity: severityFilter,
+        search: searchQuery,
+        page,
+        limit: 50
+      });
+      setLogs(data.logs);
+      setStats(data.stats);
+      setTotalPages(data.pagination.totalPages);
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+      toast.error('Failed to load system logs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchLogs();
+    }, 500); // Debounce search
+    return () => clearTimeout(timer);
+  }, [searchQuery, typeFilter, severityFilter, page]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -54,22 +82,6 @@ export default function SuperAdminLogs() {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'info': return 'text-muted-foreground';
-      case 'warning': return 'text-warning';
-      case 'error': return 'text-destructive';
-      default: return 'text-muted-foreground';
-    }
-  };
-
-  const logCounts = {
-    total: mockSystemLogs.length,
-    errors: mockSystemLogs.filter(l => l.severity === 'error').length,
-    warnings: mockSystemLogs.filter(l => l.severity === 'warning').length,
-    info: mockSystemLogs.filter(l => l.severity === 'info').length,
-  };
-
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -78,6 +90,10 @@ export default function SuperAdminLogs() {
           <h1 className="text-2xl font-bold">System Logs</h1>
           <p className="text-muted-foreground">Monitor platform activity and events</p>
         </div>
+        <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
+          <RotateCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats */}
@@ -90,7 +106,7 @@ export default function SuperAdminLogs() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Total Logs</div>
-                <div className="text-xl font-bold">{logCounts.total}</div>
+                <div className="text-xl font-bold">{stats.total}</div>
               </div>
             </div>
           </CardContent>
@@ -103,7 +119,7 @@ export default function SuperAdminLogs() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Errors</div>
-                <div className="text-xl font-bold text-destructive">{logCounts.errors}</div>
+                <div className="text-xl font-bold text-destructive">{stats.errors}</div>
               </div>
             </div>
           </CardContent>
@@ -116,7 +132,7 @@ export default function SuperAdminLogs() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Warnings</div>
-                <div className="text-xl font-bold text-warning">{logCounts.warnings}</div>
+                <div className="text-xl font-bold text-warning">{stats.warnings}</div>
               </div>
             </div>
           </CardContent>
@@ -129,7 +145,7 @@ export default function SuperAdminLogs() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Info</div>
-                <div className="text-xl font-bold">{logCounts.info}</div>
+                <div className="text-xl font-bold">{stats.info}</div>
               </div>
             </div>
           </CardContent>
@@ -198,45 +214,84 @@ export default function SuperAdminLogs() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLogs.map((log) => (
-                <TableRow key={log.id} className={cn(
-                  log.severity === 'error' && 'bg-destructive/5',
-                  log.severity === 'warning' && 'bg-warning/5'
-                )}>
-                  <TableCell>
-                    {getSeverityIcon(log.severity)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Badge className={cn('text-xs gap-1', getTypeColor(log.type))}>
-                        {getTypeIcon(log.type)}
-                        <span className="capitalize">{log.type.replace('_', ' ')}</span>
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{log.action}</TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      {log.userName && <div className="text-sm">{log.userName}</div>}
-                      {log.clientName && <div className="text-xs text-muted-foreground">{log.clientName}</div>}
-                      {!log.userName && !log.clientName && <span className="text-muted-foreground">-</span>}
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-[300px]">
-                    <p className="text-sm text-muted-foreground truncate">{log.details}</p>
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-xs bg-muted px-2 py-1 rounded">{log.ipAddress}</code>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                    {format(new Date(log.createdAt), 'MMM d, HH:mm:ss')}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Loading logs...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : logs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No logs found matching your filters.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                logs.map((log) => (
+                  <TableRow key={log.id} className={cn(
+                    log.severity === 'error' && 'bg-destructive/5',
+                    log.severity === 'warning' && 'bg-warning/5'
+                  )}>
+                    <TableCell>
+                      {getSeverityIcon(log.severity)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge className={cn('text-xs gap-1', getTypeColor(log.type))}>
+                          {getTypeIcon(log.type)}
+                          <span className="capitalize">{log.type.replace('_', ' ')}</span>
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{log.action}</TableCell>
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        {log.userName && <div className="text-sm">{log.userName}</div>}
+                        {log.clientName && <div className="text-xs text-muted-foreground">{log.clientName}</div>}
+                        {!log.userName && !log.clientName && <span className="text-muted-foreground">-</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[300px]">
+                      <p className="text-sm text-muted-foreground truncate" title={log.details}>{log.details}</p>
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-xs bg-muted px-2 py-1 rounded">{log.ipAddress}</code>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                      {format(new Date(log.createdAt), 'MMM d, HH:mm:ss')}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Previous
+          </Button>
+          <span className="flex items-center px-2 text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -45,17 +45,17 @@ export default function UserPlans() {
 
         const data = await res.json();
 
-        // Safe mapping from backend snake_case to frontend camelCase
+        // Safe mapping from backend camelCase (as returned by routes/plans.js) to frontend
         const mapped = data.map((p: any) => ({
           id: p.id,
           name: p.name || 'Unnamed Plan',
           price: Number(p.price || 0),
-          monthlyCredits: Number(p.monthly_credits || 0),
-          clientCount: Number(p.client_count || 1),
-          channelsAllowed: Array.isArray(p.channels_allowed) ? p.channels_allowed : [],
-          automationLimit: Number(p.automation_limit ?? -1),
-          campaignLimit: Number(p.campaign_limit ?? -1),
-          apiAccess: Boolean(p.api_access),
+          monthlyCredits: Number(p.monthlyCredits || 0),
+          clientCount: Number(p.clientCount || 1),
+          channelsAllowed: Array.isArray(p.channelsAllowed) ? p.channelsAllowed : [],
+          automationLimit: Number(p.automationLimit ?? -1),
+          campaignLimit: Number(p.campaignLimit ?? -1),
+          apiAccess: Boolean(p.apiAccess),
           status: p.status || 'active',
         }));
 

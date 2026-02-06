@@ -3,13 +3,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { query } = require('../config/db');
+const { logSystem } = require('../utils/logger');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  console.error('JWT_SECRET missing in .env file! Server cannot start.');
-  process.exit(1);
+  console.error('JWT_SECRET missing in .env file! Authentication will fail.');
+  // Do NOT exit process to allow debugging via root route
+  // process.exit(1);
 }
 
 // Nodemailer Transporter
@@ -72,8 +74,23 @@ router.post('/login', async (req, res) => {
         channels_enabled: user.channels_enabled
       }
     });
+
+    // Log Successful Login
+    await logSystem(
+      'login',
+      'User Login',
+      `User ${user.email} logged in successfully`,
+      user.id,
+      user.name,
+      user.company,
+      req.ip,
+      'info'
+    );
+
   } catch (err) {
     console.error(err);
+    // Log Login Error
+    await logSystem('error', 'Login Failed', `Error: ${err.message}`, null, null, null, req.ip, 'error');
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -214,6 +231,19 @@ router.post('/signup', async (req, res) => {
         channels_enabled: user.channels_enabled
       }
     });
+
+    // Log Signup
+    await logSystem(
+      'login',
+      'User Signup',
+      `New user registered: ${user.email}`,
+      user.id,
+      name || 'User',
+      company,
+      req.ip,
+      'info'
+    );
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Signup failed' });
