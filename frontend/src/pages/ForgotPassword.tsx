@@ -27,13 +27,13 @@ export default function ForgotPassword() {
       const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ identifier: email }), // Send as identifier
       });
 
       const data = await response.json();
       if (data.success) {
         setStep('otp');
-        toast({ title: 'OTP Sent', description: `Check your email ${email}` });
+        toast({ title: 'OTP Sent', description: `Check your email/mobile ${email}` });
       } else {
         toast({ variant: 'destructive', title: 'Error', description: data.message });
       }
@@ -80,7 +80,7 @@ export default function ForgotPassword() {
       const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp, newPassword }),
+        body: JSON.stringify({ identifier: email, otp, newPassword }),
       });
 
       const data = await response.json();
@@ -105,25 +105,25 @@ export default function ForgotPassword() {
           <>
             <CardHeader className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-primary" />
+                <ShieldCheck className="w-8 h-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">Forgot Password?</CardTitle>
-              <CardDescription>Enter your email to receive a reset OTP.</CardDescription>
+              <CardDescription>Enter your email or mobile number to receive a reset OTP.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
+                  <Label htmlFor="identifier">Email or Mobile</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={email}
+                    id="identifier"
+                    type="text"
+                    placeholder="you@company.com or 9876543210"
+                    value={email} // keeping 'email' state var name to minimize diff, acts as identifier
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full" disabled={loading || !email}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Send OTP
                 </Button>

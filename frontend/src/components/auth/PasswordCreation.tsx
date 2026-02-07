@@ -66,7 +66,7 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
+          identifier: email,
           password,
           otp,
         }),

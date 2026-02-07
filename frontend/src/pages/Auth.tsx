@@ -61,9 +61,9 @@ export default function Auth() {
     const value = e.target.value;
     setLoginEmail(value);
     if (!value) {
-      setLoginEmailError('Email is required');
-    } else if (!validateEmail(value)) {
-      setLoginEmailError('Please enter a valid email address');
+      setLoginEmailError('Email or Mobile is required');
+    } else if (!validateMobileOrEmail(value)) {
+      setLoginEmailError('Please enter a valid email or mobile number');
     } else {
       setLoginEmailError('');
     }
@@ -85,7 +85,7 @@ export default function Auth() {
     if (loginEmailError || loginPasswordError) return;
 
     if (!loginEmail || !loginPassword) {
-      if (!loginEmail) setLoginEmailError('Email is required');
+      if (!loginEmail) setLoginEmailError('Email or Mobile is required');
       if (!loginPassword) setLoginPasswordError('Password is required');
       return;
     }
@@ -233,10 +233,10 @@ export default function Auth() {
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
+                  <Label htmlFor="login-email">Email or Mobile</Label>
                   <Input
                     id="login-email"
-                    type="email"
+                    type="text"
                     placeholder="you@company.com"
                     value={loginEmail}
                     onChange={handleLoginEmailChange}

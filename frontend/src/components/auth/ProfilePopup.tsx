@@ -91,7 +91,7 @@ export function ProfilePopup({ isOpen, email, onProfileUpdated, onSkip }: Profil
         <form onSubmit={handleUpdateProfile} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium">
-              Email
+              Email / Mobile
             </Label>
             <Input
               id="email"

@@ -60,7 +60,7 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
       const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ identifier: email, otp }),
       });
 
       if (!response.ok) {
@@ -85,7 +85,7 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
       const response = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ identifier: email }),
       });
 
       if (!response.ok) {
@@ -178,7 +178,7 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
         onClick={onBackClick}
         className="w-full text-center text-sm text-primary hover:underline py-2"
       >
-        Change email address
+        Change email / mobile Number
       </button>
     </form>
   );
