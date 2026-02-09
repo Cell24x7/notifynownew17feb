@@ -1,6 +1,7 @@
 // server.js (or index.js) - Main entry point
 require('dotenv').config();
 
+// Backend Server Entry Point - Updated to fix resellers display
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan'); // optional: for request logging (very helpful for debugging)

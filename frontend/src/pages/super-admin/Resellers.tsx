@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Pencil, Users, Percent, MoreVertical, Loader2 } from 'lucide-react';
+import { Search, Plus, Eye, Pencil, Users, Percent, MoreVertical, Loader2, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ChannelIcon } from '@/components/ui/channel-icon';
 
 import { API_BASE_URL } from '@/config/api';
 
@@ -23,6 +24,7 @@ export default function SuperAdminResellers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [resellers, setResellers] = useState<any[]>([]);
   const [filteredResellers, setFilteredResellers] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
@@ -35,8 +37,22 @@ export default function SuperAdminResellers() {
     api_base_url: '',
     commission_percent: 10,
     credits_available: 0,
+    plan_id: '',
     status: 'active' as 'active' | 'inactive' | 'pending',
+    channels_enabled: [] as string[],
   });
+
+  // Fetch plans
+  const fetchPlans = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/plans?admin=true`);
+      if (res.data) {
+        setPlans(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load plans', err);
+    }
+  };
 
   // Fetch resellers
   const fetchResellers = async () => {
@@ -62,6 +78,7 @@ export default function SuperAdminResellers() {
 
   useEffect(() => {
     fetchResellers();
+    fetchPlans();
   }, []);
 
   // Search filter
@@ -97,6 +114,11 @@ export default function SuperAdminResellers() {
       errors.push('Email is required.');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentReseller.email.trim())) {
       errors.push('Please enter a valid email address.');
+    }
+
+    // Plan
+    if (!currentReseller.plan_id) {
+        errors.push('Plan is required.');
     }
 
     // Phone: optional, but if given → valid format
@@ -166,6 +188,22 @@ export default function SuperAdminResellers() {
     }
   };
 
+  const handlePlanChange = (planId: string) => {
+    // Convert to string for comparison to handle both number/string IDs
+    const selectedPlan = plans.find(p => String(p.id) === String(planId));
+    let newChannels: string[] = [];
+    
+    if (selectedPlan && selectedPlan.channelsAllowed) {
+        newChannels = selectedPlan.channelsAllowed;
+    }
+
+    setCurrentReseller(prev => ({
+        ...prev,
+        plan_id: planId,
+        channels_enabled: newChannels
+    }));
+  };
+
   const handleView = (reseller: any) => {
     setCurrentReseller(reseller);
     setModalMode('view');
@@ -173,7 +211,26 @@ export default function SuperAdminResellers() {
   };
 
   const handleEdit = (reseller: any) => {
-    setCurrentReseller(reseller);
+    // When editing, if reseller has channels, use them. 
+    // If not, maybe auto-populate from plan? 
+    // Using existing data is safer.
+    
+    // Check if channels_enabled is a string or array
+    let channels = [];
+    try {
+        if (typeof reseller.channels_enabled === 'string') {
+            channels = JSON.parse(reseller.channels_enabled);
+        } else if (Array.isArray(reseller.channels_enabled)) {
+            channels = reseller.channels_enabled;
+        }
+    } catch (e) {
+        channels = [];
+    }
+
+    setCurrentReseller({
+        ...reseller,
+        channels_enabled: channels
+    });
     setModalMode('edit');
     setIsModalOpen(true);
   };
@@ -197,8 +254,22 @@ export default function SuperAdminResellers() {
       api_base_url: '',
       commission_percent: 10,
       credits_available: 0,
+      plan_id: '',
       status: 'active',
+      channels_enabled: [],
     });
+  };
+
+  const parseChannels = (channels: any): string[] => {
+      if (Array.isArray(channels)) return channels;
+      if (typeof channels === 'string') {
+          try {
+              return JSON.parse(channels);
+          } catch (e) {
+              return [];
+          }
+      }
+      return [];
   };
 
   const totalRevenue = resellers.reduce((acc, r) => acc + (r.revenue_generated || 0), 0);
@@ -304,12 +375,12 @@ export default function SuperAdminResellers() {
             <TableRow>
               <TableHead className="min-w-[140px]">Reseller Name</TableHead>
               <TableHead className="min-w-[180px]">Email</TableHead>
+              <TableHead className="min-w-[120px]">Plan</TableHead>
+              <TableHead className="min-w-[150px] text-center">Channels</TableHead>
               <TableHead className="text-right min-w-[90px]">Clients</TableHead>
               <TableHead className="text-right min-w-[110px]">Commission %</TableHead>
               <TableHead className="text-right min-w-[110px]">Revenue</TableHead>
               <TableHead className="text-right min-w-[130px]">Pending Payout</TableHead>
-              <TableHead className="text-right min-w-[120px]">Used</TableHead>
-              <TableHead className="text-right min-w-[120px]">Available</TableHead>
               <TableHead className="min-w-[90px]">Status</TableHead>
               <TableHead className="min-w-[100px]">Joined</TableHead>
               <TableHead className="text-right min-w-[80px]">Actions</TableHead>
@@ -334,6 +405,28 @@ export default function SuperAdminResellers() {
                 <TableRow key={reseller.id}>
                   <TableCell className="font-medium">{reseller.name}</TableCell>
                   <TableCell className="text-muted-foreground">{reseller.email}</TableCell>
+                  <TableCell>
+                      <Badge variant="outline" className="capitalize font-normal">
+                        {plans.find(p => String(p.id) === String(reseller.plan_id))?.name || reseller.plan_id || 'N/A'}
+                      </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                      <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
+                        {(() => {
+                           // Source channels directly from the current plan definition to ensure accuracy
+                           const resellerPlan = plans.find(p => String(p.id) === String(reseller.plan_id));
+                           const channelsToShow = resellerPlan?.channelsAllowed || parseChannels(reseller.channels_enabled);
+                           
+                           return channelsToShow.slice(0, 6).map((ch: any) => (
+                              <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
+                                  <div className="bg-background rounded-full p-0.5 shadow-sm border">
+                                    <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
+                                  </div>
+                              </div>
+                           ));
+                        })()}
+                      </div>
+                  </TableCell>
                   <TableCell className="text-right">{reseller.clients_managed?.toLocaleString() || 0}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -347,8 +440,6 @@ export default function SuperAdminResellers() {
                   <TableCell className="text-right font-medium text-warning">
                     ₹{(reseller.payout_pending || 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right text-sm">{reseller.credits_used?.toLocaleString() || '0'}</TableCell>
-                  <TableCell className="text-right text-sm">{reseller.credits_available?.toLocaleString() || '0'}</TableCell>
                   <TableCell>
                     <Badge className={cn('text-xs', getStatusColor(reseller.status))}>
                       {reseller.status}
@@ -431,6 +522,27 @@ export default function SuperAdminResellers() {
                 />
               </div>
             </div>
+
+            <div className="h-px bg-border" />
+            
+             {/* Plan Selection */}
+            <div className="space-y-2">
+                <Label className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Assign Plan <span className="text-destructive">*</span></Label>
+                <Select
+                    value={currentReseller.plan_id}
+                    onValueChange={handlePlanChange}
+                    disabled={modalMode === 'view'}
+                >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select Plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {plans.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} (${p.price})</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
+
+             <div className="h-px bg-border" />
 
             {/* Domain & API */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

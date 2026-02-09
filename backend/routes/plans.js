@@ -15,6 +15,7 @@ const planSchema = z.object({
   automation_limit: z.number().int(),
   campaign_limit: z.number().int(),
   api_access: z.boolean(),
+  permissions: z.any().optional(), // Allow any structure for permissions initially
 });
 
 // GET all plans
@@ -35,6 +36,7 @@ router.get('/', async (req, res) => {
 
     const formatted = plans.map((p) => {
       let channelsAllowed = [];
+      let permissions = {};
 
       // Safe JSON parsing – never crash
       // Safe JSON parsing or usage if already parsed
@@ -53,6 +55,19 @@ router.get('/', async (req, res) => {
         }
       }
 
+      if (p.permissions) {
+        if (typeof p.permissions === 'string') {
+          try {
+            permissions = JSON.parse(p.permissions);
+          } catch (parseErr) {
+            console.warn(`Invalid JSON in permissions for plan ${p.id}:`, parseErr.message);
+            permissions = {};
+          }
+        } else if (typeof p.permissions === 'object') {
+          permissions = p.permissions;
+        }
+      }
+
       return {
         id: p.id,
         name: p.name,
@@ -60,6 +75,7 @@ router.get('/', async (req, res) => {
         monthlyCredits: p.monthly_credits,
         clientCount: p.client_count,
         channelsAllowed,
+        permissions,
         automationLimit: p.automation_limit,
         campaignLimit: p.campaign_limit,
         apiAccess: Boolean(p.api_access),
@@ -88,8 +104,8 @@ router.post('/', async (req, res) => {
       `
       INSERT INTO plans (
         id, name, price, monthly_credits, client_count,
-        channels_allowed, automation_limit, campaign_limit, api_access
-      ) VALUES (?,?,?,?,?,?,?,?,?)
+        channels_allowed, automation_limit, campaign_limit, api_access, permissions
+      ) VALUES (?,?,?,?,?,?,?,?,?,?)
     `,
       [
         id,
@@ -101,6 +117,7 @@ router.post('/', async (req, res) => {
         data.automation_limit,
         data.campaign_limit,
         data.api_access ? 1 : 0,
+        JSON.stringify(data.permissions || {})
       ]
     );
 
@@ -130,7 +147,7 @@ router.put('/:id', async (req, res) => {
       UPDATE plans SET
         name = ?, price = ?, monthly_credits = ?, client_count = ?,
         channels_allowed = ?, automation_limit = ?, campaign_limit = ?,
-        api_access = ?
+        api_access = ?, permissions = ?
       WHERE id = ?
     `,
       [
@@ -142,6 +159,7 @@ router.put('/:id', async (req, res) => {
         data.automation_limit,
         data.campaign_limit,
         data.api_access ? 1 : 0,
+        JSON.stringify(data.permissions || {}),
         id,
       ]
     );

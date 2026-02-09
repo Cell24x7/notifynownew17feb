@@ -10,7 +10,8 @@ router.get('/', async (req, res) => {
       SELECT 
         id, name, email, phone, domain, api_base_url,
         commission_percent, status, revenue_generated,
-        clients_managed, payout_pending, created_at
+        clients_managed, payout_pending, created_at,
+        plan_id, channels_enabled
       FROM resellers
       ORDER BY created_at DESC
     `);
@@ -24,28 +25,39 @@ router.get('/', async (req, res) => {
 
 // ADD reseller
 router.post('/', async (req, res) => {
+  console.log('RESELLER POST BODY:', req.body); // Debug Log
   const {
     name, email, phone = null, domain = null, api_base_url = null,
-    commission_percent = 10, status = 'active'
+    commission_percent = 10, status = 'active',
+    plan_id = null, channels_enabled = []
   } = req.body;
 
   if (!name || !email) {
     return res.status(400).json({ success: false, message: 'Name and email are required' });
   }
 
+  // Ensure channels_enabled is a JSON string if it's an object/array
+  const channelsJson = Array.isArray(channels_enabled)
+    ? JSON.stringify(channels_enabled)
+    : channels_enabled;
+
   try {
     const [exists] = await query('SELECT id FROM resellers WHERE email = ?', [email]);
     if (exists.length) return res.status(409).json({ success: false, message: 'Email already registered' });
+
+    console.log('Inserting Reseller:', { name, email, plan_id, channelsJson }); // Debug Log
 
     const [result] = await query(`
       INSERT INTO resellers (
         name, email, phone, domain, api_base_url, 
         commission_percent, status, 
-        revenue_generated, clients_managed, payout_pending
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
+        revenue_generated, clients_managed, payout_pending,
+        plan_id, channels_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?)
     `, [
       name, email, phone, domain, api_base_url,
-      commission_percent, status
+      commission_percent, status,
+      plan_id, channelsJson
     ]);
 
     res.status(201).json({
@@ -61,10 +73,12 @@ router.post('/', async (req, res) => {
 
 // UPDATE reseller
 router.put('/:id', async (req, res) => {
+  console.log(`RESELLER PUT/${req.params.id} BODY:`, req.body); // Debug Log
   const resellerId = req.params.id;
   const {
     name, email, phone, domain, api_base_url,
-    commission_percent, status
+    commission_percent, status,
+    plan_id, channels_enabled
   } = req.body;
 
   const fields = [];
@@ -77,6 +91,15 @@ router.put('/:id', async (req, res) => {
   if (api_base_url !== undefined) { fields.push('api_base_url = ?'); values.push(api_base_url); }
   if (commission_percent !== undefined) { fields.push('commission_percent = ?'); values.push(commission_percent); }
   if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+  if (plan_id !== undefined) { fields.push('plan_id = ?'); values.push(plan_id); }
+
+  if (channels_enabled !== undefined) {
+    const channelsJson = Array.isArray(channels_enabled)
+      ? JSON.stringify(channels_enabled)
+      : channels_enabled;
+    fields.push('channels_enabled = ?');
+    values.push(channelsJson);
+  }
 
   if (!fields.length) {
     return res.status(400).json({ success: false, message: 'No fields to update' });

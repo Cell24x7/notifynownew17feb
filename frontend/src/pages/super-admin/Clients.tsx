@@ -21,12 +21,6 @@ const API_URL = `${API_BASE_URL}/api`;
 
 const allChannels = ['whatsapp', 'rcs', 'sms'] as const;
 
-const plans = [
-  { id: 'basic', name: 'Basic', price: 99 },
-  { id: 'pro', name: 'Pro', price: 299 },
-  { id: 'enterprise', name: 'Enterprise', price: 999 },
-];
-
 export default function SuperAdminClients() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,6 +28,7 @@ export default function SuperAdminClients() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [clients, setClients] = useState<any[]>([]);
   const [filteredClients, setFilteredClients] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]); // State for real plans
   const [loading, setLoading] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
@@ -51,6 +46,18 @@ export default function SuperAdminClients() {
     credits_available: 0,
     channels_enabled: [] as string[],
   });
+
+  // Fetch real plans
+  const fetchPlans = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/plans`);
+      if (res.data) {
+        setPlans(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load plans', err);
+    }
+  };
 
   // Fetch real clients from backend
   const fetchClients = async () => {
@@ -76,6 +83,7 @@ export default function SuperAdminClients() {
 
   useEffect(() => {
     fetchClients();
+    fetchPlans();
   }, []);
 
   // Real-time filtering
@@ -123,6 +131,24 @@ export default function SuperAdminClients() {
           }
       }
       return [];
+  };
+
+  // Handle Plan Change - Auto-assign channels
+  const handlePlanChange = (planId: string) => {
+    const selectedPlan = plans.find(p => p.id === planId);
+    let newChannels: string[] = [];
+    
+    if (selectedPlan && selectedPlan.channelsAllowed) {
+        // Normalize channelsAllowed from plan (it might be camelCase or mixed)
+        // Backend plans usually return channelsAllowed as array of strings
+        newChannels = selectedPlan.channelsAllowed;
+    }
+
+    setCurrentClient(prev => ({
+        ...prev,
+        plan_id: planId,
+        channels_enabled: newChannels
+    }));
   };
 
   const handleAddClient = async () => {
@@ -214,6 +240,14 @@ export default function SuperAdminClients() {
   }
 
   const handleView = (client: any) => {
+    // When viewing/editing, ensure we set channels correctly if plan exists
+    // However, for existing clients, we should use what's in the DB
+    const clientChannels = parseChannels(client.channels_enabled);
+    
+    // If clientChannels is empty but plan exists, maybe populate from plan?
+    // User asked to "tablme dikham ok ki ye plan me ye channel hai"
+    // So let's rely on what's in DB for Edit/View to avoid overriding custom setups if any.
+    
     setCurrentClient({
       id: client.id,
       name: client.name,
@@ -224,7 +258,7 @@ export default function SuperAdminClients() {
       plan_id: client.plan_id || '',
       status: client.status,
       credits_available: client.credits_available || 0,
-      channels_enabled: parseChannels(client.channels_enabled),
+      channels_enabled: clientChannels,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -497,6 +531,10 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
+                        {/* 
+                           Show channels from the Plan if available, fall back to client's own channels 
+                           The logic: client channels are auto-set from plan upon creation/update.
+                        */}
                         {parseChannels(client.channels_enabled)
                           .filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch))
                           .slice(0, 4)
@@ -507,20 +545,12 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                               </div>
                           </div>
                         ))}
-                        {parseChannels(client.channels_enabled).filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch)).length > 4 && (
-                          <div className="bg-muted text-[10px] h-6 w-6 rounded-full border flex items-center justify-center relative z-0">
-                            +{parseChannels(client.channels_enabled).filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch)).length - 4}
-                          </div>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
                         <div className="flex flex-col items-end gap-0.5">
                             <span className="text-xs font-medium text-green-600">
                                 {client.credits_available.toLocaleString()}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                                Used: {client.credits_used?.toLocaleString() || '0'}
                             </span>
                         </div>
                     </TableCell>
@@ -649,7 +679,7 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                         <Label>Assign Plan <span className="text-red-500">*</span></Label>
                         <Select
                         value={currentClient.plan_id}
-                        onValueChange={v => setCurrentClient(p => ({...p, plan_id: v}))}
+                        onValueChange={handlePlanChange}
                         disabled={modalMode === 'view'}
                         >
                         <SelectTrigger>
@@ -691,41 +721,7 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                 </div>
             </div>
 
-            <div className="h-px bg-border" />
-
-             {/* Section 3: Channels */}
-             <div className="space-y-4">
-                 <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <Globe className="w-4 h-4" /> Enabled Channels
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {allChannels.map(channel => {
-                        const isSelected = currentClient.channels_enabled.includes(channel);
-                        return (
-                            <div
-                                key={channel}
-                                onClick={modalMode !== 'view' ? () => handleChannelToggle(channel) : undefined}
-                                className={cn(
-                                'flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 select-none',
-                                isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-primary/50',
-                                modalMode !== 'view' && 'cursor-pointer active:scale-95'
-                                )}
-                            >
-                                <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => handleChannelToggle(channel)}
-                                    disabled={modalMode === 'view'}
-                                    className="pointer-events-none" // Handle click via parent div
-                                />
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <ChannelIcon channel={channel} className="w-5 h-5 flex-shrink-0" />
-                                    <span className="capitalize text-sm font-medium truncate">{channel}</span>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-             </div>
+            {/* Channel section removed as per user request */}
           </div>
 
           <DialogFooter className="p-6 border-t bg-muted/20 sm:justify-end gap-3 sticky bottom-0 z-10 backdrop-blur-xl">
