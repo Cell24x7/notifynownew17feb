@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Loader2 } from 'lucide-react';
+import { MessageSquare, Phone, Smartphone, Loader2 } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 import { EmailSignup } from '@/components/auth/EmailSignup';
 import { OtpVerification } from '@/components/auth/OtpVerification';
@@ -173,8 +173,6 @@ export default function Auth() {
     { icon: MessageSquare, label: 'WhatsApp', color: 'text-green-500' },
     { icon: Phone, label: 'SMS', color: 'text-blue-500' },
     { icon: Smartphone, label: 'RCS', color: 'text-purple-500' },
-    { icon: Instagram, label: 'Instagram', color: 'text-pink-500' },
-    { icon: Facebook, label: 'Facebook', color: 'text-blue-600' },
   ];
 
   return (
@@ -183,8 +181,8 @@ export default function Auth() {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-secondary/5 to-primary/10 p-12 flex-col justify-between">
         <div>
           <div className="flex items-center gap-3 mb-12">
-            <img src="/logo.png" alt="Cell24x7" className="w-12 h-12 rounded-xl shadow-lg" />
-            <span className="text-2xl font-bold">Cell24x7</span>
+            <img src="/logo.svg" alt="NotifyNow" className="w-12 h-12 rounded-xl shadow-lg" />
+            <span className="text-2xl font-bold">NotifyNow</span>
           </div>
 
           <h1 className="text-4xl font-bold leading-tight mb-6">
@@ -210,7 +208,7 @@ export default function Auth() {
         </div>
 
         <p className="text-sm text-muted-foreground">
-          © 2026 Cell24x7. All rights reserved.
+
         </p>
       </div>
 
@@ -218,8 +216,8 @@ export default function Auth() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <img src="/logo.png" alt="Cell24x7" className="w-10 h-10 rounded-xl" />
-            <span className="text-xl font-bold">Cell24x7</span>
+            <img src="/logo.svg" alt="NotifyNow" className="w-10 h-10 rounded-xl" />
+            <span className="text-xl font-bold">NotifyNow</span>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

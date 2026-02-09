@@ -1,4 +1,4 @@
-// Mock data for the Cell24x7 SaaS application
+// Mock data for the NotifyNow SaaS application
 
 // Media File types for File Manager
 export interface MediaFile {

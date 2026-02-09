@@ -6,7 +6,7 @@ import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.svg';
 
 export function SuperAdminLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -57,12 +57,12 @@ export function SuperAdminLayout() {
             <div className="flex items-center gap-3">
               <img
                 src={logo}
-                alt="Cell24x7"
+                alt="NotifyNow"
                 className="h-10 w-10 object-contain"
               />
               <div className="flex flex-col">
                 <span className="font-bold text-lg tracking-wide">
-                  Cell24x7
+                  NotifyNow
                 </span>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Super Admin</span>
               </div>

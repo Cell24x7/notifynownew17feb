@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 const mailOptions = {
     from: process.env.EMAIL_USER,
     to: process.env.EMAIL_USER, // Send to self
-    subject: 'Test Email from Cell24x7',
+    subject: 'Test Email from NotifyNow',
     text: 'If you see this, your email configuration is working perfectly!'
 };
 

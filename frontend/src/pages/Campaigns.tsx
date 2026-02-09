@@ -536,11 +536,11 @@ export default function Campaigns() {
             <div className="bg-muted/50 px-4 py-3 border-b">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-xs font-bold text-primary">C</span>
+                  <span className="text-xs font-bold text-primary">N</span>
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs font-medium">Cell24x7</p>
-                  <p className="text-[10px] text-muted-foreground">noreply@cell24x7.com</p>
+                  <p className="text-xs font-medium">NotifyNow</p>
+                  <p className="text-[10px] text-muted-foreground">noreply@notifynow.com</p>
                 </div>
               </div>
               <p className="font-semibold text-sm truncate">
@@ -567,7 +567,7 @@ export default function Campaigns() {
             {/* Email Footer */}
             <div className="bg-muted/30 px-4 py-2 border-t">
               <p className="text-[10px] text-muted-foreground text-center">
-                © 2024 Cell24x7. All rights reserved.
+                © 2026 NotifyNow. All rights reserved.
               </p>
             </div>
           </div>

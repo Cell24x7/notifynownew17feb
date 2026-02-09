@@ -1,7 +1,7 @@
 const https = require('https');
 
 /**
- * Send an SMS message using the Cell24x7 API.
+ * Send an SMS message using the NotifyNow API.
  * @param {string} mobile - The mobile number to send the SMS to (10 digits).
  * @param {string} message - The message content.
  * @returns {Promise<any>} - Resolves with the API response or rejects with an error.

@@ -4,7 +4,7 @@ import { AppSidebar } from './AppSidebar';
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.svg';
 
 export function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -51,8 +51,8 @@ export function AppLayout() {
         <header className="sticky top-0 z-30 lg:hidden h-16 border-b bg-background">
           <div className="flex h-full items-center justify-between px-4">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="Cell24x7" className="h-10 w-10 object-contain" />
-              <span className="font-bold text-lg tracking-wide">Cell24x7</span>
+              <img src={logo} alt="NotifyNow" className="h-10 w-10 object-contain" />
+              <span className="font-bold text-lg tracking-wide">NotifyNow</span>
             </div>
 
             <Button

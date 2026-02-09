@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.svg';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard' },
@@ -60,15 +60,15 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b border-border">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <img src={logo} alt="Cell24x7" className="w-8 h-8 rounded-lg" />
+            <img src={logo} alt="NotifyNow" className="w-8 h-8 rounded-lg" />
             <div className="flex flex-col">
-              <span className="font-bold text-sm">Cell24x7</span>
+              <span className="font-bold text-sm">NotifyNow</span>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Super Admin</span>
             </div>
           </div>
         )}
         {collapsed && (
-          <img src={logo} alt="Cell24x7" className="w-8 h-8 rounded-lg" />
+          <img src={logo} alt="NotifyNow" className="w-8 h-8 rounded-lg" />
         )}
         {/* <Button
           variant="ghost"

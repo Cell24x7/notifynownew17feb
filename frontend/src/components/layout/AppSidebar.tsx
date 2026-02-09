@@ -87,11 +87,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
         <div className="flex items-center gap-2.5">
           <img
-            src="/logo.png"
-            alt="Cell24x7"
+            src="/logo.svg"
+            alt="NotifyNow"
             className="w-8 h-8 rounded-lg object-contain"
           />
-          <span className="font-bold text-xl tracking-tight">Cell24x7</span>
+          <span className="font-bold text-xl tracking-tight">NotifyNow</span>
         </div>
 
         {/* <Button
