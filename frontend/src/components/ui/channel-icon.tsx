@@ -27,30 +27,6 @@ const channelConfig: Record<Channel, { icon: any; color: string; bg: string; lab
     bg: 'bg-purple-100',
     label: 'RCS',
   },
-  instagram: {
-    icon: Instagram,
-    color: 'text-pink-500',
-    bg: 'bg-pink-100',
-    label: 'Instagram',
-  },
-  facebook: {
-    icon: Facebook,
-    color: 'text-blue-600',
-    bg: 'bg-blue-100',
-    label: 'Facebook',
-  },
-  email: {
-    icon: Mail,
-    color: 'text-orange-500',
-    bg: 'bg-orange-100',
-    label: 'Email',
-  },
-  voicebot: {
-    icon: Mic,
-    color: 'text-teal-500',
-    bg: 'bg-teal-100',
-    label: 'Voice Bot',
-  },
 };
 
 const sizeClasses = {

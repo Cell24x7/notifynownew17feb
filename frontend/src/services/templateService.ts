@@ -23,7 +23,7 @@ export interface MessageTemplate {
     name: string;
     language: string;
     category: 'Marketing' | 'Utility' | 'Authentication';
-    channel: 'whatsapp' | 'sms' | 'rcs' | 'instagram' | 'facebook' | 'email' | 'voicebot';
+    channel: 'whatsapp' | 'sms' | 'rcs';
     template_type: 'standard' | 'carousel';
     header_type: 'none' | 'text' | 'image' | 'video' | 'document';
     header_content: string | null;

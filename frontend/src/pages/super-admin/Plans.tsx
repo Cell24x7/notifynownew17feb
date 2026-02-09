@@ -48,7 +48,7 @@ type Plan = {
   status: 'active' | 'inactive';
 };
 
-const channelsList = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook', 'voicebot'];
+const channelsList = ['whatsapp', 'rcs', 'sms'];
 
 export default function SuperAdminPlans() {
   const { toast } = useToast();
@@ -326,7 +326,7 @@ export default function SuperAdminPlans() {
                 <div className="pt-2 border-t">
                   <div className="text-xs text-muted-foreground mb-2">Channels</div>
                   <div className="flex flex-wrap gap-2">
-                    {plan.channelsAllowed.map((channel) => (
+                    {plan.channelsAllowed.filter(c => ['whatsapp', 'sms', 'rcs'].includes(c)).map((channel) => (
                       <div
                         key={channel}
                         className="flex items-center gap-1 bg-muted px-2 py-1 rounded-full text-xs"

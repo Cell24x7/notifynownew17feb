@@ -60,10 +60,6 @@ const channelOptions = [
   { value: 'whatsapp', label: 'WhatsApp', icon: '📱', costPerMessage: 0.35 },
   { value: 'sms', label: 'SMS', icon: '📲', costPerMessage: 0.25 },
   { value: 'rcs', label: 'RCS', icon: '💬', costPerMessage: 0.30 },
-  { value: 'instagram', label: 'Instagram', icon: '📸', costPerMessage: 0.20 },
-  { value: 'facebook', label: 'Facebook', icon: '👥', costPerMessage: 0.20 },
-  { value: 'email', label: 'Email', icon: '📧', costPerMessage: 0.05 },
-  { value: 'voicebot', label: 'Voice Bot', icon: '🎙️', costPerMessage: 0.50 },
 ];
 
 export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {

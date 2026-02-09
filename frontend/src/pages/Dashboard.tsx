@@ -100,11 +100,7 @@ const pieColors = ['#4ADE80', '#6366F1', '#EC4899', '#3B82F6', '#8B5CF6', '#F59E
 const channelColors: Record<string, string> = {
   whatsapp: '#25D366',
   sms: '#3B82F6',
-  instagram: '#E4405F',
-  facebook: '#1877F2',
   rcs: '#8B5CF6',
-  email: '#F59E0B',
-  voicebot: '#14B8A6',
 };
 
 export default function Dashboard() {
@@ -154,11 +150,7 @@ export default function Dashboard() {
   const channels = [
     { key: 'whatsapp', icon: 'whatsapp' },
     { key: 'sms', icon: 'sms' },
-    { key: 'instagram', icon: 'instagram' },
-    { key: 'facebook', icon: 'facebook' },
     { key: 'rcs', icon: 'rcs' },
-    { key: 'email', icon: 'email' },
-    { key: 'voicebot', icon: 'voicebot' },
   ];
 
   // Helper to get selected channel data (still mock for deep dive if not in stats)

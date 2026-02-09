@@ -47,10 +47,6 @@ const channelsList = [
   { id: 'whatsapp', name: 'WhatsApp Business', icon: MessageSquare, color: 'text-green-500', connected: false },
   { id: 'sms', name: 'SMS Gateway', icon: Phone, color: 'text-blue-500', connected: false },
   { id: 'rcs', name: 'RCS Messaging', icon: Smartphone, color: 'text-purple-500', connected: false },
-  { id: 'instagram', name: 'Instagram DM', icon: Instagram, color: 'text-pink-500', connected: false },
-  { id: 'facebook', name: 'Facebook Messenger', icon: Facebook, color: 'text-blue-600', connected: false },
-  { id: 'email', name: 'Email', icon: Mail, color: 'text-orange-500', connected: false },
-  { id: 'voicebot', name: 'Voice BOT', icon: Bot, color: 'text-cyan-500', connected: false },
 ];
 
 export default function Settings() {
@@ -318,126 +314,6 @@ export default function Settings() {
                 onCancel={() => setShowSMSConfig(false)}
               />
             </div>
-          ) : showWhatsAppConfig ? (
-            <div className="space-y-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowWhatsAppConfig(false)}
-                className="mb-4"
-              >
-                ← Back to Channels
-              </Button>
-              <WhatsAppConfiguration 
-                onSave={(config) => {
-                  setChannels(channels.map(c => 
-                    c.id === 'whatsapp' ? { ...c, connected: true } : c
-                  ));
-                  setChannelConfigs({
-                    ...channelConfigs,
-                    whatsappBusinessName: config.businessName,
-                    whatsappPhoneNumber: config.phoneNumber,
-                  });
-                  setShowWhatsAppConfig(false);
-                }}
-                onCancel={() => setShowWhatsAppConfig(false)}
-              />
-            </div>
-          ) : showInstagramConfig ? (
-            <div className="space-y-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowInstagramConfig(false)}
-                className="mb-4"
-              >
-                ← Back to Channels
-              </Button>
-              <InstagramConfiguration 
-                onSave={(config) => {
-                  setChannels(channels.map(c => 
-                    c.id === 'instagram' ? { ...c, connected: true } : c
-                  ));
-                  setChannelConfigs({
-                    ...channelConfigs,
-                    instagramUsername: config.instagramUsername,
-                    instagramFollowers: config.followersCount,
-                  });
-                  setShowInstagramConfig(false);
-                }}
-                onCancel={() => setShowInstagramConfig(false)}
-              />
-            </div>
-          ) : showMessengerConfig ? (
-            <div className="space-y-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowMessengerConfig(false)}
-                className="mb-4"
-              >
-                ← Back to Channels
-              </Button>
-              <MessengerConfiguration 
-                onSave={(config) => {
-                  setChannels(channels.map(c => 
-                    c.id === 'facebook' ? { ...c, connected: true } : c
-                  ));
-                  setChannelConfigs({
-                    ...channelConfigs,
-                    messengerPageName: config.pageName,
-                    messengerPageId: config.pageId,
-                  });
-                  setShowMessengerConfig(false);
-                }}
-                onCancel={() => setShowMessengerConfig(false)}
-              />
-            </div>
-          ) : showEmailConfig ? (
-            <div className="space-y-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowEmailConfig(false)}
-                className="mb-4"
-              >
-                ← Back to Channels
-              </Button>
-              <EmailConfiguration 
-                onSave={(config) => {
-                  setChannels(channels.map(c => 
-                    c.id === 'email' ? { ...c, connected: true } : c
-                  ));
-                  setChannelConfigs({
-                    ...channelConfigs,
-                    emailSenderName: config.senderName,
-                    emailSenderEmail: config.senderEmail,
-                  });
-                  setShowEmailConfig(false);
-                }}
-                onCancel={() => setShowEmailConfig(false)}
-              />
-            </div>
-          ) : showVoiceBotConfig ? (
-            <div className="space-y-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowVoiceBotConfig(false)}
-                className="mb-4"
-              >
-                ← Back to Channels
-              </Button>
-              <VoiceBotConfiguration 
-                onSave={(config) => {
-                  setChannels(channels.map(c => 
-                    c.id === 'voicebot' ? { ...c, connected: true } : c
-                  ));
-                  setChannelConfigs({
-                    ...channelConfigs,
-                    voiceBotPhoneNumber: config.phoneNumber,
-                    voiceBotProvider: config.providerType,
-                  });
-                  setShowVoiceBotConfig(false);
-                }}
-                onCancel={() => setShowVoiceBotConfig(false)}
-              />
-            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {channels.map((channel) => (
@@ -456,18 +332,6 @@ export default function Settings() {
                           {channel.id === 'whatsapp' && channel.connected && channelConfigs.whatsappBusinessName && (
                             <p className="text-xs text-muted-foreground">{channelConfigs.whatsappBusinessName}</p>
                           )}
-                          {channel.id === 'instagram' && channel.connected && channelConfigs.instagramUsername && (
-                            <p className="text-xs text-muted-foreground">{channelConfigs.instagramUsername}</p>
-                          )}
-                          {channel.id === 'facebook' && channel.connected && channelConfigs.messengerPageName && (
-                            <p className="text-xs text-muted-foreground">{channelConfigs.messengerPageName}</p>
-                          )}
-                          {channel.id === 'email' && channel.connected && channelConfigs.emailSenderName && (
-                            <p className="text-xs text-muted-foreground">{channelConfigs.emailSenderName}</p>
-                          )}
-                          {channel.id === 'voicebot' && channel.connected && channelConfigs.voiceBotProvider && (
-                            <p className="text-xs text-muted-foreground capitalize">{channelConfigs.voiceBotProvider}</p>
-                          )}
                           <StatusBadge status={channel.connected ? 'connected' : 'disconnected'} />
                           {channel.id === 'sms' && channel.connected && channelConfigs.smsLastTested && (
                             <p className="text-xs text-muted-foreground mt-1">
@@ -477,28 +341,6 @@ export default function Settings() {
                           {channel.id === 'whatsapp' && channel.connected && channelConfigs.whatsappPhoneNumber && (
                             <p className="text-xs text-muted-foreground mt-1">
                               {channelConfigs.whatsappPhoneNumber}
-                            </p>
-                          )}
-                          {channel.id === 'instagram' && channel.connected && channelConfigs.instagramFollowers && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {channelConfigs.instagramFollowers >= 1000 
-                                ? (channelConfigs.instagramFollowers / 1000).toFixed(1) + 'K' 
-                                : channelConfigs.instagramFollowers} followers
-                            </p>
-                          )}
-                          {channel.id === 'facebook' && channel.connected && channelConfigs.messengerPageId && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Page ID: {channelConfigs.messengerPageId}
-                            </p>
-                          )}
-                          {channel.id === 'email' && channel.connected && channelConfigs.emailSenderEmail && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {channelConfigs.emailSenderEmail}
-                            </p>
-                          )}
-                          {channel.id === 'voicebot' && channel.connected && channelConfigs.voiceBotPhoneNumber && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {channelConfigs.voiceBotPhoneNumber}
                             </p>
                           )}
                         </div>
@@ -529,14 +371,6 @@ export default function Settings() {
                               setShowRCSConfig(true);
                             } else if (channel.id === 'whatsapp' && !channel.connected) {
                               setShowWhatsAppConfig(true);
-                            } else if (channel.id === 'instagram' && !channel.connected) {
-                              setShowInstagramConfig(true);
-                            } else if (channel.id === 'facebook' && !channel.connected) {
-                              setShowMessengerConfig(true);
-                            } else if (channel.id === 'email' && !channel.connected) {
-                              setShowEmailConfig(true);
-                            } else if (channel.id === 'voicebot' && !channel.connected) {
-                              setShowVoiceBotConfig(true);
                             } else {
                               handleChannelToggle(channel.id);
                             }
@@ -556,14 +390,6 @@ export default function Settings() {
                               setShowSMSConfig(true);
                             } else if (channel.id === 'whatsapp') {
                               setShowWhatsAppConfig(true);
-                            } else if (channel.id === 'instagram') {
-                              setShowInstagramConfig(true);
-                            } else if (channel.id === 'facebook') {
-                              setShowMessengerConfig(true);
-                            } else if (channel.id === 'email') {
-                              setShowEmailConfig(true);
-                            } else if (channel.id === 'voicebot') {
-                              setShowVoiceBotConfig(true);
                             } else {
                               toast({
                                 title: 'Configure ' + channel.name,

@@ -76,7 +76,7 @@ router.get('/super-admin', authenticate, async (req, res) => {
             GROUP BY channel
         `);
 
-        const allChannels = ['whatsapp', 'sms', 'email', 'rcs', 'instagram', 'facebook'];
+        const allChannels = ['whatsapp', 'sms', 'rcs'];
 
         // Calculate total volume across ALL channels found in DB (even if not in our list)
         // This ensures the percentage is accurate relative to total traffic
@@ -190,11 +190,7 @@ router.get('/stats', authenticate, async (req, res) => {
             channelDistribution: {
                 whatsapp: channels.includes('whatsapp') ? 1 : 0,
                 sms: channels.includes('sms') ? 1 : 0,
-                email: channels.includes('email') ? 1 : 0,
-                instagram: 0,
-                facebook: 0,
-                rcs: 0,
-                voicebot: 0
+                rcs: channels.includes('rcs') ? 1 : 0
             }
         };
 

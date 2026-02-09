@@ -46,10 +46,7 @@ const categoryFilters = [
 
 const channelFilters = [
   { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-  { id: 'email', label: 'Email', icon: Mail },
   { id: 'sms', label: 'SMS', icon: Phone },
-  { id: 'instagram', label: 'Instagram', icon: Instagram },
-  { id: 'web', label: 'Web Widget', icon: Globe },
 ];
 
 export default function Contacts() {
@@ -316,10 +313,8 @@ export default function Contacts() {
   const getChannelIcon = (channel: string) => {
     switch (channel) {
       case 'whatsapp': return <MessageSquare className="h-4 w-4 text-green-500" />;
-      case 'email': return <Mail className="h-4 w-4 text-blue-500" />;
       case 'sms': return <Phone className="h-4 w-4 text-purple-500" />;
-      case 'instagram': return <Instagram className="h-4 w-4 text-pink-500" />;
-      default: return <Globe className="h-4 w-4 text-gray-500" />;
+      default: return <MessageSquare className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -551,9 +546,7 @@ export default function Contacts() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                            <SelectItem value="email">Email</SelectItem>
                             <SelectItem value="sms">SMS</SelectItem>
-                            <SelectItem value="instagram">Instagram</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

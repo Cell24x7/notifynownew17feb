@@ -51,7 +51,7 @@ export interface Contact {
   lastMessageTime?: Date;
 }
 
-export type Channel = 'whatsapp' | 'sms' | 'rcs' | 'instagram' | 'facebook' | 'email' | 'voicebot';
+export type Channel = 'whatsapp' | 'sms' | 'rcs';
 
 export interface Message {
   id: string;
@@ -120,16 +120,7 @@ export const mockUsers: User[] = [
 export const mockContacts: Contact[] = [
   { id: '1', name: 'Alice Brown', phone: '+1234567890', email: 'alice@gmail.com', channel: 'whatsapp', tags: ['VIP', 'Premium'], segment: 'VIP Customers', city: 'Mumbai', createdAt: new Date(Date.now() - 2592000000), lastMessage: 'Thanks for your help!', lastMessageTime: new Date() },
   { id: '2', name: 'Bob Martinez', phone: '+1987654321', email: 'bob@yahoo.com', channel: 'sms', tags: ['New'], segment: 'New Customers', city: 'Delhi', createdAt: new Date(Date.now() - 604800000), lastMessage: 'When will my order arrive?', lastMessageTime: new Date(Date.now() - 3600000) },
-  { id: '3', name: 'Carol White', phone: '+1555666777', email: 'carol@outlook.com', channel: 'instagram', tags: ['Returning'], segment: 'All Customers', city: 'Bangalore', createdAt: new Date(Date.now() - 5184000000), lastMessage: 'Love your products!', lastMessageTime: new Date(Date.now() - 7200000) },
-  { id: '4', name: 'David Lee', phone: '+1444555666', email: 'david@gmail.com', channel: 'facebook', tags: ['Support'], segment: 'Inactive Customers', city: 'Chennai', createdAt: new Date(Date.now() - 7776000000), lastMessage: 'Need help with returns', lastMessageTime: new Date(Date.now() - 86400000) },
-  { id: '5', name: 'Eva Garcia', phone: '+1333444555', email: 'eva@company.com', channel: 'rcs', tags: ['Enterprise'], segment: 'VIP Customers', city: 'Hyderabad', createdAt: new Date(Date.now() - 1296000000), lastMessage: 'Can we schedule a call?', lastMessageTime: new Date(Date.now() - 172800000) },
-  { id: '6', name: 'Frank Wilson', phone: '+1222333444', email: 'frank@gmail.com', channel: 'whatsapp', tags: ['Premium'], segment: 'All Customers', city: 'Pune', createdAt: new Date(Date.now() - 3888000000), lastMessage: 'Great service!', lastMessageTime: new Date(Date.now() - 259200000) },
-  { id: '7', name: 'Grace Kim', phone: '+1111222333', email: 'grace@yahoo.com', channel: 'email', tags: ['Newsletter'], segment: 'Newsletter Subscribers', city: 'Kolkata', createdAt: new Date(Date.now() - 6480000000), lastMessage: 'Subscribed to newsletter', lastMessageTime: new Date(Date.now() - 345600000) },
-  { id: '8', name: 'Henry Chen', phone: '+1999888777', email: 'henry@outlook.com', channel: 'whatsapp', tags: ['VIP'], segment: 'VIP Customers', city: 'Ahmedabad', createdAt: new Date(Date.now() - 864000000), lastMessage: 'Interested in bulk order', lastMessageTime: new Date(Date.now() - 432000000) },
-  { id: '9', name: 'Irene Patel', phone: '+1888777666', email: 'irene@gmail.com', channel: 'sms', tags: ['New', 'Mobile'], segment: 'New Customers', city: 'Jaipur', createdAt: new Date(Date.now() - 172800000), lastMessage: 'Just signed up!', lastMessageTime: new Date(Date.now() - 518400000) },
-  { id: '10', name: 'Jack Murphy', phone: '+1777666555', email: 'jack@company.com', channel: 'rcs', tags: ['Enterprise', 'B2B'], segment: 'Cart Abandoners', city: 'Lucknow', createdAt: new Date(Date.now() - 4320000000), lastMessage: 'Left items in cart', lastMessageTime: new Date(Date.now() - 604800000) },
-  { id: '11', name: 'Karen Singh', phone: '+1666555444', email: 'karen@gmail.com', channel: 'whatsapp', tags: ['Premium'], segment: 'All Customers', city: 'Chandigarh', createdAt: new Date(Date.now() - 2160000000), lastMessage: 'Product inquiry', lastMessageTime: new Date(Date.now() - 691200000) },
-  { id: '12', name: 'Leo Thompson', phone: '+1555444333', email: 'leo@yahoo.com', channel: 'instagram', tags: ['Influencer'], segment: 'Newsletter Subscribers', city: 'Indore', createdAt: new Date(Date.now() - 1728000000), lastMessage: 'Collaboration request', lastMessageTime: new Date(Date.now() - 777600000) },
+  { id: '3', name: 'Charlie Davis', phone: '+1122334455', email: 'charlie@gmail.com', channel: 'rcs', tags: ['Regular'], segment: 'Returning Customers', city: 'Bangalore', createdAt: new Date(Date.now() - 1209600000), lastMessage: 'Is this item in stock?', lastMessageTime: new Date(Date.now() - 7200000) },
 ];
 
 // Mock Messages
@@ -146,9 +137,7 @@ export const mockMessages: Message[] = [
 export const mockConversations: Conversation[] = [
   { id: '1', contact: mockContacts[0], messages: mockMessages, status: 'open', assignedAgent: mockUsers[2], channel: 'whatsapp', createdAt: new Date(Date.now() - 3600000), updatedAt: new Date() },
   { id: '2', contact: mockContacts[1], messages: mockMessages.slice(0, 3), status: 'pending', channel: 'sms', createdAt: new Date(Date.now() - 7200000), updatedAt: new Date(Date.now() - 3600000) },
-  { id: '3', contact: mockContacts[2], messages: mockMessages.slice(0, 2), status: 'open', assignedAgent: mockUsers[3], channel: 'instagram', createdAt: new Date(Date.now() - 86400000), updatedAt: new Date(Date.now() - 7200000) },
-  { id: '4', contact: mockContacts[3], messages: mockMessages.slice(0, 4), status: 'closed', assignedAgent: mockUsers[2], channel: 'facebook', createdAt: new Date(Date.now() - 172800000), updatedAt: new Date(Date.now() - 86400000) },
-  { id: '5', contact: mockContacts[4], messages: mockMessages.slice(0, 1), status: 'pending', channel: 'rcs', createdAt: new Date(Date.now() - 259200000), updatedAt: new Date(Date.now() - 172800000) },
+  { id: '3', contact: mockContacts[2], messages: mockMessages.slice(0, 1), status: 'pending', channel: 'rcs', createdAt: new Date(Date.now() - 259200000), updatedAt: new Date(Date.now() - 172800000) },
 ];
 
 // Mock Campaigns
@@ -157,7 +146,7 @@ export const mockCampaigns: Campaign[] = [
   { id: '2', name: 'New Year Greetings', channel: 'sms', status: 'scheduled', template: 'holiday_greeting', audience: 3000, sent: 0, delivered: 0, failed: 0, cost: 750.00, scheduledAt: new Date(Date.now() + 604800000), createdAt: new Date(Date.now() - 86400000) },
   { id: '3', name: 'Product Launch', channel: 'rcs', status: 'running', template: 'product_announcement', audience: 2000, sent: 1200, delivered: 1150, failed: 50, cost: 600.00, createdAt: new Date(Date.now() - 172800000) },
   { id: '4', name: 'Flash Sale Alert', channel: 'whatsapp', status: 'draft', template: 'flash_sale', audience: 0, sent: 0, delivered: 0, failed: 0, cost: 0, createdAt: new Date() },
-  { id: '5', name: 'Customer Survey', channel: 'instagram', status: 'paused', template: 'survey_request', audience: 1500, sent: 750, delivered: 720, failed: 30, cost: 300.00, createdAt: new Date(Date.now() - 604800000) },
+
 ];
 
 // Mock Automations
@@ -221,7 +210,7 @@ export const mockQuickReplies = [
 ];
 
 // Template channels (6 channels for templates)
-export type TemplateChannel = 'whatsapp' | 'sms' | 'rcs' | 'email' | 'instagram' | 'facebook' | 'voicebot';
+export type TemplateChannel = 'whatsapp' | 'sms' | 'rcs';
 
 // Template header types
 export type HeaderType = 'none' | 'text' | 'image' | 'video' | 'document';
@@ -543,8 +532,6 @@ export const dashboardStats = {
   channelDistribution: {
     whatsapp: 45,
     sms: 25,
-    instagram: 15,
-    facebook: 10,
     rcs: 5,
   },
   weeklyChats: [
@@ -633,80 +620,7 @@ export const channelAnalytics = {
       { intent: 'Reminders', count: 2500, percentage: 8.8 },
     ],
   },
-  instagram: {
-    name: 'Instagram',
-    totalMessages: 15680,
-    delivered: 15420,
-    read: 14890,
-    responded: 11240,
-    avgResponseTime: '8m 45s',
-    satisfaction: 4.5,
-    botHandled: 5600,
-    humanHandled: 5640,
-    weeklyTrend: [
-      { day: 'Mon', sent: 2120, received: 1890 },
-      { day: 'Tue', sent: 2350, received: 2140 },
-      { day: 'Wed', sent: 2180, received: 1920 },
-      { day: 'Thu', sent: 2520, received: 2280 },
-      { day: 'Fri', sent: 2480, received: 2180 },
-      { day: 'Sat', sent: 2020, received: 1820 },
-      { day: 'Sun', sent: 2010, received: 1890 },
-    ],
-    hourlyActivity: [
-      { hour: '00', count: 180 }, { hour: '01', count: 120 }, { hour: '02', count: 65 },
-      { hour: '03', count: 40 }, { hour: '04', count: 25 }, { hour: '05', count: 35 },
-      { hour: '06', count: 80 }, { hour: '07', count: 150 }, { hour: '08', count: 280 },
-      { hour: '09', count: 420 }, { hour: '10', count: 520 }, { hour: '11', count: 580 },
-      { hour: '12', count: 650 }, { hour: '13', count: 720 }, { hour: '14', count: 680 },
-      { hour: '15', count: 620 }, { hour: '16', count: 580 }, { hour: '17', count: 650 },
-      { hour: '18', count: 780 }, { hour: '19', count: 850 }, { hour: '20', count: 920 },
-      { hour: '21', count: 780 }, { hour: '22', count: 520 }, { hour: '23', count: 320 },
-    ],
-    topIntents: [
-      { intent: 'Product Inquiry', count: 5890, percentage: 37.6 },
-      { intent: 'Collaboration', count: 3240, percentage: 20.7 },
-      { intent: 'Order Help', count: 2980, percentage: 19.0 },
-      { intent: 'Complaints', count: 1890, percentage: 12.1 },
-      { intent: 'General', count: 1680, percentage: 10.7 },
-    ],
-  },
-  facebook: {
-    name: 'Messenger',
-    totalMessages: 12450,
-    delivered: 12280,
-    read: 11560,
-    responded: 9870,
-    avgResponseTime: '6m 20s',
-    satisfaction: 4.4,
-    botHandled: 4920,
-    humanHandled: 4950,
-    weeklyTrend: [
-      { day: 'Mon', sent: 1720, received: 1490 },
-      { day: 'Tue', sent: 1850, received: 1640 },
-      { day: 'Wed', sent: 1780, received: 1520 },
-      { day: 'Thu', sent: 1920, received: 1780 },
-      { day: 'Fri', sent: 1880, received: 1680 },
-      { day: 'Sat', sent: 1620, received: 1420 },
-      { day: 'Sun', sent: 1680, received: 1520 },
-    ],
-    hourlyActivity: [
-      { hour: '00', count: 150 }, { hour: '01', count: 95 }, { hour: '02', count: 55 },
-      { hour: '03', count: 35 }, { hour: '04', count: 22 }, { hour: '05', count: 30 },
-      { hour: '06', count: 70 }, { hour: '07', count: 140 }, { hour: '08', count: 260 },
-      { hour: '09', count: 380 }, { hour: '10', count: 480 }, { hour: '11', count: 520 },
-      { hour: '12', count: 480 }, { hour: '13', count: 540 }, { hour: '14', count: 560 },
-      { hour: '15', count: 520 }, { hour: '16', count: 480 }, { hour: '17', count: 520 },
-      { hour: '18', count: 580 }, { hour: '19', count: 620 }, { hour: '20', count: 680 },
-      { hour: '21', count: 580 }, { hour: '22', count: 420 }, { hour: '23', count: 280 },
-    ],
-    topIntents: [
-      { intent: 'Customer Support', count: 4520, percentage: 36.3 },
-      { intent: 'Product Info', count: 3280, percentage: 26.4 },
-      { intent: 'Order Status', count: 2450, percentage: 19.7 },
-      { intent: 'Returns', count: 1320, percentage: 10.6 },
-      { intent: 'Feedback', count: 880, percentage: 7.1 },
-    ],
-  },
+
   rcs: {
     name: 'RCS',
     totalMessages: 5890,
@@ -743,109 +657,33 @@ export const channelAnalytics = {
       { intent: 'Payments', count: 1030, percentage: 17.5 },
     ],
   },
-  email: {
-    name: 'Email',
-    totalMessages: 8920,
-    delivered: 8750,
-    read: 4890,
-    responded: 2450,
-    avgResponseTime: '2h 15m',
-    satisfaction: 4.3,
-    botHandled: 980,
-    humanHandled: 1470,
-    weeklyTrend: [
-      { day: 'Mon', sent: 1420, received: 520 },
-      { day: 'Tue', sent: 1380, received: 480 },
-      { day: 'Wed', sent: 1350, received: 460 },
-      { day: 'Thu', sent: 1290, received: 420 },
-      { day: 'Fri', sent: 1250, received: 380 },
-      { day: 'Sat', sent: 1120, received: 110 },
-      { day: 'Sun', sent: 1110, received: 80 },
-    ],
-    hourlyActivity: [
-      { hour: '00', count: 25 }, { hour: '01', count: 18 }, { hour: '02', count: 12 },
-      { hour: '03', count: 8 }, { hour: '04', count: 5 }, { hour: '05', count: 10 },
-      { hour: '06', count: 35 }, { hour: '07', count: 85 }, { hour: '08', count: 180 },
-      { hour: '09', count: 320 }, { hour: '10', count: 420 }, { hour: '11', count: 480 },
-      { hour: '12', count: 380 }, { hour: '13', count: 450 }, { hour: '14', count: 490 },
-      { hour: '15', count: 460 }, { hour: '16', count: 420 }, { hour: '17', count: 350 },
-      { hour: '18', count: 180 }, { hour: '19', count: 120 }, { hour: '20', count: 85 },
-      { hour: '21', count: 65 }, { hour: '22', count: 45 }, { hour: '23', count: 30 },
-    ],
-    topIntents: [
-      { intent: 'Support Tickets', count: 3890, percentage: 43.6 },
-      { intent: 'Order Inquiries', count: 2450, percentage: 27.5 },
-      { intent: 'Feedback', count: 1580, percentage: 17.7 },
-      { intent: 'General', count: 1000, percentage: 11.2 },
-    ],
-  },
-  voicebot: {
-    name: 'Voice Bot',
-    totalMessages: 3450,
-    delivered: 3380,
-    read: 3380,
-    responded: 2890,
-    avgResponseTime: '15s',
-    satisfaction: 4.1,
-    botHandled: 2450,
-    humanHandled: 440,
-    weeklyTrend: [
-      { day: 'Mon', sent: 520, received: 480 },
-      { day: 'Tue', sent: 550, received: 510 },
-      { day: 'Wed', sent: 490, received: 450 },
-      { day: 'Thu', sent: 560, received: 520 },
-      { day: 'Fri', sent: 530, received: 490 },
-      { day: 'Sat', sent: 420, received: 380 },
-      { day: 'Sun', sent: 380, received: 340 },
-    ],
-    hourlyActivity: [
-      { hour: '00', count: 15 }, { hour: '01', count: 8 }, { hour: '02', count: 5 },
-      { hour: '03', count: 3 }, { hour: '04', count: 2 }, { hour: '05', count: 8 },
-      { hour: '06', count: 35 }, { hour: '07', count: 85 }, { hour: '08', count: 150 },
-      { hour: '09', count: 220 }, { hour: '10', count: 280 }, { hour: '11', count: 310 },
-      { hour: '12', count: 260 }, { hour: '13', count: 290 }, { hour: '14', count: 300 },
-      { hour: '15', count: 280 }, { hour: '16', count: 260 }, { hour: '17', count: 230 },
-      { hour: '18', count: 180 }, { hour: '19', count: 150 }, { hour: '20', count: 120 },
-      { hour: '21', count: 95 }, { hour: '22', count: 65 }, { hour: '23', count: 35 },
-    ],
-    topIntents: [
-      { intent: 'IVR Navigation', count: 1280, percentage: 37.1 },
-      { intent: 'Order Status', count: 890, percentage: 25.8 },
-      { intent: 'Support Transfer', count: 720, percentage: 20.9 },
-      { intent: 'Appointment', count: 560, percentage: 16.2 },
-    ],
-  },
 };
 
 // Customer Satisfaction Trends
 export const satisfactionTrends = [
-  { month: 'Jan', whatsapp: 4.5, sms: 4.0, instagram: 4.3, facebook: 4.2, rcs: 4.4, email: 4.1 },
-  { month: 'Feb', whatsapp: 4.6, sms: 4.1, instagram: 4.4, facebook: 4.3, rcs: 4.5, email: 4.2 },
-  { month: 'Mar', whatsapp: 4.5, sms: 4.2, instagram: 4.5, facebook: 4.3, rcs: 4.4, email: 4.1 },
-  { month: 'Apr', whatsapp: 4.7, sms: 4.1, instagram: 4.4, facebook: 4.4, rcs: 4.6, email: 4.3 },
-  { month: 'May', whatsapp: 4.8, sms: 4.2, instagram: 4.6, facebook: 4.5, rcs: 4.5, email: 4.2 },
-  { month: 'Jun', whatsapp: 4.7, sms: 4.2, instagram: 4.5, facebook: 4.4, rcs: 4.6, email: 4.3 },
+  { month: 'Jan', whatsapp: 4.5, sms: 4.0, rcs: 4.4 },
+  { month: 'Feb', whatsapp: 4.6, sms: 4.1, rcs: 4.5 },
+  { month: 'Mar', whatsapp: 4.5, sms: 4.2, rcs: 4.4 },
+  { month: 'Apr', whatsapp: 4.7, sms: 4.1, rcs: 4.6 },
+  { month: 'May', whatsapp: 4.8, sms: 4.2, rcs: 4.5 },
+  { month: 'Jun', whatsapp: 4.7, sms: 4.2, rcs: 4.6 },
 ];
 
 // Response Time Trends
 export const responseTimeTrends = [
-  { month: 'Jan', whatsapp: 3.2, sms: 6.5, instagram: 10.2, facebook: 7.8, rcs: 4.1, email: 145 },
-  { month: 'Feb', whatsapp: 2.9, sms: 6.2, instagram: 9.8, facebook: 7.5, rcs: 3.8, email: 138 },
-  { month: 'Mar', whatsapp: 2.7, sms: 5.9, instagram: 9.2, facebook: 7.1, rcs: 3.5, email: 132 },
-  { month: 'Apr', whatsapp: 2.5, sms: 5.7, instagram: 8.9, facebook: 6.8, rcs: 3.3, email: 128 },
-  { month: 'May', whatsapp: 2.3, sms: 5.5, instagram: 8.6, facebook: 6.5, rcs: 3.2, email: 125 },
-  { month: 'Jun', whatsapp: 2.2, sms: 5.3, instagram: 8.4, facebook: 6.2, rcs: 3.1, email: 120 },
+  { month: 'Jan', whatsapp: 3.2, sms: 6.5, rcs: 4.1 },
+  { month: 'Feb', whatsapp: 2.9, sms: 6.2, rcs: 3.8 },
+  { month: 'Mar', whatsapp: 2.7, sms: 5.9, rcs: 3.5 },
+  { month: 'Apr', whatsapp: 2.5, sms: 5.7, rcs: 3.3 },
+  { month: 'May', whatsapp: 2.3, sms: 5.5, rcs: 3.2 },
+  { month: 'Jun', whatsapp: 2.2, sms: 5.3, rcs: 3.1 },
 ];
 
 // Bot vs Human Resolution
 export const botVsHumanResolution = [
   { channel: 'WhatsApp', bot: 58, human: 42 },
   { channel: 'SMS', bot: 71, human: 29 },
-  { channel: 'Instagram', bot: 50, human: 50 },
-  { channel: 'Messenger', bot: 50, human: 50 },
   { channel: 'RCS', bot: 50, human: 50 },
-  { channel: 'Email', bot: 40, human: 60 },
-  { channel: 'Voice', bot: 85, human: 15 },
 ];
 
 // Conversation Volume by Hour (Heatmap data)

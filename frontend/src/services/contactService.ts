@@ -15,7 +15,7 @@ export interface Contact {
     phone: string;
     email?: string;
     category: 'guest' | 'lead' | 'customer' | 'vip';
-    channel: 'whatsapp' | 'email' | 'sms' | 'instagram' | 'web';
+    channel: 'whatsapp' | 'sms';
     labels: string;
     starred: boolean;
     status: 'active' | 'inactive' | 'blocked' | 'pending';

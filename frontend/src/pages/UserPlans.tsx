@@ -163,7 +163,7 @@ export default function UserPlans() {
                     {plan.channelsAllowed.length === 0 ? (
                       <span className="text-muted-foreground text-xs">None</span>
                     ) : (
-                      plan.channelsAllowed.map((channel) => (
+                      plan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs'].includes(c)).map((channel) => (
                         <div
                           key={channel}
                           className="flex items-center gap-1 bg-muted px-2 py-1 rounded-full text-xs"
@@ -248,7 +248,7 @@ export default function UserPlans() {
                   {selectedPlan.channelsAllowed.length === 0 ? (
                     <span className="text-muted-foreground text-sm">None</span>
                   ) : (
-                    selectedPlan.channelsAllowed.map((ch) => (
+                    selectedPlan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs'].includes(c)).map((ch) => (
                       <div
                         key={ch}
                         className="flex items-center gap-1 bg-muted px-3 py-1.5 rounded-full text-sm"

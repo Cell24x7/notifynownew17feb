@@ -9,7 +9,7 @@ export interface Client {
   planName: string;
   creditsUsed: number;
   creditsAvailable: number;
-  channelsEnabled: ('whatsapp' | 'rcs' | 'sms' | 'email' | 'instagram' | 'facebook')[];
+  channelsEnabled: ('whatsapp' | 'rcs' | 'sms')[];
   status: 'active' | 'suspended' | 'pending' | 'trial';
   createdAt: string;
   contactEmail: string;
@@ -88,7 +88,7 @@ export interface GlobalChat {
   clientName: string;
   customerName: string;
   customerPhone: string;
-  channel: 'whatsapp' | 'rcs' | 'sms' | 'email' | 'instagram' | 'facebook';
+  channel: 'whatsapp' | 'rcs' | 'sms';
   status: 'open' | 'closed' | 'pending';
   lastMessage: string;
   automationTriggered: boolean;
@@ -135,7 +135,7 @@ export const mockClients: Client[] = [
     planName: 'Enterprise',
     creditsUsed: 45000,
     creditsAvailable: 55000,
-    channelsEnabled: ['whatsapp', 'rcs', 'sms', 'email'],
+    channelsEnabled: ['whatsapp', 'rcs', 'sms'],
     status: 'active',
     createdAt: '2024-01-15',
     contactEmail: 'admin@techcorp.com',
@@ -152,7 +152,7 @@ export const mockClients: Client[] = [
     planName: 'Professional',
     creditsUsed: 18000,
     creditsAvailable: 12000,
-    channelsEnabled: ['whatsapp', 'sms', 'email'],
+    channelsEnabled: ['whatsapp', 'sms'],
     status: 'active',
     createdAt: '2024-02-20',
     contactEmail: 'support@retailmax.io',
@@ -203,7 +203,7 @@ export const mockClients: Client[] = [
     planName: 'Professional',
     creditsUsed: 22000,
     creditsAvailable: 8000,
-    channelsEnabled: ['whatsapp', 'rcs', 'instagram'],
+    channelsEnabled: ['whatsapp', 'rcs'],
     status: 'active',
     createdAt: '2024-04-15',
     contactEmail: 'marketing@foodiedelight.com',
@@ -220,7 +220,7 @@ export const mockClients: Client[] = [
     planName: 'Enterprise',
     creditsUsed: 67000,
     creditsAvailable: 33000,
-    channelsEnabled: ['whatsapp', 'rcs', 'sms', 'email', 'facebook'],
+    channelsEnabled: ['whatsapp', 'rcs', 'sms'],
     status: 'active',
     createdAt: '2024-01-05',
     contactEmail: 'digital@autodrive.com',
@@ -266,7 +266,7 @@ export const mockPlans: Plan[] = [
     name: 'Professional',
     price: 149,
     monthlyCredits: 30000,
-    channelsAllowed: ['whatsapp', 'rcs', 'sms', 'email', 'instagram'],
+    channelsAllowed: ['whatsapp', 'rcs', 'sms'],
     automationLimit: 25,
     campaignLimit: 50,
     apiAccess: true,
@@ -278,7 +278,7 @@ export const mockPlans: Plan[] = [
     name: 'Enterprise',
     price: 499,
     monthlyCredits: 100000,
-    channelsAllowed: ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook'],
+    channelsAllowed: ['whatsapp', 'rcs', 'sms'],
     automationLimit: -1, // unlimited
     campaignLimit: -1, // unlimited
     apiAccess: true,
@@ -547,7 +547,7 @@ export const mockGlobalChats: GlobalChat[] = [
     clientName: 'FoodieDelight',
     customerName: 'Carol Davis',
     customerPhone: '+1234567003',
-    channel: 'instagram',
+    channel: 'whatsapp',
     status: 'pending',
     lastMessage: 'Can you recommend something vegetarian?',
     automationTriggered: true,
@@ -666,9 +666,6 @@ export const superAdminDashboardStats = {
     { channel: 'WhatsApp', messages: 1450000, percentage: 59 },
     { channel: 'SMS', messages: 520000, percentage: 21 },
     { channel: 'RCS', messages: 245000, percentage: 10 },
-    { channel: 'Email', messages: 180000, percentage: 7 },
-    { channel: 'Instagram', messages: 45000, percentage: 2 },
-    { channel: 'Facebook', messages: 16000, percentage: 1 },
   ],
   creditsByPlan: [
     { plan: 'Starter', credits: 225000 },

@@ -34,7 +34,9 @@ export default function SuperAdminTemplates() {
     try {
       // Use admin endpoint to get ALL templates from ALL users
       const data = await templateService.getAdminTemplates();
-      setTemplates(data);
+      // Filter out templates with unsupported channels
+      const supportedChannels = ['whatsapp', 'sms', 'rcs'];
+      setTemplates(data.filter((t: any) => supportedChannels.includes(t.channel)));
     } catch (err) {
       console.error('Error fetching templates:', err);
       toast({

@@ -19,7 +19,7 @@ import { API_BASE_URL } from '@/config/api';
 
 const API_URL = `${API_BASE_URL}/api`;
 
-const allChannels = ['whatsapp', 'rcs', 'sms', 'email', 'instagram', 'facebook', 'voicebot'] as const;
+const allChannels = ['whatsapp', 'rcs', 'sms'] as const;
 
 const plans = [
   { id: 'basic', name: 'Basic', price: 99 },
@@ -497,16 +497,19 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
-                        {parseChannels(client.channels_enabled).slice(0, 4).map((ch: any) => (
+                        {parseChannels(client.channels_enabled)
+                          .filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch))
+                          .slice(0, 4)
+                          .map((ch: any) => (
                           <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
                               <div className="bg-background rounded-full p-0.5 shadow-sm border">
                                 <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
                               </div>
                           </div>
                         ))}
-                        {parseChannels(client.channels_enabled).length > 4 && (
+                        {parseChannels(client.channels_enabled).filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch)).length > 4 && (
                           <div className="bg-muted text-[10px] h-6 w-6 rounded-full border flex items-center justify-center relative z-0">
-                            +{parseChannels(client.channels_enabled).length - 4}
+                            +{parseChannels(client.channels_enabled).filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch)).length - 4}
                           </div>
                         )}
                       </div>

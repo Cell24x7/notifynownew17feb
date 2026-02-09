@@ -66,7 +66,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
         if (enabledChannels.length === 0) {
             console.warn(`User ${userId} has no channels enabled. Defaulting to all channels for compatibility.`);
-            enabledChannels = ['whatsapp', 'sms', 'email', 'rcs', 'voicebot', 'instagram', 'facebook'];
+            enabledChannels = ['whatsapp', 'sms', 'rcs'];
             // return res.status(403).json({
             //     success: false,
             //     message: 'No channels are enabled for your account. Please contact admin or enable channels in Settings.'

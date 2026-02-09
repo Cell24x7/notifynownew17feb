@@ -126,8 +126,7 @@ export default function SuperAdminCampaigns() {
                 <SelectItem value="whatsapp">📱 WhatsApp</SelectItem>
                 <SelectItem value="sms">📲 SMS</SelectItem>
                 <SelectItem value="rcs">💬 RCS</SelectItem>
-                <SelectItem value="instagram">📸 Instagram</SelectItem>
-                <SelectItem value="facebook">👥 Facebook</SelectItem>
+                <SelectItem value="rcs">💬 RCS</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
