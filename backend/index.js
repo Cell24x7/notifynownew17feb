@@ -14,31 +14,17 @@ app.use(express.json({ limit: '10mb' })); // Increase limit if you handle large 
 app.use(express.urlencoded({ extended: true }));
 
 // CORS - allow only trusted origins
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://localhost:8080',
+  'https://project1.pingchannel.com',
+  'https://www.project1.pingchannel.com',
+  'https://api1.pingchannel.com'
+];
+
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:5173', // Vite local dev
-      'http://localhost:5000', // Backend local
-      'http://localhost:8080', // Frontend local (alternative port)
-      'https://project.pingchannel.com', // Production Frontend
-      'https://api.pingchannel.com' // Production Backend (self)
-    ];
-
-    // Log origin for debugging (check cPanel logs if issues persist)
-    // console.log('Request Origin:', origin);
-
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.indexOf(origin) === -1) {
-      // DEBUG: Temporarily allow blocked origins to see if it fixes the issue
-      // console.log('BLOCKED ORIGIN:', origin);
-      // return callback(new Error('CORS Policy Error'), false); 
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
