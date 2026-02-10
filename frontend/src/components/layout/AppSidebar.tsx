@@ -51,7 +51,12 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   // Permissions check
   // Default to true if no permissions found to avoid locking out users during transition
   const hasPermission = (feature: string) => {
-    if (!user?.permissions) return true; // Forward compatibility
+    // Super Admin / Account Owner always has full access
+    if (user?.role === 'admin' || user?.role === 'superadmin') return true;
+
+    // Safety check: ensure permissions is an array
+    if (!user?.permissions || !Array.isArray(user.permissions)) return false;
+    
     // In db, permissions is array of objects: { feature: "Chat - View", admin: true, ... }
     // We check the 'admin' column for now as the user is the account admin
     // User role in DB is 'user' or 'admin' (platform admin). 
@@ -60,8 +65,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     // Find permission object for the feature
     // Feature names in DB: "Chat - View", "Campaign - View", etc.
     const perm = user.permissions.find((p: any) => p.feature === feature);
-    if (!perm) return true; // If feature not in list, default allow? Or strict deny? 
-                            // Default allow is safer for now.
+    if (!perm) return false; // Strict: if feature not found, deny
     
     // Check 'admin' column (since logged in user is the Account Admin)
     return perm.admin === true || perm.admin === 1; 
@@ -70,11 +74,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: true },
     { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
-    { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Users - View') },
-    { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaign - View') },
-    { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automation - View') },
-    { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integration - View') },
-    { icon: Package, label: 'User Plans', path: '/user-plans', show: true }, // Usually always visible or Settings
+    { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
+    { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
+    { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
+    { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
+    { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
 

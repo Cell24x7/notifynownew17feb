@@ -9,32 +9,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plan } from '@/types/plan';
-import { Permission, PlanPermissions } from '@/types/permissions';
+import { Permission, PlanPermissions, USER_PERMISSIONS, RESELLER_PERMISSIONS } from '@/types/permissions';
 import { API_BASE_URL } from '@/config/api';
-
-// Default permissions structure if none exists
-const defaultPermissions: Permission[] = [
-  { feature: 'Chat - View', admin: true, manager: true, agent: true },
-  { feature: 'Chat - Reply', admin: true, manager: true, agent: true },
-  { feature: 'Chat - Assign', admin: true, manager: true, agent: false },
-  { feature: 'Chat - Close', admin: true, manager: true, agent: true },
-  { feature: 'Campaign - View', admin: true, manager: true, agent: false },
-  { feature: 'Campaign - Create', admin: true, manager: true, agent: false },
-  { feature: 'Campaign - Edit', admin: true, manager: false, agent: false },
-  { feature: 'Campaign - Delete', admin: true, manager: false, agent: false },
-  { feature: 'Automation - View', admin: true, manager: true, agent: false },
-  { feature: 'Automation - Create', admin: true, manager: false, agent: false },
-  { feature: 'Automation - Edit', admin: true, manager: false, agent: false },
-  { feature: 'Automation - Delete', admin: true, manager: false, agent: false },
-  { feature: 'Integration - View', admin: true, manager: true, agent: false },
-  { feature: 'Integration - Manage', admin: true, manager: false, agent: false },
-  { feature: 'Reports - View', admin: true, manager: true, agent: true },
-  { feature: 'Reports - Export', admin: true, manager: true, agent: false },
-  { feature: 'Settings - View', admin: true, manager: false, agent: false },
-  { feature: 'Settings - Edit', admin: true, manager: false, agent: false },
-  { feature: 'Users - View', admin: true, manager: true, agent: false },
-  { feature: 'Users - Manage', admin: true, manager: false, agent: false },
-];
 
 export default function SuperAdminRoles() {
   const { toast } = useToast();
@@ -47,7 +23,7 @@ export default function SuperAdminRoles() {
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
 
   // Permissions State
-  const [permissions, setPermissions] = useState<Permission[]>(defaultPermissions);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -76,6 +52,7 @@ export default function SuperAdminRoles() {
   useEffect(() => {
     if (!selectedRoleType) {
       setEntities([]);
+      setPermissions([]); // Clear permissions if no role type selected
       return;
     }
 
@@ -86,20 +63,11 @@ export default function SuperAdminRoles() {
         const data = await res.json();
         
         if (selectedRoleType === 'user') {
-           // Filter users by selected plan if a plan is selected
-           // User request: "plan ke databasese mujhe secloet plan ka dropdown mile... and secon dropdown me selcect role user ya reseller"
-           // "agar user ma iselsect kiya hu 2 me do mujhe 3 me user ke name emaild id and plan and chanel name show karega"
-           // This implies users might be filtered by the selected plan? Or just list all?
-           // I'll list all for flexibility, or filter if requested. Let's filter by plan if possible to make sense of "Plan -> Role -> User" hierarchy logic. 
-           // But user said "Plan dropdown... Role dropdown... User dropdown". 
-           // If I select Plan A, should I only see users on Plan A? That makes sense.
            const users = data.clients || [];
            const filtered = selectedPlanId ? users.filter((u: any) => u.plan_id === selectedPlanId) : users;
            setEntities(filtered);
         } else {
            const resellers = data.resellers || [];
-           // Filter resellers by selected plan if a plan is selected
-           // Handle both string/number ID mismatch safely
            const filtered = selectedPlanId 
              ? resellers.filter((r: any) => String(r.plan_id) === String(selectedPlanId)) 
              : resellers;
@@ -116,21 +84,39 @@ export default function SuperAdminRoles() {
 
   // Load Permissions when Plan or Entity changes
   useEffect(() => {
-    if (!selectedPlanId) return;
+    if (!selectedPlanId || !selectedRoleType) return;
+
+    // Determine the base set of permissions to ensure valid structure
+    const basePermissions = selectedRoleType === 'user' ? USER_PERMISSIONS : RESELLER_PERMISSIONS;
 
     const plan = plans.find(p => p.id === selectedPlanId);
     const entity = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : null;
 
+    let loadedPermissions: Permission[] = [];
+
     if (entity && entity.permissions && Array.isArray(entity.permissions) && entity.permissions.length > 0) {
       // Entity-specific permissions
-      setPermissions(entity.permissions);
+      loadedPermissions = entity.permissions;
     } else if (plan && plan.permissions && Array.isArray(plan.permissions) && plan.permissions.length > 0) {
       // Plan default permissions
-      setPermissions(plan.permissions);
+      // WARNING: Plan permissions might be mixed User/Reseller if not separated in backend. 
+      // Ideally plan permissions should match the target role.
+      // For now, let's use what's there, but fill in missing keys from basePermissions.
+      loadedPermissions = plan.permissions;
     } else {
-      setPermissions(defaultPermissions);
+      loadedPermissions = basePermissions;
     }
-  }, [selectedPlanId, selectedEntityId, plans, entities]);
+
+    // Merge loaded permissions with basePermissions to ensure all features are present
+    // This handles the case where new features are added to constants but not yet in DB
+    const mergedPermissions = basePermissions.map(basePerm => {
+        const existing = loadedPermissions.find(p => p.feature === basePerm.feature);
+        return existing || basePerm;
+    });
+
+    setPermissions(mergedPermissions);
+
+  }, [selectedPlanId, selectedEntityId, plans, entities, selectedRoleType]);
 
 
   const handleTogglePermission = (feature: string, role: 'admin' | 'manager' | 'agent') => {
@@ -219,15 +205,13 @@ export default function SuperAdminRoles() {
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
   const selectedEntity = entities.find(e => e.id === selectedEntityId);
 
-  const groupedPermissions = {
-    'Chat': permissions.filter(p => p.feature.startsWith('Chat')),
-    'Campaign': permissions.filter(p => p.feature.startsWith('Campaign')),
-    'Automation': permissions.filter(p => p.feature.startsWith('Automation')),
-    'Integration': permissions.filter(p => p.feature.startsWith('Integration')),
-    'Reports': permissions.filter(p => p.feature.startsWith('Reports')),
-    'Settings': permissions.filter(p => p.feature.startsWith('Settings')),
-    'Users': permissions.filter(p => p.feature.startsWith('Users')),
-  };
+  // Group Permissions by Feature Prefix (e.g., "Chat", "Campaign")
+  const groupedPermissions = permissions.reduce((acc, perm) => {
+    const group = perm.feature.split(' - ')[0];
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(perm);
+    return acc;
+  }, {} as Record<string, Permission[]>);
 
   return (
     <div className="p-6 space-y-6">

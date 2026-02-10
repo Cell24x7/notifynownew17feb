@@ -151,7 +151,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // Handle Password / User Account Update
-    if (password || name || email || status) {
+    if (password || name || email || status || permissions) {
       // Need to find which user corresponds to this reseller.
       // Usually checked by email. 
       // Note: If email is being changed, we need the OLD email to find the user, or we assume the frontend sends the *original* email if it hasn't changed.
@@ -187,11 +187,17 @@ router.put('/:id', async (req, res) => {
           if (status) { userFields.push('status = ?'); userValues.push(status); }
           if (plan_id) { userFields.push('plan_id = ?'); userValues.push(plan_id); }
 
+          // Sync Permissions to User Table
+          if (permissions !== undefined) {
+            userFields.push('permissions = ?');
+            userValues.push(JSON.stringify(permissions));
+          }
+
           if (userFields.length > 0) {
             const userSql = `UPDATE users SET ${userFields.join(', ')} WHERE email = ?`;
             userValues.push(oldEmail);
             await query(userSql, userValues);
-            console.log('Updated User account for Reseller');
+            console.log('Updated User account for Reseller (including permissions)');
           }
         } else {
           // CREATE New User (Backfill for existing reseller)

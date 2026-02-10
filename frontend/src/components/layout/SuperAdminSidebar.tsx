@@ -26,18 +26,18 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import logo from '@/assets/logo.svg';
 
 const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard' },
-  { icon: Building2, label: 'Clients', path: '/super-admin/clients' },
-  { icon: FileText, label: 'Templates', path: '/super-admin/templates' },
-  { icon: CreditCard, label: 'Plans', path: '/super-admin/plans' },
-  { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles' },
-  { icon: Users, label: 'Resellers', path: '/super-admin/resellers' },
-  { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates' },
-  { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet' },
-  { icon: ScrollText, label: 'Reports', path: '/super-admin/reports' },
-  { icon: Building2, label: 'Vendors', path: '/super-admin/vendors' },
-  { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers' },
-  { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard', permission: 'Dashboard - View' },
+  { icon: Building2, label: 'Clients', path: '/super-admin/clients', permission: 'Clients - View' },
+  { icon: FileText, label: 'Templates', path: '/super-admin/templates', permission: 'Templates - View' },
+  { icon: CreditCard, label: 'Plans', path: '/super-admin/plans', permission: 'Plans - View' },
+  { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
+  { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
+  { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
+  { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
+  { icon: ScrollText, label: 'Reports', path: '/super-admin/reports', permission: 'Reports - View' },
+  { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
+  { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
+  { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
 ];
 
 interface SuperAdminSidebarProps {
@@ -47,7 +47,20 @@ interface SuperAdminSidebarProps {
 export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  const hasPermission = (feature: string) => {
+      // Super Admin always has full access
+      if (user?.role === 'admin') return true;
+
+      // Safety check: ensure permissions is an array
+      if (!user?.permissions || !Array.isArray(user.permissions)) return false; 
+
+      const perm = user.permissions.find((p: any) => p.feature === feature);
+      if (!perm) return false; // Strict: if feature not found, deny
+      
+      return perm.admin === true || perm.admin === 1;
+  };
 
   return (
     <aside
@@ -70,20 +83,14 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
         {collapsed && (
           <img src={logo} alt="NotifyNow" className="w-8 h-8 rounded-lg" />
         )}
-        {/* <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 hidden lg:flex"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </Button> */}
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto" onClick={onClose}>
         <ul className="space-y-1 px-2">
           {menuItems.map((item) => {
+            if (!hasPermission(item.permission)) return null;
+            
             const isActive = location.pathname === item.path;
             return (
               <li key={item.path}>

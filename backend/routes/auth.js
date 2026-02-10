@@ -153,10 +153,39 @@ router.post('/login', async (req, res) => {
     let finalPermissions = [];
     if (user.permissions) {
       // If user has specific overrides
-      finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+      try {
+        finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+      } catch (e) {
+        console.error('Error parsing permissions:', e);
+        finalPermissions = [];
+      }
     } else if (user.plan_permissions) {
       // Fallback to plan permissions
-      finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+      try {
+        finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+      } catch (e) {
+        console.error('Error parsing plan permissions:', e);
+        finalPermissions = [];
+      }
+    }
+
+    // Default Reseller Permissions if none exist (Fix for blank sidebar)
+    if (user.role === 'reseller' && (!finalPermissions || finalPermissions.length === 0)) {
+      finalPermissions = [
+        { feature: 'Dashboard - View', admin: true },
+        { feature: 'Clients - View', admin: true },
+        { feature: 'Clients - Create', admin: true },
+        { feature: 'Templates - View', admin: true },
+        { feature: 'Templates - Create', admin: true },
+        { feature: 'Plans - View', admin: true },
+        { feature: 'Roles - View', admin: true },
+        { feature: 'Affiliates - View', admin: true },
+        { feature: 'Wallet - View', admin: true },
+        { feature: 'Reports - View', admin: true },
+        { feature: 'Vendors - View', admin: true },
+        { feature: 'Numbers - View', admin: true },
+        { feature: 'System Logs - View', admin: true }
+      ];
     }
 
     const token = jwt.sign(
