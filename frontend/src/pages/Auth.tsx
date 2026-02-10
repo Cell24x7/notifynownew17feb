@@ -38,7 +38,7 @@ export default function Auth() {
   const [loginPasswordError, setLoginPasswordError] = useState('');
 
   if (isAuthenticated && !showWelcome) {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'reseller') {
       return <Navigate to="/super-admin/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
@@ -108,7 +108,7 @@ export default function Auth() {
            // No, we need to render the popup.
            
            const currentUser = JSON.parse(atob(localStorage.getItem('authToken')?.split('.')[1] || '{}'));
-           if (currentUser.role === 'admin') {
+           if (currentUser.role === 'admin' || currentUser.role === 'reseller') {
              navigate('/super-admin/dashboard', { replace: true });
            } else {
              navigate('/dashboard', { replace: true });

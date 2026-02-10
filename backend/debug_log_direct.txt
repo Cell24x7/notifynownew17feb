@@ -1,0 +1,22 @@
+--- LOGIN DEBUGGER ---
+Found 5 users.
+
+User: [1] vpal80863@gmail.com (user)
+  Contact: 
+  Password Hash: $2a$10$g72...
+
+User: [2] admin@notifynow.in (admin)
+  Contact: null
+  Password Hash: $2b$10$iio...
+
+User: [3] rahul@gmail.com (user)
+  Contact: 0987654323
+  Password Hash: $2a$10$io9...
+
+User: [4] ass@gmail.com (user)
+  Contact: 32224553w
+  Password Hash: $2a$10$HLh...
+
+User: [7] 9004207813@phone.cell24x7.com (user)
+  Contact: 9004207813
+  Password Hash: $2a$10$POb...

@@ -40,6 +40,10 @@ export default function SuperAdminResellers() {
     plan_id: '',
     status: 'active' as 'active' | 'inactive' | 'pending',
     channels_enabled: [] as string[],
+    password: '',
+    clients_managed: 0,
+    revenue_generated: 0,
+    payout_pending: 0,
   });
 
   // Fetch plans
@@ -229,7 +233,8 @@ export default function SuperAdminResellers() {
 
     setCurrentReseller({
         ...reseller,
-        channels_enabled: channels
+        channels_enabled: channels,
+        password: '', // Fixed: Initialize password to avoid uncontrolled input warning
     });
     setModalMode('edit');
     setIsModalOpen(true);
@@ -257,6 +262,10 @@ export default function SuperAdminResellers() {
       plan_id: '',
       status: 'active',
       channels_enabled: [],
+      password: '',
+      clients_managed: 0,
+      revenue_generated: 0,
+      payout_pending: 0,
     });
   };
 
@@ -580,7 +589,23 @@ export default function SuperAdminResellers() {
                   disabled={modalMode === 'view'}
                 />
               </div>
-              <div className="space-y-2">
+            {/* Password */}
+            <div className={`grid grid-cols-1 ${modalMode === 'add' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'} gap-4`}>
+                {(modalMode === 'add' || modalMode === 'edit') && (
+                    <div className="space-y-2">
+                        <Label>
+                            Password {modalMode === 'add' && <span className="text-destructive">*</span>}
+                            {modalMode === 'edit' && <span className="text-xs text-muted-foreground ml-2">(Leave blank to keep current)</span>}
+                        </Label>
+                        <Input
+                            type="password"
+                            placeholder={modalMode === 'add' ? "Enter password" : "Enter new password"}
+                            value={currentReseller.password || ''}
+                            onChange={(e) => setCurrentReseller(prev => ({ ...prev, password: e.target.value }))}
+                        />
+                    </div>
+                )}
+                 <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
                   value={currentReseller.status}
@@ -597,6 +622,7 @@ export default function SuperAdminResellers() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
             </div>
 
             {/* Credits */}

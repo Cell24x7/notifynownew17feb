@@ -17,6 +17,7 @@ interface User {
   plan_id?: string;
   created_at?: string;
   channels_enabled?: string[]; // Add this
+  permissions?: any[];
 }
 
 interface AuthContextType {
@@ -48,6 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           company: decoded.company,
           role: decoded.role,
           channels_enabled: decoded.channels_enabled || [],
+          permissions: decoded.permissions || [],
+          credits_available: decoded.credits_available || 0,
         });
       } catch (err) {
         console.error('Invalid token on load:', err);
@@ -65,13 +68,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (success && token) {
         localStorage.setItem('authToken', token);
+        
+        // Ensure complex fields are parsed if they come as strings (though backend sends objects usually)
+        const channels = typeof userData.channels_enabled === 'string' 
+          ? JSON.parse(userData.channels_enabled) 
+          : (userData.channels_enabled || []);
+          
+        const permissions = typeof userData.permissions === 'string'
+          ? JSON.parse(userData.permissions)
+          : (userData.permissions || []);
+
         setUser({
           id: userData.id?.toString() || '',
           name: userData.name || userData.email?.split('@')[0] || 'User',
           email: userData.email || '',
           company: userData.company,
           role: userData.role,
-          channels_enabled: typeof userData.channels_enabled === 'string' ? JSON.parse(userData.channels_enabled) : (userData.channels_enabled || []),
+          channels_enabled: channels,
+          permissions: permissions, // CRITICAL FIX: Set permissions immediately
+          credits_available: userData.credits_available || 0,
+          plan_name: userData.plan_name
         });
         return true;
       }
@@ -107,6 +123,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           company: userData.company,
           role: userData.role || 'user',
           channels_enabled: typeof userData.channels_enabled === 'string' ? JSON.parse(userData.channels_enabled) : (userData.channels_enabled || []),
+          permissions: typeof userData.permissions === 'string' ? JSON.parse(userData.permissions) : (userData.permissions || []),
+          credits_available: userData.credits_available || 0,
         });
         return true;
       }
@@ -139,7 +157,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...userData,
           channels_enabled: typeof userData.channels_enabled === 'string' 
             ? JSON.parse(userData.channels_enabled) 
-            : (userData.channels_enabled || [])
+            : (userData.channels_enabled || []),
+          permissions: typeof userData.permissions === 'string'
+            ? JSON.parse(userData.permissions)
+            : (userData.permissions || []),
+          credits_available: userData.credits_available || 0,
         });
       }
     } catch (err) {

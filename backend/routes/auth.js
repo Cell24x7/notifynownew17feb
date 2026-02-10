@@ -136,13 +136,28 @@ router.post('/login', async (req, res) => {
   if (!identifier || !password) return res.status(400).json({ success: false, message: 'Identifier and password required' });
 
   try {
-    // Check email or phone
-    const [rows] = await query('SELECT * FROM users WHERE email = ? OR contact_phone = ?', [identifier, identifier]);
+    // Check email or phone with Plan Permissions and User Permissions
+    const [rows] = await query(`
+      SELECT u.*, p.permissions as plan_permissions, p.name as plan_name
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      WHERE u.email = ? OR u.contact_phone = ?
+    `, [identifier, identifier]);
     if (!rows.length) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+    // Logic: User-specific permissions override Plan permissions
+    let finalPermissions = [];
+    if (user.permissions) {
+      // If user has specific overrides
+      finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+    } else if (user.plan_permissions) {
+      // Fallback to plan permissions
+      finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+    }
 
     const token = jwt.sign(
       {
@@ -151,7 +166,8 @@ router.post('/login', async (req, res) => {
         role: user.role,
         name: user.name,
         company: user.company,
-        channels_enabled: user.channels_enabled
+        channels_enabled: user.channels_enabled,
+        permissions: finalPermissions
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -167,7 +183,9 @@ router.post('/login', async (req, res) => {
         contact_phone: user.contact_phone,
         company: user.company,
         role: user.role,
-        channels_enabled: user.channels_enabled
+        channels_enabled: user.channels_enabled,
+        permissions: finalPermissions,
+        plan_name: user.plan_name
       }
     });
 
@@ -322,9 +340,31 @@ router.put('/update-profile', authenticate, async (req, res) => {
 // Get current user
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const [rows] = await query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const [rows] = await query(`
+      SELECT u.*, p.permissions as plan_permissions, p.name as plan_name
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      WHERE u.id = ?
+    `, [req.user.id]);
     if (!rows.length) return res.status(404).json({ success: false });
-    res.json({ success: true, user: rows[0] });
+
+    // Format response
+    const user = rows[0];
+
+    // Logic: User-specific permissions override Plan permissions
+    let finalPermissions = [];
+    if (user.permissions) {
+      finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+    } else if (user.plan_permissions) {
+      finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+    }
+
+    const userWithPermissions = {
+      ...user,
+      permissions: finalPermissions
+    };
+
+    res.json({ success: true, user: userWithPermissions });
   } catch (err) {
     res.status(500).json({ success: false });
   }

@@ -19,15 +19,35 @@ if (!JWT_SECRET) {
 router.get('/', authenticate, async (req, res) => {
   try {
     const [rows] = await query(
-      `SELECT id, name, email, company, contact_phone, plan_id, 
-              credits_available, credits_used, status, created_at, role, channels_enabled 
-       FROM users WHERE id = ?`,
+      `SELECT u.id, u.name, u.email, u.company, u.contact_phone, u.plan_id, 
+              u.credits_available, u.credits_used, u.status, u.created_at, u.role, u.channels_enabled,
+              u.permissions, p.permissions as plan_permissions
+       FROM users u
+       LEFT JOIN plans p ON u.plan_id = p.id
+       WHERE u.id = ?`,
       [req.user.id]
     );
 
     if (!rows.length) return res.status(404).json({ success: false });
 
-    res.json({ success: true, user: rows[0] });
+    const user = rows[0];
+
+    // Logic: User-specific permissions override Plan permissions
+    let finalPermissions = [];
+    if (user.permissions) {
+      finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+    } else if (user.plan_permissions) {
+      finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+    }
+
+    const userWithPermissions = {
+      ...user,
+      permissions: finalPermissions,
+      // Remove raw plan_permissions from response to keep it clean
+      plan_permissions: undefined
+    };
+
+    res.json({ success: true, user: userWithPermissions });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });

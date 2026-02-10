@@ -114,20 +114,23 @@ export default function SuperAdminRoles() {
     fetchEntities();
   }, [selectedRoleType, selectedPlanId]);
 
-  // Load Permissions when Plan changes
+  // Load Permissions when Plan or Entity changes
   useEffect(() => {
     if (!selectedPlanId) return;
 
     const plan = plans.find(p => p.id === selectedPlanId);
-    if (plan && plan.permissions && Array.isArray(plan.permissions) && plan.permissions.length > 0) {
+    const entity = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : null;
+
+    if (entity && entity.permissions && Array.isArray(entity.permissions) && entity.permissions.length > 0) {
+      // Entity-specific permissions
+      setPermissions(entity.permissions);
+    } else if (plan && plan.permissions && Array.isArray(plan.permissions) && plan.permissions.length > 0) {
+      // Plan default permissions
       setPermissions(plan.permissions);
     } else {
       setPermissions(defaultPermissions);
     }
-    
-    // Reset Entity selection when plan changes (if we enforce hierarchy)
-    setSelectedEntityId('');
-  }, [selectedPlanId, plans]);
+  }, [selectedPlanId, selectedEntityId, plans, entities]);
 
 
   const handleTogglePermission = (feature: string, role: 'admin' | 'manager' | 'agent') => {
@@ -137,6 +140,39 @@ export default function SuperAdminRoles() {
   };
 
   const handleSavePermissions = async () => {
+    // If saving for a specific entity (User/Reseller)
+    if (selectedEntityId && selectedRoleType) {
+      setIsSaving(true);
+      try {
+        const endpoint = selectedRoleType === 'user' 
+          ? `/api/clients/${selectedEntityId}` 
+          : `/api/resellers/${selectedEntityId}`;
+        
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permissions })
+        });
+
+        if (!res.ok) throw new Error(`Failed to update ${selectedRoleType}`);
+
+        // Update local entity state
+        setEntities(prev => prev.map(e => e.id === selectedEntityId ? { ...e, permissions } : e));
+
+        toast({
+          title: 'Success',
+          description: `Permissions updated for this ${selectedRoleType}.`,
+        });
+      } catch (error) {
+        console.error('Save failed', error);
+        toast({ title: 'Error', description: 'Failed to save permissions', variant: 'destructive' });
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Default: Save for Plan
     if (!selectedPlanId) return;
     setIsSaving(true);
     
@@ -292,22 +328,53 @@ export default function SuperAdminRoles() {
                          <Badge variant="outline">{selectedEntity.company_name}</Badge>
                       )}
                       
-                      {/* Show Channels from Selected Plan */}
-                      {selectedPlan && selectedPlan.channelsAllowed && Array.isArray(selectedPlan.channelsAllowed) && (
-                        selectedPlan.channelsAllowed.map((c: string) => (
-                           <Badge key={c} variant="outline" className="uppercase">{c}</Badge>
-                        ))
+                      {/* Show if custom permissions are active */}
+                      {selectedEntity.permissions && selectedEntity.permissions.length > 0 && (
+                        <Badge variant="destructive" className="bg-amber-100 text-amber-800 border-amber-200">
+                           Custom Permissions Active
+                        </Badge>
                       )}
                     </div>
                  </div>
                </div>
-               <div className="text-right text-sm text-muted-foreground">
-                  ID: {selectedEntity.id}
+               <div className="text-right">
+                  <div className="text-sm text-muted-foreground mb-2">ID: {selectedEntity.id}</div>
+                  {/* Reset Button */}
+                  {selectedEntity.permissions && selectedEntity.permissions.length > 0 && (
+                     <Button 
+                       variant="outline" 
+                       size="sm" 
+                       className="text-destructive hover:bg-destructive/10"
+                       onClick={async () => {
+                         if (!confirm('Are you sure you want to reset to Plan defaults?')) return;
+                         // Save empty permissions to reset
+                         const endpoint = selectedRoleType === 'user' 
+                           ? `/api/clients/${selectedEntity.id}` 
+                           : `/api/resellers/${selectedEntity.id}`;
+                         
+                         await fetch(`${API_BASE_URL}${endpoint}`, {
+                           method: 'PUT',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify({ permissions: [] }) // Empty array or null to reset
+                         });
+                         
+                         // Update local state
+                         setEntities(prev => prev.map(e => e.id === selectedEntity.id ? { ...e, permissions: null } : e));
+                         toast({ title: 'Reset', description: 'Permissions reset to Plan defaults.' });
+                       }}
+                     >
+                       <X className="w-4 h-4 mr-1" /> Reset to Defaults
+                     </Button>
+                  )}
                </div>
             </div>
             <div className="mt-4 pt-4 border-t flex items-center gap-2 text-sm text-amber-600 bg-amber-50 p-2 rounded">
                <Info className="w-4 h-4" />
-               Current permissions below are controlled by the <strong>{selectedPlan?.name}</strong> plan.
+               {selectedEntity.permissions && selectedEntity.permissions.length > 0 ? (
+                 <span><strong>Custom Permissions</strong> are currently active for this user. These override the plan defaults.</span>
+               ) : (
+                 <span>Current permissions below are controlled by the <strong>{selectedPlan?.name}</strong> plan.</span>
+               )}
             </div>
           </CardContent>
         </Card>
@@ -336,24 +403,26 @@ export default function SuperAdminRoles() {
         </Card>
       )}
 
-      {/* Role Legend */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-primary"></div>
-          <span className="text-sm font-medium">Admin</span>
-          <span className="text-xs text-muted-foreground">Full access</span>
+      {/* Role Legend - Only show for Plan view */}
+      {!selectedEntityId && (
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-primary"></div>
+            <span className="text-sm font-medium">Admin</span>
+            <span className="text-xs text-muted-foreground">Full access</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-secondary"></div>
+            <span className="text-sm font-medium">Manager</span>
+            <span className="text-xs text-muted-foreground">Team lead access</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
+            <span className="text-sm font-medium">Agent</span>
+            <span className="text-xs text-muted-foreground">Basic access</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-secondary"></div>
-          <span className="text-sm font-medium">Manager</span>
-          <span className="text-xs text-muted-foreground">Team lead access</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
-          <span className="text-sm font-medium">Agent</span>
-          <span className="text-xs text-muted-foreground">Basic access</span>
-        </div>
-      </div>
+      )}
 
       {/* Permission Matrix */}
       <div className="space-y-6">
@@ -367,9 +436,15 @@ export default function SuperAdminRoles() {
                 <TableHeader>
                   <TableRow>
                      <TableHead className="w-[40%]">Feature</TableHead>
-                    <TableHead className="text-center">Admin</TableHead>
-                    <TableHead className="text-center">Manager</TableHead>
-                    <TableHead className="text-center">Agent</TableHead>
+                     {selectedEntityId ? (
+                       <TableHead className="text-center">Enabled</TableHead>
+                     ) : (
+                       <>
+                        <TableHead className="text-center">Admin</TableHead>
+                        <TableHead className="text-center">Manager</TableHead>
+                        <TableHead className="text-center">Agent</TableHead>
+                       </>
+                     )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -378,32 +453,47 @@ export default function SuperAdminRoles() {
                       <TableCell className="font-medium">
                         {perm.feature.split(' - ')[1] || perm.feature}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex justify-center">
-                          <Switch 
-                            checked={perm.admin} 
-                            onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
-                            className="data-[state=checked]:bg-primary"
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex justify-center">
-                          <Switch 
-                            checked={perm.manager} 
-                            onCheckedChange={() => handleTogglePermission(perm.feature, 'manager')}
-                            className="data-[state=checked]:bg-secondary"
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex justify-center">
-                          <Switch 
-                            checked={perm.agent} 
-                            onCheckedChange={() => handleTogglePermission(perm.feature, 'agent')}
-                          />
-                        </div>
-                      </TableCell>
+                      
+                      {selectedEntityId ? (
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Switch 
+                              checked={perm.admin} 
+                              onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          </div>
+                        </TableCell>
+                      ) : (
+                        <>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center">
+                              <Switch 
+                                checked={perm.admin} 
+                                onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
+                                className="data-[state=checked]:bg-primary"
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center">
+                              <Switch 
+                                checked={perm.manager} 
+                                onCheckedChange={() => handleTogglePermission(perm.feature, 'manager')}
+                                className="data-[state=checked]:bg-secondary"
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center">
+                              <Switch 
+                                checked={perm.agent} 
+                                onCheckedChange={() => handleTogglePermission(perm.feature, 'agent')}
+                              />
+                            </div>
+                          </TableCell>
+                        </>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

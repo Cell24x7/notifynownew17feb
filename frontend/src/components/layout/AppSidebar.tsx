@@ -48,15 +48,34 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   // Real wallet balance from auth context
   const walletBalance = user?.credits_available ?? 0;
 
+  // Permissions check
+  // Default to true if no permissions found to avoid locking out users during transition
+  const hasPermission = (feature: string) => {
+    if (!user?.permissions) return true; // Forward compatibility
+    // In db, permissions is array of objects: { feature: "Chat - View", admin: true, ... }
+    // We check the 'admin' column for now as the user is the account admin
+    // User role in DB is 'user' or 'admin' (platform admin). 
+    // Here 'admin' column in permission means 'Account Admin' (the user).
+    
+    // Find permission object for the feature
+    // Feature names in DB: "Chat - View", "Campaign - View", etc.
+    const perm = user.permissions.find((p: any) => p.feature === feature);
+    if (!perm) return true; // If feature not in list, default allow? Or strict deny? 
+                            // Default allow is safer for now.
+    
+    // Check 'admin' column (since logged in user is the Account Admin)
+    return perm.admin === true || perm.admin === 1; 
+  };
+
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: MessageSquare, label: 'Chats', path: '/chats' },
-    { icon: Users, label: 'Contacts', path: '/contacts' },
-    { icon: Send, label: 'Campaigns', path: '/campaigns' },
-    { icon: Zap, label: 'Automations', path: '/automations' },
-    { icon: Puzzle, label: 'Integrations', path: '/integrations' },
-    { icon: Package, label: 'User Plans', path: '/user-plans' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: true },
+    { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
+    { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Users - View') },
+    { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaign - View') },
+    { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automation - View') },
+    { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integration - View') },
+    { icon: Package, label: 'User Plans', path: '/user-plans', show: true }, // Usually always visible or Settings
+    { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
 
   // Mobile pe collapse mat karo – text dikhega
@@ -134,7 +153,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
       {/* Navigation – text hamesha dikhega mobile pe */}
       <nav className="flex-1 px-2 py-5 space-y-1 overflow-y-auto" onClick={onClose}>
-        {navItems.map((item) => {
+        {navItems.filter(item => item.show).map((item) => {
           const isActive =
             location.pathname === item.path ||
             location.pathname.startsWith(`${item.path}/`);

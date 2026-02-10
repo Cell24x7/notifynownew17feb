@@ -21,13 +21,19 @@ router.get('/', async (req, res) => {
         id, name, email, company AS company_name, contact_phone,
         plan_id, credits_available, credits_used,
         IFNULL(channels_enabled, '[]') AS channels_enabled,
-        status, created_at
+        status, created_at, permissions
       FROM users
       WHERE role IN ('client', 'user')
       ORDER BY id DESC
     `);
 
-    res.json({ success: true, clients: rows });
+    // Parse permissions if they are strings
+    const clients = rows.map(client => ({
+      ...client,
+      permissions: typeof client.permissions === 'string' ? JSON.parse(client.permissions) : client.permissions
+    }));
+
+    res.json({ success: true, clients });
   } catch (err) {
     console.error('GET CLIENTS ERROR:', err.message);
     res.status(500).json({ success: false });
@@ -69,12 +75,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// UPDATE client (baaki same)
+// UPDATE client
 router.put('/:id', async (req, res) => {
   const clientId = req.params.id;
   const {
     name, company_name, contact_phone, email, password,
-    plan_id, status, credits_available, channels_enabled
+    plan_id, status, credits_available, channels_enabled, permissions
   } = req.body;
 
   const fields = [];
@@ -88,6 +94,8 @@ router.put('/:id', async (req, res) => {
   if (status !== undefined) { fields.push('status = ?'); values.push(status); }
   if (credits_available !== undefined) { fields.push('credits_available = ?'); values.push(credits_available); }
   if (channels_enabled !== undefined) { fields.push('channels_enabled = ?'); values.push(JSON.stringify(channels_enabled)); }
+  if (permissions !== undefined) { fields.push('permissions = ?'); values.push(JSON.stringify(permissions)); }
+
   if (password && password.trim()) {
     const hash = await bcrypt.hash(password, 10);
     fields.push('password = ?');
@@ -133,6 +141,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // IMPERSONATE client – Yeh final safe version hai
+// IMPERSONATE client – Yeh final safe version hai
 router.post('/:id/impersonate', async (req, res) => {
   const clientId = req.params.id;
   console.log(`[IMPERSONATE START] Requested for client ID: ${clientId}`);
@@ -148,10 +157,14 @@ router.post('/:id/impersonate', async (req, res) => {
     }
 
     console.log('[IMPERSONATE] Querying database...');
-    const [rows] = await query(
-      'SELECT id, name, email, company, role FROM users WHERE id = ? AND role IN ("client", "user")',
-      [clientId]
-    );
+    // Updated query to fetch permissions and plan permissions
+    const [rows] = await query(`
+      SELECT u.id, u.name, u.email, u.company, u.role, u.channels_enabled, u.permissions,
+             p.permissions as plan_permissions
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      WHERE u.id = ? AND u.role IN ("client", "user")
+    `, [clientId]);
 
     console.log('[IMPERSONATE] Query returned rows count:', rows.length);
     if (rows.length === 0) {
@@ -160,7 +173,20 @@ router.post('/:id/impersonate', async (req, res) => {
     }
 
     const client = rows[0];
-    console.log('[IMPERSONATE] Client data found:', client);
+    console.log('[IMPERSONATE] Client data found:', client.email);
+
+    // Logic: User-specific permissions override Plan permissions
+    let finalPermissions = [];
+    if (client.permissions) {
+      finalPermissions = typeof client.permissions === 'string' ? JSON.parse(client.permissions) : client.permissions;
+    } else if (client.plan_permissions) {
+      finalPermissions = typeof client.plan_permissions === 'string' ? JSON.parse(client.plan_permissions) : client.plan_permissions;
+    }
+
+    // Parse channels if string
+    const channelsEnabled = client.channels_enabled
+      ? (typeof client.channels_enabled === 'string' ? JSON.parse(client.channels_enabled) : client.channels_enabled)
+      : [];
 
     // Safe payload with defaults
     const payload = {
@@ -171,10 +197,12 @@ router.post('/:id/impersonate', async (req, res) => {
       role: client.role || 'user',
       impersonatedBy: 'superadmin',
       originalRole: 'user',
+      permissions: finalPermissions, // Added
+      channels_enabled: channelsEnabled, // Added
       iat: Math.floor(Date.now() / 1000)
     };
 
-    console.log('[IMPERSONATE] Signing JWT token...');
+    console.log('[IMPERSONATE] Signing JWT token with permissions count:', finalPermissions.length);
     const impersonateToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     console.log('[IMPERSONATE] Token generated successfully');
@@ -182,7 +210,7 @@ router.post('/:id/impersonate', async (req, res) => {
     res.json({
       success: true,
       token: impersonateToken,
-      redirectTo: '/dashboard'  // change kar sakte ho agar dashboard route alag hai
+      redirectTo: '/dashboard'
     });
   } catch (err) {
     console.error('[IMPERSONATE CRASH FULL DETAILS]', {
