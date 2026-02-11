@@ -290,6 +290,30 @@ export default function Settings() {
               </Button>
               <RCSConfiguration />
             </div>
+          ) : showWhatsAppConfig ? (
+            <div className="space-y-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowWhatsAppConfig(false)}
+                className="mb-4"
+              >
+                ← Back to Channels
+              </Button>
+              <WhatsAppConfiguration 
+                onSave={(config) => {
+                  setChannels(channels.map(c => 
+                    c.id === 'whatsapp' ? { ...c, connected: true } : c
+                  ));
+                  setChannelConfigs({
+                    ...channelConfigs,
+                    whatsappBusinessName: config.businessName,
+                    whatsappPhoneNumber: config.phoneNumber,
+                  });
+                  setShowWhatsAppConfig(false);
+                }}
+                onCancel={() => setShowWhatsAppConfig(false)}
+              />
+            </div>
           ) : showSMSConfig ? (
             <div className="space-y-4">
               <Button 

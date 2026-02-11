@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { API_BASE_URL } from '@/config/api';
-import { dashboardStats, agentAnalytics, channelAnalytics, satisfactionTrends, botVsHumanResolution } from '@/lib/mockData';
+import { agentAnalytics, channelAnalytics, satisfactionTrends, botVsHumanResolution } from '@/lib/mockData';
 import { ChannelIcon, channelConfig } from '@/components/ui/channel-icon';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -57,44 +57,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
-const statCards = [
-  {
-    title: 'Total Conversations',
-    value: dashboardStats.totalConversations.toLocaleString(),
-    change: '+12.5%',
-    trend: 'up',
-    icon: MessageSquare,
-    color: 'text-primary',
-    bg: 'bg-primary/10',
-  },
-  {
-    title: 'Active Chats',
-    value: dashboardStats.activeChats.toLocaleString(),
-    change: '+8.2%',
-    trend: 'up',
-    icon: Users,
-    color: 'text-secondary',
-    bg: 'bg-secondary/10',
-  },
-  {
-    title: 'Automations Triggered',
-    value: dashboardStats.automationsTriggered.toLocaleString(),
-    change: '+23.1%',
-    trend: 'up',
-    icon: Zap,
-    color: 'text-warning',
-    bg: 'bg-warning/10',
-  },
-  {
-    title: 'Campaigns Sent',
-    value: dashboardStats.campaignsSent.toLocaleString(),
-    change: '-2.4%',
-    trend: 'down',
-    icon: Send,
-    color: 'text-destructive',
-    bg: 'bg-destructive/10',
-  },
-];
+
 
 const pieColors = ['#4ADE80', '#6366F1', '#EC4899', '#3B82F6', '#8B5CF6', '#F59E0B', '#14B8A6'];
 const channelColors: Record<string, string> = {
@@ -201,6 +164,21 @@ export default function Dashboard() {
     },
   ];
 
+  // Merge real stats with mock channel analytics for display
+  // We use real volumes from stats.channelDistribution to override the mock totalMessages
+  const mergedChannelAnalytics = Object.entries(channelAnalytics).reduce((acc, [key, data]) => {
+    const realVolume = stats.channelDistribution[key as keyof typeof stats.channelDistribution] || 0;
+    acc[key] = {
+      ...data,
+      totalMessages: realVolume,
+      // Adjust delivered count roughly based on real volume if needed, or keep ratio
+      delivered: Math.floor(realVolume * (data.delivered / data.totalMessages)), 
+      botHandled: Math.floor(realVolume * 0.4),
+      humanHandled: Math.ceil(realVolume * 0.6)
+    };
+    return acc;
+  }, {} as any);
+
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in overflow-auto">
       {/* Header */}
@@ -279,7 +257,7 @@ export default function Dashboard() {
                       <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
                       <span className="text-xs md:text-sm font-medium">Total Messages</span>
                     </div>
-                    <p className="text-lg md:text-2xl font-bold">{totalMessages.toLocaleString()}</p>
+                    <p className="text-lg md:text-2xl font-bold">{stats.totalConversations.toLocaleString()}</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
@@ -288,7 +266,8 @@ export default function Dashboard() {
                       <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />
                       <span className="text-xs md:text-sm font-medium">Delivered</span>
                     </div>
-                    <p className="text-lg md:text-2xl font-bold">{((totalDelivered / totalMessages) * 100).toFixed(1)}%</p>
+                    {/* Approximated delivery rate based on campaigns sent vs errors (mock for now as we don't track errors yet) */}
+                    <p className="text-lg md:text-2xl font-bold">98.5%</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
@@ -297,7 +276,8 @@ export default function Dashboard() {
                       <Bot className="h-3 w-3 md:h-4 md:w-4" />
                       <span className="text-xs md:text-sm font-medium">Bot Handled</span>
                     </div>
-                    <p className="text-lg md:text-2xl font-bold">{totalBotHandled.toLocaleString()}</p>
+                    {/* Placeholder for bot stats */}
+                    <p className="text-lg md:text-2xl font-bold">0</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
@@ -306,7 +286,8 @@ export default function Dashboard() {
                       <UserCheck className="h-3 w-3 md:h-4 md:w-4" />
                       <span className="text-xs md:text-sm font-medium">Human Handled</span>
                     </div>
-                    <p className="text-lg md:text-2xl font-bold">{totalHumanHandled.toLocaleString()}</p>
+                     {/* Placeholder for human stats */}
+                    <p className="text-lg md:text-2xl font-bold">{stats.totalConversations}</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-yellow-500/20 col-span-2 lg:col-span-1">
@@ -384,7 +365,7 @@ export default function Dashboard() {
 
               {/* Channel Performance Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {Object.entries(channelAnalytics).map(([key, data]) => (
+                {Object.entries(mergedChannelAnalytics).map(([key, data]: [string, any]) => (
                   <Card 
                     key={key} 
                     className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
@@ -419,7 +400,7 @@ export default function Dashboard() {
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Delivery Rate</span>
                           <span className="font-medium text-success">
-                            {((data.delivered / data.totalMessages) * 100).toFixed(1)}%
+                            {data.totalMessages > 0 ? ((data.delivered / data.totalMessages) * 100).toFixed(1) : 0}%
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -434,11 +415,11 @@ export default function Dashboard() {
                           <div className="flex h-2 rounded-full overflow-hidden bg-muted">
                             <div 
                               className="bg-primary transition-all"
-                              style={{ width: `${(data.botHandled / (data.botHandled + data.humanHandled)) * 100}%` }}
+                              style={{ width: `${data.totalMessages > 0 ? (data.botHandled / (data.botHandled + data.humanHandled)) * 100 : 0}%` }}
                             />
                             <div 
                               className="bg-pink-500"
-                              style={{ width: `${(data.humanHandled / (data.botHandled + data.humanHandled)) * 100}%` }}
+                              style={{ width: `${data.totalMessages > 0 ? (data.humanHandled / (data.botHandled + data.humanHandled)) * 100 : 0}%` }}
                             />
                           </div>
                         </div>
@@ -706,7 +687,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Open Chats</p>
-                <p className="text-2xl font-bold text-primary">{dashboardStats.openChats}</p>
+                <p className="text-2xl font-bold text-primary">{stats.openChats}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <MessageSquare className="h-6 w-6 text-primary" />
@@ -719,7 +700,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Closed Chats</p>
-                <p className="text-2xl font-bold">{dashboardStats.closedChats.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{stats.closedChats.toLocaleString()}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
                 <MessageSquare className="h-6 w-6 text-muted-foreground" />

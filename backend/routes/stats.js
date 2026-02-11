@@ -158,46 +158,102 @@ router.get('/super-admin', authenticate, async (req, res) => {
 
 router.get('/stats', authenticate, async (req, res) => {
     try {
-        // Get user's enabled channels
-        const [userRows] = await query('SELECT channels_enabled FROM users WHERE id = ?', [req.user.id]);
-        let channels = [];
+        const userId = req.user.id;
+
+        // 1. Get user's enabled channels (Keep existing logic as fallback/metadata)
+        const [userRows] = await query('SELECT channels_enabled FROM users WHERE id = ?', [userId]);
+        let enabledChannels = [];
         try {
             if (userRows[0]?.channels_enabled) {
-                channels = JSON.parse(userRows[0].channels_enabled);
+                enabledChannels = JSON.parse(userRows[0].channels_enabled);
             }
         } catch (e) {
-            channels = [];
+            enabledChannels = [];
         }
-        if (!Array.isArray(channels)) channels = [];
 
-        // Mock stats for CLIENT dashboard (keep existing logic or improve later)
-        const stats = {
-            totalConversations: 0,
-            activeChats: 0,
-            automationsTriggered: 0,
-            campaignsSent: 0,
-            openChats: 0,
-            closedChats: 0,
-            weeklyChats: [
-                { day: 'Mon', count: 0 },
-                { day: 'Tue', count: 0 },
-                { day: 'Wed', count: 0 },
-                { day: 'Thu', count: 0 },
-                { day: 'Fri', count: 0 },
-                { day: 'Sat', count: 0 },
-                { day: 'Sun', count: 0 },
-            ],
-            channelDistribution: {
-                whatsapp: channels.includes('whatsapp') ? 1 : 0,
-                sms: channels.includes('sms') ? 1 : 0,
-                rcs: channels.includes('rcs') ? 1 : 0
+        // 2. Total Conversations (Audience Count from completed/running campaigns)
+        const [totalStats] = await query(`
+            SELECT 
+                COALESCE(SUM(audience_count), 0) as total_conversations,
+                COUNT(*) as campaigns_sent
+            FROM campaigns 
+            WHERE user_id = ? AND status IN ('completed', 'running')
+        `, [userId]);
+
+        // 3. Channel Distribution (Volume by channel)
+        const [channelStats] = await query(`
+            SELECT channel, SUM(audience_count) as volume
+            FROM campaigns 
+            WHERE user_id = ? AND status IN ('completed', 'running')
+            GROUP BY channel
+        `, [userId]);
+
+        // Map database results to simple object { whatsapp: 100, sms: 50, ... }
+        const channelDist = {
+            whatsapp: 0,
+            sms: 0,
+            rcs: 0,
+            voice: 0,
+            email: 0
+        };
+
+        channelStats.forEach(row => {
+            const key = row.channel.toLowerCase();
+            if (channelDist.hasOwnProperty(key)) {
+                channelDist[key] = Number(row.volume);
+            } else {
+                channelDist[key] = Number(row.volume);
             }
+        });
+
+        // 4. Weekly Chats (Last 7 days trend)
+        const [weeklyRows] = await query(`
+            SELECT DATE(created_at) as date, SUM(audience_count) as count
+            FROM campaigns
+            WHERE user_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY DATE(created_at)
+        `, [userId]);
+
+        // Fill missing days
+        const weeklyChats = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const found = weeklyRows.find(r => {
+                const rDate = new Date(r.date).toISOString().split('T')[0];
+                return rDate === dateStr;
+            });
+            weeklyChats.push({
+                day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+                count: found ? Number(found.count) : 0
+            });
+        }
+
+        // 5. Construct Final Stats Object
+        // For activeChats and automations, we still lack real data sources, so we keep them 0 or mock appropriately 
+        // until those features are built.
+        const stats = {
+            totalConversations: Number(totalStats[0]?.total_conversations || 0),
+            activeChats: 0, // Placeholder
+            automationsTriggered: 0, // Placeholder
+            campaignsSent: Number(totalStats[0]?.campaigns_sent || 0),
+            openChats: 0, // Placeholder
+            closedChats: Number(totalStats[0]?.total_conversations || 0), // Assuming all simplified campaigns are "closed" for now
+            weeklyChats,
+            channelDistribution: channelDist,
+            // Include breakdown percentages for potential frontend usage
+            channelPercentages: Object.entries(channelDist).map(([key, value]) => ({
+                name: key.charAt(0).toUpperCase() + key.slice(1),
+                value: Number(value)
+            }))
         };
 
         res.json({ success: true, stats });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error('User Dashboard Stats Error:', err);
+        res.status(500).json({ success: false, message: 'Server error fetching user stats' });
     }
 });
 
