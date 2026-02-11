@@ -111,6 +111,7 @@ export function SMSConfiguration({ onSave, onCancel }: SMSConfigurationProps) {
   const [testResult, setTestResult] = useState<'success' | 'failure' | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [existingChannel, setExistingChannel] = useState<any>(null); // Track existing channel
   
   const [config, setConfig] = useState<SMSConfig>({
     channelName: '',
@@ -132,6 +133,26 @@ export function SMSConfiguration({ onSave, onCancel }: SMSConfigurationProps) {
     quietHoursStart: '22:00',
     quietHoursEnd: '08:00',
   });
+
+  const checkExistingChannel = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(`${API_BASE_URL}/api/sms`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success && response.data.channels.length > 0) {
+        setExistingChannel(response.data.channels[0]);
+      } else {
+        setExistingChannel(null);
+      }
+    } catch (error) {
+      console.error('Error checking existing channels:', error);
+    }
+  };
+
+  useEffect(() => {
+    checkExistingChannel();
+  }, []);
 
   // Auto-generated webhook URLs (mock)
   const webhookBaseUrl = 'https://api.yourplatform.com/webhooks/sms';
@@ -294,6 +315,33 @@ export function SMSConfiguration({ onSave, onCancel }: SMSConfigurationProps) {
         </div>
 
         <TabsContent value="create" className="flex-1 mt-0 h-full overflow-hidden">
+          {existingChannel ? (
+             <div className="w-full h-full flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-xl bg-muted/30 m-4">
+                <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
+                  <MessageSquare className="h-8 w-8 text-yellow-600" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Limit Reached</h3>
+                <p className="text-muted-foreground text-center max-w-md mb-6">
+                  You have already configured an SMS channel. You can only have one active channel. 
+                  Please view or edit your existing channel configuration.
+                </p>
+                <div className="p-4 bg-background border rounded-lg flex items-center gap-4 mb-6 shadow-sm w-full max-w-md">
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                         <MessageSquare className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div>
+                        <p className="font-bold">{existingChannel.channel_name}</p>
+                        <p className="text-xs text-muted-foreground">{existingChannel.country}</p>
+                    </div>
+                    <div className={existingChannel.status === 'ACTIVE' ? 'text-green-600 bg-green-100 px-2 py-0.5 rounded textxs' : 'text-gray-600 bg-gray-100 px-2 py-0.5 rounded text-xs ml-auto'}>
+                        {existingChannel.status}
+                    </div>
+                </div>
+                <Button onClick={() => (document.querySelector('[value="view"]') as HTMLElement)?.click()}>
+                  View Existing Channel
+                </Button>
+             </div>
+          ) : (
           <div className="w-full h-full flex flex-col lg:flex-row gap-6">
             {/* Scrollable Form Area */}
             <div className="flex-1 min-w-0 order-2 lg:order-1">
@@ -778,10 +826,11 @@ export function SMSConfiguration({ onSave, onCancel }: SMSConfigurationProps) {
                 />
             </div>
           </div>
+          )}
         </TabsContent>
         
         <TabsContent value="view" className="flex-1 mt-0 h-full overflow-hidden p-1">
-            <SMSBotsList />
+            <SMSBotsList onUpdate={checkExistingChannel} />
         </TabsContent>
         
       </Tabs>

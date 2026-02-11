@@ -43,7 +43,11 @@ interface Bot {
   submission_date?: string;
 }
 
-export function RCSBotsList() {
+interface RCSBotsListProps {
+  onUpdate?: () => void;
+}
+
+export function RCSBotsList({ onUpdate }: RCSBotsListProps) {
   const { toast } = useToast();
   const [bots, setBots] = useState<Bot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +94,7 @@ export function RCSBotsList() {
       await rcsApi.deleteBot(id);
       toast({ title: 'Deleted', description: 'Bot configuration deleted successfully.' });
       fetchBots();
+      onUpdate?.();
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete bot.', variant: 'destructive' });
     }

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const jwt = require('jsonwebtoken');
+const viRbmService = require('../services/viRbmService');
 
 // Middleware to authenticate token (using common pattern in project)
 const authenticateToken = (req, res, next) => {
@@ -72,11 +73,6 @@ router.post('/', authenticateToken, async (req, res) => {
             header_type, header_content, body, footer, status, buttons
         } = req.body;
 
-        // Validate channel against user profile - REMOVED per user request to allow simple saving
-        // const [userRows] = await query('SELECT channels_enabled FROM users WHERE id = ?', [userId]);
-        // [Logic removed to allow saving]
-
-
         const templateId = `TPL${Date.now()}`;
 
         await query(
@@ -94,6 +90,75 @@ router.post('/', authenticateToken, async (req, res) => {
           VALUES (?, ?, ?, ?, ?, ?)`,
                     [`BTN${Date.now()}${Math.random().toString(36).substr(2, 5)}`, templateId, btn.type, btn.label, btn.value || null, btn.position || 0]
                 );
+            }
+        }
+
+        // --- Vi RBM Integration ---
+        // If channel is RCS, define and submit to Vi RBM
+        if (channel === 'rcs') {
+            try {
+                console.log('📤 Processing RCS Template for Vi RBM:', name);
+
+                // Construct payload expected by viRbmService
+                // Note: Generic templates might differ in structure slightly, mapping accordingly
+                const richTemplateData = {
+                    name: name,
+                    type: template_type === 'carousel' ? 'carousel' : (template_type === 'rich_card' ? 'rich_card' : 'text_message'), // Default to text_message if standard
+                    botId: process.env.VI_RBM_BOT_ID,
+
+                    // Text Message Mapping
+                    ...(template_type === 'standard' && {
+                        type: 'text_message', // 'standard' in generic => 'text_message' in RCS
+                        textMessageContent: body,
+                        suggestions: (buttons || []).map(b => ({
+                            suggestionType: b.type === 'quick_reply' ? 'reply' :
+                                b.type === 'url' ? 'url_action' :
+                                    b.type === 'phone' ? 'dialer_action' : 'reply',
+                            displayText: b.label,
+                            postback: b.value || b.label,
+                            ...(b.type === 'url' && { url: b.value }),
+                            ...(b.type === 'phone' && { phoneNumber: b.value })
+                        }))
+                    }),
+
+                    // Carousel Mapping (if generic supports it structure)
+                    ...(template_type === 'carousel' && {
+                        // Assuming generic carousel payload structure matches or we need data from body/metadata?
+                        // Current generic 'message_templates' schema is flat. 
+                        // If complex data is needed (cards), it might be in 'body' as JSON or 'metadata' if added.
+                        // For now, handling 'standard' (Text + Media Header) -> Rich Card
+                        ...(header_type !== 'none' && {
+                            type: 'rich_card',
+                            orientation: 'VERTICAL',
+                            height: 'MEDIUM_HEIGHT',
+                            standAlone: {
+                                cardTitle: name,
+                                cardDescription: body,
+                                mediaUrl: header_content, // header content as media
+                                suggestions: (buttons || []).map(b => ({
+                                    suggestionType: b.type === 'quick_reply' ? 'reply' :
+                                        b.type === 'url' ? 'url_action' :
+                                            b.type === 'phone' ? 'dialer_action' : 'reply',
+                                    displayText: b.label,
+                                    postback: b.value || b.label,
+                                    ...(b.type === 'url' && { url: b.value }),
+                                    ...(b.type === 'phone' && { phoneNumber: b.value })
+                                }))
+                            }
+                        })
+                    })
+                };
+
+                // If it was standard but had media header, we treated it as rich_card above.
+                // If it was standard text only, it stays text_message.
+
+                console.log('📤 Submitting to Vi RBM API...');
+                const rbmResponse = await viRbmService.submitTemplate(richTemplateData);
+                console.log('✅ Vi RBM Response:', rbmResponse);
+
+            } catch (rbmError) {
+                console.error('⚠️ Failed to submit to Vi RBM:', rbmError.message || rbmError);
+                // Not failing the main request, as it's saved locally
             }
         }
 

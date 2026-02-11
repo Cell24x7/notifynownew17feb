@@ -213,7 +213,7 @@ export const mockQuickReplies = [
 export type TemplateChannel = 'whatsapp' | 'sms' | 'rcs';
 
 // Template header types
-export type HeaderType = 'none' | 'text' | 'image' | 'video' | 'document';
+export type HeaderType = 'none' | 'text' | 'image' | 'video' | 'audio' | 'document';
 
 // Template button types
 export interface TemplateButton {

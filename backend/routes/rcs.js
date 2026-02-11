@@ -1,6 +1,6 @@
 const express = require('express');
-const mysql = require('mysql2');
 require('dotenv').config();
+const { query } = require('../config/db');
 
 const router = express.Router();
 
@@ -17,21 +17,11 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Database connection pool (use from environment or index.js)
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'cell24x7_db',
-  waitForConnections: true,
-  connectionLimit: 10
-});
-
 // Get all bots for current user
 router.get('/bots', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const [bots] = await pool.promise().query('SELECT * FROM rcs_bots WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    const [bots] = await query('SELECT * FROM rcs_bots WHERE user_id = ? ORDER BY created_at DESC', [userId]);
     res.json(bots);
   } catch (error) {
     console.error('Get bots error:', error.message);
@@ -43,11 +33,11 @@ router.get('/bots', authenticateToken, async (req, res) => {
 router.get('/bots/:id', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const [bots] = await pool.promise().query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
+    const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
     if (!bots.length) return res.status(404).json({ error: 'Bot not found' });
 
-    const [contacts] = await pool.promise().query('SELECT * FROM rcs_bot_contacts WHERE bot_id = ?', [req.params.id]);
-    const [media] = await pool.promise().query('SELECT * FROM rcs_bot_media WHERE bot_id = ?', [req.params.id]);
+    const [contacts] = await query('SELECT * FROM rcs_bot_contacts WHERE bot_id = ?', [req.params.id]);
+    const [media] = await query('SELECT * FROM rcs_bot_media WHERE bot_id = ?', [req.params.id]);
 
     res.json({ ...bots[0], contacts, media });
   } catch (error) {
@@ -90,7 +80,7 @@ router.post('/bots', authenticateToken, async (req, res) => {
     const botId = `BOT${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
     // Insert into rcs_bots table
-    const [result] = await pool.promise().query(
+    const [result] = await query(
       `INSERT INTO rcs_bots (
         id, user_id, bot_name, brand_name, short_description, bot_type, route_type,
         development_platform, message_type, billing_category, languages_supported,
@@ -126,7 +116,7 @@ router.put('/bots/:id', authenticateToken, async (req, res) => {
     const { bot_name, brand_name, short_description, brand_color, bot_logo_url, banner_image_url, ...updateData } = req.body;
 
     // Check if bot belongs to user
-    const [bots] = await pool.promise().query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
+    const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
     if (!bots.length) return res.status(404).json({ error: 'Bot not found' });
 
     // Only allow updates if status is DRAFT
@@ -134,7 +124,7 @@ router.put('/bots/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Can only update bots in DRAFT status' });
     }
 
-    await pool.promise().query(
+    await query(
       `UPDATE rcs_bots SET 
         bot_name = ?, brand_name = ?, short_description = ?, brand_color = ?,
         bot_logo_url = ?, banner_image_url = ?, updated_at = CURRENT_TIMESTAMP
@@ -155,7 +145,7 @@ router.delete('/bots/:id', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     // Check if bot belongs to user
-    const [bots] = await pool.promise().query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
+    const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
     if (!bots.length) return res.status(404).json({ error: 'Bot not found' });
 
     // Only allow deletion if status is DRAFT
@@ -163,7 +153,7 @@ router.delete('/bots/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Can only delete bots in DRAFT status' });
     }
 
-    await pool.promise().query('DELETE FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
+    await query('DELETE FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
     res.json({ success: true, message: 'Bot deleted successfully' });
   } catch (error) {
     console.error('Delete bot error:', error.message);
@@ -271,11 +261,10 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     }
 
     // Save campaign to database
-    const connection = await pool.promise().getConnection();
     try {
       const campaignId = `CAMP_${Date.now()}`;
 
-      await connection.query(
+      await query(
         `INSERT INTO campaigns (id, user_id, name, channel, template_id, recipient_count, sent_count, failed_count, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
@@ -293,8 +282,6 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
 
       console.log(`✅ Campaign saved: ${campaignId}`);
 
-      connection.release();
-
       return res.json({
         success: true,
         campaignName,
@@ -310,7 +297,6 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
 
     } catch (dbErr) {
       console.error('❌ Database error:', dbErr.message);
-      connection.release();
       return res.status(500).json({
         success: false,
         message: 'Failed to save campaign to database'

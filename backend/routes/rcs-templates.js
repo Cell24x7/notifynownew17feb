@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/db');
+const viRbmService = require('../services/viRbmService');
 
 // Helper function to get complete template details
 async function getTemplateDetails(templateId) {
@@ -30,6 +31,8 @@ async function getTemplateDetails(templateId) {
             language: template.language,
             category: template.category,
             status: template.status,
+            templateType: template.template_type || 'text_message', // Handle legacy records
+            metadata: typeof template.metadata === 'string' ? JSON.parse(template.metadata || '{}') : (template.metadata || {}),
             headerType: template.header_type,
             headerContent: template.header_content,
             body: template.body,
@@ -111,42 +114,47 @@ router.post('/templates', async (req, res) => {
             name,
             language,
             category,
+            template_type, // "text_message", "rich_card", "carousel"
             header_type,
             header_content,
-            body,
+            body, // For text_message
             footer,
             status = 'pending_approval',
             buttons = [],
             variables = [],
+            metadata = {}, // JSON object for Rich Card/Carousel details
             created_by
         } = req.body;
 
-        if (!name || !body) {
-            return res.status(400).json({ error: 'Template name and body are required' });
+        if (!name) {
+            return res.status(400).json({ error: 'Template name is required' });
         }
 
         const templateId = uuidv4();
+        const metaStr = JSON.stringify(metadata || {});
 
         // Insert template
         await query(
             `INSERT INTO rcs_templates 
-            (id, name, language, category, status, header_type, header_content, body, footer, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            (id, name, language, category, template_type, status, header_type, header_content, body, footer, metadata, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 templateId,
                 name,
                 language || 'en',
                 category || 'Marketing',
+                template_type || 'text_message',
                 status,
                 header_type || 'none',
                 header_content || null,
-                body,
+                body || '', // Can be empty for carousel/rich card if description is used instead
                 footer || null,
+                metaStr,
                 created_by || 'system'
             ]
         );
 
-        // Insert buttons
+        // Insert buttons (if any)
         if (buttons && buttons.length > 0) {
             for (const button of buttons) {
                 await query(
@@ -165,7 +173,7 @@ router.post('/templates', async (req, res) => {
             }
         }
 
-        // Insert variables
+        // Insert variables (if any)
         if (variables && variables.length > 0) {
             for (const variable of variables) {
                 await query(
@@ -183,6 +191,65 @@ router.post('/templates', async (req, res) => {
             [templateId]
         );
 
+        // --- Vi RBM Integration ---
+        // Try to submit to Vi RBM Platform
+        try {
+            const richTemplateData = {
+                name: name,
+                type: template_type,
+                botId: process.env.VI_RBM_BOT_ID,
+                // Add other mappings based on template_type
+                // text_message
+                ...(template_type === 'text_message' && {
+                    textMessageContent: body,
+                    suggestions: buttons.map(b => ({
+                        suggestionType: b.type, // 'reply', 'url_action', 'dialer_action'
+                        displayText: b.displayText,
+                        postback: b.displayText, // or generate a unique postback
+                        ...(b.type === 'url_action' && { url: b.uri }),
+                        ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
+                    }))
+                }),
+                // rich_card
+                ...(template_type === 'rich_card' && {
+                    orientation: metadata.orientation || 'VERTICAL',
+                    height: metadata.height || 'SHORT_HEIGHT',
+                    standAlone: {
+                        cardTitle: metadata.cardTitle || 'Title',
+                        cardDescription: metadata.cardDescription || body || 'Description',
+                        mediaUrl: metadata.mediaUrl, // Assuming URL for now, file upload separate flow
+                        thumbnailUrl: metadata.thumbnailUrl,
+                        suggestions: buttons.map(b => ({
+                            suggestionType: b.type,
+                            displayText: b.displayText,
+                            postback: b.displayText,
+                            ...(b.type === 'url_action' && { url: b.uri }),
+                            ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
+                        }))
+                    }
+                }),
+                // carousel
+                ...(template_type === 'carousel' && {
+                    height: metadata.height || 'SHORT_HEIGHT',
+                    width: metadata.width || 'MEDIUM_WIDTH',
+                    carouselList: metadata.carouselList || [] // complex mapping needed for carousel items
+                })
+            };
+
+            // Only attempt submit if it looks like a valid Vi RBM template
+            // For now, we just log the attempt, we need to handle the response
+            console.log('📤 Submitting template to Vi RBM...', name);
+            const rbmResponse = await viRbmService.submitTemplate(richTemplateData);
+            console.log('✅ Vi RBM Response:', rbmResponse);
+
+            // Optionally update status based on RBM response
+            // await query("UPDATE rcs_templates SET status = 'submitted' WHERE id = ?", [templateId]);
+
+        } catch (rbmError) {
+            console.error('⚠️ Failed to submit to Vi RBM (saved locally only):', rbmError.message || rbmError);
+            // We don't fail the request, just log it. The user can retry syncing later.
+        }
+
         const createdTemplate = await getTemplateDetails(templateId);
         res.status(201).json(createdTemplate);
     } catch (error) {
@@ -198,30 +265,36 @@ router.put('/templates/:id', async (req, res) => {
             name,
             language,
             category,
+            template_type,
             header_type,
             header_content,
             body,
             footer,
             status,
             buttons = [],
-            variables = []
+            variables = [],
+            metadata = {}
         } = req.body;
+
+        const metaStr = JSON.stringify(metadata || {});
 
         await query(
             `UPDATE rcs_templates 
-            SET name = ?, language = ?, category = ?, status = ?,
-                header_type = ?, header_content = ?, body = ?, footer = ?,
+            SET name = ?, language = ?, category = ?, template_type = ?, status = ?,
+                header_type = ?, header_content = ?, body = ?, footer = ?, metadata = ?,
                 updated_at = NOW()
             WHERE id = ?`,
             [
                 name,
                 language,
                 category,
+                template_type,
                 status,
                 header_type || 'none',
                 header_content || null,
                 body,
                 footer || null,
+                metaStr,
                 req.params.id
             ]
         );
@@ -259,6 +332,53 @@ router.put('/templates/:id', async (req, res) => {
             }
         }
 
+        // --- Vi RBM Integration ---
+        try {
+            const richTemplateData = {
+                name: name, // Name cannot be changed usually, but needed for mapping
+                type: template_type,
+                botId: process.env.VI_RBM_BOT_ID,
+                ...(template_type === 'text_message' && {
+                    textMessageContent: body,
+                    suggestions: buttons.map(b => ({
+                        suggestionType: b.type,
+                        displayText: b.displayText,
+                        postback: b.displayText,
+                        ...(b.type === 'url_action' && { url: b.uri }),
+                        ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
+                    }))
+                }),
+                ...(template_type === 'rich_card' && {
+                    orientation: metadata.orientation || 'VERTICAL',
+                    height: metadata.height || 'SHORT_HEIGHT',
+                    standAlone: {
+                        cardTitle: metadata.cardTitle || 'Title',
+                        cardDescription: metadata.cardDescription || body || 'Description',
+                        mediaUrl: metadata.mediaUrl,
+                        thumbnailUrl: metadata.thumbnailUrl,
+                        suggestions: buttons.map(b => ({
+                            suggestionType: b.type,
+                            displayText: b.displayText,
+                            postback: b.displayText,
+                            ...(b.type === 'url_action' && { url: b.uri }),
+                            ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
+                        }))
+                    }
+                }),
+                ...(template_type === 'carousel' && {
+                    height: metadata.height || 'SHORT_HEIGHT',
+                    width: metadata.width || 'MEDIUM_WIDTH',
+                    carouselList: metadata.carouselList || []
+                })
+            };
+
+            console.log('📤 Updating template on Vi RBM...', name);
+            await viRbmService.updateTemplate(name, richTemplateData);
+            console.log('✅ Vi RBM Update Success');
+        } catch (rbmError) {
+            console.error('⚠️ Failed to update on Vi RBM:', rbmError.message || rbmError);
+        }
+
         const updatedTemplate = await getTemplateDetails(req.params.id);
         res.json(updatedTemplate);
     } catch (error) {
@@ -270,6 +390,21 @@ router.put('/templates/:id', async (req, res) => {
 // DELETE RCS template
 router.delete('/templates/:id', async (req, res) => {
     try {
+        // Fetch template name first for RBM deletion
+        const [templates] = await query('SELECT name FROM rcs_templates WHERE id = ?', [req.params.id]);
+
+        if (templates.length > 0) {
+            const templateName = templates[0].name;
+            // --- Vi RBM Integration ---
+            try {
+                console.log('🗑️ Deleting template from Vi RBM...', templateName);
+                await viRbmService.deleteTemplate(templateName);
+                console.log('✅ Vi RBM Delete Success');
+            } catch (rbmError) {
+                console.error('⚠️ Failed to delete from Vi RBM:', rbmError.message || rbmError);
+            }
+        }
+
         // Cascade delete would be ideal but doing it manually to be safe
         await query('DELETE FROM rcs_template_buttons WHERE template_id = ?', [req.params.id]);
         await query('DELETE FROM rcs_template_variables WHERE template_id = ?', [req.params.id]);

@@ -46,7 +46,11 @@ interface SMSBot {
   initialCreditLimit?: string;
 }
 
-export function SMSBotsList() {
+interface SMSBotsListProps {
+  onUpdate?: () => void;
+}
+
+export function SMSBotsList({ onUpdate }: SMSBotsListProps) {
   const { toast } = useToast();
   const [bots, setBots] = useState<SMSBot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -114,6 +118,7 @@ export function SMSBotsList() {
         });
         setBots(bots.filter(b => b.id !== id));
         toast({ title: 'Deleted', description: 'SMS channel deleted successfully.' });
+        onUpdate?.();
     } catch (error) {
         console.error('Delete SMS bot error:', error);
         toast({ title: 'Error', description: 'Failed to delete channel.', variant: 'destructive' });

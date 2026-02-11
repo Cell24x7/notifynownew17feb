@@ -168,7 +168,7 @@ export default function Campaigns() {
     language: string;
     category: MessageTemplate['category'];
     channel: TemplateChannel;
-    header: { type: HeaderType; content?: string };
+    header: { type: HeaderType; content?: string; fileName?: string };
     body: string;
     footer: string;
     buttons: TemplateButton[];
@@ -214,6 +214,48 @@ export default function Campaigns() {
         variant: 'destructive',
       });
     }
+  };
+
+  const validateFile = (file: File, type: HeaderType | 'image' | 'video' | 'audio' | 'document') => {
+    const limits = {
+      image: { size: 2 * 1024 * 1024, types: ['image/jpeg', 'image/png', 'image/gif'], label: '2MB (JPEG, PNG)' },
+      video: { size: 10 * 1024 * 1024, types: ['video/mp4'], label: '10MB (MP4)' },
+      audio: { size: 5 * 1024 * 1024, types: ['audio/mpeg', 'audio/mp3'], label: '5MB (MP3)' },
+      document: { size: 5 * 1024 * 1024, types: ['application/pdf'], label: '5MB (PDF)' },
+      none: { size: 0, types: [], label: '' },
+      text: { size: 0, types: [], label: '' }
+    };
+
+    // Cast type to keyof typeof limits to avoid indexing errors if type is generic string
+    const limit = limits[type as keyof typeof limits];
+    if (!limit || limit.size === 0) return true;
+
+    if (file.size > limit.size) {
+      toast({ title: 'File Too Large', description: `Max size for ${type} is ${limit.label}`, variant: 'destructive' });
+      return false;
+    }
+
+    if (!limit.types.includes(file.type)) {
+       toast({ title: 'Invalid File Type', description: `Allowed types: ${limit.label}`, variant: 'destructive' });
+       return false;
+    }
+    return true;
+  };
+
+  const handleHeaderFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: HeaderType) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!validateFile(file, type)) {
+        e.target.value = ''; // Reset input
+        return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setNewTemplate(prev => ({
+        ...prev,
+        header: { ...prev.header, type, content: url, fileName: file.name }
+    }));
   };
 
   const filteredTemplates = templates.filter((template) =>
@@ -329,8 +371,10 @@ export default function Campaigns() {
         category: newTemplate.category,
         channel: newTemplate.channel,
         template_type: templateType,
+        button_type: "quick_reply",
         header_type: newTemplate.header.type,
         header_content: newTemplate.header.content,
+        header_file_name: newTemplate.header.fileName, // Added field
         body: newTemplate.body,
         footer: newTemplate.footer || undefined,
         buttons: newTemplate.buttons,
@@ -478,9 +522,48 @@ export default function Campaigns() {
   const renderPhonePreview = () => {
     const getHeaderIcon = () => {
       switch (newTemplate.header.type) {
-        case 'image': return <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Image className="h-8 w-8 text-muted-foreground" /></div>;
-        case 'video': return <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Video className="h-8 w-8 text-muted-foreground" /></div>;
-        case 'document': return <div className="h-20 bg-muted rounded-lg flex items-center justify-center gap-2"><File className="h-6 w-6 text-muted-foreground" /><span className="text-sm text-muted-foreground">Document</span></div>;
+        case 'image': 
+           return newTemplate.header.content ? (
+             <div className="mb-2 rounded-lg overflow-hidden">
+               <img src={newTemplate.header.content} alt="Header" className="w-full h-auto object-cover" />
+             </div>
+           ) : (
+             <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Image className="h-8 w-8 text-muted-foreground" /></div>
+           );
+        case 'video':
+           return newTemplate.header.content ? (
+             <div className="mb-2 rounded-lg overflow-hidden bg-black">
+               <video src={newTemplate.header.content} controls className="w-full h-auto" />
+             </div>
+           ) : (
+             <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Video className="h-8 w-8 text-muted-foreground" /></div>
+           );
+        case 'audio':
+             return newTemplate.header.content ? (
+                 <div className="mb-2 p-2 bg-gray-50 rounded-md border flex items-center gap-2">
+                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                         <Phone size={14} className="rotate-90" />
+                     </div>
+                     <div className="flex-1 overflow-hidden">
+                         <div className="text-xs font-medium truncate">{newTemplate.header.fileName || 'Audio File'}</div>
+                         <div className="text-xs text-muted-foreground">Audio Message</div>
+                     </div>
+                 </div>
+             ) : null;
+        case 'document':
+             return newTemplate.header.content ? (
+                 <div className="mb-2 p-3 bg-gray-50 rounded-md border flex items-center gap-3">
+                     <div className="p-2 bg-red-100 rounded text-red-600">
+                         <FileText size={20} />
+                     </div>
+                     <div className="flex-1 overflow-hidden">
+                         <div className="text-sm font-medium truncate">{newTemplate.header.fileName || 'Document.pdf'}</div>
+                         <div className="text-xs text-muted-foreground">PDF Document</div>
+                     </div>
+                 </div>
+             ) : (
+                 <div className="h-20 bg-muted rounded-lg flex items-center justify-center gap-2"><File className="h-6 w-6 text-muted-foreground" /><span className="text-sm text-muted-foreground">Document</span></div>
+             );
         case 'text': return newTemplate.header.content ? <p className="font-bold text-sm">{newTemplate.header.content}</p> : null;
         default: return null;
       }
@@ -638,7 +721,10 @@ export default function Campaigns() {
                 <div className="w-8 h-8 rounded-full bg-blue-300" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">Business RCS</p>
-                  <p className="text-xs opacity-80">Verified</p>
+                  <div className="flex items-center gap-1">
+                     <p className="text-xs opacity-80">Verified</p>
+                     <span className="text-[10px] bg-white/20 px-1 rounded">{newTemplate.language.toUpperCase()}</span>
+                  </div>
                 </div>
               </div>
               
@@ -773,7 +859,7 @@ export default function Campaigns() {
               <DialogTitle className="sr-only">Create New Campaign</DialogTitle>
               <DialogDescription className="sr-only">Create a new messaging campaign</DialogDescription>
               <CampaignCreationStepper
-                templates={templates}
+                templates={templates.filter(t => t.status === 'approved')}
                 onComplete={handleCampaignComplete}
                 onCancel={() => setIsCreateOpen(false)}
               />
@@ -1516,8 +1602,10 @@ export default function Campaigns() {
                             <div className="flex gap-2 flex-wrap">
                               {(newTemplate.channel === 'whatsapp' 
                                 ? ['none', 'text', 'image', 'video', 'document'] as HeaderType[]
+                                : newTemplate.channel === 'rcs' 
+                                ? ['none', 'text', 'image', 'video', 'audio', 'document'] as any 
                                 : ['none', 'text', 'image'] as HeaderType[]
-                              ).map((type) => (
+                              ).map((type: any) => (
                                 <Button
                                   key={type}
                                   type="button"
@@ -1544,13 +1632,59 @@ export default function Campaigns() {
                             </div>
                           )}
                           
-                          {['image', 'video', 'document'].includes(newTemplate.header.type) && (
-                            <div className="p-4 border-2 border-dashed rounded-lg text-center">
-                              <p className="text-sm text-muted-foreground">
-                                {newTemplate.header.type === 'image' && 'Image will be added when sending the message'}
-                                {newTemplate.header.type === 'video' && 'Video will be added when sending the message'}
-                                {newTemplate.header.type === 'document' && 'Document will be added when sending the message'}
-                              </p>
+                          {['image', 'video', 'audio', 'document'].includes(newTemplate.header.type) && (
+                            <div className="space-y-4">
+                                <div className="p-4 border-2 border-dashed rounded-lg text-center hover:bg-muted/10 transition-colors relative">
+                                    <Input 
+                                        type="file" 
+                                        accept={
+                                            newTemplate.header.type === 'image' ? "image/png, image/jpeg" :
+                                            newTemplate.header.type === 'video' ? "video/mp4" :
+                                            newTemplate.header.type === 'audio' ? "audio/mp3, audio/mpeg" :
+                                            "application/pdf"
+                                        }
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        onChange={(e) => handleHeaderFileChange(e, newTemplate.header.type)}
+                                    />
+                                    <div className="flex flex-col items-center gap-2">
+                                        {newTemplate.header.content ? (
+                                            <>
+                                                {newTemplate.header.type === 'image' ? (
+                                                    <Image className="h-8 w-8 text-primary" />
+                                                ) : newTemplate.header.type === 'video' ? (
+                                                    <Video className="h-8 w-8 text-primary" />
+                                                ) : newTemplate.header.type === 'audio' ? (
+                                                    <Phone className="h-8 w-8 text-primary rotate-90" />
+                                                ) : (
+                                                    <FileText className="h-8 w-8 text-primary" />
+                                                )}
+                                                <p className="text-sm font-medium text-primary">File selected: {newTemplate.header.fileName}</p>
+                                                <p className="text-xs text-muted-foreground">Click to replace</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {newTemplate.header.type === 'image' ? (
+                                                    <Image className="h-8 w-8 text-muted-foreground" />
+                                                ) : newTemplate.header.type === 'video' ? (
+                                                    <Video className="h-8 w-8 text-muted-foreground" />
+                                                ) : newTemplate.header.type === 'audio' ? (
+                                                    <Phone className="h-8 w-8 text-muted-foreground rotate-90" />
+                                                ) : (
+                                                    <FileText className="h-8 w-8 text-muted-foreground" />
+                                                )}
+                                                <p className="text-sm text-muted-foreground">
+                                                    Click to upload {newTemplate.header.type}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {newTemplate.header.type === 'image' && 'Max 2MB (JPEG, PNG)'}
+                                                    {newTemplate.header.type === 'video' && 'Max 10MB (MP4)'}
+                                                    {newTemplate.header.type === 'audio' && 'Max 5MB (MP3)'}
+                                                    {newTemplate.header.type === 'document' && 'Max 5MB (PDF)'}
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                           )}
                         </div>
