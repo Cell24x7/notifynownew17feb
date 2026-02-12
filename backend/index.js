@@ -1,39 +1,68 @@
-// server.js (or index.js) - Main entry point
+// ===============================
+// UNIVERSAL PRODUCTION SERVER
+// Works for: API Only + Fullstack
+// ===============================
+
 require('dotenv').config();
 
-// Backend Server Entry Point - Updated to fix resellers display
 const express = require('express');
 const cors = require('cors');
-const morgan = require('morgan'); // optional: for request logging (very helpful for debugging)
+const morgan = require('morgan');
+const path = require('path');
 
 const app = express();
 
-// Middleware
-app.use(morgan('dev')); // Logs every request (method, url, status, time) - remove in production if not needed
-app.use(express.json({ limit: '10mb' })); // Increase limit if you handle large payloads
-app.use(express.urlencoded({ extended: true }));
+/* ==================================
+   CORS CONFIG (SMART + SAFE)
+================================== */
 
-// CORS - allow only trusted origins
 const allowedOrigins = [
   'http://localhost:5173',
-  'http://localhost:5000',
   'http://localhost:8080',
+  'http://localhost:5000',
   'https://notifynow.in',
   'https://www.notifynow.in'
-
 ];
 
-const corsOptions = {
-  origin: allowedOrigins,
+app.use(cors({
+  origin: function (origin, callback) {
+
+    // Allow requests with no origin (Postman, mobile apps)
+    if (!origin) return callback(null, true);
+
+    // Allow if in whitelist
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Block others
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
-};
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Enable Pre-Flight for all routes explicitly
+// Handle Preflight properly
+app.options('*', cors());
 
-// Routes
+
+/* ==================================
+   MIDDLEWARE
+================================== */
+
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+
+/* ==================================
+   API ROUTES
+================================== */
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/wallet', require('./routes/wallet'));
@@ -53,31 +82,58 @@ app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/logs', require('./routes/logs'));
 
-// Health check & root route
-app.get('/', (req, res) => {
-  const { getDbError } = require('./config/db');
-  const dbError = getDbError();
 
-  if (dbError) {
-    return res.status(500).json({
-      success: false,
-      message: 'Server is running but Database connection failed.',
-      error: dbError,
-      tip: 'Check your .env file and cPanel Database User Permissions.'
-    });
-  }
+/* ==================================
+   HEALTH CHECK
+================================== */
 
+app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: 'Backend server is running 🚀',
+    message: 'Server is running 🚀',
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
 });
 
-// Global error handler (very useful)
+
+/* ==================================
+   SERVE FRONTEND (OPTIONAL)
+   If frontend/dist exists → serve it
+================================== */
+
+const frontendPath = path.join(__dirname, '../frontend/dist');
+
+try {
+  app.use(express.static(frontendPath));
+
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) {
+      return next(); // skip API routes
+    }
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+
+} catch (err) {
+  console.log('No frontend build found. Running as API only.');
+}
+
+
+/* ==================================
+   GLOBAL ERROR HANDLER
+================================== */
+
 app.use((err, req, res, next) => {
-  console.error('GLOBAL ERROR:', err.stack);
+
+  console.error('ERROR:', err.message);
+
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      success: false,
+      message: 'CORS blocked this request'
+    });
+  }
+
   res.status(500).json({
     success: false,
     message: 'Internal server error',
@@ -85,7 +141,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler - always last
+
+/* ==================================
+   404 HANDLER
+================================== */
+
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -93,10 +153,16 @@ app.use((req, res) => {
   });
 });
 
-// Start server
+
+/* ==================================
+   START SERVER
+================================== */
+
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log('===================================');
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`CORS allowed origins: ${app.get('cors')?.origin || 'configured in cors()'}`);
+  console.log('===================================');
 });
