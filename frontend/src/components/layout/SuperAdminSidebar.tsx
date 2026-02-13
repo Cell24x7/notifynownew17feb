@@ -28,7 +28,7 @@ import logo from '@/assets/logo.svg';
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard', permission: 'Dashboard - View' },
   { icon: Building2, label: 'Clients', path: '/super-admin/clients', permission: 'Clients - View' },
-  { icon: FileText, label: 'Templates', path: '/super-admin/templates', permission: 'Templates - View' },
+
   { icon: CreditCard, label: 'Plans', path: '/super-admin/plans', permission: 'Plans - View' },
   { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
   { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },

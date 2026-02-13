@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee } from 'lucide-react';
+import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
+import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
 import { useAuth } from '@/contexts/AuthContext';
 
 // WhatsApp Business API supported template languages
@@ -213,6 +214,18 @@ export default function Campaigns() {
         description: err.response?.data?.message || 'Failed to update template status',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleSyncTemplate = async (templateId: string) => {
+    try {
+      toast({ title: 'Syncing...', description: 'Checking status with Vi RBM...' });
+      await templateService.syncTemplate(templateId);
+      fetchData();
+      toast({ title: 'Synced', description: 'Template status updated.' });
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      toast({ title: 'Sync Failed', description: 'Could not fetch status from Vi RBM', variant: 'destructive' });
     }
   };
 
@@ -1257,11 +1270,15 @@ export default function Campaigns() {
                       ))}
                     </div>
                   )}
-                  <div className="flex items-center justify-between text-sm">
-                    <StatusBadge status={template.status} />
-                    <span className="text-muted-foreground">Used {template.usage_count.toLocaleString()} times</span>
-                  </div>
+
+
+
                   <div className="flex gap-2">
+                    {template.channel === 'rcs' && (
+                        <Button variant="outline" size="icon" title="Sync Status" onClick={() => handleSyncTemplate(template.id)}>
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
+                    )}
                     <Button variant="outline" className="flex-1" onClick={() => handleEditTemplate(template)}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
@@ -1367,21 +1384,34 @@ export default function Campaigns() {
 
                             {/* Approval Actions */}
                             <div className="flex flex-col gap-2 min-w-[140px]">
-                              <Button
-                                className="gradient-primary w-full"
-                                onClick={() => handleApproveTemplate(template.id, 'approved')}
-                              >
-                                <Check className="h-4 w-4 mr-2" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                className="w-full"
-                                onClick={() => handleApproveTemplate(template.id, 'rejected')}
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Reject
-                              </Button>
+                              {template.channel === 'rcs' ? (
+                                <Button
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => handleSyncTemplate(template.id)}
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Sync Status
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    className="gradient-primary w-full"
+                                    onClick={() => handleApproveTemplate(template.id, 'approved')}
+                                  >
+                                    <Check className="h-4 w-4 mr-2" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    className="w-full"
+                                    onClick={() => handleApproveTemplate(template.id, 'rejected')}
+                                  >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
                               <Separator className="my-1" />
                               <Button
                                 variant="outline"

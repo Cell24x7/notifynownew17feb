@@ -1,9 +1,9 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const RCS_API_URL = process.env.RCS_API_URL || 'http://36.255.3.23:7111/rcsApi';
-const RCS_USERNAME = process.env.RCS_USERNAME || 'testdemo';
-const RCS_PASSWORD = process.env.RCS_PASSWORD || 'Pass@cell24x7';
+const RCS_API_URL = process.env.RCS_API_URL;
+const RCS_USERNAME = process.env.RCS_USERNAME;
+const RCS_PASSWORD = process.env.RCS_PASSWORD;
 
 let rcsAccessToken = null;
 let tokenExpiresAt = null;

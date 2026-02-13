@@ -161,6 +161,130 @@ router.delete('/bots/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Submit bot for approval
+// Submit bot for approval
+router.post('/bots/:id/submit', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const botId = req.params.id;
+
+    // Check if bot belongs to user
+    const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [botId, userId]);
+    if (!bots.length) return res.status(404).json({ error: 'Bot not found' });
+
+    // Only allow submission if status is DRAFT
+    if (bots[0].status !== 'DRAFT') {
+      return res.status(400).json({ error: 'Bot is already submitted or processed' });
+    }
+
+    // --- Vi RBM Integration ---
+    const { createRbmBot } = require('../services/viRbmService');
+    console.log(`🚀 Submitting Bot ${botId} to Vi RBM...`);
+
+    let rbmStatus = 'SUBMITTED';
+    let rbmBotId = null;
+
+    try {
+      const rbmResponse = await createRbmBot(bots[0]);
+      console.log('✅ Vi RBM Submission Response:', rbmResponse);
+
+      // Check what we got back. 
+      // If we got a botId, save it.
+      if (rbmResponse && rbmResponse.botId) {
+        rbmBotId = rbmResponse.botId;
+      }
+
+      // If status is returned
+      if (rbmResponse && rbmResponse.status) {
+        // Map RBM status if needed, or just keep SUBMITTED
+      }
+
+    } catch (rbmError) {
+      console.error('⚠️ Failed to submit to Vi RBM:', rbmError.message || rbmError);
+      // We might want to fail the whole request or just log it?
+      // User said "kya mera bot approval ke liye jata hai virbm ko ki nahi".
+      // So we should probably try to enforce it, but if API fails, maybe keep it locally submitted?
+      // Let's return error to user so they know.
+      return res.status(502).json({
+        error: 'Failed to submit to Vi RBM. Please check your configuration.',
+        details: rbmError.message || rbmError
+      });
+    }
+
+    // Update status to SUBMITTED and save RBM Bot ID
+    await query(
+      'UPDATE rcs_bots SET status = ?, rbm_bot_id = ?, submitted_at = NOW() WHERE id = ?',
+      ['SUBMITTED', rbmBotId, botId]
+    );
+
+    res.json({ success: true, message: 'Bot submitted for approval successfully' });
+  } catch (error) {
+    console.error('Submit bot error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Sync bot status from Vi RBM
+router.post('/bots/:id/sync', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const botId = req.params.id;
+
+    // Check if bot belongs to user
+    const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [botId, userId]);
+    if (!bots.length) return res.status(404).json({ error: 'Bot not found' });
+
+    const bot = bots[0];
+
+    // Only verify if we have an RBM Bot ID or if it's in a submitted state
+    // If we don't have an RBM Bot ID, we can try to "re-submit" or check by name if API supported it,
+    // but typically we need the ID.
+    if (!bot.rbm_bot_id) {
+      // Fallback: If no RBM ID yet, maybe previous submission didn't return it.
+      // We could try to "create" again to get the ID, or just tell user to submit first.
+      return res.status(400).json({ error: 'No RBM Bot ID found. Please submit the bot first.' });
+    }
+
+    // --- Vi RBM Integration ---
+    const { getBotStatus } = require('../services/viRbmService');
+    console.log(`🔄 Syncing status for Bot ${botId} (${bot.rbm_bot_id})...`);
+
+    const rbmStatus = await getBotStatus(bot.rbm_bot_id);
+    console.log('✅ Vi RBM Status:', rbmStatus);
+
+    // Map RBM status to local status
+    let localStatus = bot.status;
+
+    // Example mapping: 
+    // RBM might return: LAUNCHED, PENDING, REJECTED, etc.
+    if (rbmStatus === 'LAUNCHED' || rbmStatus === 'APPROVED') {
+      localStatus = 'ACTIVE';
+    } else if (rbmStatus === 'REJECTED' || rbmStatus === 'SUSPENDED') {
+      localStatus = 'REJECTED'; // Or SUSPENDED
+    } else if (rbmStatus === 'PENDING') {
+      localStatus = 'SUBMITTED';
+    }
+
+    // Update DB
+    if (localStatus !== bot.status) {
+      await query('UPDATE rcs_bots SET status = ?, updated_at = NOW() WHERE id = ?', [localStatus, botId]);
+      console.log(`✅ Bot status updated to ${localStatus}`);
+    } else {
+      console.log('ℹ️ Bot status remains unchanged');
+    }
+
+    res.json({
+      success: true,
+      status: localStatus,
+      rbmStatus: rbmStatus
+    });
+
+  } catch (error) {
+    console.error('Sync bot error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /api/rcs/send-campaign - Send RCS campaign to multiple contacts
 router.post('/send-campaign', authenticateToken, async (req, res) => {
   try {

@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const { query } = require('../config/db');
 const { logSystem } = require('../utils/logger');
 const { sendSMS } = require('../utils/smsService');
@@ -14,24 +13,38 @@ if (!JWT_SECRET) {
   console.error('JWT_SECRET missing in .env file! Authentication will fail.');
 }
 
-// Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'test@example.com',
-    pass: process.env.EMAIL_PASS || 'password'
-  }
-});
+const axios = require('axios');
 
 const sendEmail = async (to, subject, text) => {
-  if (!process.env.EMAIL_USER) {
+  // Use Custom Email API
+  const emailUser = process.env.EMAIL_API_USER;
+  const emailPass = process.env.EMAIL_API_PASS;
+  const fromAddr = process.env.EMAIL_FROM_ADDR || 'support@cell24x7.com';
+
+  // Extract OTP from text if possible, or just use text body
+  // User URL: .../sendEmail?user=...&pwd=...&fromAdd=...&toAdd=...&fromName=NotifyNow&subject=...&body=...
+
+  if (!emailUser || !emailPass) {
     console.log(`[DEV MODE] Email to ${to}: ${subject} \n${text}`);
     return;
   }
+
   try {
-    await transporter.sendMail({ from: process.env.EMAIL_USER, to, subject, text });
+    const apiUrl = process.env.EMAIL_API_URL || `http://43.242.212.34:7716/emailService/sendEmail`;
+    const response = await axios.get(apiUrl, {
+      params: {
+        user: emailUser,
+        pwd: emailPass,
+        fromAdd: fromAddr,
+        toAdd: to,
+        fromName: 'NotifyNow',
+        subject: subject,
+        body: text
+      }
+    });
+    console.log(`📧 Email sent to ${to}:`, response.data);
   } catch (err) {
-    console.error('Email send failed:', err);
+    console.error('❌ Email send failed:', err.message);
   }
 };
 
@@ -334,10 +347,49 @@ const authenticate = require('../middleware/authMiddleware');
 
 // Update Profile
 router.put('/update-profile', authenticate, async (req, res) => {
-  const { full_name, company, password } = req.body;
+  const { full_name, company, password, mobile } = req.body;
   try {
     const updates = [];
     const params = [];
+
+    // --- Special Logic for Mobile Number Update/Merge ---
+    if (mobile) {
+      // Check if this mobile is already in use
+      const [existingUsers] = await query('SELECT * FROM users WHERE contact_phone = ?', [mobile]);
+
+      if (existingUsers.length > 0) {
+        const existingUser = existingUsers[0];
+
+        // If it's the SAME user, do nothing different
+        if (existingUser.id !== req.user.id) {
+
+          // Check if the existing user is a "Placeholder" account from Mobile Signup
+          // A placeholder typically has an email like '1234567890@phone.cell24x7.com'
+          const isPlaceholder = existingUser.email && existingUser.email.endsWith('@phone.cell24x7.com');
+
+          if (isPlaceholder) {
+            console.log(`🔀 Merging placeholder account ${existingUser.id} into main account ${req.user.id}`);
+
+            // 1. Delete the placeholder account to free up the number
+            await query('DELETE FROM users WHERE id = ?', [existingUser.id]);
+
+            // 2. Add the number to the current user
+            updates.push('contact_phone = ?');
+            params.push(mobile);
+
+            console.log('✅ Merge complete. Number assigned to main account.');
+          } else {
+            // It's a REAL account with a real email. Cannot merge automatically.
+            return res.status(400).json({ success: false, message: 'Mobile number is already linked to another registered account.' });
+          }
+        }
+      } else {
+        // Number not in use, just update it
+        updates.push('contact_phone = ?');
+        params.push(mobile);
+      }
+    }
+    // ----------------------------------------------------
 
     if (full_name) {
       updates.push('name = ?');
@@ -361,7 +413,7 @@ router.put('/update-profile', authenticate, async (req, res) => {
     res.json({ success: true, message: 'Profile updated' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: req.body.mobile ? 'Failed to update mobile number' : 'Failed to update profile' });
   }
 });
 

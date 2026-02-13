@@ -147,33 +147,34 @@ router.post('/templates', async (req, res) => {
                 status,
                 header_type || 'none',
                 header_content || null,
-                body || '', // Can be empty for carousel/rich card if description is used instead
+                body || '',
                 footer || null,
                 metaStr,
                 created_by || 'system'
             ]
         );
 
-        // Insert buttons (if any)
+        // Insert buttons (suggestions)
         if (buttons && buttons.length > 0) {
             for (const button of buttons) {
                 await query(
                     `INSERT INTO rcs_template_buttons 
-                    (template_id, type, action_type, display_text, uri, position)
-                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    (template_id, type, action_type, display_text, uri, position, payload)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [
                         templateId,
-                        button.type || 'action',
+                        button.type || 'reply', // 'reply', 'url_action', 'dialer_action', 'calendar_event', 'view_location', 'share_location'
                         button.actionType || null,
                         button.displayText,
-                        button.uri || null,
-                        button.position || 0
+                        button.uri || null, // Stores URL or Phone Number or Lat/Long
+                        button.position || 0,
+                        JSON.stringify(button.payload || {}) // Store extra data like startTime, endTime, title, description for calendar
                     ]
                 );
             }
         }
 
-        // Insert variables (if any)
+        // Insert variables
         if (variables && variables.length > 0) {
             for (const variable of variables) {
                 await query(
@@ -192,62 +193,113 @@ router.post('/templates', async (req, res) => {
         );
 
         // --- Vi RBM Integration ---
-        // Try to submit to Vi RBM Platform
         try {
+            // Helper to map buttons to RBM suggestions
+            const mapSuggestions = (btns) => {
+                return btns.map(b => {
+                    const base = {
+                        displayText: b.displayText,
+                        postback: b.postback || b.displayText.toLowerCase().replace(/\s+/g, '_')
+                    };
+
+                    switch (b.type) {
+                        case 'reply':
+                            return { ...base, suggestionType: 'reply' };
+                        case 'url_action':
+                            return { ...base, suggestionType: 'url_action', url: b.uri };
+                        case 'dialer_action':
+                            return { ...base, suggestionType: 'dialer_action', phoneNumber: b.uri };
+                        case 'calendar_event':
+                            return {
+                                ...base,
+                                suggestionType: 'calendar_event',
+                                startTime: b.payload?.startTime,
+                                endTime: b.payload?.endTime,
+                                title: b.payload?.title,
+                                description: b.payload?.description,
+                                timeZone: b.payload?.timeZone
+                            };
+                        case 'view_location_latlong': // Custom internal type mapping
+                            return {
+                                ...base,
+                                suggestionType: 'view_location_latlong',
+                                latitude: b.payload?.latitude,
+                                longitude: b.payload?.longitude,
+                                label: b.payload?.label
+                            };
+                        case 'view_location_query':
+                            return {
+                                ...base,
+                                suggestionType: 'view_location_query',
+                                query: b.payload?.query
+                            };
+                        case 'share_location':
+                            return { ...base, suggestionType: 'share_location' };
+                        default:
+                            return { ...base, suggestionType: 'reply' };
+                    }
+                });
+            };
+
             const richTemplateData = {
                 name: name,
                 type: template_type,
                 botId: process.env.VI_RBM_BOT_ID,
-                // Add other mappings based on template_type
-                // text_message
-                ...(template_type === 'text_message' && {
-                    textMessageContent: body,
-                    suggestions: buttons.map(b => ({
-                        suggestionType: b.type, // 'reply', 'url_action', 'dialer_action'
-                        displayText: b.displayText,
-                        postback: b.displayText, // or generate a unique postback
-                        ...(b.type === 'url_action' && { url: b.uri }),
-                        ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
-                    }))
-                }),
-                // rich_card
-                ...(template_type === 'rich_card' && {
-                    orientation: metadata.orientation || 'VERTICAL',
-                    height: metadata.height || 'SHORT_HEIGHT',
-                    standAlone: {
-                        cardTitle: metadata.cardTitle || 'Title',
-                        cardDescription: metadata.cardDescription || body || 'Description',
-                        mediaUrl: metadata.mediaUrl, // Assuming URL for now, file upload separate flow
-                        thumbnailUrl: metadata.thumbnailUrl,
-                        suggestions: buttons.map(b => ({
-                            suggestionType: b.type,
-                            displayText: b.displayText,
-                            postback: b.displayText,
-                            ...(b.type === 'url_action' && { url: b.uri }),
-                            ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
-                        }))
-                    }
-                }),
-                // carousel
-                ...(template_type === 'carousel' && {
-                    height: metadata.height || 'SHORT_HEIGHT',
-                    width: metadata.width || 'MEDIUM_WIDTH',
-                    carouselList: metadata.carouselList || [] // complex mapping needed for carousel items
-                })
             };
 
-            // Only attempt submit if it looks like a valid Vi RBM template
-            // For now, we just log the attempt, we need to handle the response
+            if (template_type === 'text_message') {
+                richTemplateData.textMessageContent = body;
+                richTemplateData.suggestions = mapSuggestions(buttons);
+            } else if (template_type === 'rich_card') {
+                richTemplateData.orientation = metadata.orientation || 'VERTICAL';
+                richTemplateData.height = metadata.height || 'SHORT_HEIGHT';
+
+                // Alignment only for HORIZONTAL
+                if (richTemplateData.orientation === 'HORIZONTAL') {
+                    richTemplateData.alignment = metadata.alignment || 'LEFT';
+                }
+
+                richTemplateData.standAlone = {
+                    cardTitle: metadata.cardTitle || 'Title',
+                    cardDescription: metadata.cardDescription || body || 'Description',
+                    suggestions: mapSuggestions(buttons)
+                };
+
+                // Media handling
+                if (metadata.mediaUrl) {
+                    richTemplateData.standAlone.mediaUrl = metadata.mediaUrl;
+                }
+                if (metadata.thumbnailUrl) {
+                    richTemplateData.standAlone.thumbnailUrl = metadata.thumbnailUrl;
+                }
+
+                // If using file upload (multipart), file names need to arguably match
+                // We're expecting mediaUrl for now as per "Upload Multimedia from Url" section
+            } else if (template_type === 'carousel') {
+                richTemplateData.height = metadata.height || 'SHORT_HEIGHT';
+                richTemplateData.width = metadata.width || 'MEDIUM_WIDTH';
+
+                // Process carousel items
+                if (metadata.carouselList && Array.isArray(metadata.carouselList)) {
+                    richTemplateData.carouselList = metadata.carouselList.map(card => ({
+                        cardTitle: card.title,
+                        cardDescription: card.description,
+                        mediaUrl: card.mediaUrl,
+                        thumbnailUrl: card.thumbnailUrl,
+                        suggestions: mapSuggestions(card.buttons || [])
+                    }));
+                }
+            }
+
             console.log('📤 Submitting template to Vi RBM...', name);
+            // We pass empty array for mediaFiles for now, assuming URL based media
             const rbmResponse = await viRbmService.submitTemplate(richTemplateData);
             console.log('✅ Vi RBM Response:', rbmResponse);
 
-            // Optionally update status based on RBM response
-            // await query("UPDATE rcs_templates SET status = 'submitted' WHERE id = ?", [templateId]);
-
+            // Update status if successful (usually 202 Accepted -> pending)
+            // But we keep it 'pending_approval' locally until callback/sync check
         } catch (rbmError) {
             console.error('⚠️ Failed to submit to Vi RBM (saved locally only):', rbmError.message || rbmError);
-            // We don't fail the request, just log it. The user can retry syncing later.
         }
 
         const createdTemplate = await getTemplateDetails(templateId);
@@ -299,21 +351,22 @@ router.put('/templates/:id', async (req, res) => {
             ]
         );
 
-        // Update buttons (Simple approach: delete and re-insert)
+        // Update buttons
         await query('DELETE FROM rcs_template_buttons WHERE template_id = ?', [req.params.id]);
         if (buttons && buttons.length > 0) {
             for (const button of buttons) {
                 await query(
                     `INSERT INTO rcs_template_buttons 
-                    (template_id, type, action_type, display_text, uri, position)
-                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    (template_id, type, action_type, display_text, uri, position, payload)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [
                         req.params.id,
-                        button.type || 'action',
+                        button.type || 'reply',
                         button.actionType || null,
                         button.displayText,
                         button.uri || null,
-                        button.position || 0
+                        button.position || 0,
+                        JSON.stringify(button.payload || {})
                     ]
                 );
             }
@@ -334,43 +387,83 @@ router.put('/templates/:id', async (req, res) => {
 
         // --- Vi RBM Integration ---
         try {
+            // Helper to map buttons to RBM suggestions (Duplicates logic from Create - refactor later)
+            const mapSuggestions = (btns) => {
+                return btns.map(b => {
+                    const base = {
+                        displayText: b.displayText,
+                        postback: b.postback || b.displayText.toLowerCase().replace(/\s+/g, '_')
+                    };
+
+                    switch (b.type) {
+                        case 'reply': return { ...base, suggestionType: 'reply' };
+                        case 'url_action': return { ...base, suggestionType: 'url_action', url: b.uri };
+                        case 'dialer_action': return { ...base, suggestionType: 'dialer_action', phoneNumber: b.uri };
+                        case 'calendar_event':
+                            return {
+                                ...base,
+                                suggestionType: 'calendar_event',
+                                startTime: b.payload?.startTime,
+                                endTime: b.payload?.endTime,
+                                title: b.payload?.title,
+                                description: b.payload?.description,
+                                timeZone: b.payload?.timeZone
+                            };
+                        case 'view_location_latlong':
+                            return {
+                                ...base,
+                                suggestionType: 'view_location_latlong',
+                                latitude: b.payload?.latitude,
+                                longitude: b.payload?.longitude,
+                                label: b.payload?.label
+                            };
+                        case 'view_location_query':
+                            return { ...base, suggestionType: 'view_location_query', query: b.payload?.query };
+                        case 'share_location': return { ...base, suggestionType: 'share_location' };
+                        default: return { ...base, suggestionType: 'reply' };
+                    }
+                });
+            };
+
             const richTemplateData = {
-                name: name, // Name cannot be changed usually, but needed for mapping
+                name: name,
                 type: template_type,
                 botId: process.env.VI_RBM_BOT_ID,
-                ...(template_type === 'text_message' && {
-                    textMessageContent: body,
-                    suggestions: buttons.map(b => ({
-                        suggestionType: b.type,
-                        displayText: b.displayText,
-                        postback: b.displayText,
-                        ...(b.type === 'url_action' && { url: b.uri }),
-                        ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
-                    }))
-                }),
-                ...(template_type === 'rich_card' && {
-                    orientation: metadata.orientation || 'VERTICAL',
-                    height: metadata.height || 'SHORT_HEIGHT',
-                    standAlone: {
-                        cardTitle: metadata.cardTitle || 'Title',
-                        cardDescription: metadata.cardDescription || body || 'Description',
-                        mediaUrl: metadata.mediaUrl,
-                        thumbnailUrl: metadata.thumbnailUrl,
-                        suggestions: buttons.map(b => ({
-                            suggestionType: b.type,
-                            displayText: b.displayText,
-                            postback: b.displayText,
-                            ...(b.type === 'url_action' && { url: b.uri }),
-                            ...(b.type === 'dialer_action' && { phoneNumber: b.uri })
-                        }))
-                    }
-                }),
-                ...(template_type === 'carousel' && {
-                    height: metadata.height || 'SHORT_HEIGHT',
-                    width: metadata.width || 'MEDIUM_WIDTH',
-                    carouselList: metadata.carouselList || []
-                })
             };
+
+            if (template_type === 'text_message') {
+                richTemplateData.textMessageContent = body;
+                richTemplateData.suggestions = mapSuggestions(buttons);
+            } else if (template_type === 'rich_card') {
+                richTemplateData.orientation = metadata.orientation || 'VERTICAL';
+                richTemplateData.height = metadata.height || 'SHORT_HEIGHT';
+                if (richTemplateData.orientation === 'HORIZONTAL') {
+                    richTemplateData.alignment = metadata.alignment || 'LEFT';
+                }
+
+                richTemplateData.standAlone = {
+                    cardTitle: metadata.cardTitle || 'Title',
+                    cardDescription: metadata.cardDescription || body || 'Description',
+                    suggestions: mapSuggestions(buttons)
+                };
+
+                if (metadata.mediaUrl) richTemplateData.standAlone.mediaUrl = metadata.mediaUrl;
+                if (metadata.thumbnailUrl) richTemplateData.standAlone.thumbnailUrl = metadata.thumbnailUrl;
+
+            } else if (template_type === 'carousel') {
+                richTemplateData.height = metadata.height || 'SHORT_HEIGHT';
+                richTemplateData.width = metadata.width || 'MEDIUM_WIDTH';
+
+                if (metadata.carouselList && Array.isArray(metadata.carouselList)) {
+                    richTemplateData.carouselList = metadata.carouselList.map(card => ({
+                        cardTitle: card.title,
+                        cardDescription: card.description,
+                        mediaUrl: card.mediaUrl,
+                        thumbnailUrl: card.thumbnailUrl,
+                        suggestions: mapSuggestions(card.buttons || [])
+                    }));
+                }
+            }
 
             console.log('📤 Updating template on Vi RBM...', name);
             await viRbmService.updateTemplate(name, richTemplateData);
@@ -405,7 +498,7 @@ router.delete('/templates/:id', async (req, res) => {
             }
         }
 
-        // Cascade delete would be ideal but doing it manually to be safe
+        // Cascade delete
         await query('DELETE FROM rcs_template_buttons WHERE template_id = ?', [req.params.id]);
         await query('DELETE FROM rcs_template_variables WHERE template_id = ?', [req.params.id]);
         await query('DELETE FROM rcs_template_analytics WHERE template_id = ?', [req.params.id]);
@@ -483,6 +576,59 @@ router.get('/templates/status/:status', async (req, res) => {
     } catch (error) {
         console.error('Error fetching templates by status:', error);
         res.status(500).json({ error: 'Failed to fetch templates' });
+    }
+});
+
+// SYNC template status from Vi RBM
+router.post('/templates/:id/sync', async (req, res) => {
+    try {
+        const [templates] = await query('SELECT name, status FROM rcs_templates WHERE id = ?', [req.params.id]);
+
+        if (templates.length === 0) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+
+        const template = templates[0];
+        console.log('🔄 Syncing status for template:', template.name);
+
+        try {
+            // Get status from Vi RBM
+            const rbmStatus = await viRbmService.getTemplateStatus(template.name);
+            console.log('✅ Vi RBM Status:', rbmStatus);
+
+            // Map RBM status to local status
+            // RBM statuses: PENDING, APPROVED, REJECTED
+            let localStatus = template.status;
+            let rejectionReason = null;
+
+            if (rbmStatus.status === 'APPROVED') {
+                localStatus = 'approved';
+            } else if (rbmStatus.status === 'REJECTED') {
+                localStatus = 'rejected';
+                rejectionReason = rbmStatus.reason || 'Rejected by Vi';
+            } else if (rbmStatus.status === 'PENDING') {
+                localStatus = 'pending_approval';
+            }
+
+            // Update local DB if changed
+            if (localStatus !== template.status) {
+                await query(
+                    'UPDATE rcs_templates SET status = ?, rejection_reason = ?, updated_at = NOW() WHERE id = ?',
+                    [localStatus, rejectionReason, req.params.id]
+                );
+            }
+
+            const updatedTemplate = await getTemplateDetails(req.params.id);
+            res.json(updatedTemplate);
+
+        } catch (rbmError) {
+            console.error('⚠️ Failed to sync with Vi RBM:', rbmError.message || rbmError);
+            res.status(502).json({ error: 'Failed to sync with Vi RBM' });
+        }
+
+    } catch (error) {
+        console.error('Error syncing template:', error);
+        res.status(500).json({ error: 'Failed to sync template' });
     }
 });
 

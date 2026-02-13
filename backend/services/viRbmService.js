@@ -2,15 +2,37 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 require('dotenv').config();
+const { query } = require('../config/db');
 
-const VI_RBM_AUTH_URL = process.env.VI_RBM_AUTH_URL
-const VI_RBM_API_URL = process.env.VI_RBM_API_URL
+const VI_RBM_AUTH_URL = process.env.VI_RBM_AUTH_URL;
+const VI_RBM_API_URL = process.env.VI_RBM_API_URL;
 const VI_RBM_CLIENT_ID = process.env.VI_RBM_CLIENT_ID;
 const VI_RBM_CLIENT_SECRET = process.env.VI_RBM_CLIENT_SECRET;
-const VI_RBM_BOT_ID = process.env.VI_RBM_BOT_ID;
+let VI_RBM_BOT_ID = process.env.VI_RBM_BOT_ID;
 
 let rbmAccessToken = null;
 let tokenExpiresAt = null;
+
+// Helper to get Bot ID if not in env
+const getBotId = async () => {
+    if (VI_RBM_BOT_ID) return VI_RBM_BOT_ID;
+    try {
+        const [bots] = await query('SELECT id FROM rcs_bots WHERE status = "ACTIVE" OR status = "APPROVED" LIMIT 1');
+        if (bots.length > 0) {
+            VI_RBM_BOT_ID = bots[0].id;
+            return VI_RBM_BOT_ID;
+        }
+        // Fallback to any bot if no active one found
+        const [anyBot] = await query('SELECT id FROM rcs_bots LIMIT 1');
+        if (anyBot.length > 0) {
+            VI_RBM_BOT_ID = anyBot[0].id;
+            return VI_RBM_BOT_ID;
+        }
+    } catch (err) {
+        console.error('Error fetching Bot ID from DB:', err.message);
+    }
+    return null;
+};
 
 /**
  * Get Vi RBM Access Token
@@ -67,14 +89,15 @@ const submitTemplate = async (templateData, mediaFiles = []) => {
         const token = await getRbmToken();
         if (!token) throw new Error('Failed to get access token');
 
+        const botId = await getBotId();
+        if (!botId) throw new Error('No RCS Bot Configured. Please create a bot first.');
+
         const form = new FormData();
-        // The API expects 'rich_template_data' as a JSON string or object. 
-        // Based on docs, it's a multipart request where one part is the JSON data and others are files.
 
         // Append JSON data
         form.append('rich_template_data', JSON.stringify(templateData));
 
-        // Append Files
+        // Append Files if provided
         if (mediaFiles && mediaFiles.length > 0) {
             for (const file of mediaFiles) {
                 if (fs.existsSync(file.path)) {
@@ -85,8 +108,10 @@ const submitTemplate = async (templateData, mediaFiles = []) => {
             }
         }
 
+        console.log(`📤 Posting to ${VI_RBM_API_URL}/directory/secure/api/v1/bots/${botId}/templates`);
+
         const response = await axios.post(
-            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${VI_RBM_BOT_ID}/templates`,
+            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${botId}/templates`,
             form,
             {
                 headers: {
@@ -119,6 +144,9 @@ const updateTemplate = async (templateName, templateData, mediaFiles = []) => {
         const token = await getRbmToken();
         if (!token) throw new Error('Failed to get access token');
 
+        const botId = await getBotId();
+        if (!botId) throw new Error('No RCS Bot Configured.');
+
         // Template name needs to be Base64 URL Encoded for the path
         const encodedName = Buffer.from(templateName).toString('base64url');
 
@@ -136,7 +164,7 @@ const updateTemplate = async (templateName, templateData, mediaFiles = []) => {
         }
 
         const response = await axios.put(
-            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${VI_RBM_BOT_ID}/templates/${encodedName}`,
+            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${botId}/templates/${encodedName}`,
             form,
             {
                 headers: {
@@ -167,10 +195,13 @@ const deleteTemplate = async (templateName) => {
         const token = await getRbmToken();
         if (!token) throw new Error('Failed to get access token');
 
+        const botId = await getBotId();
+        if (!botId) throw new Error('No RCS Bot Configured.');
+
         const encodedName = Buffer.from(templateName).toString('base64url');
 
         await axios.delete(
-            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${VI_RBM_BOT_ID}/templates/${encodedName}`,
+            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${botId}/templates/${encodedName}`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -182,7 +213,6 @@ const deleteTemplate = async (templateName) => {
     } catch (error) {
         console.error('❌ Delete Template Error:', error.message);
         if (error.response) {
-            console.error('📦 Error Response:', JSON.stringify(error.response.data));
             // If 404, consider it already deleted
             if (error.response.status === 404) return true;
         }
@@ -199,8 +229,11 @@ const getTemplateList = async () => {
         const token = await getRbmToken();
         if (!token) throw new Error('Failed to get access token');
 
+        const botId = await getBotId();
+        if (!botId) return [];
+
         const response = await axios.get(
-            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${VI_RBM_BOT_ID}/templates`,
+            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${botId}/templates`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -216,41 +249,115 @@ const getTemplateList = async () => {
 };
 
 /**
- * Upload File to Vi RBM
- * @param {string} filePath 
- * @param {string} mimeType 
- * @returns {Promise<string>} - fileId or fileUrl
+ * Get Template Status
+ * @param {string} templateName 
+ * @returns {Promise<string>}
  */
-const uploadFile = async (filePath, mimeType) => {
+const getTemplateStatus = async (templateName) => {
     try {
         const token = await getRbmToken();
         if (!token) throw new Error('Failed to get access token');
 
-        const form = new FormData();
-        form.append('fileContent', fs.createReadStream(filePath));
-        form.append('fileType', mimeType);
-        // expiry could be optional, maybe 'until' field
+        const botId = await getBotId();
+        if (!botId) return 'unknown';
 
-        const response = await axios.post(
-            // GSMA style file upload or Google style?
-            // Document mentions: {serverRoot}/bot/v1/{botId}/files
-            // AND {serverRoot}/rcs/upload/v1/files?botId={botId} (Section 3.6)
-            // Let's use 3.6 as it seems more generic for the platform
-            `${VI_RBM_API_URL}/rcs/upload/v1/files?botId=${VI_RBM_BOT_ID}`,
-            form,
+        const encodedName = Buffer.from(templateName).toString('base64url');
+
+        const response = await axios.get(
+            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${botId}/templates/${encodedName}/templateStatus`,
             {
                 headers: {
-                    ...form.getHeaders(),
                     'Authorization': `Bearer ${token}`
                 }
             }
         );
 
-        // Response example 1: { "name": "9mEFZnVTBsycGwtVTH7BovQwuz0Msr9p" }
-        return response.data?.name || response.data?.fileId;
+        return response.data?.templateStatus || 'unknown';
     } catch (error) {
-        console.error('❌ Upload File Error:', error.message);
+        console.error('❌ Get Template Status Error:', error.message);
+        return 'unknown';
+    }
+};
+
+/**
+ * Upload Media from URL (Vi RBM feature)
+ * @param {string} fileUrl - Public URL of the file
+ * @returns {Promise<string>} - Media URL or ID
+ */
+const uploadMediaFromUrl = async (fileUrl) => {
+    return fileUrl;
+};
+
+/**
+ * Upload File to Vi RBM
+ * @param {Object} file 
+ * @returns {Promise<string>}
+ */
+const uploadFile = async (file) => {
+    // Placeholder
+    return null;
+};
+
+/**
+ * Create/Register Bot with Vi RBM
+ * @param {Object} botData - Data from local DB
+ * @returns {Promise<Object>} - Response containing botId
+ */
+const createRbmBot = async (botData) => {
+    try {
+        const token = await getRbmToken();
+        if (!token) throw new Error('Failed to get access token');
+
+        console.log('📤 Creating/Approving Bot on Vi RBM...');
+
+        // This targets the user's specific approval endpoint request
+        const response = await axios.post(
+            `${VI_RBM_AUTH_URL.replace('auth/oauth/token', 'api/bots/approve')}`,
+            {
+                botId: botData.id,
+                name: botData.bot_name
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error('❌ Create RBM Bot Error:', error.message);
+        if (error.response) {
+            console.error('📦 Error Response:', JSON.stringify(error.response.data));
+            throw error.response.data;
+        }
         throw error;
+    }
+};
+
+/**
+ * Get Bot Status from Vi RBM
+ * @param {string} botId 
+ * @returns {Promise<string>}
+ */
+const getBotStatus = async (botId) => {
+    try {
+        const token = await getRbmToken();
+        if (!token) throw new Error('Failed to get access token');
+
+        const response = await axios.get(
+            `${VI_RBM_API_URL}/directory/secure/api/v1/bots/${botId}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        return response.data?.launchState || 'UNKNOWN';
+    } catch (error) {
+        console.error('❌ Get Bot Status Error:', error.message);
+        return 'UNKNOWN';
     }
 };
 
@@ -260,5 +367,8 @@ module.exports = {
     updateTemplate,
     deleteTemplate,
     getTemplateList,
-    uploadFile
+    getTemplateStatus,
+    uploadFile,
+    createRbmBot,
+    getBotStatus
 };

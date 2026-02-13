@@ -104,7 +104,7 @@ router.post('/', authenticateToken, async (req, res) => {
                 const richTemplateData = {
                     name: name,
                     type: template_type === 'carousel' ? 'carousel' : (template_type === 'rich_card' ? 'rich_card' : 'text_message'), // Default to text_message if standard
-                    botId: process.env.VI_RBM_BOT_ID,
+                    // botId is handled by service URL construction
 
                     // Text Message Mapping
                     ...(template_type === 'standard' && {
@@ -156,9 +156,17 @@ router.post('/', authenticateToken, async (req, res) => {
                 const rbmResponse = await viRbmService.submitTemplate(richTemplateData);
                 console.log('✅ Vi RBM Response:', rbmResponse);
 
+                // Auto-update status if RBM returns it
+                if (rbmResponse && rbmResponse.status) { // Assuming response has status field
+                    const newStatus = rbmResponse.status === 'APPROVED' ? 'approved' :
+                        rbmResponse.status === 'REJECTED' ? 'rejected' : 'pending';
+
+                    await query('UPDATE message_templates SET status = ? WHERE id = ?', [newStatus, templateId]);
+                }
+
             } catch (rbmError) {
                 console.error('⚠️ Failed to submit to Vi RBM:', rbmError.message || rbmError);
-                // Not failing the main request, as it's saved locally
+                // We don't fail the request, but status remains 'pending' (pending submission retry maybe?)
             }
         }
 
@@ -314,6 +322,70 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Delete template error:', error);
         res.status(500).json({ success: false, message: 'Failed to delete template' });
+    }
+});
+
+// SYNC template status (RCS only)
+router.post('/:id/sync', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        // Get template
+        const [templates] = await query('SELECT * FROM message_templates WHERE id = ?', [id]);
+        if (templates.length === 0) return res.status(404).json({ success: false, message: 'Template not found' });
+
+        const template = templates[0];
+
+        // Check ownership (unless admin)
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && template.user_id !== userId) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        if (template.channel !== 'rcs') {
+            return res.status(400).json({ success: false, message: 'Sync only available for RCS templates' });
+        }
+
+        console.log('🔄 Syncing status for template:', template.name);
+
+        try {
+            // Get status from Vi RBM
+            const rbmStatus = await viRbmService.getTemplateStatus(template.name);
+            console.log('✅ Vi RBM Status:', rbmStatus);
+
+            // Map RBM status to local status
+            let localStatus = template.status;
+            let rejectionReason = null;
+
+            if (rbmStatus.status === 'APPROVED') {
+                localStatus = 'approved';
+            } else if (rbmStatus.status === 'REJECTED') {
+                localStatus = 'rejected';
+                rejectionReason = rbmStatus.reason || 'Rejected by Vi RBM';
+            } else if (rbmStatus.status === 'PENDING') {
+                localStatus = 'pending';
+            }
+
+            // Update local DB if changed
+            if (localStatus !== template.status) {
+                await query(
+                    'UPDATE message_templates SET status = ?, rejection_reason = ?, updated_at = NOW() WHERE id = ?',
+                    [localStatus, rejectionReason, id]
+                );
+                template.status = localStatus;
+                template.rejection_reason = rejectionReason;
+            }
+
+            res.json({ success: true, message: 'Sync complete', template });
+
+        } catch (rbmError) {
+            console.error('⚠️ Failed to sync with Vi RBM:', rbmError.message || rbmError);
+            res.status(502).json({ success: false, message: 'Failed to sync with Vi RBM', error: rbmError.message });
+        }
+
+    } catch (error) {
+        console.error('Sync template error:', error);
+        res.status(500).json({ success: false, message: 'Failed to sync template' });
     }
 });
 

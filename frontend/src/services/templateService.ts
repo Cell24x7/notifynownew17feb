@@ -74,5 +74,10 @@ export const templateService = {
     async updateTemplateStatus(id: string, status: 'approved' | 'rejected' | 'pending' | 'draft', rejection_reason?: string) {
         const response = await axios.patch(`${API_BASE_URL_TEMPLATES}/${id}/status`, { status, rejection_reason }, { headers: getAuthHeader() });
         return response.data;
+    },
+
+    async syncTemplate(id: string) {
+        const response = await axios.post(`${API_BASE_URL_TEMPLATES}/${id}/sync`, {}, { headers: getAuthHeader() });
+        return response.data;
     }
 };
