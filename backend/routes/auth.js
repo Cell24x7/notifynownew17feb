@@ -292,10 +292,46 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const hash = await bcrypt.hash(password, 10);
 
-    // Update user
+    const defaultPermissions = [
+      { feature: 'Dashboard - View', admin: true },
+      { feature: 'Chat - View', admin: true },
+      { feature: 'Chat - Reply', admin: true },
+      { feature: 'Chat - Assign', admin: true },
+      { feature: 'Chat - Close', admin: true },
+      { feature: 'Contacts - View', admin: true },
+      { feature: 'Contacts - Create', admin: true },
+      { feature: 'Contacts - Edit', admin: true },
+      { feature: 'Contacts - Delete', admin: true },
+      { feature: 'Contacts - Export', admin: true },
+      { feature: 'Contacts - Import', admin: true },
+      { feature: 'Campaigns - View', admin: true },
+      { feature: 'Campaigns - Create', admin: true },
+      { feature: 'Campaigns - Edit', admin: true },
+      { feature: 'Campaigns - Delete', admin: true },
+      { feature: 'Campaigns - Report', admin: true },
+      { feature: 'Automations - View', admin: true },
+      { feature: 'Automations - Create', admin: true },
+      { feature: 'Automations - Edit', admin: true },
+      { feature: 'Automations - Delete', admin: true },
+      { feature: 'Integrations - View', admin: true },
+      { feature: 'Integrations - Manage', admin: true },
+      { feature: 'User Plans - View', admin: true },
+      { feature: 'Settings - View', admin: true },
+      { feature: 'Settings - Edit', admin: true }
+    ];
+
+    const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
+
     await query(
-      'UPDATE users SET password = ?, name = ?, company = ?, is_verified = 1, otp = NULL WHERE id = ?',
-      [hash, name || 'User', company || null, user.id]
+      'UPDATE users SET password = ?, name = ?, company = ?, is_verified = 1, otp = NULL, permissions = ?, channels_enabled = ? WHERE id = ?',
+      [
+        hash,
+        name || 'User',
+        company || null,
+        JSON.stringify(defaultPermissions),
+        JSON.stringify(defaultChannels),
+        user.id
+      ]
     );
 
     const token = jwt.sign(
@@ -304,7 +340,8 @@ router.post('/signup', async (req, res) => {
         email: user.email,
         role: 'user',
         name: name || 'User',
-        channels_enabled: user.channels_enabled
+        channels_enabled: JSON.stringify(defaultChannels),
+        permissions: defaultPermissions
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -320,7 +357,8 @@ router.post('/signup', async (req, res) => {
         contact_phone: user.contact_phone,
         company,
         role: 'user',
-        channels_enabled: user.channels_enabled
+        channels_enabled: JSON.stringify(defaultChannels),
+        permissions: defaultPermissions
       }
     });
 
