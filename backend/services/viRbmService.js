@@ -315,7 +315,17 @@ const createRbmBot = async (botData) => {
             `${VI_RBM_AUTH_URL.replace('auth/oauth/token', 'api/bots/approve')}`,
             {
                 botId: botData.id,
-                name: botData.bot_name
+                name: botData.bot_name,
+                description: botData.short_description,
+                logoUrl: botData.bot_logo_url,
+                heroUrl: botData.banner_image_url,
+                color: botData.brand_color,
+                privacyUrl: botData.privacy_url,
+                termsUrl: botData.terms_url,
+                websiteUrl: botData.callback_url,
+                email: botData.email,
+                billingCategory: botData.billing_category,
+                developmentPlatform: botData.development_platform
             },
             {
                 headers: {
