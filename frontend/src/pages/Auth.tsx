@@ -16,7 +16,7 @@ import { ProfilePopup } from '@/components/auth/ProfilePopup';
 import { WelcomePopup } from '@/components/auth/WelcomePopup';
 
 export default function Auth() {
-  const [activeTab, setActiveTab] = useState('login');
+  const [activeTab, setActiveTab] = useState('signup');
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -191,18 +191,20 @@ export default function Auth() {
         Go Live Today . FREE WhatsApp Business API
       </div>
 
-      <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight text-foreground mb-5">
-        Notifynow{"\u2014"}{" "}
-        <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500">
-          Intelligent Messaging
-        </span>{" "}
-        Across{" "}
-        <span className="text-primary">SMS, WhatsApp & RCS</span>
+      <h1 className="text-4xl lg:text-4xl font-extrabold leading-tight tracking-tight text-foreground mb-6">
+        <span className="block mb-1">Intelligent Messaging Across</span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl lg:text-3xl">
+          <span className="text-blue-500">SMS</span>
+          <span className="text-muted-foreground/30 font-light px-1">|</span>
+          <span className="text-green-500">WhatsApp</span>
+          <span className="text-muted-foreground/30 font-light px-1">|</span>
+          <span className="text-purple-500">RCS</span>
+        </div>
       </h1>
 
-      <p className="text-xl lg:text-2xl font-semibold text-foreground mb-4">
+      <p className="text-base lg:text-lg font-medium text-muted-foreground mb-8 max-w-lg">
         Drive Business Growth with{" "}
-        <span className="text-primary">AI-Powered</span> Conversations
+        <span className="text-primary font-bold">AI-Powered</span> Conversations
       </p>
 
       <p className="text-lg text-muted-foreground leading-relaxed mb-7">
@@ -250,28 +252,28 @@ export default function Auth() {
 
       <div className="flex flex-wrap items-center gap-3">
         <a
-          href="https://notifynow.in/"
-          target="_blank"
-          rel="noreferrer"
-          className="px-6 py-3 rounded-xl bg-primary text-white font-bold shadow-lg hover:opacity-90 transition"
+          href="tel:+919892891772"
+          className="px-5 py-2.5 text-sm rounded-xl bg-primary text-white font-bold shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5 flex items-center gap-2"
         >
-          Visit NotifyNow
+          <Phone className="w-4 h-4" />
+          Call Now
         </a>
 
         <a
-          href="tel:+919764242953"
-          className="px-6 py-3 rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition"
+          href="mailto:info@notifynow.in"
+          className="px-5 py-2.5 text-sm rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all hover:-translate-y-0.5 flex items-center gap-2"
         >
-          Call me for any confusion
+          <MessageSquare className="w-4 h-4" />
+          Email Now
         </a>
       </div>
 
-      <p className="mt-5 text-sm text-muted-foreground">
+      {/* <p className="mt-5 text-sm text-muted-foreground">
         Need changes urgently? <span className="text-foreground font-semibold">Ping me anytime.</span>
-      </p>
+      </p> */}
 
       {/* Channels Row (kept as you had, just spaced nicely) */}
-      <div className="flex items-center gap-6 mt-8">
+      {/* <div className="flex items-center gap-6 mt-8">
         {channels.map((channel) => (
           <div key={channel.label} className="flex flex-col items-center gap-2">
             <div className="w-12 h-12 rounded-xl bg-card/70 backdrop-blur shadow-md flex items-center justify-center border border-border">
@@ -280,7 +282,7 @@ export default function Auth() {
             <span className="text-xs text-muted-foreground">{channel.label}</span>
           </div>
         ))}
-      </div>
+      </div> */}
     </div>
   </div>
 
@@ -297,7 +299,7 @@ export default function Auth() {
       <div className="rounded-2xl border border-border bg-card shadow-xl p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <h2 className="text-2xl font-extrabold tracking-tight text-foreground">
+          <h2 className="text-2xl font-extrabold tracking-tight text-blue-600">
             Welcome back
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -322,7 +324,7 @@ export default function Auth() {
                 <Input
                   id="login-email"
                   type="text"
-                  placeholder="you@company.com / 9198xxxxxxx"
+                  placeholder="Enter your email or mobile number"
                   value={loginEmail}
                   onChange={handleLoginEmailChange}
                   required
@@ -336,7 +338,7 @@ export default function Auth() {
                 <Input
                   id="login-password"
                   type="password"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="Enter your secure password"
                   value={loginPassword}
                   onChange={handleLoginPasswordChange}
                   required

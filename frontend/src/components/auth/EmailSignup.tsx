@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { CountryCodeSelector } from './CountryCodeSelector';
 
 interface EmailSignupProps {
   onOtpSent: (identifier: string, type: 'email' | 'mobile') => void;
@@ -16,6 +17,7 @@ export function EmailSignup({ onOtpSent, isLoading }: EmailSignupProps) {
   const [tab, setTab] = useState<'email' | 'mobile'>('email');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
   const [emailError, setEmailError] = useState('');
   const [mobileError, setMobileError] = useState('');
   const { toast } = useToast();
@@ -75,7 +77,7 @@ export function EmailSignup({ onOtpSent, isLoading }: EmailSignupProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: tab === 'email' ? email : undefined,
-          mobile: tab === 'mobile' ? mobile : undefined,
+          mobile: tab === 'mobile' ? `${countryCode}${mobile}` : undefined,
           is_signup: true 
         }),
       });
@@ -92,10 +94,10 @@ export function EmailSignup({ onOtpSent, isLoading }: EmailSignupProps) {
 
       toast({
         title: 'OTP Sent',
-        description: `We've sent an OTP to ${tab === 'email' ? email : mobile}`,
+        description: `We've sent an OTP to ${tab === 'email' ? email : countryCode + mobile}`,
       });
 
-      onOtpSent(tab === 'email' ? email : mobile, tab);
+      onOtpSent(tab === 'email' ? email : countryCode + mobile, tab);
     } catch (err) {
       toast({
         title: 'Error',
@@ -121,7 +123,7 @@ export function EmailSignup({ onOtpSent, isLoading }: EmailSignupProps) {
             <Input
               id="email"
               type="email"
-              placeholder="you@company.com"
+              placeholder="Enter your business email address"
               value={email}
               onChange={handleEmailChange}
               disabled={isLoading}
@@ -139,19 +141,19 @@ export function EmailSignup({ onOtpSent, isLoading }: EmailSignupProps) {
             <Label htmlFor="mobile" className="text-base font-medium">
               Mobile Number
             </Label>
-            <div className="flex gap-2">
-              <div className="flex items-center justify-center px-3 border rounded-md bg-muted text-muted-foreground">
-                +91
+            <div className="flex gap-2 items-start h-11">
+              <CountryCodeSelector value={countryCode} onChange={setCountryCode} disabled={isLoading} />
+              <div className="flex-1 h-full">
+                <Input
+                  id="mobile"
+                  type="tel"
+                  placeholder="Enter 10-digit mobile number"
+                  value={mobile}
+                  onChange={handleMobileChange}
+                  disabled={isLoading}
+                  className={`h-full rounded-xl bg-muted/30 border-input shadow-sm focus:bg-background transition-all ${mobileError ? 'border-red-500' : ''}`}
+                />
               </div>
-              <Input
-                id="mobile"
-                type="tel"
-                placeholder="9876543210"
-                value={mobile}
-                onChange={handleMobileChange}
-                disabled={isLoading}
-                className={`py-6 text-base ${mobileError ? 'border-red-500' : ''}`}
-              />
             </div>
             {mobileError && <p className="text-sm text-red-500">{mobileError}</p>}
           </div>
