@@ -278,40 +278,49 @@ export default function RCSTemplateManagement() {
     try {
       setIsCreating(true);
       
-      // Construct payload based on template type
-      const payload: any = {
-        name: formData.name,
-        language: formData.language,
-        category: formData.category,
-        template_type: formData.templateType,
-        status: 'pending_approval',
-        footer: formData.footer,
-      };
+      const formDataToSend = new FormData();
+      formDataToSend.append('custId', '7');
+      formDataToSend.append('template_name', formData.name);
+      formDataToSend.append('template_type', formData.templateType);
 
       if (formData.templateType === 'text_message') {
-        payload.body = formData.body;
-        payload.header_type = formData.headerType;
-        payload.header_content = formData.headerContent;
-        payload.buttons = formData.buttons;
+        formDataToSend.append('template_content', formData.body);
+        
+        const suggestions = formData.buttons.map(btn => {
+          if (btn.type === 'reply') {
+            return { suggestionType: 'reply', displayText: btn.displayText, postback: btn.postback || btn.displayText };
+          } else if (btn.type === 'url_action') {
+            return { suggestionType: 'url_action', displayText: btn.displayText, url: btn.url };
+          } else if (btn.type === 'dialer_action') {
+            return { suggestionType: 'dialer_action', displayText: btn.displayText, phoneNumber: btn.phoneNumber };
+          }
+          return null;
+        }).filter(Boolean);
+        
+        formDataToSend.append('suggestion', JSON.stringify(suggestions));
       } else if (formData.templateType === 'rich_card') {
-        payload.metadata = formData.richCard;
-      } else if (formData.templateType === 'carousel') {
-        payload.metadata = formData.carousel;
+        formDataToSend.append('template_content', formData.richCard.description);
+        formDataToSend.append('title', formData.richCard.title);
+        formDataToSend.append('media_url', formData.richCard.mediaUrl);
+        formDataToSend.append('suggestion', JSON.stringify(formData.richCard.buttons));
       }
 
-      await rcsTemplatesService.createTemplate(payload);
+      const result = await rcsTemplatesService.createExternalTemplate(formDataToSend);
       
-      toast({ title: 'Success', description: 'Template created successfully!' });
-      setIsCreateOpen(false);
-      fetchTemplates();
-      // Reset form
-      setFormData({
-        name: '', language: 'English', category: 'Marketing', templateType: 'text_message',
-        headerType: 'none', headerContent: '', headerFileName: '',
-        body: '', richCard: { ...INITIAL_RICH_CARD }, 
-        carousel: { height: 'MEDIUM_HEIGHT', width: 'MEDIUM_WIDTH', cards: [{ ...INITIAL_CAROUSEL_CARD }, { ...INITIAL_CAROUSEL_CARD }] },
-        footer: '', buttons: []
-      });
+      if (result.code === 0) {
+        toast({ title: 'Success', description: result.msg || 'Template created successfully!' });
+        setIsCreateOpen(false);
+        fetchTemplates();
+        setFormData({
+          name: '', language: 'English', category: 'Marketing', templateType: 'text_message',
+          headerType: 'none', headerContent: '', headerFileName: '',
+          body: '', richCard: { ...INITIAL_RICH_CARD }, 
+          carousel: { height: 'MEDIUM_HEIGHT', width: 'MEDIUM_WIDTH', cards: [{ ...INITIAL_CAROUSEL_CARD }, { ...INITIAL_CAROUSEL_CARD }] },
+          footer: '', buttons: []
+        });
+      } else {
+        throw new Error(result.msg || 'Failed to create template');
+      }
 
     } catch (error: any) {
       console.error('Error creating template:', error);

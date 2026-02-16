@@ -62,6 +62,25 @@ export const rcsTemplatesService = {
     }
   },
 
+  // Create template on external RCS API
+  async createExternalTemplate(formData: FormData) {
+    try {
+      const response = await fetch('https://rcs.cell24x7.com/manage_templates/create_new_template', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.msg || 'External API Error');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('External API Error:', error);
+      throw error;
+    }
+  },
+
   // Update template
   async updateTemplate(id: string, templateData: any) {
     try {
@@ -156,6 +175,29 @@ export const rcsTemplatesService = {
       return await response.json();
     } catch (error) {
       console.error('Error fetching pending templates:', error);
+      throw error;
+    }
+  },
+
+  // Send campaign on external RCS API
+  async sendExternalCampaign(campaignData: any) {
+    try {
+      const response = await fetch('https://rcs.cell24x7.com/send_campaign/send_template_API', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0ZXN0ZGVtbyIsImV4cCI6MTc2MDE3Nzk4MywiaWF0IjoxNzYwMDkxNTgzfQ.HNDl_9YkBQthBBj737AznagVrIyjWqI7oY3FYHVou77Q0GFD_GOsr0RV-A1po5jjLG-ggc_x_SPXj8SerDCeTw'
+        },
+        body: JSON.stringify(campaignData),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'External Campaign API Error');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('External Campaign API Error:', error);
       throw error;
     }
   },
