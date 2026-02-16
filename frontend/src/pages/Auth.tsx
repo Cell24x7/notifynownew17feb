@@ -176,119 +176,217 @@ export default function Auth() {
   ];
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Section - same as before */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-secondary/5 to-primary/10 p-12 flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-12">
-            <img src="/logo.svg" alt="NotifyNow" className="w-12 h-12 rounded-xl shadow-lg" />
-            <span className="text-2xl font-bold">NotifyNow</span>
-          </div>
-
-          <h1 className="text-4xl font-bold leading-tight mb-6">
-            All your customer conversations in{' '}
-            <span className="text-primary">one place</span>
-          </h1>
-          <p className="text-lg text-muted-foreground mb-8">
-            All your customer conversations, campaigns, automations, and integrations in one powerful platform.
-          </p>
-
-     
-
-          <div className="flex items-center gap-6">
-            {channels.map((channel) => (
-              <div key={channel.label} className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-xl bg-card shadow-md flex items-center justify-center border border-border">
-                  <channel.icon className={`w-6 h-6 ${channel.color}`} />
-                </div>
-                <span className="text-xs text-muted-foreground">{channel.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-
-        </p>
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+  {/* Left Section */}
+  <div className="hidden lg:flex bg-gradient-to-br from-primary/15 via-background to-emerald-500/10 px-10 py-12">
+    <div className="w-full max-w-xl my-auto">
+      <div className="flex items-center gap-3 mb-10">
+        <img src="/logo.svg" alt="NotifyNow" className="w-12 h-12 rounded-xl shadow-lg" />
+        <span className="text-2xl font-bold">NotifyNow</span>
       </div>
 
-      {/* Right Section */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <img src="/logo.svg" alt="NotifyNow" className="w-10 h-10 rounded-xl" />
-            <span className="text-xl font-bold">NotifyNow</span>
+      {/* Top Badge */}
+      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary font-semibold text-sm mb-6">
+        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+        Go Live Today . FREE WhatsApp Business API
+      </div>
+
+      <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight text-foreground mb-5">
+        Notifynow{"\u2014"}{" "}
+        <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500">
+          Intelligent Messaging
+        </span>{" "}
+        Across{" "}
+        <span className="text-primary">SMS, WhatsApp & RCS</span>
+      </h1>
+
+      <p className="text-xl lg:text-2xl font-semibold text-foreground mb-4">
+        Drive Business Growth with{" "}
+        <span className="text-primary">AI-Powered</span> Conversations
+      </p>
+
+      <p className="text-lg text-muted-foreground leading-relaxed mb-7">
+        Launch in minutes. Engage customers faster with official WhatsApp API, bulk campaigns,
+        smart automation and seamless integrations{" "}
+        <span className="font-semibold text-foreground">in one secure platform</span>.
+      </p>
+
+      {/* Stats / Trust Row */}
+      <div className="flex flex-wrap items-center gap-3 mb-7">
+        <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
+          <p className="text-sm text-muted-foreground">Channels</p>
+          <p className="text-lg font-bold text-foreground">3-in-1</p>
+        </div>
+        <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
+          <p className="text-sm text-muted-foreground">Setup Time</p>
+          <p className="text-lg font-bold text-foreground">10 mins</p>
+        </div>
+        <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
+          <p className="text-sm text-muted-foreground">Support</p>
+          <p className="text-lg font-bold text-foreground">24X7</p>
+        </div>
+      </div>
+
+      <ul className="space-y-3 mb-8 text-base text-muted-foreground">
+        <li className="flex items-start gap-3">
+          <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
+          <span>
+            <span className="font-semibold text-foreground">Official WhatsApp API</span> + AI Chat Automation
+          </span>
+        </li>
+        <li className="flex items-start gap-3">
+          <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
+          <span>
+            Bulk <span className="font-semibold text-foreground">SMS / RCS Campaigns</span> with delivery tracking
+          </span>
+        </li>
+        <li className="flex items-start gap-3">
+          <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
+          <span>
+            Plug & play <span className="font-semibold text-foreground">APIs + Webhooks</span> for integrations
+          </span>
+        </li>
+      </ul>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <a
+          href="https://notifynow.in/"
+          target="_blank"
+          rel="noreferrer"
+          className="px-6 py-3 rounded-xl bg-primary text-white font-bold shadow-lg hover:opacity-90 transition"
+        >
+          Visit NotifyNow
+        </a>
+
+        <a
+          href="tel:+919764242953"
+          className="px-6 py-3 rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition"
+        >
+          Call me for any confusion
+        </a>
+      </div>
+
+      <p className="mt-5 text-sm text-muted-foreground">
+        Need changes urgently? <span className="text-foreground font-semibold">Ping me anytime.</span>
+      </p>
+
+      {/* Channels Row (kept as you had, just spaced nicely) */}
+      <div className="flex items-center gap-6 mt-8">
+        {channels.map((channel) => (
+          <div key={channel.label} className="flex flex-col items-center gap-2">
+            <div className="w-12 h-12 rounded-xl bg-card/70 backdrop-blur shadow-md flex items-center justify-center border border-border">
+              <channel.icon className={`w-6 h-6 ${channel.color}`} />
+            </div>
+            <span className="text-xs text-muted-foreground">{channel.label}</span>
           </div>
+        ))}
+      </div>
+    </div>
+  </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+  {/* Right Section */}
+  <div className="flex items-center justify-center px-6 py-12 lg:px-10 bg-background lg:sticky lg:top-0 lg:h-screen">
+    <div className="w-full max-w-md">
+      {/* Mobile Logo */}
+      <div className="lg:hidden flex items-center gap-3 mb-6 justify-center">
+        <img src="/logo.svg" alt="NotifyNow" className="w-10 h-10 rounded-xl shadow-sm" />
+        <span className="text-xl font-bold tracking-tight">NotifyNow</span>
+      </div>
 
-            <TabsContent value="login" className="animate-fade-in">
-              {/* Demo banner completely removed */}
+      {/* Modern Card */}
+      <div className="rounded-2xl border border-border bg-card shadow-xl p-6 lg:p-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-extrabold tracking-tight text-foreground">
+            Welcome back
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Login to continue or create a new account.
+          </p>
+        </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email or Mobile</Label>
-                  <Input
-                    id="login-email"
-                    type="text"
-                    placeholder="you@company.com"
-                    value={loginEmail}
-                    onChange={handleLoginEmailChange}
-                    required
-                    className={loginEmailError ? 'border-red-500' : ''}
-                  />
-                  {loginEmailError && <p className="text-sm text-red-500">{loginEmailError}</p>}
-                </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 mb-6">
+            <TabsTrigger value="login" className="rounded-lg">
+              Login
+            </TabsTrigger>
+            <TabsTrigger value="signup" className="rounded-lg">
+              Sign Up
+            </TabsTrigger>
+          </TabsList>
 
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={loginPassword}
-                    onChange={handleLoginPasswordChange}
-                    required
-                    className={loginPasswordError ? 'border-red-500' : ''}
-                  />
-                  {loginPasswordError && <p className="text-sm text-red-500">{loginPasswordError}</p>}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="remember"
-                      checked={rememberMe}
-                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    />
-                    <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
-                      Remember me
-                    </Label>
-                  </div>
-                  <a href="/forgot-password" className="text-sm text-primary hover:underline">
-                    Forgot password?
-                  </a>
-                </div>
-
-                <Button type="submit" className="w-full gradient-primary text-primary-foreground" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Log In
-                </Button>
-              </form>
-
-             
-            </TabsContent>
-
-            <TabsContent value="signup" className="animate-fade-in">
-              {signupStep === 'email' && (
-                <EmailSignup
-                  onOtpSent={handleSignupOtpSent}
-                  isLoading={loading}
+          <TabsContent value="login" className="animate-fade-in">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email or Mobile</Label>
+                <Input
+                  id="login-email"
+                  type="text"
+                  placeholder="you@company.com / 9198xxxxxxx"
+                  value={loginEmail}
+                  onChange={handleLoginEmailChange}
+                  required
+                  className={`h-11 rounded-xl ${loginEmailError ? 'border-red-500' : ''}`}
                 />
+                {loginEmailError && <p className="text-sm text-red-500">{loginEmailError}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  value={loginPassword}
+                  onChange={handleLoginPasswordChange}
+                  required
+                  className={`h-11 rounded-xl ${loginPasswordError ? 'border-red-500' : ''}`}
+                />
+                {loginPasswordError && <p className="text-sm text-red-500">{loginPasswordError}</p>}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="remember"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  />
+                  <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
+                    Remember me
+                  </Label>
+                </div>
+
+                <a href="/forgot-password" className="text-sm text-primary font-medium hover:underline">
+                  Forgot password?
+                </a>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-11 rounded-xl font-bold shadow-lg gradient-primary text-primary-foreground"
+                disabled={loading}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Log In
+              </Button>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
+                <span className="w-2 h-2 rounded-full bg-primary" />
+                Secure login â€¢ Encrypted session
+              </div>
+
+
+
+            </form>
+            
+            
+          </TabsContent>
+
+          <TabsContent value="signup" className="animate-fade-in">
+            <div className="space-y-4">
+              {signupStep === 'email' && (
+                <EmailSignup onOtpSent={handleSignupOtpSent} isLoading={loading} />
               )}
 
               {signupStep === 'otp' && (
@@ -315,24 +413,27 @@ export default function Auth() {
                 onProfileUpdated={handleProfileUpdated}
                 onSkip={handleSkipProfile}
               />
-            </TabsContent>
-          </Tabs>
+            </div>
+          </TabsContent>
+        </Tabs>
 
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            By continuing, you agree to our{' '}
-            <a href="#" className="text-primary hover:underline">Terms of Service</a>
-            {' '}and{' '}
-            <a href="#" className="text-primary hover:underline">Privacy Policy</a>
-          </p>
-        </div>
+        <p className="mt-6 text-center text-xs text-muted-foreground leading-relaxed">
+          By continuing, you agree to our{" "}
+          <a href="#" className="text-primary font-medium hover:underline">Terms of Service</a>{" "}
+          and{" "}
+          <a href="#" className="text-primary font-medium hover:underline">Privacy Policy</a>.
+        </p>
       </div>
-      
-      <WelcomePopup 
-        isOpen={showWelcome} 
-        onClose={() => {}} 
-        userName={user?.name}
-        role={user?.role}
-      />
     </div>
+  </div>
+
+  <WelcomePopup
+    isOpen={showWelcome}
+    onClose={() => {}}
+    userName={user?.name}
+    role={user?.role}
+  />
+</div>
+
   );
 }
