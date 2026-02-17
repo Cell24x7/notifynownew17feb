@@ -310,13 +310,30 @@ export default function Campaigns() {
           });
           // Note: In a production app, you'd parse CSV/Excel here or on backend
           // For now, we'll notify that integration is ready for database contacts
+        } else if (campaignData.contactSource === 'manual') {
+          // Parse manual numbers
+          mobileNumbers = campaignData.manualNumbers
+            .split(/[\n,\s]+/)
+            .map(n => n.trim())
+            .filter(n => n !== '')
+            .map(n => parseInt(n.replace(/\D/g, '')))
+            .filter(n => !isNaN(n));
+          
+          if (mobileNumbers.length > 10) {
+             toast({
+              title: 'Error',
+              description: 'Maximum 10 numbers allowed for manual input.',
+              variant: 'destructive'
+            });
+            return;
+          }
         }
 
         if (mobileNumbers.length > 0) {
           const rcsPayload = {
             customerId: "cell24x7",
             campaignName: campaignData.name,
-            TemplateName: selectedTemplate?.name || "",
+            TemplateName: "Welcome_message",
             param_json: {},
             "To Mobile Number": mobileNumbers
           };

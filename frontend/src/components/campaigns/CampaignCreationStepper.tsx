@@ -32,8 +32,9 @@ export interface CampaignData {
   channel: Channel;
   templateId: string;
   audienceId: string;
-  contactSource: 'existing' | 'upload';
+  contactSource: 'existing' | 'upload' | 'manual';
   selectedContacts: string[];
+  manualNumbers: string;
   uploadedFile: File | null;
   fieldMapping: Record<string, { type: 'field' | 'custom'; value: string }>;
   scheduleType: 'now' | 'scheduled';
@@ -75,6 +76,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
     audienceId: '',
     contactSource: 'existing',
     selectedContacts: [],
+    manualNumbers: '',
     uploadedFile: null,
     fieldMapping: {},
     scheduleType: 'now',
@@ -324,6 +326,10 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       case 2:
         return campaignData.templateId !== '';
       case 3:
+        if (campaignData.contactSource === 'manual') {
+          const count = campaignData.manualNumbers.split(/[\n,\s]+/).filter(n => n.trim()).length;
+          return count > 0 && count <= 10;
+        }
         return campaignData.audienceCount > 0;
       case 4:
         return templateVariables.every(v => {
@@ -514,7 +520,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                 <p className="text-muted-foreground">Choose existing contacts or upload a file (Real Data)</p>
               </div>
 
-               <div className="grid grid-cols-2 gap-4 max-w-2xl">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl">
                    <div 
                       onClick={() => setCampaignData({...campaignData, contactSource: 'existing'})}
                       className={cn(
@@ -537,6 +543,18 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                       <Upload className="h-10 w-10 mb-3 text-primary" />
                       <span className="font-semibold">Upload File</span>
                       <span className="text-sm text-muted-foreground text-center mt-1">Upload new CSV/Excel list</span>
+                    </div>
+
+                    <div 
+                      onClick={() => setCampaignData({...campaignData, contactSource: 'manual'})}
+                       className={cn(
+                          "flex flex-col items-center justify-between rounded-lg border-2 p-6 cursor-pointer transition-all hover:bg-muted/50",
+                          campaignData.contactSource === 'manual' && "border-primary bg-primary/5"
+                      )}
+                    >
+                      <FileSpreadsheet className="h-10 w-10 mb-3 text-primary" />
+                      <span className="font-semibold">Enter Manually</span>
+                      <span className="text-sm text-muted-foreground text-center mt-1">Type up to 10 mobile numbers</span>
                     </div>
                </div>
 
@@ -649,6 +667,40 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                         </Button>
                     </div>
                  </div>
+              )}
+
+              {campaignData.contactSource === 'manual' && (
+                <div className="space-y-4 max-w-2xl">
+                  <div className="space-y-2">
+                    <Label>Enter Mobile Numbers (One per line)</Label>
+                    <textarea
+                      className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="919876543210&#10;919876543211"
+                      value={campaignData.manualNumbers}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const count = val.split(/[\n,\s]+/).filter(n => n.trim()).length;
+                        setCampaignData({
+                           ...campaignData,
+                           manualNumbers: val,
+                           audienceCount: count
+                         });
+                      }}
+                    />
+                    <div className="flex justify-between text-xs">
+                      <p className={cn(
+                        "text-muted-foreground",
+                        campaignData.audienceCount > 10 && "text-red-500 font-medium"
+                      )}>
+                        {campaignData.audienceCount}/10 numbers
+                      </p>
+                      <p className="text-muted-foreground">Format: Country code + Number (e.g., 919876543210)</p>
+                    </div>
+                    {campaignData.audienceCount > 10 && (
+                      <p className="text-sm text-red-500">You can only enter up to 10 numbers.</p>
+                    )}
+                  </div>
+                </div>
               )}
 
               <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
