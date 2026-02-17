@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { API_BASE_URL } from '@/config/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,6 @@ import { jwtDecode } from 'jwt-decode';
 import { EmailSignup } from '@/components/auth/EmailSignup';
 import { OtpVerification } from '@/components/auth/OtpVerification';
 import { PasswordCreation } from '@/components/auth/PasswordCreation';
-import { ProfilePopup } from '@/components/auth/ProfilePopup';
 import { WelcomePopup } from '@/components/auth/WelcomePopup';
 
 export default function Auth() {
@@ -150,16 +150,7 @@ export default function Auth() {
 
   const handlePasswordCreated = () => {
     setSignupStep('done');
-    setShowProfilePopup(true);
-  };
-
-  const handleProfileUpdated = () => {
-    setShowProfilePopup(false);
-    navigate('/dashboard');
-  };
-
-  const handleSkipProfile = () => {
-    setShowProfilePopup(false);
+    // Account created in PasswordCreation, notification sent by backend
     navigate('/dashboard');
   };
 
@@ -169,6 +160,8 @@ export default function Auth() {
     setSignupOtp('');
   };
 
+
+
   const channels = [
     { icon: MessageSquare, label: 'WhatsApp', color: 'text-green-500' },
     { icon: Phone, label: 'SMS', color: 'text-blue-500' },
@@ -176,119 +169,105 @@ export default function Auth() {
   ];
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 lg:h-screen lg:overflow-hidden">
   {/* Left Section */}
-  <div className="hidden lg:flex bg-gradient-to-br from-primary/15 via-background to-emerald-500/10 px-10 py-12">
-    <div className="w-full max-w-xl my-auto">
-      <div className="flex items-center gap-3 mb-10">
-        <img src="/logo.svg" alt="NotifyNow" className="w-12 h-12 rounded-xl shadow-lg" />
-        <span className="text-2xl font-bold">NotifyNow</span>
-      </div>
-
-      {/* Top Badge */}
-      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary font-semibold text-sm mb-6">
-        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-        Go Live Today . FREE WhatsApp Business API
-      </div>
-
-      <h1 className="text-4xl lg:text-4xl font-extrabold leading-tight tracking-tight text-foreground mb-6">
-        <span className="block mb-1">Intelligent Messaging Across</span>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl lg:text-3xl">
-          <span className="text-blue-500">SMS</span>
-          <span className="text-muted-foreground/30 font-light px-1">|</span>
-          <span className="text-green-500">WhatsApp</span>
-          <span className="text-muted-foreground/30 font-light px-1">|</span>
-          <span className="text-purple-500">RCS</span>
+  <div className="hidden lg:block h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] bg-gradient-to-br from-primary/15 via-background to-emerald-500/10">
+    <div className="min-h-full flex flex-col px-10 py-12">
+      <div className="w-full max-w-xl mx-auto my-auto">
+        <div className="flex items-center gap-3 mb-10">
+          <img src="/logo.svg" alt="NotifyNow" className="w-12 h-12 rounded-xl shadow-lg" />
+          <span className="text-2xl font-bold">NotifyNow</span>
         </div>
-      </h1>
 
-      <p className="text-base lg:text-lg font-medium text-muted-foreground mb-8 max-w-lg">
-        Drive Business Growth with{" "}
-        <span className="text-primary font-bold">AI-Powered</span> Conversations
-      </p>
-
-      <p className="text-lg text-muted-foreground leading-relaxed mb-7">
-        Launch in minutes. Engage customers faster with official WhatsApp API, bulk campaigns,
-        smart automation and seamless integrations{" "}
-        <span className="font-semibold text-foreground">in one secure platform</span>.
-      </p>
-
-      {/* Stats / Trust Row */}
-      <div className="flex flex-wrap items-center gap-3 mb-7">
-        <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
-          <p className="text-sm text-muted-foreground">Channels</p>
-          <p className="text-lg font-bold text-foreground">3-in-1</p>
+        {/* Top Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary font-semibold text-sm mb-6">
+          <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          Go Live Today . FREE WhatsApp Business API
         </div>
-        <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
-          <p className="text-sm text-muted-foreground">Setup Time</p>
-          <p className="text-lg font-bold text-foreground">10 mins</p>
-        </div>
-        <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
-          <p className="text-sm text-muted-foreground">Support</p>
-          <p className="text-lg font-bold text-foreground">24X7</p>
-        </div>
-      </div>
 
-      <ul className="space-y-3 mb-8 text-base text-muted-foreground">
-        <li className="flex items-start gap-3">
-          <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
-          <span>
-            <span className="font-semibold text-foreground">Official WhatsApp API</span> + AI Chat Automation
-          </span>
-        </li>
-        <li className="flex items-start gap-3">
-          <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
-          <span>
-            Bulk <span className="font-semibold text-foreground">SMS / RCS Campaigns</span> with delivery tracking
-          </span>
-        </li>
-        <li className="flex items-start gap-3">
-          <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
-          <span>
-            Plug & play <span className="font-semibold text-foreground">APIs + Webhooks</span> for integrations
-          </span>
-        </li>
-      </ul>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <a
-          href="tel:+919892891772"
-          className="px-5 py-2.5 text-sm rounded-xl bg-primary text-white font-bold shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5 flex items-center gap-2"
-        >
-          <Phone className="w-4 h-4" />
-          Call Now
-        </a>
-
-        <a
-          href="mailto:info@notifynow.in"
-          className="px-5 py-2.5 text-sm rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all hover:-translate-y-0.5 flex items-center gap-2"
-        >
-          <MessageSquare className="w-4 h-4" />
-          Email Now
-        </a>
-      </div>
-
-      {/* <p className="mt-5 text-sm text-muted-foreground">
-        Need changes urgently? <span className="text-foreground font-semibold">Ping me anytime.</span>
-      </p> */}
-
-      {/* Channels Row (kept as you had, just spaced nicely) */}
-      {/* <div className="flex items-center gap-6 mt-8">
-        {channels.map((channel) => (
-          <div key={channel.label} className="flex flex-col items-center gap-2">
-            <div className="w-12 h-12 rounded-xl bg-card/70 backdrop-blur shadow-md flex items-center justify-center border border-border">
-              <channel.icon className={`w-6 h-6 ${channel.color}`} />
-            </div>
-            <span className="text-xs text-muted-foreground">{channel.label}</span>
+        <h1 className="text-4xl lg:text-4xl font-extrabold leading-tight tracking-tight text-foreground mb-6">
+          <span className="block mb-1">Intelligent Messaging Across</span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl lg:text-3xl">
+            <span className="text-blue-500">SMS</span>
+            <span className="text-muted-foreground/30 font-light px-1">|</span>
+            <span className="text-green-500">WhatsApp</span>
+            <span className="text-muted-foreground/30 font-light px-1">|</span>
+            <span className="text-purple-500">RCS</span>
           </div>
-        ))}
-      </div> */}
+        </h1>
+
+        <p className="text-base lg:text-lg font-medium text-muted-foreground mb-8 max-w-lg">
+          Drive Business Growth with{" "}
+          <span className="text-primary font-bold">AI-Powered</span> Conversations
+        </p>
+
+        <p className="text-lg text-muted-foreground leading-relaxed mb-7">
+          Launch in minutes. Engage customers faster with official WhatsApp API, bulk campaigns,
+          smart automation and seamless integrations{" "}
+          <span className="font-semibold text-foreground">in one secure platform</span>.
+        </p>
+
+        {/* Stats / Trust Row */}
+        <div className="flex flex-wrap items-center gap-3 mb-7">
+          <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
+            <p className="text-sm text-muted-foreground">Channels</p>
+            <p className="text-lg font-bold text-foreground">3-in-1</p>
+          </div>
+          <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
+            <p className="text-sm text-muted-foreground">Setup Time</p>
+            <p className="text-lg font-bold text-foreground">10 mins</p>
+          </div>
+          <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
+            <p className="text-sm text-muted-foreground">Support</p>
+            <p className="text-lg font-bold text-foreground">24X7</p>
+          </div>
+        </div>
+
+        <ul className="space-y-3 mb-8 text-base text-muted-foreground">
+          <li className="flex items-start gap-3">
+            <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
+            <span>
+              <span className="font-semibold text-foreground">Official WhatsApp API</span> + AI Chat Automation
+            </span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
+            <span>
+              Bulk <span className="font-semibold text-foreground">SMS / RCS Campaigns</span> with delivery tracking
+            </span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="mt-2 w-2.5 h-2.5 rounded-full bg-primary" />
+            <span>
+              Plug & play <span className="font-semibold text-foreground">APIs + Webhooks</span> for integrations
+            </span>
+          </li>
+        </ul>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <a
+            href="tel:+919892891772"
+            className="px-5 py-2.5 text-sm rounded-xl bg-primary text-white font-bold shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5 flex items-center gap-2"
+          >
+            <Phone className="w-4 h-4" />
+            Call Now
+          </a>
+
+          <a
+            href="mailto:info@notifynow.in"
+            className="px-5 py-2.5 text-sm rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all hover:-translate-y-0.5 flex items-center gap-2"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Email Now
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 
   {/* Right Section */}
-  <div className="flex items-center justify-center px-6 py-12 lg:px-10 bg-background lg:sticky lg:top-0 lg:h-screen">
-    <div className="w-full max-w-md">
+  <div className="flex flex-col items-center px-6 py-12 lg:px-10 bg-background min-h-screen lg:min-h-0 lg:h-full lg:overflow-y-auto">
+    <div className="w-full max-w-md my-auto">
       {/* Mobile Logo */}
       <div className="lg:hidden flex items-center gap-3 mb-6 justify-center">
         <img src="/logo.svg" alt="NotifyNow" className="w-10 h-10 rounded-xl shadow-sm" />
@@ -408,13 +387,6 @@ export default function Auth() {
                   isLoading={loading}
                 />
               )}
-
-              <ProfilePopup
-                isOpen={showProfilePopup}
-                email={signupEmail}
-                onProfileUpdated={handleProfileUpdated}
-                onSkip={handleSkipProfile}
-              />
             </div>
           </TabsContent>
         </Tabs>

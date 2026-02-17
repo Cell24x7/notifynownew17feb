@@ -75,7 +75,7 @@ export function ProfilePopup({ isOpen, email, onProfileUpdated, onSkip }: Profil
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 relative">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onSkip}
           className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"

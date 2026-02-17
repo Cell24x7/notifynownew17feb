@@ -6,7 +6,9 @@ const { query } = require('../config/db');
 
 const router = express.Router();
 
+
 const authenticate = require('../middleware/authMiddleware');
+const { sendAdminNotification } = require('../utils/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -106,6 +108,13 @@ router.put('/', authenticate, async (req, res) => {
        FROM users WHERE id = ?`,
       [req.user.id]
     );
+
+    // Notify Admins
+    try {
+      await sendAdminNotification(updated[0], 'PROFILE_UPDATE');
+    } catch (emailErr) {
+      console.error('Failed to send admin notification:', emailErr);
+    }
 
     res.json({ success: true, user: updated[0] });
   } catch (err) {

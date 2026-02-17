@@ -15,38 +15,9 @@ if (!JWT_SECRET) {
 
 const axios = require('axios');
 
-const sendEmail = async (to, subject, text) => {
-  // Use Custom Email API
-  const emailUser = process.env.EMAIL_API_USER;
-  const emailPass = process.env.EMAIL_API_PASS;
-  const fromAddr = process.env.EMAIL_FROM_ADDR || 'support@cell24x7.com';
+const { sendEmail, sendAdminNotification } = require('../utils/emailService');
 
-  // Extract OTP from text if possible, or just use text body
-  // User URL: .../sendEmail?user=...&pwd=...&fromAdd=...&toAdd=...&fromName=NotifyNow&subject=...&body=...
-
-  if (!emailUser || !emailPass) {
-    console.log(`[DEV MODE] Email to ${to}: ${subject} \n${text}`);
-    return;
-  }
-
-  try {
-    const apiUrl = process.env.EMAIL_API_URL || `http://43.242.212.34:7716/emailService/sendEmail`;
-    const response = await axios.get(apiUrl, {
-      params: {
-        user: emailUser,
-        pwd: emailPass,
-        fromAdd: fromAddr,
-        toAdd: to,
-        fromName: 'NotifyNow',
-        subject: subject,
-        body: text
-      }
-    });
-    console.log(`📧 Email sent to ${to}:`, response.data);
-  } catch (err) {
-    console.error('❌ Email send failed:', err.message);
-  }
-};
+// Removed local sendEmail function as it is now imported from utils/emailService
 
 // Start or Resend OTP (Signup & Forgot Password)
 router.post('/send-otp', async (req, res) => {
@@ -110,7 +81,10 @@ router.post('/send-otp', async (req, res) => {
         // Security: Don't reveal user not found, but needed for logic. 
         // Return 404 for now as it helps frontend debug. 
         // Production: treat same as success.
-        return res.status(404).json({ success: false, message: 'User not found' });
+        const errorMsg = type === 'email'
+          ? 'This email ID does not exist.'
+          : 'This mobile number does not exist.';
+        return res.status(404).json({ success: false, message: errorMsg });
       }
     }
 
@@ -280,6 +254,8 @@ router.post('/signup', async (req, res) => {
   // identifier = email or mobile
   const { identifier, password, otp, name, company } = req.body;
 
+  console.log('DEBUG: Signup Request:', JSON.stringify(req.body, null, 2));
+
   if (!identifier || !password || !otp) return res.status(400).json({ success: false, message: 'Missing fields' });
 
   try {
@@ -322,25 +298,53 @@ router.post('/signup', async (req, res) => {
 
     const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
 
-    await query(
-      'UPDATE users SET password = ?, name = ?, company = ?, is_verified = 1, otp = NULL, permissions = ?, channels_enabled = ? WHERE id = ?',
-      [
-        hash,
-        name || 'User',
-        company || null,
-        JSON.stringify(defaultPermissions),
-        JSON.stringify(defaultChannels),
-        user.id
-      ]
+
+
+    // Dynamic Update Logic
+    const updates = ['password = ?', 'name = ?', 'company = ?', 'is_verified = 1', 'otp = NULL', 'permissions = ?', 'channels_enabled = ?'];
+    const params = [hash, name || 'User', company || null, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)];
+
+    // Handle Secondary Identifier
+    if (identifier.includes('@')) {
+      // Signup was via Email. Update Mobile if provided.
+      if (req.body.mobile) {
+        updates.push('contact_phone = ?');
+        params.push(req.body.mobile);
+      }
+    } else {
+      // Signup was via Mobile. Update Email if provided.
+      if (req.body.email) {
+        updates.push('email = ?');
+        params.push(req.body.email);
+      }
+    }
+
+    params.push(user.id); // WHERE clause
+
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+
+    // Verify update success by re-fetching the user
+    const [finalUserRows] = await query(
+      `SELECT u.*, p.permissions as plan_permissions, p.name as plan_name
+       FROM users u
+       LEFT JOIN plans p ON u.plan_id = p.id
+       WHERE u.id = ?`,
+      [user.id]
     );
+
+    const finalUser = finalUserRows[0];
+
+    // Logic: User-specific permissions override Plan permissions (Consistent with Login)
+    let finalPermissions = defaultPermissions; // Default for new user
+    // (Optimization: we just set permissions, so we know they are defaultPermissions)
 
     const token = jwt.sign(
       {
-        id: user.id,
-        email: user.email,
+        id: finalUser.id,
+        email: finalUser.email,
         role: 'user',
-        name: name || 'User',
-        channels_enabled: JSON.stringify(defaultChannels),
+        name: finalUser.name,
+        channels_enabled: finalUser.channels_enabled,
         permissions: defaultPermissions
       },
       JWT_SECRET,
@@ -351,13 +355,13 @@ router.post('/signup', async (req, res) => {
       success: true,
       token,
       user: {
-        id: user.id,
-        name: name || 'User',
-        email: user.email,
-        contact_phone: user.contact_phone,
-        company,
+        id: finalUser.id,
+        name: finalUser.name,
+        email: finalUser.email,
+        contact_phone: finalUser.contact_phone,
+        company: finalUser.company,
         role: 'user',
-        channels_enabled: JSON.stringify(defaultChannels),
+        channels_enabled: finalUser.channels_enabled,
         permissions: defaultPermissions
       }
     });
@@ -366,19 +370,39 @@ router.post('/signup', async (req, res) => {
     await logSystem(
       'login',
       'User Signup',
-      `New user registered: ${user.contact_phone || user.email}`,
-      user.id,
-      name || 'User',
-      company,
+      `New user registered: ${finalUser.contact_phone || finalUser.email}`,
+      finalUser.id,
+      finalUser.name,
+      finalUser.company,
       req.ip,
       'info'
     );
 
+    // Notify Admins
+    try {
+      await sendAdminNotification({
+        id: finalUser.id,
+        name: finalUser.name,
+        email: finalUser.email,
+        contact_phone: finalUser.contact_phone,
+        company: finalUser.company,
+        role: 'user',
+        plan_name: 'Free'
+      }, 'SIGNUP');
+    } catch (emailErr) {
+      console.error('Failed to send admin notification:', emailErr);
+    }
+
   } catch (err) {
     console.error(err);
+    // Explicitly handle duplicate entry error
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, message: 'Email or Mobile already registered.' });
+    }
     res.status(500).json({ success: false, message: 'Signup failed' });
   }
 });
+
 
 
 const authenticate = require('../middleware/authMiddleware');

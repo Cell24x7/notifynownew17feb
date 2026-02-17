@@ -31,6 +31,10 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
     return '';
   };
 
+  const [name, setName] = useState('');
+  const [company, setCompany] = useState('');
+  const [secondaryIdentifier, setSecondaryIdentifier] = useState('');
+
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPassword(value);
@@ -69,6 +73,11 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
           identifier: email,
           password,
           otp,
+          name,
+          company,
+          // If primary is email, send mobile as secondary. If primary is mobile, send email as secondary.
+          mobile: email.includes('@') ? secondaryIdentifier : undefined,
+          email: !email.includes('@') ? secondaryIdentifier : undefined,
         }),
       });
 
@@ -108,63 +117,100 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
 
   return (
     <form onSubmit={handleCreateAccount} className="space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground mb-1">Creating account for</p>
-        <p className="font-medium break-all">{email}</p>
+      <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+        <Label className="text-sm text-muted-foreground">Email / Mobile</Label>
+        <p className="font-medium break-all text-primary">{email}</p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="password" className="text-base font-medium">
-          Create Password
-        </Label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            value={password}
-            onChange={handlePasswordChange}
-            disabled={isLoading}
-            className={`py-6 pr-12 ${passwordError ? 'border-red-500' : ''}`}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-          </button>
+      <div className="space-y-4">
+        <div className="space-y-2">
+           <Label htmlFor="name">Full Name <span className="text-red-500">*</span></Label>
+           <Input 
+             id="name" 
+             placeholder="John Doe" 
+             value={name} 
+             onChange={(e) => setName(e.target.value)} 
+             className="py-6"
+           />
         </div>
-        {passwordError ? (
-          <p className="text-sm text-red-500">{passwordError}</p>
-        ) : password ? (
-          <p className="text-sm text-green-500">✓ Password strength: Strong</p>
-        ) : null}
+
+        <div className="space-y-2">
+           <Label htmlFor="company">Company Name <span className="text-red-500">*</span></Label>
+           <Input 
+             id="company" 
+             placeholder="Acme Inc." 
+             value={company} 
+             onChange={(e) => setCompany(e.target.value)} 
+             className="py-6"
+           />
+        </div>
+
+        {/* Conditional Secondary Contact Field - MANDATORY */}
+        <div className="space-y-2">
+           <Label htmlFor="secondary-contact">
+             {email.includes('@') ? 'Mobile Number' : 'Email Address'} <span className="text-red-500">*</span>
+           </Label>
+           <Input 
+             id="secondary-contact"
+             type={email.includes('@') ? 'tel' : 'email'}
+             placeholder={email.includes('@') ? 'Enter your mobile number' : 'Enter your email address'}
+             value={secondaryIdentifier}
+             onChange={(e) => setSecondaryIdentifier(e.target.value)} 
+             className="py-6"
+           />
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="confirm-password" className="text-base font-medium">
-          Confirm Password
-        </Label>
-        <div className="relative">
-          <Input
-            id="confirm-password"
-            type={showConfirmPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChange={handleConfirmPasswordChange}
-            disabled={isLoading}
-            className={`py-6 pr-12 ${confirmPasswordError ? 'border-red-500' : ''}`}
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-          </button>
+      <div className="space-y-4 pt-2">
+        <div className="space-y-2">
+          <Label htmlFor="password">Create Password <span className="text-red-500">*</span></Label>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={handlePasswordChange}
+              disabled={isLoading}
+              className={`py-6 pr-12 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${passwordError ? 'border-red-500' : ''}`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+          {passwordError ? (
+            <p className="text-sm text-red-500">{passwordError}</p>
+          ) : password ? (
+            <p className="text-sm text-green-500">✓ Password strength: Strong</p>
+          ) : null}
         </div>
-        {confirmPasswordError && <p className="text-sm text-red-500">{confirmPasswordError}</p>}
+
+        <div className="space-y-2">
+          <Label htmlFor="confirm-password">Confirm Password <span className="text-red-500">*</span></Label>
+          <div className="relative">
+            <Input
+              id="confirm-password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={handleConfirmPasswordChange}
+              disabled={isLoading}
+              className={`py-6 pr-12 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${confirmPasswordError ? 'border-red-500' : ''}`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+          {confirmPasswordError && <p className="text-sm text-red-500">{confirmPasswordError}</p>}
+        </div>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
@@ -187,8 +233,8 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
 
       <Button
         type="submit"
-        className="w-full gradient-primary text-primary-foreground py-6 text-base"
-        disabled={isLoading || !password || !confirmPassword || !!passwordError || !!confirmPasswordError}
+        className="w-full gradient-primary text-primary-foreground py-6 text-base font-bold shadow-lg hover:shadow-primary/20 transition-all"
+        disabled={isLoading || !password || !confirmPassword || !!passwordError || !!confirmPasswordError || !name || !company || !secondaryIdentifier}
       >
         {isLoading ? (
           <>
@@ -196,7 +242,7 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
             Creating Account...
           </>
         ) : (
-          'Create Account'
+          'Create Account & Get Started'
         )}
       </Button>
     </form>

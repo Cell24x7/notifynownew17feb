@@ -11,13 +11,15 @@ interface User {
   name: string;
   email: string;
   company?: string;
-  role?: 'user' | 'admin' | 'superadmin';
+  role?: 'user' | 'admin' | 'superadmin' | 'reseller';
   contact_phone?: string;
   profile_picture?: string;
   plan_id?: string;
   created_at?: string;
   channels_enabled?: string[]; // Add this
   permissions?: any[];
+  credits_available?: number;
+  plan_name?: string;
 }
 
 interface AuthContextType {

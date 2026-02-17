@@ -117,7 +117,7 @@ export default function ForgotPassword() {
                   <Input
                     id="identifier"
                     type="text"
-                    placeholder="you@company.com or 9876543210"
+                    placeholder="Enter your registered email or mobile"
                     value={email} // keeping 'email' state var name to minimize diff, acts as identifier
                     onChange={(e) => setEmail(e.target.value)}
                     required
