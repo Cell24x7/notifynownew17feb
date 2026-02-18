@@ -16,8 +16,9 @@ import {
   Package,
   Moon,
   Sun,
-  ChevronDown,
   UserCircle,
+  BarChart3,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -78,6 +79,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
+    { icon: BarChart3, label: 'Reports', path: '/reports', show:  hasPermission('Reports - View') || true }, // Default true for now as requested by user
     { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];

@@ -24,7 +24,7 @@ const sendEmail = async (to, subject, text) => {
   }
 
   try {
-    const apiUrl = process.env.EMAIL_API_URL || `http://43.242.212.34:7716/emailService/sendEmail`;
+    const apiUrl = process.env.EMAIL_API_URL;
 
     // The API seems to accept query params based on auth.js
     const response = await axios.get(apiUrl, {

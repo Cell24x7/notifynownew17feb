@@ -285,22 +285,91 @@ router.post('/bots/:id/sync', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/rcs/send-campaign - Send RCS campaign to multiple contacts
+/**
+ * @route GET /api/rcs/templates/external
+ * @desc Get list of external templates (Direct from Provider)
+ * @access Private
+ */
+router.get('/templates/external', authenticateToken, async (req, res) => {
+  try {
+    const { getExternalTemplates } = require('../services/rcsService');
+    // Hardcoded custId=7 as per user request
+    const templates = await getExternalTemplates(7);
+    res.json({ success: true, templates });
+  } catch (error) {
+    console.error('❌ Error in /templates/external:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch templates' });
+  }
+});
+
+/**
+ * @route GET /api/rcs/reports
+ * @desc Get aggregated RCS reports
+ * @access Private
+ */
+router.get('/reports', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { startDate, endDate, status } = req.query;
+
+    let sql = `
+            SELECT 
+                c.id, c.name, c.template_id, c.created_at,
+                c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count
+            FROM campaigns c
+            WHERE c.user_id = ? AND c.channel = 'RCS'
+        `;
+    const params = [userId];
+
+    if (startDate && endDate) {
+      sql += ` AND c.created_at BETWEEN ? AND ?`;
+      params.push(startDate, endDate);
+    }
+
+    if (status && status !== 'all') {
+      // For campaigns, status might be 'sent', 'completed', etc.
+      // If user wants to filter by message status (e.g. "delivered"), it's trickier on campaign level.
+      // Usually reports filter by campaign status or date.
+      sql += ` AND c.status = ?`;
+      params.push(status);
+    }
+
+    sql += ` ORDER BY c.created_at DESC`;
+
+    const [reports] = await query(sql, params);
+    res.json({ success: true, reports });
+
+  } catch (error) {
+    console.error('❌ Reports error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch reports' });
+  }
+});
+
+/**
+ * @route POST /api/rcs/send-campaign
+ * @desc Send RCS Campaign
+ * @access Private
+ */
 router.post('/send-campaign', authenticateToken, async (req, res) => {
   try {
-    console.log('📤 POST /api/rcs/send-campaign');
-    const { campaignName, templateId, contacts, variables, scheduledTime } = req.body;
+    // console.log('📤 POST /api/rcs/send-campaign');
+    // Extract templateName from frontend request
+    const { campaignName, contacts, scheduledTime, templateName } = req.body;
     const userId = req.user.id;
 
+    // Use dynamic template name provided by user
+    // const templateName = "Empowering_business"; 
+
     // Validation
-    if (!campaignName || !templateId || !contacts || contacts.length === 0) {
+    if (!campaignName || !contacts || contacts.length === 0 || !templateName) {
       return res.status(400).json({
         success: false,
-        message: 'Campaign name, template ID, and contacts are required'
+        message: 'Campaign name, template name, and contacts are required'
       });
     }
 
     console.log(`📊 Campaign: ${campaignName}`);
+    console.log(`📝 Template: ${templateName}`);
     console.log(`📞 Recipients: ${contacts.length}`);
     console.log(`⏰ Scheduled: ${scheduledTime || 'Now'}`);
 
@@ -333,10 +402,19 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     // Send message to each contact
     for (const contact of contacts) {
       try {
-        const mobile = contact.mobile || contact.phone;
+        let mobile = null;
+        let name = 'Unknown';
+
+        if (typeof contact === 'string') {
+          mobile = contact;
+        } else if (typeof contact === 'object') {
+          mobile = contact.mobile || contact.phone;
+          name = contact.name || 'Unknown';
+        }
+
         if (!mobile) {
           failedMessages.push({
-            contact: contact.name || contact.email,
+            contact: name,
             error: 'No mobile number provided'
           });
           continue;
@@ -347,7 +425,7 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
         // Try sending template first
         let result = null;
         try {
-          result = await sendRcsTemplate(mobile, templateId);
+          result = await sendRcsTemplate(mobile, templateName);
         } catch (templateErr) {
           console.warn(`⚠️ Template send failed for ${mobile}, trying raw message`);
           // Fallback to raw message
@@ -361,8 +439,8 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
         if (result && result.success) {
           sentMessages.push({
             mobile,
-            name: contact.name || 'Unknown',
-            templateId,
+            name,
+            templateId: templateName,
             sentAt: new Date(),
             messageId: result.messageId || 'N/A'
           });
@@ -370,17 +448,18 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
         } else {
           failedMessages.push({
             mobile,
-            name: contact.name || 'Unknown',
+            name,
             error: result?.error || 'Unknown error'
           });
           console.log(`❌ Failed for ${mobile}: ${result?.error || 'Unknown error'}`);
         }
+
       } catch (error) {
         failedMessages.push({
-          contact: contact.name || contact.mobile || 'Unknown',
+          contact: typeof contact === 'object' ? (contact.mobile || 'Unknown') : contact,
           error: error.message
         });
-        console.error(`❌ Error sending to ${contact.mobile}:`, error.message);
+        console.error(`❌ Error sending to contact:`, error.message);
       }
     }
 
@@ -396,13 +475,29 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
           userId,
           campaignName,
           'RCS',
-          templateId,
+          templateName,
           contacts.length,
           sentMessages.length,
           failedMessages.length,
           'sent'
         ]
       );
+
+      // Insert into message_logs for detailed tracking
+      if (sentMessages.length > 0) {
+        const logValues = sentMessages.map(msg => [
+          campaignId,
+          msg.messageId,
+          msg.mobile,
+          'sent',
+          msg.sentAt
+        ]);
+
+        await query(
+          `INSERT INTO message_logs (campaign_id, message_id, recipient, status, created_at) VALUES ?`,
+          [logValues]
+        );
+      }
 
       console.log(`✅ Campaign saved: ${campaignId}`);
 

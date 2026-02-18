@@ -210,7 +210,7 @@ export const mockQuickReplies = [
 ];
 
 // Template channels (6 channels for templates)
-export type TemplateChannel = 'whatsapp' | 'sms' | 'rcs';
+export type TemplateChannel = 'whatsapp' | 'sms' | 'rcs' | 'email' | 'voicebot';
 
 // Template header types
 export type HeaderType = 'none' | 'text' | 'image' | 'video' | 'audio' | 'document';

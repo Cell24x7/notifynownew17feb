@@ -41,6 +41,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
 import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
 import { rcsTemplatesService } from '@/services/rcsTemplatesService';
+import { rcsCampaignApi } from '@/services/rcsCampaignApi';
 import { useAuth } from '@/contexts/AuthContext';
 
 // WhatsApp Business API supported template languages
@@ -136,6 +137,47 @@ export default function Campaigns() {
       ]);
       setCampaigns(campaignsData);
       setTemplates(templatesData);
+
+      // Fetch external RCS templates
+      try {
+        const externalRcsData = await rcsCampaignApi.getExternalTemplates();
+        if (externalRcsData && Array.isArray(externalRcsData.templates)) {
+            console.log('📦 External RCS Templates API Response:', externalRcsData); // DEBUG LOG
+
+            // Map external templates to MessageTemplate format
+            const externalTemplates = externalRcsData.templates.map((t: any) => {
+                // Handle various potential field names from external API - including TemplateName (PascalCase) from logs
+                const tName = t.TemplateName || t.template_name || t.name || t.templateName || t.templateId || (typeof t === 'string' ? t : 'Unknown Template');
+                // Use Name as ID if no ID present, or use API ID
+                const tId = t.Id ? String(t.Id) : tName;
+
+                return {
+                    id: tId, 
+                    name: tName,
+                    channel: 'rcs',
+                    status: 'approved', // External templates are assumed approved
+                    language: t.language || 'en',
+                    category: t.category || 'Marketing',
+                    body: t.body || 'External Template (Preview not available)',
+                    header: { type: 'none' },
+                    footer: '',
+                    buttons: [],
+                    variables: []
+                };
+            });
+            
+            // Append to templates list, filtering out duplicates if any (by name)
+            setTemplates(prev => {
+                const existingNames = new Set(prev.filter(p => p.channel === 'rcs').map(p => p.name));
+                const newTemplates = externalTemplates.filter((t: any) => !existingNames.has(t.name));
+                return [...prev, ...newTemplates];
+            });
+        }
+      } catch (rcsErr) {
+        console.error('Failed to load external RCS templates', rcsErr);
+        // Don't block loading
+      }
+
     } catch (err) {
       console.error('Error fetching data:', err);
       toast({
@@ -166,27 +208,18 @@ export default function Campaigns() {
   const [templateStep, setTemplateStep] = useState<'channel' | 'form'>('channel');
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [templateType, setTemplateType] = useState<'standard' | 'carousel'>('standard');
-  const [newTemplate, setNewTemplate] = useState<{
-    name: string;
-    language: string;
-    category: MessageTemplate['category'];
-    channel: TemplateChannel;
-    header: { type: HeaderType; content?: string; fileName?: string };
-    body: string;
-    footer: string;
-    buttons: TemplateButton[];
-  }>({
+  const [newTemplate, setNewTemplate] = useState<Omit<MessageTemplate, 'id' | 'createdAt' | 'usageCount' | 'status'>>({
     name: '',
     language: 'en',
-    category: 'Marketing' as const,
-    channel: 'whatsapp' as const,
+    category: 'Marketing',
+    channel: 'rcs',
+    templateType: 'standard',
     header: { type: 'none' },
     body: '',
     footer: '',
     buttons: [],
-  });
-
-  // Language selector popover
+    variables: []
+  });// Language selector popover
   const [languagePopoverOpen, setLanguagePopoverOpen] = useState(false);
 
   const [templateAnalyticsOpen, setTemplateAnalyticsOpen] = useState(false);
@@ -330,22 +363,33 @@ export default function Campaigns() {
         }
 
         if (mobileNumbers.length > 0) {
+          // Use our local backend which handles the external API safely
+          // We MUST use backend because external API returns 401 on Browser CORS Preflight
+          // Use our local backend which handles the external API safely
+          // We MUST use backend because external API returns 401 on Browser CORS Preflight
           const rcsPayload = {
-            customerId: "cell24x7",
             campaignName: campaignData.name,
-            TemplateName: "Welcome_message",
-            param_json: {},
-            "To Mobile Number": mobileNumbers
+            templateName: selectedTemplate?.name || campaignData.templateId, // Use selected template name
+            contacts: mobileNumbers.map(String)
           };
 
-          const result = await rcsTemplatesService.sendExternalCampaign(rcsPayload);
-          console.log('RCS Campaign External API Result:', result);
+          const result = await rcsCampaignApi.sendCampaign(rcsPayload);
+          console.log('RCS Campaign Result:', result);
           
           toast({
             title: '🚀 RCS Campaign Sent',
-            description: `Campaign sent via external API to ${mobileNumbers.length} contacts.`,
+            description: `Campaign sent via Backend to ${mobileNumbers.length} contacts.`,
           });
         }
+      }
+
+      // Save campaign locally (database record) - handled by backend route mostly, 
+      // but we refresh data here.
+      if (campaignData.channel === 'rcs' && campaignData.scheduleType === 'now') {
+          fetchData();
+          setIsCreateOpen(false);
+          setCreateStep(1);
+          return; 
       }
 
       // Save campaign locally
@@ -1111,7 +1155,7 @@ export default function Campaigns() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="grid grid-cols-4 gap-2 text-center">
                       <div className="p-2 rounded-lg bg-muted">
                         <p className="text-lg font-bold">{campaign.sent_count.toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">Sent</p>
@@ -1119,6 +1163,10 @@ export default function Campaigns() {
                       <div className="p-2 rounded-lg bg-success/10">
                         <p className="text-lg font-bold text-success">{campaign.delivered_count.toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">Delivered</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
+                         <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{campaign.read_count?.toLocaleString() || 0}</p>
+                         <p className="text-xs text-muted-foreground">Read</p>
                       </div>
                       <div className="p-2 rounded-lg bg-destructive/10">
                         <p className="text-lg font-bold text-destructive">{campaign.failed_count.toLocaleString()}</p>
@@ -1179,6 +1227,7 @@ export default function Campaigns() {
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center">Sent</TableHead>
                     <TableHead className="text-center">Delivered</TableHead>
+                    <TableHead className="text-center">Read</TableHead>
                     <TableHead className="text-center">Failed</TableHead>
                     <TableHead className="text-center">Delivery Rate</TableHead>
                     <TableHead className="text-right">Cost</TableHead>
@@ -1194,6 +1243,7 @@ export default function Campaigns() {
                       <TableCell><StatusBadge status={campaign.status as any} /></TableCell>
                       <TableCell className="text-center">{campaign.sent_count.toLocaleString()}</TableCell>
                       <TableCell className="text-center text-success">{campaign.delivered_count.toLocaleString()}</TableCell>
+                      <TableCell className="text-center text-purple-600">{campaign.read_count?.toLocaleString() || 0}</TableCell>
                       <TableCell className="text-center text-destructive">{campaign.failed_count.toLocaleString()}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center gap-2">

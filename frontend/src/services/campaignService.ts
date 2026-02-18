@@ -19,6 +19,7 @@ export interface Campaign {
     audience_count: number;
     sent_count: number;
     delivered_count: number;
+    read_count: number;
     failed_count: number;
     clicked_count: number;
     cost: number;

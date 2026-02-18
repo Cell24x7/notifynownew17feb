@@ -13,8 +13,9 @@ export const rcsCampaignApi = {
    */
   async sendCampaign(campaignData: {
     campaignName: string;
-    templateId: string;
-    contacts: Array<{ mobile?: string; email?: string; name?: string }>;
+    // templateId: string; // Deprecated in favor of templateName
+    templateName: string;
+    contacts: Array<{ mobile?: string; email?: string; name?: string } | string>;
     variables?: Record<string, string>[];
     scheduledTime?: string;
   }) {
@@ -22,8 +23,8 @@ export const rcsCampaignApi = {
       throw new Error('Campaign name is required');
     }
 
-    if (!campaignData.templateId) {
-      throw new Error('Template ID is required');
+    if (!campaignData.templateName) {
+      throw new Error('Template name is required');
     }
 
     if (!campaignData.contacts || campaignData.contacts.length === 0) {
@@ -158,6 +159,33 @@ export const rcsCampaignApi = {
       return await response.json();
     } catch (error) {
       console.error('❌ Campaign status fetch error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get external RCS templates (direct from provider)
+   * @returns List of external templates
+   */
+  async getExternalTemplates() {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/rcs/templates/external`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch external templates');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('❌ External templates fetch error:', error);
       throw error;
     }
   }

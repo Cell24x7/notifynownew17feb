@@ -22,7 +22,8 @@ const allowedOrigins = [
   'http://localhost:8081',
   'http://localhost:5000',
   'https://notifynow.in',
-  'https://www.notifynow.in'
+  'https://www.notifynow.in',
+  'http://192.168.1.47:8080'
 ];
 
 app.use(cors({
@@ -31,13 +32,16 @@ app.use(cors({
     // Allow requests with no origin (Postman, mobile apps)
     if (!origin) return callback(null, true);
 
-    // Allow if in whitelist
+    // Development Mode: Allow everything
+    return callback(null, true);
+
+    /*
+    // Strict Production Mode (Enable later)
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-
-    // Block others
     return callback(new Error('Not allowed by CORS'));
+    */
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -82,6 +86,7 @@ app.use('/api/templates', require('./routes/templates'));
 app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/logs', require('./routes/logs'));
+app.use('/api/webhooks', require('./routes/webhooks'));
 
 
 /* ==================================

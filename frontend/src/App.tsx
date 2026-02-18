@@ -13,6 +13,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Chats from "./pages/Chats";
 import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
 import Automations from "./pages/Automations";
 import Integrations from "./pages/Integrations";
 import Contacts from "./pages/Contacts";
@@ -59,6 +60,7 @@ const App = () => (
                 <Route path="/chats" element={<Chats />} />
                 <Route path="/contacts" element={<Contacts />} />
                 <Route path="/campaigns" element={<Campaigns />} />
+                <Route path="/reports" element={<Reports />} />
 
                 <Route path="/automations" element={<Automations />} />
                 <Route path="/integrations" element={<Integrations />} />
