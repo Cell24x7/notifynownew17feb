@@ -17,6 +17,53 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// ? FIX: normalize provider response (status SUCCESS etc.)
+const normalizeRcsResult = (result) => {
+  if (!result) return { success: false, error: 'Empty provider response', raw: result };
+
+  // If service returns { success: true }
+  if (result.success === true) {
+    return {
+      success: true,
+      messageId: result.messageId || result.data || result.id || null,
+      raw: result
+    };
+  }
+
+  // If provider returns { status: "SUCCESS", data: "..." }
+  if (typeof result === 'object' && result.status) {
+    const ok = String(result.status).toUpperCase() === 'SUCCESS';
+    return {
+      success: ok,
+      messageId: ok ? (result.data || result.messageId || null) : null,
+      error: ok ? null : (result.error || JSON.stringify(result)),
+      raw: result
+    };
+  }
+
+  // If service puts JSON string in result.error
+  if (result.error && typeof result.error === 'string') {
+    try {
+      const parsed = JSON.parse(result.error);
+      if (parsed && String(parsed.status).toUpperCase() === 'SUCCESS') {
+        return { success: true, messageId: parsed.data || null, raw: result };
+      }
+      return { success: false, error: result.error, raw: result };
+    } catch {
+      const ok = result.error.toUpperCase().includes('SUCCESS');
+      return { success: ok, messageId: null, error: ok ? null : result.error, raw: result };
+    }
+  }
+
+  // If provider returns plain string
+  if (typeof result === 'string') {
+    const ok = result.toUpperCase().includes('SUCCESS');
+    return { success: ok, messageId: null, error: ok ? null : result, raw: result };
+  }
+
+  return { success: false, error: result.error || 'Unknown error', raw: result };
+};
+
 // Get all bots for current user
 router.get('/bots', authenticateToken, async (req, res) => {
   try {
@@ -80,7 +127,7 @@ router.post('/bots', authenticateToken, async (req, res) => {
     const botId = `BOT${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
     // Insert into rcs_bots table
-    const [result] = await query(
+    await query(
       `INSERT INTO rcs_bots (
         id, user_id, bot_name, brand_name, short_description, bot_type, route_type,
         development_platform, message_type, billing_category, languages_supported,
@@ -113,7 +160,7 @@ router.post('/bots', authenticateToken, async (req, res) => {
 router.put('/bots/:id', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { bot_name, brand_name, short_description, brand_color, bot_logo_url, banner_image_url, ...updateData } = req.body;
+    const { bot_name, brand_name, short_description, brand_color, bot_logo_url, banner_image_url } = req.body;
 
     // Check if bot belongs to user
     const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [req.params.id, userId]);
@@ -162,56 +209,37 @@ router.delete('/bots/:id', authenticateToken, async (req, res) => {
 });
 
 // Submit bot for approval
-// Submit bot for approval
 router.post('/bots/:id/submit', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const botId = req.params.id;
 
-    // Check if bot belongs to user
     const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [botId, userId]);
     if (!bots.length) return res.status(404).json({ error: 'Bot not found' });
 
-    // Only allow submission if status is DRAFT
     if (bots[0].status !== 'DRAFT') {
       return res.status(400).json({ error: 'Bot is already submitted or processed' });
     }
 
-    // --- Vi RBM Integration ---
     const { createRbmBot } = require('../services/viRbmService');
-    console.log(`🚀 Submitting Bot ${botId} to Vi RBM...`);
+    console.log(`?? Submitting Bot ${botId} to Vi RBM...`);
 
-    let rbmStatus = 'SUBMITTED';
     let rbmBotId = null;
 
     try {
       const rbmResponse = await createRbmBot(bots[0]);
-      console.log('✅ Vi RBM Submission Response:', rbmResponse);
+      console.log('? Vi RBM Submission Response:', rbmResponse);
 
-      // Check what we got back. 
-      // If we got a botId, save it.
-      if (rbmResponse && rbmResponse.botId) {
-        rbmBotId = rbmResponse.botId;
-      }
-
-      // If status is returned
-      if (rbmResponse && rbmResponse.status) {
-        // Map RBM status if needed, or just keep SUBMITTED
-      }
+      if (rbmResponse && rbmResponse.botId) rbmBotId = rbmResponse.botId;
 
     } catch (rbmError) {
-      console.error('⚠️ Failed to submit to Vi RBM:', rbmError.message || rbmError);
-      // We might want to fail the whole request or just log it?
-      // User said "kya mera bot approval ke liye jata hai virbm ko ki nahi".
-      // So we should probably try to enforce it, but if API fails, maybe keep it locally submitted?
-      // Let's return error to user so they know.
+      console.error('?? Failed to submit to Vi RBM:', rbmError.message || rbmError);
       return res.status(502).json({
         error: 'Failed to submit to Vi RBM. Please check your configuration.',
         details: rbmError.message || rbmError
       });
     }
 
-    // Update status to SUBMITTED and save RBM Bot ID
     await query(
       'UPDATE rcs_bots SET status = ?, rbm_bot_id = ?, submitted_at = NOW() WHERE id = ?',
       ['SUBMITTED', rbmBotId, botId]
@@ -230,53 +258,38 @@ router.post('/bots/:id/sync', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const botId = req.params.id;
 
-    // Check if bot belongs to user
     const [bots] = await query('SELECT * FROM rcs_bots WHERE id = ? AND user_id = ?', [botId, userId]);
     if (!bots.length) return res.status(404).json({ error: 'Bot not found' });
 
     const bot = bots[0];
 
-    // Only verify if we have an RBM Bot ID or if it's in a submitted state
-    // If we don't have an RBM Bot ID, we can try to "re-submit" or check by name if API supported it,
-    // but typically we need the ID.
     if (!bot.rbm_bot_id) {
-      // Fallback: If no RBM ID yet, maybe previous submission didn't return it.
-      // We could try to "create" again to get the ID, or just tell user to submit first.
       return res.status(400).json({ error: 'No RBM Bot ID found. Please submit the bot first.' });
     }
 
-    // --- Vi RBM Integration ---
     const { getBotStatus } = require('../services/viRbmService');
-    console.log(`🔄 Syncing status for Bot ${botId} (${bot.rbm_bot_id})...`);
+    console.log(`?? Syncing status for Bot ${botId} (${bot.rbm_bot_id})...`);
 
     const rbmStatus = await getBotStatus(bot.rbm_bot_id);
-    console.log('✅ Vi RBM Status:', rbmStatus);
+    console.log('? Vi RBM Status:', rbmStatus);
 
-    // Map RBM status to local status
     let localStatus = bot.status;
 
-    // Example mapping: 
-    // RBM might return: LAUNCHED, PENDING, REJECTED, etc.
-    if (rbmStatus === 'LAUNCHED' || rbmStatus === 'APPROVED') {
-      localStatus = 'ACTIVE';
-    } else if (rbmStatus === 'REJECTED' || rbmStatus === 'SUSPENDED') {
-      localStatus = 'REJECTED'; // Or SUSPENDED
-    } else if (rbmStatus === 'PENDING') {
-      localStatus = 'SUBMITTED';
-    }
+    if (rbmStatus === 'LAUNCHED' || rbmStatus === 'APPROVED') localStatus = 'ACTIVE';
+    else if (rbmStatus === 'REJECTED' || rbmStatus === 'SUSPENDED') localStatus = 'REJECTED';
+    else if (rbmStatus === 'PENDING') localStatus = 'SUBMITTED';
 
-    // Update DB
     if (localStatus !== bot.status) {
       await query('UPDATE rcs_bots SET status = ?, updated_at = NOW() WHERE id = ?', [localStatus, botId]);
-      console.log(`✅ Bot status updated to ${localStatus}`);
+      console.log(`? Bot status updated to ${localStatus}`);
     } else {
-      console.log('ℹ️ Bot status remains unchanged');
+      console.log('?? Bot status remains unchanged');
     }
 
     res.json({
       success: true,
       status: localStatus,
-      rbmStatus: rbmStatus
+      rbmStatus
     });
 
   } catch (error) {
@@ -288,16 +301,15 @@ router.post('/bots/:id/sync', authenticateToken, async (req, res) => {
 /**
  * @route GET /api/rcs/templates/external
  * @desc Get list of external templates (Direct from Provider)
- * @access Private
+ * @access Private (recommend)
  */
 router.get('/templates/external', authenticateToken, async (req, res) => {
   try {
     const { getExternalTemplates } = require('../services/rcsService');
-    // Hardcoded custId=7 as per user request
     const templates = await getExternalTemplates(7);
     res.json({ success: true, templates });
   } catch (error) {
-    console.error('❌ Error in /templates/external:', error.message);
+    console.error('? Error in /templates/external:', error.message);
     res.status(500).json({ success: false, message: 'Failed to fetch templates' });
   }
 });
@@ -313,12 +325,12 @@ router.get('/reports', authenticateToken, async (req, res) => {
     const { startDate, endDate, status } = req.query;
 
     let sql = `
-            SELECT 
-                c.id, c.name, c.template_id, c.created_at,
-                c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count
-            FROM campaigns c
-            WHERE c.user_id = ? AND c.channel = 'RCS'
-        `;
+      SELECT 
+        c.id, c.name, c.template_id, c.created_at,
+        c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count
+      FROM campaigns c
+      WHERE c.user_id = ? AND c.channel = 'RCS'
+    `;
     const params = [userId];
 
     if (startDate && endDate) {
@@ -327,9 +339,6 @@ router.get('/reports', authenticateToken, async (req, res) => {
     }
 
     if (status && status !== 'all') {
-      // For campaigns, status might be 'sent', 'completed', etc.
-      // If user wants to filter by message status (e.g. "delivered"), it's trickier on campaign level.
-      // Usually reports filter by campaign status or date.
       sql += ` AND c.status = ?`;
       params.push(status);
     }
@@ -340,7 +349,7 @@ router.get('/reports', authenticateToken, async (req, res) => {
     res.json({ success: true, reports });
 
   } catch (error) {
-    console.error('❌ Reports error:', error.message);
+    console.error('? Reports error:', error.message);
     res.status(500).json({ success: false, message: 'Failed to fetch reports' });
   }
 });
@@ -352,15 +361,9 @@ router.get('/reports', authenticateToken, async (req, res) => {
  */
 router.post('/send-campaign', authenticateToken, async (req, res) => {
   try {
-    // console.log('📤 POST /api/rcs/send-campaign');
-    // Extract templateName from frontend request
     const { campaignName, contacts, scheduledTime, templateName } = req.body;
     const userId = req.user.id;
 
-    // Use dynamic template name provided by user
-    // const templateName = "Empowering_business"; 
-
-    // Validation
     if (!campaignName || !contacts || contacts.length === 0 || !templateName) {
       return res.status(400).json({
         success: false,
@@ -368,12 +371,11 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
       });
     }
 
-    console.log(`📊 Campaign: ${campaignName}`);
-    console.log(`📝 Template: ${templateName}`);
-    console.log(`📞 Recipients: ${contacts.length}`);
-    console.log(`⏰ Scheduled: ${scheduledTime || 'Now'}`);
+    console.log(`?? Campaign: ${campaignName}`);
+    console.log(`?? Template: ${templateName}`);
+    console.log(`?? Recipients: ${contacts.length}`);
+    console.log(`? Scheduled: ${scheduledTime || 'Now'}`);
 
-    // Import RCS service
     const { getRcsToken, sendRcsTemplate, sendRcsMessage } = require('../services/rcsService');
 
     const sentMessages = [];
@@ -384,15 +386,15 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     try {
       rcsToken = await getRcsToken();
       if (!rcsToken) {
-        console.error('❌ Failed to get RCS token');
+        console.error('? Failed to get RCS token');
         return res.status(500).json({
           success: false,
           message: 'Failed to authenticate with RCS API'
         });
       }
-      console.log('✅ RCS token obtained');
+      console.log('? RCS token obtained');
     } catch (tokenErr) {
-      console.error('❌ RCS token error:', tokenErr.message);
+      console.error('? RCS token error:', tokenErr.message);
       return res.status(500).json({
         success: false,
         message: 'RCS authentication failed'
@@ -407,59 +409,55 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
 
         if (typeof contact === 'string') {
           mobile = contact;
-        } else if (typeof contact === 'object') {
+        } else if (typeof contact === 'object' && contact) {
           mobile = contact.mobile || contact.phone;
           name = contact.name || 'Unknown';
         }
 
         if (!mobile) {
-          failedMessages.push({
-            contact: name,
-            error: 'No mobile number provided'
-          });
+          failedMessages.push({ mobile: null, name, error: 'No mobile number provided' });
           continue;
         }
 
-        console.log(`📱 Sending to ${mobile}...`);
+        console.log(`?? Sending to ${mobile}...`);
 
-        // Try sending template first
-        let result = null;
+        let rawResult = null;
+
         try {
-          result = await sendRcsTemplate(mobile, templateName);
+          rawResult = await sendRcsTemplate(mobile, templateName);
         } catch (templateErr) {
-          console.warn(`⚠️ Template send failed for ${mobile}, trying raw message`);
-          // Fallback to raw message
-          try {
-            result = await sendRcsMessage(mobile, campaignName);
-          } catch (msgErr) {
-            throw msgErr;
-          }
+          console.warn(`?? Template send failed for ${mobile}, trying raw message`);
+          rawResult = await sendRcsMessage(mobile, campaignName);
         }
 
-        if (result && result.success) {
+        const normalized = normalizeRcsResult(rawResult);
+
+        if (normalized.success) {
           sentMessages.push({
             mobile,
             name,
             templateId: templateName,
             sentAt: new Date(),
-            messageId: result.messageId || 'N/A'
+            messageId: normalized.messageId || 'N/A'
           });
-          console.log(`✅ Sent to ${mobile}`);
+          console.log(`? Sent to ${mobile}`);
         } else {
           failedMessages.push({
             mobile,
             name,
-            error: result?.error || 'Unknown error'
+            error: normalized.error || 'Unknown error',
+            raw: normalized.raw // keep for debug if needed
           });
-          console.log(`❌ Failed for ${mobile}: ${result?.error || 'Unknown error'}`);
+          console.log(`? Failed for ${mobile}: ${normalized.error || 'Unknown error'}`);
         }
 
       } catch (error) {
         failedMessages.push({
-          contact: typeof contact === 'object' ? (contact.mobile || 'Unknown') : contact,
+          mobile: typeof contact === 'object' ? (contact.mobile || contact.phone || null) : contact,
+          name: typeof contact === 'object' ? (contact.name || 'Unknown') : 'Unknown',
           error: error.message
         });
-        console.error(`❌ Error sending to contact:`, error.message);
+        console.error('? Error sending to contact:', error.message);
       }
     }
 
@@ -499,7 +497,7 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
         );
       }
 
-      console.log(`✅ Campaign saved: ${campaignId}`);
+      console.log(`? Campaign saved: ${campaignId}`);
 
       return res.json({
         success: true,
@@ -515,7 +513,7 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
       });
 
     } catch (dbErr) {
-      console.error('❌ Database error:', dbErr.message);
+      console.error('? Database error:', dbErr.message);
       return res.status(500).json({
         success: false,
         message: 'Failed to save campaign to database'
@@ -523,7 +521,7 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Campaign send error:', error.message);
+    console.error('? Campaign send error:', error.message);
     res.status(500).json({
       success: false,
       message: 'Failed to send campaign'

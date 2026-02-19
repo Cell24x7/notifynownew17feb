@@ -43,13 +43,13 @@ export const contactService = {
         return response.data;
     },
 
-    deleteContact: async (id: string) => {
+    async deleteContact(id: string) {
         const response = await axios.delete(`${API_BASE_URL_CONTACTS}/${id}`, { headers: getAuthHeader() });
         return response.data;
     },
 
-    importContacts: async (contacts: Partial<Contact>[]) => {
+    async importContacts(contacts: any[]) {
         const response = await axios.post(`${API_BASE_URL_CONTACTS}/bulk`, { contacts }, { headers: getAuthHeader() });
         return response.data;
-    },
+    }
 };

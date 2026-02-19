@@ -312,12 +312,61 @@ export default function Campaigns() {
 
   const handleCampaignComplete = async (campaignData: CampaignData) => {
     try {
+      let audienceLabel = '';
+      let mobileNumbers: number[] = [];
+      
+      // Handle File Upload & Parsing
+      if (campaignData.contactSource === 'upload' && campaignData.uploadedFile) {
+          toast({ title: 'Processing File...', description: 'Reading and uploading contacts...' });
+          
+          const text = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target?.result as string);
+              reader.onerror = reject;
+              reader.readAsText(campaignData.uploadedFile!);
+          });
+
+          const rows = text.split('\n').map(r => r.split(','));
+          const headers = rows[0].map(h => h.trim().toLowerCase());
+          
+          // Find phone column
+          const phoneIdx = headers.findIndex(h => h.includes('phone') || h.includes('mobile') || h.includes('contact'));
+          const nameIdx = headers.findIndex(h => h.includes('name'));
+          
+          if (phoneIdx === -1) {
+              throw new Error('Could not find a "Phone" or "Mobile" column in the CSV.');
+          }
+
+          const contactsToImport = rows.slice(1).map(row => {
+             const phoneRaw = row[phoneIdx]?.trim();
+             if (!phoneRaw) return null;
+             return {
+                 name: nameIdx !== -1 ? row[nameIdx]?.trim() : 'Unknown',
+                 phone: phoneRaw,
+                 channel: campaignData.channel,
+                 category: 'lead',
+                 labels: `Campaign_${campaignData.name}_${new Date().toISOString().split('T')[0]}`
+             };
+          }).filter(Boolean);
+
+          if (contactsToImport.length > 0) {
+              // Upload to Backend
+              await contactService.importContacts(contactsToImport);
+              audienceLabel = contactsToImport[0]!.labels; // Use the label as audience reference
+              
+              // Extract numbers for immediate sending
+              mobileNumbers = contactsToImport.map(c => parseInt(c!.phone.replace(/\D/g, ''))).filter(n => !isNaN(n));
+              
+              toast({ title: 'Contacts Uploaded', description: `Successfully processed ${contactsToImport.length} contacts.` });
+          }
+      }
+
       // Prepare internal payload
       const campaignPayload = {
         name: campaignData.name,
         channel: campaignData.channel,
         template_id: campaignData.templateId,
-        audience_id: campaignData.audienceId || undefined,
+        audience_id: campaignData.contactSource === 'upload' ? audienceLabel : (campaignData.audienceId || undefined),
         audience_count: campaignData.audienceCount,
         status: (campaignData.scheduleType === 'now' ? 'running' : 'scheduled') as any,
         scheduled_at: campaignData.scheduleType === 'scheduled' 
@@ -329,20 +378,11 @@ export default function Campaigns() {
       if (campaignData.channel === 'rcs' && campaignData.scheduleType === 'now') {
         const selectedTemplate = templates.find(t => t.id === campaignData.templateId);
         
-        // Prepare mobile numbers
-        let mobileNumbers: number[] = [];
         if (campaignData.contactSource === 'existing') {
           // Fetch contacts to get their phone numbers
           const contactsList = await contactService.getContacts();
           const selectedContacts = contactsList.filter(c => campaignData.selectedContacts.includes(c.id));
           mobileNumbers = selectedContacts.map(c => parseInt(c.phone.replace(/\D/g, '')));
-        } else if (campaignData.contactSource === 'upload' && campaignData.uploadedFile) {
-          toast({
-            title: 'Info',
-            description: 'RCS File Campaign sending: Iterating contacts...',
-          });
-          // Note: In a production app, you'd parse CSV/Excel here or on backend
-          // For now, we'll notify that integration is ready for database contacts
         } else if (campaignData.contactSource === 'manual') {
           // Parse manual numbers
           mobileNumbers = campaignData.manualNumbers
@@ -352,10 +392,10 @@ export default function Campaigns() {
             .map(n => parseInt(n.replace(/\D/g, '')))
             .filter(n => !isNaN(n));
           
-          if (mobileNumbers.length > 10) {
+          if (mobileNumbers.length > 5000) {
              toast({
               title: 'Error',
-              description: 'Maximum 10 numbers allowed for manual input.',
+              description: 'Maximum 5000 numbers allowed for manual input.',
               variant: 'destructive'
             });
             return;
@@ -364,9 +404,6 @@ export default function Campaigns() {
 
         if (mobileNumbers.length > 0) {
           // Use our local backend which handles the external API safely
-          // We MUST use backend because external API returns 401 on Browser CORS Preflight
-          // Use our local backend which handles the external API safely
-          // We MUST use backend because external API returns 401 on Browser CORS Preflight
           const rcsPayload = {
             campaignName: campaignData.name,
             templateName: selectedTemplate?.name || campaignData.templateId, // Use selected template name

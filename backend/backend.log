@@ -1,0 +1,169 @@
+sudo: a password is required
+============================
+🚀 Server running on port 5050
+Environment: development
+===================================
+✅ MySQL Connected
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external?custId=7 [32m200[0m 79.889 ms - 591[0m
+[0mGET /api/campaigns [32m200[0m 20.264 ms - 703[0m
+[0mGET /api/profile [32m200[0m 6.532 ms - 2190[0m
+[0mGET /api/templates [32m200[0m 22.535 ms - 31[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [32m200[0m 26.410 ms - 591[0m
+[0mGET /api/campaigns [36m304[0m 10.272 ms - -[0m
+[0mGET /api/templates [36m304[0m 8.897 ms - -[0m
+[0mGET /api/profile [36m304[0m 9.740 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 15.944 ms - -[0m
+[0mGET /api/contacts [32m200[0m 4.803 ms - 1128[0m
+[0mGET /api/contacts [36m304[0m 4.773 ms - -[0m
+📊 Campaign: ejfkljdjsdkfjl
+📝 Template: Empowering_business
+📞 Recipients: 1
+⏰ Scheduled: Now
+?? Fetching RCS token from API...
+?? API URL: http://36.255.3.23:7111/rcsApi/getToken
+?? Username: testdemo
+? RCS Token obtained successfully
+?? Token (first 20 chars): eyJhbGciOiJIUzUxMiJ9...
+✅ RCS token obtained
+📱 Sending to 918433706139...
+? Using cached RCS token
+?? Sending RCS template "Empowering_business" to 918433706139
+?? Target URL: http://36.255.3.23:7111/rcsApi/v1/sendTemplate
+? RCS template send failed: { status: 'SUCCESS', data: 'rcsApi-testdemo-1771485427848-23-data1' }
+❌ Failed for 918433706139: {"status":"SUCCESS","data":"rcsApi-testdemo-1771485427848-23-data1"}
+✅ Campaign saved: CAMP_1771485428356
+[0mPOST /api/rcs/send-campaign [32m200[0m 1258.395 ms - 299[0m
+[0mGET /api/campaigns [32m200[0m 8.037 ms - 1052[0m
+[0mGET /api/templates [36m304[0m 5.894 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 18.822 ms - -[0m
+[0mGET /api/contacts [36m304[0m 4.794 ms - -[0m
+[0mGET /api/contacts [36m304[0m 3.479 ms - -[0m
+📊 Campaign: fkadjflkdajlkjkfa
+📝 Template: Empowering_business
+📞 Recipients: 1
+⏰ Scheduled: Now
+? Using cached RCS token
+✅ RCS token obtained
+📱 Sending to 918422063087...
+? Using cached RCS token
+?? Sending RCS template "Empowering_business" to 918422063087
+?? Target URL: http://36.255.3.23:7111/rcsApi/v1/sendTemplate
+? RCS template send failed: { status: 'SUCCESS', data: 'rcsApi-testdemo-1771485488347-24-data1' }
+❌ Failed for 918422063087: {"status":"SUCCESS","data":"rcsApi-testdemo-1771485488347-24-data1"}
+✅ Campaign saved: CAMP_1771485488835
+[0mPOST /api/rcs/send-campaign [32m200[0m 537.711 ms - 302[0m
+[0mGET /api/campaigns [32m200[0m 5.919 ms - 1404[0m
+[0mGET /api/templates [36m304[0m 3.426 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 14.274 ms - -[0m
+[0mGET /api/campaigns [36m304[0m 11.189 ms - -[0m
+[0mGET /api/templates [36m304[0m 7.435 ms - -[0m
+[0mGET /api/profile [36m304[0m 5.326 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 37.045 ms - -[0m
+[0mGET /api/contacts [36m304[0m 3.419 ms - -[0m
+[0mGET /api/dashboard/stats [36m304[0m 41.498 ms - -[0m
+📊 Campaign: akdjaljfdafjdajdfl
+📝 Template: Empowering_business
+📞 Recipients: 1
+⏰ Scheduled: Now
+? Using cached RCS token
+✅ RCS token obtained
+📱 Sending to 918928461469...
+? Using cached RCS token
+?? Sending RCS template "Empowering_business" to 918928461469
+?? Target URL: http://36.255.3.23:7111/rcsApi/v1/sendTemplate
+? RCS template send failed: { status: 'SUCCESS', data: 'rcsApi-testdemo-1771485886408-25-data1' }
+❌ Failed for 918928461469: {"status":"SUCCESS","data":"rcsApi-testdemo-1771485886408-25-data1"}
+✅ Campaign saved: CAMP_1771485886994
+[0mPOST /api/rcs/send-campaign [32m200[0m 625.396 ms - 303[0m
+[0mGET /api/campaigns [32m200[0m 4.813 ms - 1757[0m
+[0mGET /api/templates [36m304[0m 3.441 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 17.406 ms - -[0m
+[0mGET /api/dashboard/stats [36m304[0m 6.915 ms - -[0m
+[0mGET /api/dashboard/stats [36m304[0m 6.100 ms - -[0m
+[0mGET /api/campaigns [36m304[0m 5.659 ms - -[0m
+[0mGET /api/templates [36m304[0m 4.491 ms - -[0m
+[0mGET /api/profile [36m304[0m 5.164 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 16.117 ms - -[0m
+[0mGET /api/campaigns [36m304[0m 6.810 ms - -[0m
+[0mGET /api/templates [36m304[0m 5.484 ms - -[0m
+[0mGET /api/profile [36m304[0m 5.050 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 5023.505 ms - -[0m
+[0mGET /api/dashboard/stats [36m304[0m 6.756 ms - -[0m
+[0mGET /api/dashboard/stats [32m200[0m 7.902 ms - 552[0m
+[0mGET /api/contacts [36m304[0m 4.771 ms - -[0m
+[0mGET /api/campaigns [36m304[0m 10.073 ms - -[0m
+[0mGET /api/templates [36m304[0m 7.804 ms - -[0m
+[0mGET /api/profile [36m304[0m 6.642 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 77.263 ms - -[0m
+[0mGET /api/rcs/reports? [32m200[0m 5.495 ms - 1085[0m
+[0mPOST /api/rcs/send-campaign [33m401[0m 2.113 ms - 29[0m
+[0mGET /api/dashboard/stats [36m304[0m 9.439 ms - -[0m
+[0mGET /api/contacts [36m304[0m 3.489 ms - -[0m
+[0mGET /api/campaigns [32m200[0m 9.188 ms - 1757[0m
+[0mGET /api/templates [36m304[0m 6.974 ms - -[0m
+[0mGET /api/profile [36m304[0m 7.017 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [32m200[0m 19.142 ms - 591[0m
+[0mGET /api/rcs/reports? [32m200[0m 3.359 ms - 1085[0m
+[0mGET /api/plans [36m304[0m 4.047 ms - -[0m
+[0mGET /api/profile [36m304[0m 2.890 ms - -[0m
+[0mGET /api/campaigns [36m304[0m 6.328 ms - -[0m
+[0mGET /api/templates [36m304[0m 6.120 ms - -[0m
+[0mGET /api/profile [36m304[0m 5.373 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 17.065 ms - -[0m
+[0mPOST /api/auth/login [33m401[0m 5.221 ms - 49[0m
+[0mGET /api/rcs/send-campaign [33m404[0m 5.383 ms - 73[0m
+[0mPOST /api/auth/login [33m401[0m 3.754 ms - 49[0m
+[0mPOST /api/auth/login [33m401[0m 126.437 ms - 49[0m
+[0mPOST /api/auth/login [32m200[0m 107.823 ms - 4877[0m
+[0mGET /api/dashboard/stats [32m200[0m 7.554 ms - 552[0m
+[0mGET /api/campaigns [32m200[0m 7.962 ms - 1757[0m
+[0mGET /api/templates [32m200[0m 5.280 ms - 31[0m
+[0mGET /api/profile [32m200[0m 4.146 ms - 2190[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [32m200[0m 27.910 ms - 591[0m
+[0mGET /api/contacts [32m200[0m 3.508 ms - 1128[0m
+📊 Campaign: testvp12345
+📝 Template: Empowering_business
+📞 Recipients: 1
+⏰ Scheduled: Now
+? Using cached RCS token
+✅ RCS token obtained
+📱 Sending to 918779721034...
+? Using cached RCS token
+?? Sending RCS template "Empowering_business" to 918779721034
+?? Target URL: http://36.255.3.23:7111/rcsApi/v1/sendTemplate
+? RCS template send failed: { status: 'SUCCESS', data: 'rcsApi-testdemo-1771486794187-26-data1' }
+❌ Failed for 918779721034: {"status":"SUCCESS","data":"rcsApi-testdemo-1771486794187-26-data1"}
+✅ Campaign saved: CAMP_1771486794700
+[0mPOST /api/rcs/send-campaign [32m200[0m 552.049 ms - 296[0m
+[0mGET /api/campaigns [32m200[0m 4.360 ms - 2103[0m
+[0mGET /api/templates [36m304[0m 3.255 ms - -[0m
+?? Fetching external templates for custId: 7
+?? External URL: https://rcs.cell24x7.com/manage_templates/get_template_name_list
+[0mGET /api/rcs/templates/external [36m304[0m 211.731 ms - -[0m
+[0mGET /api/rcs/reports? [32m200[0m 3.371 ms - 1297[0m

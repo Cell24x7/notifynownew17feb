@@ -185,7 +185,10 @@ router.post('/bulk', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'No contacts provided' });
         }
 
-        const values = [];
+        console.log(`Processing bulk import for ${contacts.length} contacts...`);
+
+        // Prepare all values first
+        const allValues = [];
         const contactIds = [];
 
         for (const contact of contacts) {
@@ -202,7 +205,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
             let status = (contact.status || 'active').toLowerCase();
             if (!['active', 'inactive', 'blocked', 'pending'].includes(status)) status = 'active';
 
-            values.push([
+            allValues.push([
                 contactId,
                 userId,
                 contact.name || 'Unknown',
@@ -216,16 +219,25 @@ router.post('/bulk', authenticateToken, async (req, res) => {
             ]);
         }
 
-        if (values.length > 0) {
-            await query(
-                `INSERT INTO contacts 
-                (id, user_id, name, phone, email, category, channel, labels, starred, status) 
-                VALUES ?`,
-                [values]
-            );
+        // Batch Process insertion
+        const BATCH_SIZE = 1000;
+        let insertedCount = 0;
+
+        for (let i = 0; i < allValues.length; i += BATCH_SIZE) {
+            const batch = allValues.slice(i, i + BATCH_SIZE);
+            if (batch.length > 0) {
+                await query(
+                    `INSERT INTO contacts 
+                    (id, user_id, name, phone, email, category, channel, labels, starred, status) 
+                    VALUES ?`,
+                    [batch]
+                );
+                insertedCount += batch.length;
+                console.log(`Submitted batch: ${insertedCount}/${allValues.length}`);
+            }
         }
 
-        res.status(201).json({ success: true, message: `Successfully imported ${values.length} contacts` });
+        res.status(201).json({ success: true, message: `Successfully imported ${insertedCount} contacts` });
     } catch (error) {
         console.error('Bulk import error:', error);
         res.status(500).json({ success: false, message: 'Failed to import contacts' });
