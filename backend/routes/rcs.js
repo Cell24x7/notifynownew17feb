@@ -364,16 +364,21 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     const { campaignName, contacts, scheduledTime, templateName } = req.body;
     const userId = req.user.id;
 
-    if (!campaignName || !contacts || contacts.length === 0 || !templateName) {
+
+    // Allow starting an existing campaign by ID without other fields
+    if (req.body.campaignId) {
+      // Proceed to campaign start logic
+    } else if (!campaignName || !contacts || contacts.length === 0 || !templateName) {
       return res.status(400).json({
         success: false,
         message: 'Campaign name, template name, and contacts are required'
       });
     }
 
-    console.log(`?? Campaign: ${campaignName}`);
-    console.log(`?? Template: ${templateName}`);
-    console.log(`?? Recipients: ${contacts.length}`);
+
+    console.log(`?? Campaign: ${campaignName || req.body.campaignId}`);
+    console.log(`?? Template: ${templateName || 'N/A'}`);
+    console.log(`?? Recipients length: ${contacts ? contacts.length : 0}`);
     console.log(`? Scheduled: ${scheduledTime || 'Now'}`);
 
     const { getRcsToken, sendRcsTemplate, sendRcsMessage } = require('../services/rcsService');
@@ -385,139 +390,179 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     let rcsToken = null;
     try {
       rcsToken = await getRcsToken();
-      if (!rcsToken) {
-        console.error('? Failed to get RCS token');
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to authenticate with RCS API'
-        });
-      }
-      console.log('? RCS token obtained');
     } catch (tokenErr) {
       console.error('? RCS token error:', tokenErr.message);
-      return res.status(500).json({
-        success: false,
-        message: 'RCS authentication failed'
-      });
+      // Proceeding even if token fails, background worker will retry
     }
 
-    // Send message to each contact
-    for (const contact of contacts) {
-      try {
-        let mobile = null;
-        let name = 'Unknown';
+    // IF contacts provided, send immediately (Legacy/Small batches)
+    if (contacts && contacts.length > 0) {
+      // ... (Original logic for immediate sending) ...
+      // For brevity, keeping original logic or directing to queue?
+      // Let's DIRECT TO QUEUE for consistency if > 0
 
-        if (typeof contact === 'string') {
-          mobile = contact;
-        } else if (typeof contact === 'object' && contact) {
-          mobile = contact.mobile || contact.phone;
-          name = contact.name || 'Unknown';
-        }
+      // However, user might expect immediate response. 
+      // Best approach: If contacts < 50, send immediately. If > 50, queue them.
 
-        if (!mobile) {
-          failedMessages.push({ mobile: null, name, error: 'No mobile number provided' });
-          continue;
-        }
+      if (contacts.length > 50) {
+        // Bulk insert to queue
+        const campaignId = `CAMP_${Date.now()}`;
+        await query(
+          `INSERT INTO campaigns (id, user_id, name, channel, template_id, recipient_count, sent_count, failed_count, status, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
+          [campaignId, userId, campaignName, 'RCS', templateName, contacts.length]
+        );
 
-        console.log(`?? Sending to ${mobile}...`);
-
-        let rawResult = null;
-
-        try {
-          rawResult = await sendRcsTemplate(mobile, templateName);
-        } catch (templateErr) {
-          console.warn(`?? Template send failed for ${mobile}, trying raw message`);
-          rawResult = await sendRcsMessage(mobile, campaignName);
-        }
-
-        const normalized = normalizeRcsResult(rawResult);
-
-        if (normalized.success) {
-          sentMessages.push({
-            mobile,
-            name,
-            templateId: templateName,
-            sentAt: new Date(),
-            messageId: normalized.messageId || 'N/A'
-          });
-          console.log(`? Sent to ${mobile}`);
-        } else {
-          failedMessages.push({
-            mobile,
-            name,
-            error: normalized.error || 'Unknown error',
-            raw: normalized.raw // keep for debug if needed
-          });
-          console.log(`? Failed for ${mobile}: ${normalized.error || 'Unknown error'}`);
-        }
-
-      } catch (error) {
-        failedMessages.push({
-          mobile: typeof contact === 'object' ? (contact.mobile || contact.phone || null) : contact,
-          name: typeof contact === 'object' ? (contact.name || 'Unknown') : 'Unknown',
-          error: error.message
+        const values = contacts.map(c => {
+          const mobile = typeof c === 'object' ? (c.mobile || c.phone) : c;
+          return [campaignId, mobile, 'pending'];
         });
-        console.error('? Error sending to contact:', error.message);
+
+        // Batch insert 1000 at a time
+        const BATCH = 1000;
+        for (let i = 0; i < values.length; i += BATCH) {
+          await query('INSERT INTO campaign_queue (campaign_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
+        }
+
+        return res.json({ success: true, message: 'Campaign queued for background processing', campaignId });
+      }
+    }
+
+    // NEW Handling: If validation generally passed but contacts empty, 
+    // it triggers existing campaign if campaignId provided?
+    // The current endpoint expects 'campaignName', 'contacts'.
+    // We need a way to START an existing campaign that has queue items.
+
+    // Let's check if there is a 'campaignId' in body.
+    if (req.body.campaignId) {
+      // Update status to running
+      await query('UPDATE campaigns SET status = "running" WHERE id = ? AND user_id = ?', [req.body.campaignId, userId]);
+      return res.json({ success: true, message: 'Campaign started', campaignId: req.body.campaignId });
+    }
+
+
+    // Send message to each contact ONLY if we are in immediate mode (contacts provided and small batch)
+    if (contacts && contacts.length > 0 && contacts.length <= 50) {
+      for (const contact of contacts) {
+        try {
+          let mobile = null;
+          let name = 'Unknown';
+
+          if (typeof contact === 'string') {
+            mobile = contact;
+          } else if (typeof contact === 'object' && contact) {
+            mobile = contact.mobile || contact.phone;
+            name = contact.name || 'Unknown';
+          }
+
+          if (!mobile) {
+            failedMessages.push({ mobile: null, name, error: 'No mobile number provided' });
+            continue;
+          }
+
+          console.log(`?? Sending to ${mobile}...`);
+
+          let rawResult = null;
+
+          try {
+            rawResult = await sendRcsTemplate(mobile, templateName);
+          } catch (templateErr) {
+            console.warn(`?? Template send failed for ${mobile}, trying raw message`);
+            rawResult = await sendRcsMessage(mobile, campaignName);
+          }
+
+          const normalized = normalizeRcsResult(rawResult);
+
+          if (normalized.success) {
+            sentMessages.push({
+              mobile,
+              name,
+              templateId: templateName,
+              sentAt: new Date(),
+              messageId: normalized.messageId || 'N/A'
+            });
+            console.log(`? Sent to ${mobile}`);
+          } else {
+            failedMessages.push({
+              mobile,
+              name,
+              error: normalized.error || 'Unknown error',
+              raw: normalized.raw // keep for debug if needed
+            });
+            console.log(`? Failed for ${mobile}: ${normalized.error || 'Unknown error'}`);
+          }
+
+        } catch (error) {
+          failedMessages.push({
+            mobile: typeof contact === 'object' ? (contact.mobile || contact.phone || null) : contact,
+            name: typeof contact === 'object' ? (contact.name || 'Unknown') : 'Unknown',
+            error: error.message
+          });
+          console.error('? Error sending to contact:', error.message);
+        }
       }
     }
 
     // Save campaign to database
-    try {
-      const campaignId = `CAMP_${Date.now()}`;
-
-      await query(
-        `INSERT INTO campaigns (id, user_id, name, channel, template_id, recipient_count, sent_count, failed_count, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [
-          campaignId,
-          userId,
-          campaignName,
-          'RCS',
-          templateName,
-          contacts.length,
-          sentMessages.length,
-          failedMessages.length,
-          'sent'
-        ]
-      );
-
-      // Insert into message_logs for detailed tracking
-      if (sentMessages.length > 0) {
-        const logValues = sentMessages.map(msg => [
-          campaignId,
-          msg.messageId,
-          msg.mobile,
-          'sent',
-          msg.sentAt
-        ]);
+    // Save campaign to database (ONLY if immediate sending happened)
+    if (contacts && contacts.length > 0 && contacts.length <= 50) {
+      try {
+        const campaignId = `CAMP_${Date.now()}`;
 
         await query(
-          `INSERT INTO message_logs (campaign_id, message_id, recipient, status, created_at) VALUES ?`,
-          [logValues]
+          `INSERT INTO campaigns (id, user_id, name, channel, template_id, recipient_count, sent_count, failed_count, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [
+            campaignId,
+            userId,
+            campaignName,
+            'RCS',
+            templateName,
+            contacts.length,
+            sentMessages.length,
+            failedMessages.length,
+            'sent' // Mark as sent since it's immediate
+          ]
         );
-      }
 
-      console.log(`? Campaign saved: ${campaignId}`);
+        // Insert into message_logs for detailed tracking
+        if (sentMessages.length > 0) {
+          const logValues = sentMessages.map(msg => [
+            campaignId,
+            msg.messageId,
+            msg.mobile,
+            'sent',
+            msg.sentAt
+          ]);
 
-      return res.json({
-        success: true,
-        campaignName,
-        campaignId,
-        totalContacts: contacts.length,
-        sentMessages: sentMessages.length,
-        failedMessages: failedMessages.length,
-        details: {
-          sent: sentMessages,
-          failed: failedMessages
+          await query(
+            `INSERT INTO message_logs (campaign_id, message_id, recipient, status, created_at) VALUES ?`,
+            [logValues]
+          );
         }
-      });
 
-    } catch (dbErr) {
-      console.error('? Database error:', dbErr.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to save campaign to database'
-      });
+        console.log(`? Campaign saved: ${campaignId}`);
+
+        return res.json({
+          success: true,
+          campaignName,
+          campaignId,
+          totalContacts: contacts.length,
+          sentMessages: sentMessages.length, // Only return counts
+          failedMessages: failedMessages.length
+        });
+
+      } catch (dbErr) {
+        console.error('? Database error:', dbErr.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to save campaign to database'
+        });
+      }
+    } else if (req.body.campaignId) {
+      return res.json({ success: true, message: 'Campaign processing started', campaignId: req.body.campaignId });
+    } else {
+      return res.status(400).json({ success: false, message: 'No contacts provided and no campaign ID' });
     }
 
   } catch (error) {

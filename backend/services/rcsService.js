@@ -22,7 +22,7 @@ const getRcsToken = async () => {
   try {
     // Use cached token if valid
     if (rcsAccessToken && tokenExpiresAt && Date.now() < tokenExpiresAt) {
-      console.log("? Using cached RCS token");
+      // console.log("? Using cached RCS token");
       return rcsAccessToken;
     }
 
@@ -89,9 +89,16 @@ const sendRcsTemplate = async (mobile, templateName) => {
       return { success: false, error: "Unable to get access token" };
     }
 
+
+    // SIMULATION MODE for Load Testing
+    if (mobile.startsWith('10000')) {
+      // console.log(`[SIMULATION] Message to ${mobile} simulated as SENT`); // Removed for speed
+      return { success: true, messageId: `SIM_${Date.now()}_${mobile}` };
+    }
+
     const targetUrl = `${RCS_API_URL}/v1/sendTemplate`;
-    console.log(`?? Sending RCS template "${templateName}" to ${mobile}`);
-    console.log(`?? Target URL: ${targetUrl}`);
+    // console.log(`?? Sending RCS template "${templateName}" to ${mobile}`); // Removed for speed
+
 
     const response = await axios.post(
       targetUrl,
@@ -202,6 +209,12 @@ const sendRcsMessage = async (mobile, message) => {
     const token = await getRcsToken();
     if (!token) {
       return { success: false, error: "Unable to get access token" };
+    }
+
+    // SIMULATION MODE for Load Testing
+    if (mobile.startsWith('10000')) {
+      console.log(`[SIMULATION] Text Message to ${mobile} simulated as SENT`);
+      return { success: true, messageId: `SIM_TXT_${Date.now()}_${mobile}` };
     }
 
     const targetUrl = `${RCS_API_URL}/v1/sendMessage`;

@@ -50,6 +50,30 @@ export const campaignService = {
         return response.data;
     },
 
+    async sendTestMessage(campaignId: string, phone: string) {
+        const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/${campaignId}/test`, { phone }, { headers: getAuthHeader() });
+        return response.data;
+    },
+
+    async uploadContacts(campaignId: string, file: File | Blob) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/${campaignId}/upload-contacts`, formData, {
+            headers: {
+                ...getAuthHeader(),
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
+    async startCampaign(campaignId: string) {
+        // Use RCS endpoint for starting/sending for now, or add generic start endpoint
+        // Using generic logic from rcs route
+        const response = await axios.post(`${API_BASE_URL}/api/rcs/send-campaign`, { campaignId }, { headers: getAuthHeader() });
+        return response.data;
+    },
+
     async duplicateCampaign(id: string) {
         const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/${id}/duplicate`, {}, { headers: getAuthHeader() });
         return response.data;

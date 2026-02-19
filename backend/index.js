@@ -172,6 +172,23 @@ app.use((req, res) => {
    START SERVER
 ================================== */
 
+
+// Initialize Queue Processor (Recursive to prevent overlap)
+const { processQueue } = require('./services/queueService');
+
+const runQueue = async () => {
+  try {
+    await processQueue();
+  } catch (err) {
+    console.error('Queue error:', err);
+  }
+  // Schedule next run only after current one finishes
+  setTimeout(runQueue, 1000);
+};
+
+runQueue();
+
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

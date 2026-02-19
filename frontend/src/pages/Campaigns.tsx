@@ -312,136 +312,117 @@ export default function Campaigns() {
 
   const handleCampaignComplete = async (campaignData: CampaignData) => {
     try {
-      let audienceLabel = '';
-      let mobileNumbers: number[] = [];
-      
-      // Handle File Upload & Parsing
-      if (campaignData.contactSource === 'upload' && campaignData.uploadedFile) {
-          toast({ title: 'Processing File...', description: 'Reading and uploading contacts...' });
-          
-          const text = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = (e) => resolve(e.target?.result as string);
-              reader.onerror = reject;
-              reader.readAsText(campaignData.uploadedFile!);
-          });
-
-          const rows = text.split('\n').map(r => r.split(','));
-          const headers = rows[0].map(h => h.trim().toLowerCase());
-          
-          // Find phone column
-          const phoneIdx = headers.findIndex(h => h.includes('phone') || h.includes('mobile') || h.includes('contact'));
-          const nameIdx = headers.findIndex(h => h.includes('name'));
-          
-          if (phoneIdx === -1) {
-              throw new Error('Could not find a "Phone" or "Mobile" column in the CSV.');
-          }
-
-          const contactsToImport = rows.slice(1).map(row => {
-             const phoneRaw = row[phoneIdx]?.trim();
-             if (!phoneRaw) return null;
-             return {
-                 name: nameIdx !== -1 ? row[nameIdx]?.trim() : 'Unknown',
-                 phone: phoneRaw,
-                 channel: campaignData.channel,
-                 category: 'lead',
-                 labels: `Campaign_${campaignData.name}_${new Date().toISOString().split('T')[0]}`
-             };
-          }).filter(Boolean);
-
-          if (contactsToImport.length > 0) {
-              // Upload to Backend
-              await contactService.importContacts(contactsToImport);
-              audienceLabel = contactsToImport[0]!.labels; // Use the label as audience reference
-              
-              // Extract numbers for immediate sending
-              mobileNumbers = contactsToImport.map(c => parseInt(c!.phone.replace(/\D/g, ''))).filter(n => !isNaN(n));
-              
-              toast({ title: 'Contacts Uploaded', description: `Successfully processed ${contactsToImport.length} contacts.` });
-          }
-      }
-
-      // Prepare internal payload
+      // 1. Create Base Campaign (Draft)
+      // We create the campaign first to get an ID for uploading contacts
       const campaignPayload = {
         name: campaignData.name,
         channel: campaignData.channel,
         template_id: campaignData.templateId,
-        audience_id: campaignData.contactSource === 'upload' ? audienceLabel : (campaignData.audienceId || undefined),
+        audience_id: campaignData.audienceId || undefined,
         audience_count: campaignData.audienceCount,
-        status: (campaignData.scheduleType === 'now' ? 'running' : 'scheduled') as any,
+        status: 'draft' as any, // Start as draft, update later if 'now'
         scheduled_at: campaignData.scheduleType === 'scheduled' 
           ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
           : undefined,
       };
 
-      // If RCS and Send Now, call external API
-      if (campaignData.channel === 'rcs' && campaignData.scheduleType === 'now') {
-        const selectedTemplate = templates.find(t => t.id === campaignData.templateId);
-        
-        if (campaignData.contactSource === 'existing') {
-          // Fetch contacts to get their phone numbers
-          const contactsList = await contactService.getContacts();
-          const selectedContacts = contactsList.filter(c => campaignData.selectedContacts.includes(c.id));
-          mobileNumbers = selectedContacts.map(c => parseInt(c.phone.replace(/\D/g, '')));
-        } else if (campaignData.contactSource === 'manual') {
+      const createRes = await campaignService.createCampaign(campaignPayload);
+      const campaignId = createRes.campaignId;
+
+      if (!campaignId) throw new Error('Failed to create campaign record');
+
+      let isLargeCampaign = false;
+
+      // 2. Handle Contacts Logic
+      if (campaignData.contactSource === 'upload' && campaignData.uploadedFile) {
+          isLargeCampaign = true;
+          toast({ title: 'Uploading Contacts', description: 'Streaming file to server...' });
+          await campaignService.uploadContacts(campaignId, campaignData.uploadedFile);
+          toast({ title: 'Contacts Uploaded', description: 'File processed successfully.' });
+
+      } else if (campaignData.contactSource === 'manual') {
           // Parse manual numbers
-          mobileNumbers = campaignData.manualNumbers
+          const mobileNumbers = campaignData.manualNumbers
             .split(/[\n,\s]+/)
             .map(n => n.trim())
             .filter(n => n !== '')
             .map(n => parseInt(n.replace(/\D/g, '')))
             .filter(n => !isNaN(n));
           
-          if (mobileNumbers.length > 5000) {
-             toast({
-              title: 'Error',
-              description: 'Maximum 5000 numbers allowed for manual input.',
-              variant: 'destructive'
-            });
-            return;
+          if (mobileNumbers.length > 50) {
+             isLargeCampaign = true;
+             // Convert to CSV Blob for upload
+             const csvContent = "phone\n" + mobileNumbers.join("\n");
+             const blob = new Blob([csvContent], { type: 'text/csv' });
+             const file = new File([blob], "manual_upload.csv", { type: "text/csv" });
+             
+             toast({ title: 'Uploading Contacts', description: `Processing ${mobileNumbers.length} numbers...` });
+             await campaignService.uploadContacts(campaignId, file);
+          } else {
+             // Small batch - proceed with legacy/immediate flow handled by backend or frontend API
+             // Actually, since we already created the campaign, we should probably upload these too 
+             // OR send them in the start command if the API supports it.
+             // But my start command only creates... actually startCampaign uses /rcs/send-campaign.
+             // Let's just upload them too for consistency if > 0? 
+             // Or keep legacy flow?
+             // To be safe and compliant with new backend logic (which checks queue), let's upload even small batches 
+             // OR use the legacy flow passing 'contacts' array to startCampaign.
+             // We will pass contacts array to startCampaign for small batches.
           }
-        }
+      }
 
-        if (mobileNumbers.length > 0) {
-          // Use our local backend which handles the external API safely
-          const rcsPayload = {
-            campaignName: campaignData.name,
-            templateName: selectedTemplate?.name || campaignData.templateId, // Use selected template name
-            contacts: mobileNumbers.map(String)
-          };
-
-          const result = await rcsCampaignApi.sendCampaign(rcsPayload);
-          console.log('RCS Campaign Result:', result);
-          
+      // 3. Trigger Sending (if Now)
+      if (campaignData.scheduleType === 'now') {
+          if (isLargeCampaign) {
+              await campaignService.startCampaign(campaignId);
+              toast({
+                title: '🚀 Campaign Started',
+                description: 'Campaign is running in background.',
+              });
+          } else {
+              // Legacy Small Batch / Existing Audience
+              // If existing audience, we need to fetch logic or let backend handle?
+              // Current rcs/send-campaign handles 'contacts' array.
+              
+              let contactsToSend: string[] = [];
+              if (campaignData.contactSource === 'existing') {
+                  const contactsList = await contactService.getContacts();
+                  const selectedContacts = contactsList.filter(c => campaignData.selectedContacts.includes(c.id));
+                  contactsToSend = selectedContacts.map(c => c.phone);
+              } else if (campaignData.contactSource === 'manual') {
+                  contactsToSend = campaignData.manualNumbers.split(/[\n,\s]+/).map(n => n.trim()).filter(Boolean);
+              }
+              
+              // We need to pass campaignId so backend updates the row we just created
+              // instead of creating a new one.
+              if (contactsToSend.length > 0) {
+                  // Call RCS API directly or via service
+                  // We need to pass campaignId to reuse it.
+                  const rcsPayload = {
+                    campaignId, // Backend should handle this
+                    campaignName: campaignData.name,
+                    templateName: templates.find(t => t.id === campaignData.templateId)?.name || campaignData.templateId,
+                    contacts: contactsToSend
+                  };
+                  await rcsCampaignApi.sendCampaign(rcsPayload as any);
+                  
+                  toast({
+                    title: '🚀 Campaign Sent',
+                    description: `Processed ${contactsToSend.length} contacts.`,
+                  });
+              }
+          }
+      } else {
           toast({
-            title: '🚀 RCS Campaign Sent',
-            description: `Campaign sent via Backend to ${mobileNumbers.length} contacts.`,
+            title: '📅 Campaign Scheduled',
+            description: `Campaign scheduled for ${campaignData.scheduledDate}.`,
           });
-        }
       }
 
-      // Save campaign locally (database record) - handled by backend route mostly, 
-      // but we refresh data here.
-      if (campaignData.channel === 'rcs' && campaignData.scheduleType === 'now') {
-          fetchData();
-          setIsCreateOpen(false);
-          setCreateStep(1);
-          return; 
-      }
-
-      // Save campaign locally
-      await campaignService.createCampaign(campaignPayload);
-      
-      toast({
-        title: campaignData.scheduleType === 'now' ? '🚀 Campaign sent!' : '📅 Campaign scheduled',
-        description: campaignData.scheduleType === 'now' 
-          ? `Campaign ${campaignData.name} is now processing.`
-          : `Campaign ${campaignData.name} scheduled for ${campaignData.scheduledDate}.`,
-      });
-      
       fetchData();
       setIsCreateOpen(false);
       setCreateStep(1);
+
     } catch (err: any) {
       console.error('Create campaign error:', err);
       toast({

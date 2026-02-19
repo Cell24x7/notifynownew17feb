@@ -329,7 +329,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       case 3:
         if (campaignData.contactSource === 'manual') {
           const count = campaignData.manualNumbers.split(/[\n,\s]+/).filter(n => n.trim()).length;
-          return count > 0 && count <= 5000;
+          return count > 0;
         }
         return campaignData.audienceCount > 0;
       case 4:
