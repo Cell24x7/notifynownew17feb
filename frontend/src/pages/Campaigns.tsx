@@ -318,6 +318,7 @@ export default function Campaigns() {
         name: campaignData.name,
         channel: campaignData.channel,
         template_id: campaignData.templateId,
+        template_name: templates.find(t => t.id === campaignData.templateId)?.name, // Send the name!
         audience_id: campaignData.audienceId || undefined,
         audience_count: campaignData.audienceCount,
         status: 'draft' as any, // Start as draft, update later if 'now'

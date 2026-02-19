@@ -116,7 +116,7 @@ const sendRcsTemplate = async (mobile, templateName) => {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
-        timeout: 10000,
+        timeout: 60000,
       }
     );
 
@@ -124,6 +124,7 @@ const sendRcsTemplate = async (mobile, templateName) => {
       response.data?.success === true ||
       response.data?.status === "submitted" ||
       response.data?.status === "sent" ||
+      response.data?.status === "SUCCESS" || // Fix: Handle uppercase SUCCESS
       response.data?.msg === "Success";
 
     if (isSuccess) {
@@ -230,7 +231,7 @@ const sendRcsMessage = async (mobile, message) => {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
-        timeout: 10000,
+        timeout: 30000,
       }
     );
 

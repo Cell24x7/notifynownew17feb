@@ -11,7 +11,7 @@ const normalizeRcsResult = (result) => {
     return { success: false, error: result.error || JSON.stringify(result) };
 };
 
-const BATCH_SIZE = 1000; // Process 1000 messages at a time (MAX SPEED)
+const BATCH_SIZE = 50; // Reduced from 1000 to 50 to prevent timeouts with slow API
 
 const processQueue = async () => {
     try {
@@ -20,7 +20,7 @@ const processQueue = async () => {
         // Only process active campaigns
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
-            COALESCE(mt.name, c.template_id) as template_name,
+            COALESCE(c.template_name, mt.name, c.template_id) as template_name,
             c.name as campaign_name, c.channel
             FROM campaign_queue q
             JOIN campaigns c ON q.campaign_id = c.id
@@ -61,6 +61,7 @@ const processQueue = async () => {
                 if (item.channel === 'RCS' || item.channel === 'rcs') {
                     // Try template first
                     try {
+                        console.log(`[QueueDebug] Processing ${item.mobile}. Template: '${item.template_name}'`);
                         const raw = await sendRcsTemplate(item.mobile, item.template_name);
                         result = normalizeRcsResult(raw);
                     } catch (err) {
@@ -104,9 +105,9 @@ const processQueue = async () => {
         });
 
 
-        // Safety timeout for the entire batch (15 seconds)
+        // Safety timeout for the entire batch (2 minutes)
         const batchTimeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Batch processing timed out')), 15000)
+            setTimeout(() => reject(new Error('Batch processing timed out')), 120000)
         );
 
         await Promise.race([

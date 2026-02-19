@@ -99,14 +99,17 @@ router.post('/', authenticateToken, async (req, res) => {
 
         const campaignId = `CAMP${Date.now()}`;
 
+        // Use provided template_name or fallback to template_id (if it looks like a name)
+        const templateName = req.body.template_name || (isNaN(template_id) ? template_id : null);
+
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, audience_id, audience_count, status, scheduled_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [campaignId, userId, name, channel, template_id, audience_id || null, audience_count || 0, status || 'draft', scheduled_at || null]
+      (id, user_id, name, channel, template_id, template_name, audience_id, audience_count, status, scheduled_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [campaignId, userId, name, channel, template_id, templateName, audience_id || null, audience_count || 0, status || 'draft', scheduled_at || null]
         );
 
-        console.log(`✅ Campaign ${campaignId} created for user ${userId}`);
+        console.log(`✅ Campaign ${campaignId} created for user ${userId}. Template: ${templateName}`);
         res.status(201).json({ success: true, message: 'Campaign created successfully', campaignId });
     } catch (error) {
         console.error('CRITICAL: Create campaign error:', error);

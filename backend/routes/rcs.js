@@ -365,205 +365,79 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
 
-    // Allow starting an existing campaign by ID without other fields
-    if (req.body.campaignId) {
-      // Proceed to campaign start logic
-    } else if (!campaignName || !contacts || contacts.length === 0 || !templateName) {
-      return res.status(400).json({
-        success: false,
-        message: 'Campaign name, template name, and contacts are required'
-      });
-    }
+    // ------------------------------------------------------------------
+    // NEW UNIFIED LOGIC: ALWAYS QUEUE
+    // ------------------------------------------------------------------
 
+    let campaignId = req.body.campaignId;
 
-    console.log(`?? Campaign: ${campaignName || req.body.campaignId}`);
-    console.log(`?? Template: ${templateName || 'N/A'}`);
-    console.log(`?? Recipients length: ${contacts ? contacts.length : 0}`);
-    console.log(`? Scheduled: ${scheduledTime || 'Now'}`);
-
-    const { getRcsToken, sendRcsTemplate, sendRcsMessage } = require('../services/rcsService');
-
-    const sentMessages = [];
-    const failedMessages = [];
-
-    // Get RCS token
-    let rcsToken = null;
-    try {
-      rcsToken = await getRcsToken();
-    } catch (tokenErr) {
-      console.error('? RCS token error:', tokenErr.message);
-      // Proceeding even if token fails, background worker will retry
-    }
-
-    // IF contacts provided, send immediately (Legacy/Small batches)
+    // 1. If contacts provided, queue them
     if (contacts && contacts.length > 0) {
-      // ... (Original logic for immediate sending) ...
-      // For brevity, keeping original logic or directing to queue?
-      // Let's DIRECT TO QUEUE for consistency if > 0
 
-      // However, user might expect immediate response. 
-      // Best approach: If contacts < 50, send immediately. If > 50, queue them.
-
-      if (contacts.length > 50) {
-        // Bulk insert to queue
-        const campaignId = `CAMP_${Date.now()}`;
+      // If no campaignId, create a new campaign record (Legacy/Direct call support)
+      if (!campaignId) {
+        campaignId = `CAMP_${Date.now()}`;
         await query(
-          `INSERT INTO campaigns (id, user_id, name, channel, template_id, recipient_count, sent_count, failed_count, status, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
-          [campaignId, userId, campaignName, 'RCS', templateName, contacts.length]
-        );
-
-        const values = contacts.map(c => {
-          const mobile = typeof c === 'object' ? (c.mobile || c.phone) : c;
-          return [campaignId, mobile, 'pending'];
-        });
-
-        // Batch insert 1000 at a time
-        const BATCH = 1000;
-        for (let i = 0; i < values.length; i += BATCH) {
-          await query('INSERT INTO campaign_queue (campaign_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
-        }
-
-        return res.json({ success: true, message: 'Campaign queued for background processing', campaignId });
-      }
-    }
-
-    // NEW Handling: If validation generally passed but contacts empty, 
-    // it triggers existing campaign if campaignId provided?
-    // The current endpoint expects 'campaignName', 'contacts'.
-    // We need a way to START an existing campaign that has queue items.
-
-    // Let's check if there is a 'campaignId' in body.
-    if (req.body.campaignId) {
-      // Update status to running
-      await query('UPDATE campaigns SET status = "running" WHERE id = ? AND user_id = ?', [req.body.campaignId, userId]);
-      return res.json({ success: true, message: 'Campaign started', campaignId: req.body.campaignId });
-    }
-
-
-    // Send message to each contact ONLY if we are in immediate mode (contacts provided and small batch)
-    if (contacts && contacts.length > 0 && contacts.length <= 50) {
-      for (const contact of contacts) {
-        try {
-          let mobile = null;
-          let name = 'Unknown';
-
-          if (typeof contact === 'string') {
-            mobile = contact;
-          } else if (typeof contact === 'object' && contact) {
-            mobile = contact.mobile || contact.phone;
-            name = contact.name || 'Unknown';
-          }
-
-          if (!mobile) {
-            failedMessages.push({ mobile: null, name, error: 'No mobile number provided' });
-            continue;
-          }
-
-          console.log(`?? Sending to ${mobile}...`);
-
-          let rawResult = null;
-
-          try {
-            rawResult = await sendRcsTemplate(mobile, templateName);
-          } catch (templateErr) {
-            console.warn(`?? Template send failed for ${mobile}, trying raw message`);
-            rawResult = await sendRcsMessage(mobile, campaignName);
-          }
-
-          const normalized = normalizeRcsResult(rawResult);
-
-          if (normalized.success) {
-            sentMessages.push({
-              mobile,
-              name,
-              templateId: templateName,
-              sentAt: new Date(),
-              messageId: normalized.messageId || 'N/A'
-            });
-            console.log(`? Sent to ${mobile}`);
-          } else {
-            failedMessages.push({
-              mobile,
-              name,
-              error: normalized.error || 'Unknown error',
-              raw: normalized.raw // keep for debug if needed
-            });
-            console.log(`? Failed for ${mobile}: ${normalized.error || 'Unknown error'}`);
-          }
-
-        } catch (error) {
-          failedMessages.push({
-            mobile: typeof contact === 'object' ? (contact.mobile || contact.phone || null) : contact,
-            name: typeof contact === 'object' ? (contact.name || 'Unknown') : 'Unknown',
-            error: error.message
-          });
-          console.error('? Error sending to contact:', error.message);
-        }
-      }
-    }
-
-    // Save campaign to database
-    // Save campaign to database (ONLY if immediate sending happened)
-    if (contacts && contacts.length > 0 && contacts.length <= 50) {
-      try {
-        const campaignId = `CAMP_${Date.now()}`;
-
-        await query(
-          `INSERT INTO campaigns (id, user_id, name, channel, template_id, recipient_count, sent_count, failed_count, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
           [
             campaignId,
             userId,
             campaignName,
             'RCS',
-            templateName,
-            contacts.length,
-            sentMessages.length,
-            failedMessages.length,
-            'sent' // Mark as sent since it's immediate
+            templateName, // Save to ID col (backward compat)
+            templateName, // Save to Name col (NEW FIX)
+            contacts.length
           ]
         );
-
-        // Insert into message_logs for detailed tracking
-        if (sentMessages.length > 0) {
-          const logValues = sentMessages.map(msg => [
-            campaignId,
-            msg.messageId,
-            msg.mobile,
-            'sent',
-            msg.sentAt
-          ]);
-
-          await query(
-            `INSERT INTO message_logs (campaign_id, message_id, recipient, status, created_at) VALUES ?`,
-            [logValues]
-          );
-        }
-
-        console.log(`? Campaign saved: ${campaignId}`);
-
-        return res.json({
-          success: true,
-          campaignName,
-          campaignId,
-          totalContacts: contacts.length,
-          sentMessages: sentMessages.length, // Only return counts
-          failedMessages: failedMessages.length
-        });
-
-      } catch (dbErr) {
-        console.error('? Database error:', dbErr.message);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to save campaign to database'
-        });
+        console.log(`? Created new campaign ${campaignId} for ${contacts.length} contacts`);
+      } else {
+        // Campaign exists, we are adding contacts to it
+        // Check if we need to update recipient_count?
+        // campaigns.js createCampaign() sets recipient_count. 
+        // If we add MORE contacts here (Manual/Existing flow), we should probably add to it?
+        // But for Manual/Existing flow, createCampaign sets count based on selection.
+        // So we might simply trust the created count.
+        // Safer: Update count just in case.
+        await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contacts.length, campaignId]);
       }
-    } else if (req.body.campaignId) {
-      return res.json({ success: true, message: 'Campaign processing started', campaignId: req.body.campaignId });
-    } else {
+
+      // Prepare queue items
+      const values = contacts.map(c => {
+        const mobile = typeof c === 'object' ? (c.mobile || c.phone) : c;
+        if (!mobile) return null;
+        const cleanMobile = mobile.replace(/\D/g, ''); // Ensure clean number
+        return [campaignId, cleanMobile, 'pending'];
+      }).filter(Boolean);
+
+      if (values.length > 0) {
+        // Batch insert to queue
+        const BATCH = 1000;
+        for (let i = 0; i < values.length; i += BATCH) {
+          await query('INSERT INTO campaign_queue (campaign_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
+        }
+        console.log(`? Queued ${values.length} contacts for campaign ${campaignId}`);
+      }
+
+    } else if (!campaignId) {
+      // No contacts and no campaignId -> Error
       return res.status(400).json({ success: false, message: 'No contacts provided and no campaign ID' });
     }
+
+    // 2. Start Campaign (Set to running)
+    // If campaignId was provided or created, ensure it's set to running so queue picks it up
+    if (campaignId) {
+      await query('UPDATE campaigns SET status = "running" WHERE id = ? AND user_id = ?', [campaignId, userId]);
+
+      return res.json({
+        success: true,
+        message: 'Campaign processing started',
+        campaignId,
+        queued: contacts ? contacts.length : 0
+      });
+    }
+
+    return res.status(500).json({ success: false, message: 'Unexpected flow error' });
 
   } catch (error) {
     console.error('? Campaign send error:', error.message);
