@@ -40,6 +40,16 @@ router.post('/rcs/callback', async (req, res) => {
 
                     await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
 
+                    // Update specific timestamps based on status
+                    if (finalStatus === 'delivered') {
+                        await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
+                    } else if (finalStatus === 'read') {
+                        // If it's read, it must have been delivered. Set delivery_time if null.
+                        await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
+                    } else if (finalStatus === 'failed') {
+                        await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [error || 'Unknown error', messageId]);
+                    }
+
                     // Update campaign counts
                     if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
                         await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
@@ -73,14 +83,16 @@ router.post('/rcs/callback', async (req, res) => {
 
             console.log(`💬 Incoming Reply from ${sender}: ${text}`);
 
-            // Save to message_logs as incoming? Or a separate inbox table?
-            // For now, let's log it. User requested "Read" status primarily.
-            // If user replies, it implies "Read".
-
-            // Try to find the last message sent to this user to attribute the reply? 
-            // Complex without session management. 
-
-            // For now just valid DLRs are prioritized.
+            try {
+                // Save to webhook_logs
+                await query(
+                    'INSERT INTO webhook_logs (sender, recipient, message_content, raw_payload) VALUES (?, ?, ?, ?)',
+                    [sender, payload.recipient || 'System', text, JSON.stringify(payload)]
+                );
+                console.log(`✅ Saved incoming message from ${sender} to DB.`);
+            } catch (dbErr) {
+                console.error('❌ Failed to save incoming message:', dbErr.message);
+            }
         }
 
         // Always return 200 OK to acknowledge receipt

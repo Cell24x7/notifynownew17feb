@@ -81,8 +81,8 @@ const processQueue = async () => {
 
                     // Log to message_logs
                     await query(
-                        'INSERT INTO message_logs (campaign_id, message_id, recipient, status, created_at) VALUES (?, ?, ?, ?, NOW())',
-                        [item.campaign_id, result.messageId, item.mobile, 'sent']
+                        'INSERT INTO message_logs (campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+                        [item.campaign_id, item.campaign_name, item.template_name, result.messageId, item.mobile, 'sent']
                     );
 
                     stats[item.campaign_id].sent++;
