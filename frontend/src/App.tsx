@@ -36,7 +36,9 @@ import SuperAdminReports from "./pages/super-admin/Reports";
 import SuperAdminVendors from "./pages/super-admin/Vendors";
 import SuperAdminNumbers from "./pages/super-admin/Numbers";
 
-import UserPlans from "./pages/UserPlans";  
+import UserPlans from "./pages/UserPlans"; 
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +53,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               

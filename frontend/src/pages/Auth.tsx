@@ -393,9 +393,9 @@ export default function Auth() {
 
         <p className="mt-6 text-center text-xs text-muted-foreground leading-relaxed">
           By continuing, you agree to our{" "}
-          <a href="#" className="text-primary font-medium hover:underline">Terms of Service</a>{" "}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Terms of Service</a>{" "}
           and{" "}
-          <a href="#" className="text-primary font-medium hover:underline">Privacy Policy</a>.
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Privacy Policy</a>.
         </p>
       </div>
     </div>
