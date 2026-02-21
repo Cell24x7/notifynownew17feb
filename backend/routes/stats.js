@@ -180,30 +180,38 @@ router.get('/stats', authenticate, async (req, res) => {
             WHERE user_id = ? AND status IN ('completed', 'running')
         `, [userId]);
 
-        // 3. Channel Distribution (Volume by channel)
-        const [channelStats] = await query(`
-            SELECT channel, SUM(audience_count) as volume
+        // 3. Channel Distribution & Analytics (Volume, delivered, read, failed by channel)
+        const [channelData] = await query(`
+            SELECT 
+                channel, 
+                SUM(audience_count) as volume,
+                SUM(delivered_count) as delivered,
+                SUM(read_count) as read_count,
+                SUM(failed_count) as failed
             FROM campaigns 
             WHERE user_id = ? AND status IN ('completed', 'running')
             GROUP BY channel
         `, [userId]);
 
-        // Map database results to simple object { whatsapp: 100, sms: 50, ... }
-        const channelDist = {
-            whatsapp: 0,
-            sms: 0,
-            rcs: 0,
-            voice: 0,
-            email: 0
-        };
+        const channelStatsMap = {};
+        const channelDist = {};
 
-        channelStats.forEach(row => {
+        channelData.forEach(row => {
             const key = row.channel.toLowerCase();
-            if (channelDist.hasOwnProperty(key)) {
-                channelDist[key] = Number(row.volume);
-            } else {
-                channelDist[key] = Number(row.volume);
-            }
+            const volume = Number(row.volume || 0);
+            const delivered = Number(row.delivered || 0);
+            const read = Number(row.read_count || 0);
+            const failed = Number(row.failed || 0);
+
+            channelDist[key] = volume;
+            channelStatsMap[key] = {
+                totalMessages: volume,
+                delivered: delivered,
+                read: read,
+                failed: failed,
+                deliveryRate: volume > 0 ? ((delivered / volume) * 100).toFixed(1) : "0",
+                readRate: delivered > 0 ? ((read / delivered) * 100).toFixed(1) : "0"
+            };
         });
 
         // 4. Weekly Chats (Last 7 days trend)
@@ -232,18 +240,16 @@ router.get('/stats', authenticate, async (req, res) => {
         }
 
         // 5. Construct Final Stats Object
-        // For activeChats and automations, we still lack real data sources, so we keep them 0 or mock appropriately 
-        // until those features are built.
         const stats = {
             totalConversations: Number(totalStats[0]?.total_conversations || 0),
-            activeChats: 0, // Placeholder
-            automationsTriggered: 0, // Placeholder
+            activeChats: 0,
+            automationsTriggered: 0,
             campaignsSent: Number(totalStats[0]?.campaigns_sent || 0),
-            openChats: 0, // Placeholder
-            closedChats: Number(totalStats[0]?.total_conversations || 0), // Assuming all simplified campaigns are "closed" for now
+            openChats: 0,
+            closedChats: Number(totalStats[0]?.total_conversations || 0),
             weeklyChats,
             channelDistribution: channelDist,
-            // Include breakdown percentages for potential frontend usage
+            channelStats: channelStatsMap,
             channelPercentages: Object.entries(channelDist).map(([key, value]) => ({
                 name: key.charAt(0).toUpperCase() + key.slice(1),
                 value: Number(value)

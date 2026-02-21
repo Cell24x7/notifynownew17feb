@@ -30,6 +30,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { contactService, Contact } from '@/services/contactService';
+import { useAuth } from '@/contexts/AuthContext';
+import { channelConfig } from '@/components/ui/channel-icon';
 
 const viewFilters = [
   { id: 'all', label: 'All Contacts', icon: Users },
@@ -44,12 +46,26 @@ const categoryFilters = [
   { id: 'vip', label: 'VIP', color: 'bg-purple-500' },
 ];
 
-const channelFilters = [
-  { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-  { id: 'sms', label: 'SMS', icon: Phone },
-];
+// channelFilters is now dynamic inside the component
 
 export default function Contacts() {
+  const { user } = useAuth();
+  const enabledChannels = user?.channels_enabled || [];
+
+  const dynamicChannelFilters = enabledChannels.map(id => {
+    const config = (channelConfig as any)[id.toLowerCase()] || { 
+      label: id, 
+      icon: MessageSquare,
+      color: 'text-gray-500'
+    };
+    return { 
+      id: id.toLowerCase(), 
+      label: config.label, 
+      icon: config.icon,
+      color: config.color
+    };
+  });
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,7 +84,7 @@ export default function Contacts() {
     phone: '',
     email: '',
     category: 'lead' as Contact['category'],
-    channel: 'whatsapp' as Contact['channel'],
+    channel: (enabledChannels[0]?.toLowerCase() || 'whatsapp') as Contact['channel'],
     labels: '',
   });
 
@@ -311,11 +327,12 @@ export default function Contacts() {
   };
 
   const getChannelIcon = (channel: string) => {
-    switch (channel) {
-      case 'whatsapp': return <MessageSquare className="h-4 w-4 text-green-500" />;
-      case 'sms': return <Phone className="h-4 w-4 text-purple-500" />;
-      default: return <MessageSquare className="h-4 w-4 text-gray-500" />;
+    const config = (channelConfig as any)[channel.toLowerCase()];
+    if (config) {
+      const Icon = config.icon;
+      return <Icon className={cn("h-4 w-4", config.color)} />;
     }
+    return <MessageSquare className="h-4 w-4 text-gray-500" />;
   };
 
   const getCategoryBadge = (category: string) => {
@@ -410,7 +427,7 @@ export default function Contacts() {
         <div>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Channels</h3>
           <div className="space-y-1">
-            {channelFilters.map((channel) => (
+            {dynamicChannelFilters.map((channel) => (
               <button
                 key={channel.id}
                 onClick={() => { setSelectedChannel(selectedChannel === channel.id ? null : channel.id); setIsFilterOpen(false); }}
@@ -422,7 +439,7 @@ export default function Contacts() {
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <channel.icon className="h-4 w-4" />
+                  <channel.icon className={cn("h-4 w-4", selectedChannel === channel.id ? "text-primary-foreground" : channel.color)} />
                   <span>{channel.label}</span>
                 </div>
               </button>
@@ -545,8 +562,11 @@ export default function Contacts() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                            <SelectItem value="sms">SMS</SelectItem>
+                            {enabledChannels.map(channel => (
+                              <SelectItem key={channel} value={channel.toLowerCase()}>
+                                {channel}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -654,7 +674,7 @@ export default function Contacts() {
                           <div>
                             <div className="flex items-center gap-1">
                               <span className="font-medium">{contact.name}</span>
-                              {contact.starred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                              {!!contact.starred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
                             </div>
                             <span className="text-sm text-muted-foreground">{contact.phone}</span>
                           </div>

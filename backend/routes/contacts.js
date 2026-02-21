@@ -200,7 +200,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
             if (!['guest', 'lead', 'customer', 'vip'].includes(category)) category = 'lead';
 
             let channel = (contact.channel || 'whatsapp').toLowerCase();
-            if (!['whatsapp', 'email', 'sms', 'instagram', 'web'].includes(channel)) channel = 'whatsapp';
+            if (!['whatsapp', 'email', 'sms', 'rcs', 'instagram', 'web'].includes(channel)) channel = 'whatsapp';
 
             let status = (contact.status || 'active').toLowerCase();
             if (!['active', 'inactive', 'blocked', 'pending'].includes(status)) status = 'active';
