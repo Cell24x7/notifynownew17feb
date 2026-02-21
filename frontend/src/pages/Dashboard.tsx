@@ -17,6 +17,7 @@ import {
   Phone,
   Mail,
   Headphones,
+  Wallet,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { API_BASE_URL } from '@/config/api';
@@ -67,7 +68,7 @@ const channelColors: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const enabledChannels = (user?.channels_enabled || []).map(ch => ch.toLowerCase());
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
   const [stats, setStats] = useState<any>(null);
@@ -91,6 +92,7 @@ export default function Dashboard() {
       }
     };
     fetchStats();
+    refreshUser(); // Sync balance with DB
   }, []);
 
   if (loading || !stats) {
@@ -135,6 +137,15 @@ export default function Dashboard() {
       icon: Send,
       color: 'text-secondary',
       bg: 'bg-secondary/10',
+    },
+    {
+      title: 'Available Credits',
+      value: `₹${(user?.wallet_balance || 0).toLocaleString()}`,
+      change: '',
+      trend: 'up',
+      icon: Wallet,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-500/10',
     }
   ];
 

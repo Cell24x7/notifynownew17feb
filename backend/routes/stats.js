@@ -113,10 +113,10 @@ router.get('/super-admin', authenticate, async (req, res) => {
 
         // 8. Top Clients by Wallet Balance (Snapshot)
         const [topUsers] = await query(`
-            SELECT name, company, credits_available
+            SELECT name, company, wallet_balance as credits_available
             FROM users 
             WHERE role IN ('client', 'user')
-            ORDER BY credits_available DESC
+            ORDER BY wallet_balance DESC
             LIMIT 5
         `);
 

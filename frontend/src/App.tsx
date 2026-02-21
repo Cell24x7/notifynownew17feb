@@ -18,6 +18,7 @@ import Automations from "./pages/Automations";
 import Integrations from "./pages/Integrations";
 import Contacts from "./pages/Contacts";
 import Settings from "./pages/Settings";
+import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
 
 
@@ -68,6 +69,7 @@ const App = () => (
 
                 <Route path="/automations" element={<Automations />} />
                 <Route path="/integrations" element={<Integrations />} />
+                <Route path="/wallet" element={<Wallet />} />
                 <Route path="/user-plans" element={<UserPlans />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>

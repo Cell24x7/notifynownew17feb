@@ -64,9 +64,10 @@ router.post('/recharge', authenticateToken, async (req, res) => {
     // 1. Update user balance
     await query(`
       UPDATE users 
-      SET wallet_balance = wallet_balance + ?
+      SET wallet_balance = wallet_balance + ?,
+          credits_available = credits_available + ?
       WHERE id = ?
-    `, [amount, user_id]);
+    `, [amount, amount, user_id]);
 
     // 2. Log transaction
     const [result] = await query(`
@@ -115,23 +116,22 @@ router.post('/adjust', authenticateToken, async (req, res) => {
   }
 
   try {
-    // 1. Update user balance
+    // 1. Update user balance (Both fields)
     await query(`
         UPDATE users 
-        SET wallet_balance = wallet_balance + ?
+        SET wallet_balance = wallet_balance + ?,
+            credits_available = credits_available + ?
         WHERE id = ?
-      `, [finalAmount, user_id]);
+      `, [finalAmount, finalAmount, user_id]);
 
     // 2. Log transaction
-    // Use 'credit' or 'debit' for the DB status if strict, but we changed column to VARCHAR so 'adjustment' etc is also fine if we wanted.
-    // However, keeping consistent with 'credit'/'debit' logic is good.
     const dbType = finalAmount >= 0 ? 'credit' : 'debit';
 
     await query(`
         INSERT INTO transactions (
-          user_id, type, amount, description, status
-        ) VALUES (?, ?, ?, ?, 'completed')
-      `, [user_id, dbType, Math.abs(finalAmount), description || 'Admin Adjustment']);
+          user_id, type, amount, credits, description, status
+        ) VALUES (?, ?, ?, ?, ?, 'completed')
+      `, [user_id, dbType, Math.abs(finalAmount), Math.abs(finalAmount), description || 'Admin Adjustment']);
 
     res.json({ success: true, message: 'Wallet adjusted successfully' });
   } catch (err) {

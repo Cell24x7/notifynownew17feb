@@ -19,6 +19,7 @@ interface User {
   channels_enabled?: string[]; // Add this
   permissions?: any[];
   credits_available?: number;
+  wallet_balance?: number;
   plan_name?: string;
 }
 
@@ -53,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           channels_enabled: decoded.channels_enabled || [],
           permissions: decoded.permissions || [],
           credits_available: decoded.credits_available || 0,
+          wallet_balance: decoded.wallet_balance || 0,
         });
       } catch (err) {
         console.error('Invalid token on load:', err);
@@ -89,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           channels_enabled: channels,
           permissions: permissions, // CRITICAL FIX: Set permissions immediately
           credits_available: userData.credits_available || 0,
+          wallet_balance: userData.wallet_balance || 0,
           plan_name: userData.plan_name
         });
         return true;
@@ -127,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           channels_enabled: typeof userData.channels_enabled === 'string' ? JSON.parse(userData.channels_enabled) : (userData.channels_enabled || []),
           permissions: typeof userData.permissions === 'string' ? JSON.parse(userData.permissions) : (userData.permissions || []),
           credits_available: userData.credits_available || 0,
+          wallet_balance: userData.wallet_balance || 0,
         });
         return true;
       }
@@ -164,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ? JSON.parse(userData.permissions)
             : (userData.permissions || []),
           credits_available: userData.credits_available || 0,
+          wallet_balance: userData.wallet_balance || 0,
         });
       }
     } catch (err) {

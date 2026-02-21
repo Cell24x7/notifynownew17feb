@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
     const [rows] = await query(`
       SELECT
         id, name, email, company AS company_name, contact_phone,
-        plan_id, credits_available, credits_used,
+        plan_id, credits_available, wallet_balance, credits_used,
         IFNULL(channels_enabled, '[]') AS channels_enabled,
         status, created_at, permissions
       FROM users
@@ -61,12 +61,20 @@ router.post('/', async (req, res) => {
     const [result] = await query(`
       INSERT INTO users (
         name, company, contact_phone, email, password, role,
-        status, plan_id, credits_available, credits_used, channels_enabled
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, 0, ?)
+        status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?)
     `, [
       name, company_name, contact_phone, email, hash,
-      status, plan_id, credits_available, JSON.stringify(channels_enabled)
+      status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled)
     ]);
+
+    // Log Initial Transaction
+    if (credits_available > 0) {
+      await query(`
+        INSERT INTO transactions (user_id, type, amount, credits, description, status)
+        VALUES (?, 'credit', ?, ?, 'Initial Credits', 'completed')
+      `, [result.insertId, credits_available, credits_available]);
+    }
 
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
@@ -96,6 +104,11 @@ router.put('/:id', async (req, res) => {
   if (channels_enabled !== undefined) { fields.push('channels_enabled = ?'); values.push(JSON.stringify(channels_enabled)); }
   if (permissions !== undefined) { fields.push('permissions = ?'); values.push(JSON.stringify(permissions)); }
 
+  if (credits_available !== undefined) {
+    fields.push('wallet_balance = ?');
+    values.push(credits_available);
+  }
+
   if (password && password.trim()) {
     const hash = await bcrypt.hash(password, 10);
     fields.push('password = ?');
@@ -107,6 +120,19 @@ router.put('/:id', async (req, res) => {
   }
 
   try {
+    // If credits_available is being updated, we should log a transaction
+    if (credits_available !== undefined) {
+      const [oldUser] = await query('SELECT credits_available FROM users WHERE id = ?', [clientId]);
+      const diff = credits_available - (oldUser[0]?.credits_available || 0);
+
+      if (diff !== 0) {
+        await query(`
+          INSERT INTO transactions (user_id, type, amount, credits, description, status)
+          VALUES (?, ?, ?, ?, 'Admin Adjustment', 'completed')
+        `, [clientId, diff > 0 ? 'credit' : 'debit', Math.abs(diff), Math.abs(diff)]);
+      }
+    }
+
     const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role IN ('client', 'user')`;
     values.push(clientId);
 

@@ -22,7 +22,7 @@ export default function SuperAdminWallet() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [isAdjustOpen, setIsAdjustOpen] = useState(false);
-  const [adjustType, setAdjustType] = useState<'add' | 'refund'>('add');
+  const [adjustType, setAdjustType] = useState<'add' | 'refund' | 'deduct'>('add');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -103,12 +103,12 @@ export default function SuperAdminWallet() {
     }
   };
 
-  const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((acc, t) => acc + (t.amount || 0), 0);
+  const totalPurchases = transactions.filter(t => t.type === 'purchase').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
   // In the new system, 'credits' in the context of Wallet = Amount (Money). 
   // Any credit transaction (add money) contributes to 'Credits Issued'.
-  const totalCreditsIssued = transactions.filter(t => t.amount > 0 && (t.type === 'credit' || t.type === 'adjustment' || t.type === 'refund')).reduce((acc, t) => acc + (t.amount || 0), 0);
+  const totalCreditsIssued = transactions.filter(t => t.amount > 0 && (t.type === 'credit' || t.type === 'adjustment' || t.type === 'refund')).reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
   // Deductions are debit transactions
-  const totalDeductions = transactions.filter(t => t.type === 'deduction' || t.type === 'debit').reduce((acc, t) => acc + (t.amount || 0), 0);
+  const totalDeductions = transactions.filter(t => t.type === 'deduction' || t.type === 'debit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
 
   const handleAdjustment = async () => {
     if (!adjustForm.clientId || adjustForm.amount <= 0 || !adjustForm.description.trim()) {
@@ -124,8 +124,8 @@ export default function SuperAdminWallet() {
       const token = localStorage.getItem('authToken');
       const payload = {
         user_id: adjustForm.clientId,
-        type: adjustType === 'add' ? 'adjustment' : 'refund',
-        credits: adjustType === 'add' ? adjustForm.amount : -adjustForm.amount, // For refund, negative credits?
+        type: adjustType === 'deduct' ? 'deduction' : (adjustType === 'refund' ? 'refund' : 'adjustment'),
+        credits: adjustForm.amount,
         description: adjustForm.description,
       };
       const res = await axios.post(`${API_URL}/wallet/adjust`, payload, {
@@ -133,12 +133,13 @@ export default function SuperAdminWallet() {
       });
       if (res.data.success) {
         toast({
-          title: adjustType === 'add' ? 'Credits Added' : 'Refund Processed',
+          title: adjustType === 'add' ? 'Credits Added' : adjustType === 'deduct' ? 'Credits Deducted' : 'Refund Processed',
           description: 'Transaction completed successfully.',
         });
         setIsAdjustOpen(false);
         setAdjustForm({ clientId: '', amount: 0, description: '' });
         fetchTransactions(); // Refresh
+        fetchClients(); // Refresh client list to get updated balances
       } else {
         toast({ title: 'Failed', description: res.data.message || 'Could not process', variant: 'destructive' });
       }
@@ -160,6 +161,17 @@ export default function SuperAdminWallet() {
           <p className="text-muted-foreground">Manage credit transactions and adjustments</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            className="border-rose-200 text-rose-600 hover:bg-rose-50"
+            onClick={() => {
+              setAdjustType('deduct');
+              setIsAdjustOpen(true);
+            }}
+          >
+            <ArrowDownLeft className="w-4 h-4 mr-2" />
+            Deduct Credits
+          </Button>
           <Button 
             variant="outline"
             onClick={() => {
@@ -366,11 +378,22 @@ export default function SuperAdminWallet() {
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map(client => (
-                    <SelectItem key={client.id} value={client.id.toString()}>{client.name}</SelectItem>
+                    <SelectItem key={client.id} value={client.id.toString()}>
+                      {client.name} (₹{(client.wallet_balance || 0).toLocaleString()})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {adjustForm.clientId && (
+              <div className="p-3 bg-muted/50 rounded-lg border border-dashed flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Selected Client Balance:</span>
+                <span className="font-bold text-primary">
+                  ₹{(clients.find(c => c.id.toString() === adjustForm.clientId)?.wallet_balance || 0).toLocaleString()}
+                </span>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Credits Amount</Label>
@@ -395,11 +418,11 @@ export default function SuperAdminWallet() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAdjustOpen(false)}>Cancel</Button>
             <Button 
-              className={adjustType === 'add' ? 'gradient-primary' : ''} 
+              className={adjustType === 'add' ? 'gradient-primary' : adjustType === 'deduct' ? 'bg-rose-600 hover:bg-rose-700' : ''} 
               variant={adjustType === 'refund' ? 'outline' : 'default'}
               onClick={handleAdjustment}
             >
-              {adjustType === 'add' ? 'Add Credits' : 'Process Refund'}
+              {adjustType === 'add' ? 'Add Credits' : adjustType === 'deduct' ? 'Deduct Credits' : 'Process Refund'}
             </Button>
           </DialogFooter>
         </DialogContent>

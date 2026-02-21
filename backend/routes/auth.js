@@ -183,7 +183,9 @@ router.post('/login', async (req, res) => {
         name: user.name,
         company: user.company,
         channels_enabled: user.channels_enabled,
-        permissions: finalPermissions
+        permissions: finalPermissions,
+        wallet_balance: user.wallet_balance,
+        credits_available: user.credits_available
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -201,7 +203,9 @@ router.post('/login', async (req, res) => {
         role: user.role,
         channels_enabled: user.channels_enabled,
         permissions: finalPermissions,
-        plan_name: user.plan_name
+        plan_name: user.plan_name,
+        wallet_balance: user.wallet_balance,
+        credits_available: user.credits_available
       }
     });
 
@@ -345,7 +349,9 @@ router.post('/signup', async (req, res) => {
         role: 'user',
         name: finalUser.name,
         channels_enabled: finalUser.channels_enabled,
-        permissions: defaultPermissions
+        permissions: defaultPermissions,
+        wallet_balance: finalUser.wallet_balance,
+        credits_available: finalUser.credits_available
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -362,7 +368,9 @@ router.post('/signup', async (req, res) => {
         company: finalUser.company,
         role: 'user',
         channels_enabled: finalUser.channels_enabled,
-        permissions: defaultPermissions
+        permissions: defaultPermissions,
+        wallet_balance: finalUser.wallet_balance,
+        credits_available: finalUser.credits_available
       }
     });
 

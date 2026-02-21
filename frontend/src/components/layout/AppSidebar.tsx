@@ -47,7 +47,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const isDark = theme === 'dark';
 
   // Real wallet balance from auth context
-  const walletBalance = user?.credits_available ?? 0;
+  const walletBalance = user?.wallet_balance ?? 0;
 
   // Permissions check
   // Default to true if no permissions found to avoid locking out users during transition
@@ -81,6 +81,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: BarChart3, label: 'Reports', path: '/reports', show:  hasPermission('Reports - View') || true }, // Default true for now as requested by user
     { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
+    { icon: Wallet, label: 'Wallet', path: '/wallet', show: true },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
 

@@ -21,7 +21,7 @@ const processQueue = async () => {
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
-            c.name as campaign_name, c.channel
+            c.name as campaign_name, c.channel, c.user_id
             FROM campaign_queue q
             JOIN campaigns c ON q.campaign_id = c.id
             LEFT JOIN message_templates mt ON c.template_id = mt.id
@@ -86,6 +86,26 @@ const processQueue = async () => {
                     );
 
                     stats[item.campaign_id].sent++;
+
+                    // --- CREDIT DEDUCTION LOGIC ---
+                    // Deduct 1 credit/₹1 per successfully sent message
+                    try {
+                        await query(`
+                            UPDATE users 
+                            SET credits_available = credits_available - 1,
+                                wallet_balance = wallet_balance - 1,
+                                credits_used = credits_used + 1
+                            WHERE id = ?
+                        `, [item.user_id]);
+
+                        await query(`
+                            INSERT INTO transactions (user_id, type, amount, credits, description, status)
+                            VALUES (?, 'debit', 1, 1, ?, 'completed')
+                        `, [item.user_id, `Campaign Deduction: ${item.campaign_name}`]);
+                    } catch (creditErr) {
+                        console.error(`[QueueProcessor] Credit deduction failed for user ${item.user_id}`, creditErr);
+                    }
+                    // ------------------------------
                 } else {
                     await query(
                         'UPDATE campaign_queue SET status = "failed", error_message = ? WHERE id = ?',

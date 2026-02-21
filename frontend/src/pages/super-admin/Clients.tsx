@@ -498,7 +498,7 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                 <TableHead className="w-[220px]">Email</TableHead>
                 <TableHead className="w-[120px]">Plan</TableHead>
                 <TableHead className="text-center w-[150px]">Channels</TableHead>
-                <TableHead className="text-right w-[100px]">Credits</TableHead>
+                <TableHead className="text-right w-[120px]">Wallet Balance</TableHead>
                 <TableHead className="w-[120px] text-center">Status</TableHead>
                 <TableHead className="w-[140px]">Created</TableHead>
                 <TableHead className="text-right w-[80px] sticky right-0 bg-background/95 backdrop-blur-sm shadow-sm">Actions</TableHead>
@@ -550,8 +550,11 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                     <TableCell className="text-right">
                         <div className="flex flex-col items-end gap-0.5">
                             <span className="text-xs font-medium text-green-600">
-                                {client.credits_available.toLocaleString()}
-                            </span>
+                                ₹{(client.wallet_balance || 0).toLocaleString()}
+                             </span>
+                             <span className="text-[10px] text-muted-foreground">
+                                {client.credits_available.toLocaleString()} units
+                             </span>
                         </div>
                     </TableCell>
                     <TableCell className="text-center">
