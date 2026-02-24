@@ -154,6 +154,13 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
   };
 
   const handleNext = () => {
+    if (currentStep === 1 && campaignData.channel === 'rcs') {
+      // Automatically set template and skip Step 2 for RCS
+      setCampaignData(prev => ({ ...prev, templateId: 'Empowering_business' }));
+      setCurrentStep(3);
+      return;
+    }
+
     if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -166,6 +173,12 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
   };
 
   const handleBack = () => {
+    if (currentStep === 3 && campaignData.channel === 'rcs') {
+      // Back to Step 1 from Step 3 for RCS
+      setCurrentStep(1);
+      return;
+    }
+
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }

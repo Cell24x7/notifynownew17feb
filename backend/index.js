@@ -85,9 +85,8 @@ app.use('/api/dashboard', require('./routes/stats'));
 app.use('/api/vendors', require('./routes/vendors'));
 app.use('/api/numbers', require('./routes/numbers'));
 app.use('/api/profile', require('./routes/profile'));
-app.use('/api/rcs', require('./routes/rcs'));
 app.use('/api/sms', require('./routes/sms'));
-app.use('/api/rcs-templates', require('./routes/rcs-templates'));
+// app.use('/api/rcs-templates', require('./routes/rcs-templates')); (Removed)
 app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/templates', require('./routes/templates'));

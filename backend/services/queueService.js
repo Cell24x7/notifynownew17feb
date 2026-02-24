@@ -1,14 +1,21 @@
 const { query } = require('../config/db');
 const { sendRcsTemplate, sendRcsMessage, getRcsToken } = require('./rcsService');
 
-// Normalize RCS result (helper)
+// Normalize RCS result (helper) for Dotgo
 const normalizeRcsResult = (result) => {
     if (!result) return { success: false, error: 'Empty provider response' };
-    if (result.success === true) return { success: true, messageId: result.messageId || result.data || null };
-    if (typeof result === 'object' && result.status && String(result.status).toUpperCase() === 'SUCCESS') {
-        return { success: true, messageId: result.data || result.messageId || null };
+
+    // Dotgo success response usually has messageId
+    if (result.messageId) {
+        return { success: true, messageId: result.messageId };
     }
-    return { success: false, error: result.error || JSON.stringify(result) };
+
+    // Fallback for success flags
+    if (result.success === true || result.status === 'SUCCESS') {
+        return { success: true, messageId: result.messageId || result.data || null };
+    }
+
+    return { success: false, error: result.error || result.description || JSON.stringify(result) };
 };
 
 const BATCH_SIZE = 50; // Reduced from 1000 to 50 to prevent timeouts with slow API

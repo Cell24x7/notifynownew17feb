@@ -1,261 +1,169 @@
 const axios = require("axios");
 require("dotenv").config();
 
-const RCS_API_URL = process.env.RCS_API_URL;
-const RCS_USERNAME = process.env.RCS_USERNAME;
-const RCS_PASSWORD = process.env.RCS_PASSWORD;
-const RCS_BOT_ID = process.env.RCS_BOT_ID;
+const DOTGO_AUTH_URL = process.env.DOTGO_AUTH_URL;
+const DOTGO_API_BASE_URL = process.env.DOTGO_API_BASE_URL;
+const DOTGO_CLIENT_ID = process.env.DOTGO_CLIENT_ID;
+const DOTGO_CLIENT_SECRET = process.env.DOTGO_CLIENT_SECRET;
+const DOTGO_BOT_ID = process.env.DOTGO_BOT_ID;
 
-// External templates URL from env (with fallback)
-const EXTERNAL_TEMPLATES_URL =
-  process.env.EXTERNAL_TEMPLATES_URL ||
-  "https://rcs.cell24x7.com/manage_templates/get_template_name_list";
-
-let rcsAccessToken = null;
+let dotgoAccessToken = null;
 let tokenExpiresAt = null;
 
 /**
- * Get RCS Access Token
+ * Get Dotgo RCS Access Token
  * @returns {Promise<string|null>} - Access token
  */
 const getRcsToken = async () => {
   try {
-    // Use cached token if valid
-    if (rcsAccessToken && tokenExpiresAt && Date.now() < tokenExpiresAt) {
-      // console.log("? Using cached RCS token");
-      return rcsAccessToken;
+    if (dotgoAccessToken && tokenExpiresAt && Date.now() < tokenExpiresAt) {
+      return dotgoAccessToken;
     }
 
-    console.log("?? Fetching RCS token from API...");
-    console.log(`?? API URL: ${RCS_API_URL}/getToken`);
-    console.log(`?? Username: ${RCS_USERNAME}`);
+    console.log("🔑 Fetching Dotgo RCS token...");
+    const auth = Buffer.from(`${DOTGO_CLIENT_ID}:${DOTGO_CLIENT_SECRET}`).toString('base64');
 
     const response = await axios.post(
-      `${RCS_API_URL}/getToken`,
-      { username: RCS_USERNAME, password: RCS_PASSWORD },
+      DOTGO_AUTH_URL,
+      "grant_type=client_credentials",
       {
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        timeout: 15000,
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       }
     );
 
-    const token =
-      response.data?.jwttoken || // primary
-      response.data?.accessToken || // fallback
-      response.data?.token || // fallback
-      response.data?.data?.accessToken; // fallback
+    const token = response.data?.access_token;
 
     if (!token) {
-      console.error("? RCS Token Error: token not found in response");
-      console.error("?? Response:", JSON.stringify(response.data));
+      console.error("❌ Dotgo Token Error: token not found in response", response.data);
       return null;
     }
 
-    rcsAccessToken = token;
-    tokenExpiresAt = Date.now() + 23 * 60 * 60 * 1000; // 23h cache
+    dotgoAccessToken = token;
+    const expiresIn = response.data.expires_in || 3600;
+    tokenExpiresAt = Date.now() + (expiresIn * 1000) - 300000; // 5 mins buffer
 
-    console.log("? RCS Token obtained successfully");
-    console.log(`?? Token (first 20 chars): ${String(token).substring(0, 20)}...`);
-    return rcsAccessToken;
+    console.log("✅ Dotgo Token obtained successfully");
+    return dotgoAccessToken;
   } catch (error) {
-    console.error("? RCS Token Error:", error.message);
+    console.error("❌ Dotgo Token Error:", error.message);
     if (error.response) {
-      console.error("?? Status:", error.response.status);
-      console.error("?? Data:", JSON.stringify(error.response.data));
-    } else if (error.request) {
-      console.error("? No response from RCS API - check URL/network");
+      console.error("📦 Response Data:", JSON.stringify(error.response.data));
     }
     return null;
   }
 };
 
 /**
- * Send RCS Template Message
- * @param {string} mobile
- * @param {string} templateName
+ * Send RCS Template Message using Dotgo
+ * @param {string} mobile - Recipient phone number (e.g. +91XXXXXXXXXX)
+ * @param {string} templateName - Dotgo templateCode
  * @returns {Promise<object>}
  */
 const sendRcsTemplate = async (mobile, templateName) => {
   try {
-    if (!mobile || !templateName) {
-      return { success: false, error: "Mobile and template name required" };
-    }
-
     const token = await getRcsToken();
-    if (!token) {
-      return { success: false, error: "Unable to get access token" };
-    }
+    if (!token) return { success: false, error: "Authentication failed" };
 
+    // Ensure mobile has + prefix for Dotgo
+    const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
 
-    // SIMULATION MODE for Load Testing
-    if (mobile.startsWith('10000')) {
-      // console.log(`[SIMULATION] Message to ${mobile} simulated as SENT`); // Removed for speed
-      return { success: true, messageId: `SIM_${Date.now()}_${mobile}` };
-    }
+    // Use hardcoded template as per user request if not provided or for testing
+    const templateCode = templateName || "Empowering_business";
 
-    const targetUrl = `${RCS_API_URL}/v1/sendTemplate`;
-    // console.log(`?? Sending RCS template "${templateName}" to ${mobile}`); // Removed for speed
+    const url = `${DOTGO_API_BASE_URL}/phones/${formattedMobile}/agentMessages?botId=${DOTGO_BOT_ID}`;
 
-
-    const response = await axios.post(
-      targetUrl,
-      {
-        mobile,
-        templateName,
-        botId: RCS_BOT_ID,
-        agentId: RCS_BOT_ID,
-        client_id: RCS_BOT_ID,
-        from: RCS_BOT_ID,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        timeout: 60000,
+    const payload = {
+      contentMessage: {
+        templateMessage: {
+          templateCode: templateCode
+        }
       }
-    );
+    };
 
-    const isSuccess =
-      response.data?.success === true ||
-      response.data?.status === "submitted" ||
-      response.data?.status === "sent" ||
-      response.data?.status === "SUCCESS" || // Fix: Handle uppercase SUCCESS
-      response.data?.msg === "Success";
+    console.log(`📤 Sending Dotgo RCS to ${formattedMobile} (Template: ${templateCode})`);
 
-    if (isSuccess) {
-      console.log("? RCS template sent successfully");
-      return { success: true, messageId: response.data?.messageId || "N/A" };
+    const response = await axios.post(url, payload, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Dotgo usually returns a messageId in response
+    if (response.status === 200 || response.status === 201) {
+      return {
+        success: true,
+        messageId: response.data?.id || "N/A",
+        raw: response.data
+      };
     }
 
-    console.error("? RCS template send failed:", response.data);
-    return { success: false, error: JSON.stringify(response.data) };
+    return { success: false, error: `API returned status ${response.status}`, raw: response.data };
   } catch (error) {
-    console.error("? RCS Send Error:", error.message);
+    console.error("❌ Dotgo Send Error:", error.message);
     if (error.response) {
-      console.error("?? Status:", error.response.status);
-      console.error("?? Data:", JSON.stringify(error.response.data));
-      return { success: false, error: JSON.stringify(error.response.data) };
+      console.error("📦 Error Response:", JSON.stringify(error.response.data));
+      return { success: false, error: error.response.data?.message || JSON.stringify(error.response.data) };
     }
     return { success: false, error: error.message };
   }
 };
 
 /**
- * ? Get External Templates List (FINAL FIXED)
- * External API returns: { success:true, data:[...] }
- * We return ONLY array always -> [...]
- *
- * @param {string|number} custId
- * @returns {Promise<Array>}
- */
-const getExternalTemplates = async (custId) => {
-  try {
-    const safeCustId = custId ?? 7;
-
-    console.log(`?? Fetching external templates for custId: ${safeCustId}`);
-    console.log(`?? External URL: ${EXTERNAL_TEMPLATES_URL}`);
-
-    const params = new URLSearchParams();
-    params.append("custId", String(safeCustId));
-
-    const response = await axios.post(EXTERNAL_TEMPLATES_URL, params.toString(), {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      timeout: 15000,
-    });
-
-    const payload = response.data;
-
-    // Expected format: { success:true, data:[...] }
-    if (payload && payload.success === true && Array.isArray(payload.data)) {
-      return payload.data; // ? return only templates array
-    }
-
-    // Rare case: returns array directly
-    if (Array.isArray(payload)) {
-      return payload;
-    }
-
-    console.error("? Unexpected templates response:", payload);
-    return [];
-  } catch (error) {
-    console.error("? Error fetching external templates:", error.message);
-    if (error.response) {
-      console.error("?? Status:", error.response.status);
-      console.error("?? Data:", JSON.stringify(error.response.data));
-    }
-    return [];
-  }
-};
-
-/**
- * Send RCS Custom Message
- * @param {string} mobile
- * @param {string} message
+ * Send Plain Text RCS Message using Dotgo
+ * @param {string} mobile 
+ * @param {string} message 
  * @returns {Promise<object>}
  */
 const sendRcsMessage = async (mobile, message) => {
   try {
-    if (!mobile || !message) {
-      return { success: false, error: "Mobile and message required" };
-    }
-
     const token = await getRcsToken();
-    if (!token) {
-      return { success: false, error: "Unable to get access token" };
-    }
+    if (!token) return { success: false, error: "Authentication failed" };
 
-    // SIMULATION MODE for Load Testing
-    if (mobile.startsWith('10000')) {
-      console.log(`[SIMULATION] Text Message to ${mobile} simulated as SENT`);
-      return { success: true, messageId: `SIM_TXT_${Date.now()}_${mobile}` };
-    }
+    const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
+    const url = `${DOTGO_API_BASE_URL}/phones/${formattedMobile}/agentMessages?botId=${DOTGO_BOT_ID}`;
 
-    const targetUrl = `${RCS_API_URL}/v1/sendMessage`;
-    console.log(`?? Sending RCS message to ${mobile}`);
-    console.log(`?? Target URL: ${targetUrl}`);
-
-    const response = await axios.post(
-      targetUrl,
-      { mobile, message },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        timeout: 30000,
+    const payload = {
+      contentMessage: {
+        text: message
       }
-    );
+    };
 
-    if (response.status === 200 || response.data?.success === true) {
-      console.log("? RCS message sent successfully");
-      return { success: true, messageId: response.data?.messageId || "N/A" };
+    const response = await axios.post(url, payload, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.status === 200 || response.status === 201) {
+      return { success: true, messageId: response.data?.id || "N/A" };
     }
 
-    console.error("? RCS message failed:", response.data);
-    return { success: false, error: response.data?.message || "Unknown error" };
+    return { success: false, error: `API status ${response.status}` };
   } catch (error) {
-    console.error("? RCS Service Error:", error.message);
-    if (error.response) {
-      console.error("?? Status:", error.response.status);
-      console.error("?? Data:", JSON.stringify(error.response.data));
-      return { success: false, error: JSON.stringify(error.response.data) };
-    }
+    console.error("❌ Dotgo Text Send Error:", error.message);
     return { success: false, error: error.message };
   }
+};
+
+/**
+ * Dotgo doesn't seem to have a simple "get all templates" API mentioned in the snippets,
+ * but for compatibility with existing UI, we return the hardcoded one the user asked for.
+ */
+const getExternalTemplates = async () => {
+  return [
+    { name: "Empowering_business", id: "Empowering_business", body: "Hardcoded Dotgo Template" }
+  ];
 };
 
 module.exports = {
   getRcsToken,
   sendRcsTemplate,
-  getExternalTemplates,
   sendRcsMessage,
+  getExternalTemplates
 };
+
