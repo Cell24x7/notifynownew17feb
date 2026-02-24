@@ -104,13 +104,137 @@ router.post('/rcs/callback', async (req, res) => {
     }
 });
 
-// GET /api/webhooks/test
-// Simple test route to verify connectivity
-router.get('/test', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Webhook Endpoint is Active! use POST /api/webhooks/rcs/callback for data.'
-    });
+// GET /api/webhooks/dotgo
+// Quick check to see if logs are storing correctly
+router.get('/dotgo', async (req, res) => {
+    console.log('🔍 GET /api/webhooks/dotgo hit');
+    try {
+        const [logs] = await query('SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT 20');
+        res.json({
+            success: true,
+            message: 'Latest 20 Dotgo Webhook Logs',
+            data: logs
+        });
+    } catch (error) {
+        console.error('❌ Error fetching dotgo logs:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+// POST /api/webhooks/dotgo
+// Dotgo specific webhook handler (decodes base64 data)
+router.post('/dotgo', async (req, res) => {
+    try {
+        const payload = req.body;
+        console.log('📦 Dotgo Webhook Raw:', JSON.stringify(payload, null, 2));
+
+        if (!payload.message || !payload.message.data) {
+            return res.status(400).json({ success: false, message: 'Invalid Dotgo payload' });
+        }
+
+        // 1. Decode Base64 data
+        let decodedData = {};
+        try {
+            const base64Data = payload.message.data;
+            const decodedString = Buffer.from(base64Data, 'base64').toString('utf-8');
+            decodedData = JSON.parse(decodedString);
+            console.log('🔓 Decoded Dotgo Data:', JSON.stringify(decodedData, null, 2));
+        } catch (e) {
+            console.warn('⚠️ Failed to decode Dotgo message.data:', e.message);
+        }
+
+        const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
+        const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
+        const senderPhoneNumber = decodedData.senderPhoneNumber;
+        let finalStatus = eventType ? eventType.toLowerCase() : 'unknown';
+
+        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId})`);
+
+        // 2. Save to webhook_logs (Envelope/Metadata Logging) - ALWAYS DO THIS
+        try {
+            await query(
+                `INSERT INTO webhook_logs 
+                (received_time, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    payload.receivedTime || null,
+                    payload.subscription || null,
+                    payload.message?.data || null,
+                    payload.message?.attributes?.product || null,
+                    payload.message?.attributes?.business_id || null,
+                    payload.message?.attributes?.type || null,
+                    payload.message?.attributes?.project_number || null,
+                    payload.message?.attributes?.event_type || null,
+                    payload.message?.messageId || null,
+                    payload.message?.publishTime || null,
+                    JSON.stringify(payload),
+                    finalStatus
+                ]
+            );
+            console.log(`✅ Dotgo Webhook metadata saved to database`);
+        } catch (logErr) {
+            console.error('❌ Error saving to webhook_logs:', logErr.message);
+            // Don't fail the whole request, proceed to update statuses if possible
+        }
+
+        // 3. Update message_logs & Campaign counts
+        if (messageId) {
+            try {
+                const [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+
+                if (logs.length > 0) {
+                    const log = logs[0];
+                    await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
+
+                    if (finalStatus === 'delivered') {
+                        await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
+                    } else if (finalStatus === 'read') {
+                        await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
+                    }
+
+                    if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
+                        await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                    } else if (finalStatus === 'read' && log.status !== 'read') {
+                        if (log.status !== 'delivered') {
+                            await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                        } else {
+                            await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                        }
+                    } else if (finalStatus === 'failed') {
+                        await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                    }
+
+                    await query('UPDATE campaign_queue SET status = ? WHERE message_id = ?', [finalStatus, messageId]);
+                    console.log(`✅ Message stats updated for ${messageId}`);
+                }
+            } catch (statusErr) {
+                console.error('❌ Error updating message status:', statusErr.message);
+            }
+        }
+
+        res.status(200).json({ success: true, message: 'Dotgo webhook processed' });
+
+    } catch (error) {
+        console.error('❌ Dotgo Webhook Error:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/webhooks/logs
+// Fetch last 50 webhook logs for debugging/viewing
+router.get('/logs', async (req, res) => {
+    try {
+        const [logs] = await query('SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT 50');
+        res.json({
+            success: true,
+            count: logs.length,
+            data: logs
+        });
+    } catch (error) {
+        console.error('❌ Error fetching webhook logs:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
 });
 
 module.exports = router;
+

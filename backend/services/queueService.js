@@ -92,6 +92,33 @@ const processQueue = async () => {
                         [item.campaign_id, item.campaign_name, item.template_name, result.messageId, item.mobile, 'sent']
                     );
 
+                    // --- AUTOMATIC WEBHOOK LOGGING (Initial Sent Event) ---
+                    try {
+                        await query(
+                            `INSERT INTO webhook_logs 
+                            (received_time, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            [
+                                new Date().toISOString(),
+                                'NA',
+                                Buffer.from(JSON.stringify({ messageId: result.messageId, eventType: 'SENT', senderPhoneNumber: item.mobile })).toString('base64'),
+                                'RBM',
+                                process.env.DOTGO_BOT_ID || 'System',
+                                'event',
+                                'NA',
+                                'SENT',
+                                result.messageId,
+                                new Date().toISOString(),
+                                JSON.stringify({ initialResponse: result, source: 'QueueProcessor' }),
+                                'sent'
+                            ]
+                        );
+                        console.log(`[QueueProcessor] Auto-logged SENT status to webhook_logs for ${result.messageId}`);
+                    } catch (logErr) {
+                        console.error('[QueueProcessor] Webhook auto-logging failed', logErr.message);
+                    }
+                    // ------------------------------------------------------
+
                     stats[item.campaign_id].sent++;
 
                     // --- CREDIT DEDUCTION LOGIC ---
