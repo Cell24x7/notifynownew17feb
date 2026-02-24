@@ -201,7 +201,7 @@ export default function SuperAdminWallet() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-primary" />
+                <span className="w-5 h-5 text-primary flex items-center justify-center font-bold">₹</span>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Total Purchases</div>

@@ -546,7 +546,7 @@ export default function SuperAdminResellers() {
                         <SelectValue placeholder="Select Plan" />
                     </SelectTrigger>
                     <SelectContent>
-                        {plans.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} (${p.price})</SelectItem>)}
+                        {plans.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} (₹{p.price})</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>

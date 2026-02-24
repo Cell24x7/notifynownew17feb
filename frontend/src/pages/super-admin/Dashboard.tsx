@@ -6,8 +6,7 @@ import {
   CreditCard, 
   TrendingUp, 
   TrendingDown,
-  Zap,
-  DollarSign
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -89,10 +88,10 @@ export default function SuperAdminDashboard() {
     },
     {
       title: 'Revenue (Total)',
-      value: `$${stats.revenueTotal.toLocaleString()}`,
-      change: `$${stats.revenueMonth.toLocaleString()} this month`,
+      value: `₹${stats.revenueTotal.toLocaleString()}`,
+      change: `₹${stats.revenueMonth.toLocaleString()} this month`,
       trend: 'up',
-      icon: DollarSign,
+      icon: CreditCard,
     },
     {
       title: 'Credits Consumed',

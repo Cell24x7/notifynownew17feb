@@ -3,7 +3,6 @@ import {
   Search, 
   Plus, 
   Copy, 
-  DollarSign, 
   Users, 
   Link2, 
   MoreVertical, 
@@ -372,7 +371,7 @@ export default function SuperAdminAffiliates() {
                           </DropdownMenuItem>
                           <div className="h-[1px] bg-muted my-1 mx-2" />
                           <DropdownMenuItem className="rounded-xl h-11 text-emerald-600" onClick={() => handlePayoutStatusAction(affiliate, 'paid')}>
-                            <DollarSign className="w-4 h-4 mr-3" />
+                            <span className="w-4 h-4 mr-3 flex items-center justify-center font-bold text-xs">₹</span>
                             Mark as Paid
                           </DropdownMenuItem>
                           <DropdownMenuItem className="rounded-xl h-11 text-destructive" onClick={() => handleDelete(affiliate.id)}>

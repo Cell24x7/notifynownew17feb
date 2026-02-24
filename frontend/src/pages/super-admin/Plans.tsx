@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { API_BASE_URL } from '@/config/api';
 
 const planSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(2, "Plan name must be at least 2 characters"),
   price: z.number().min(0, "Price cannot be negative"),
   monthly_credits: z.number().min(0, "Monthly credits cannot be negative"),
@@ -427,7 +428,7 @@ export default function SuperAdminPlans() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price">Price ($/month)</Label>
+                <Label htmlFor="price">Price (₹/month)</Label>
                 <Input
                   id="price"
                   type="number"

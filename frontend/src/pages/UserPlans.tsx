@@ -138,7 +138,7 @@ export default function UserPlans() {
                 </div>
                 <CardDescription className="mt-1">
                   <span className="text-2xl sm:text-3xl font-bold text-foreground">
-                    ${Number(plan.price).toFixed(2)}
+                    ₹{Number(plan.price).toFixed(2)}
                   </span>
                   <span className="text-muted-foreground">/month</span>
                 </CardDescription>

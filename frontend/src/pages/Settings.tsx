@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Wallet, Plus, ArrowUpRight, ArrowDownLeft, CreditCard, History, Mail, Bot, Settings2, Globe, Lock } from 'lucide-react';
+import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Plus, Mail, Bot, Settings2, Globe, Lock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,6 @@ import { EmailConfiguration } from '@/components/settings/EmailConfiguration';
 import { VoiceBotConfiguration } from '@/components/settings/VoiceBotConfiguration';
 import { LanguageSettings } from '@/components/settings/LanguageSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
-import { walletApi, Transaction } from '@/services/walletApi';
 
 interface ChannelConfig {
   smsChannelName?: string;
@@ -66,11 +65,6 @@ export default function Settings() {
     setSearchParams({ tab: value });
   };
   const [channels, setChannels] = useState(channelsList);
-
-  const [isRechargeOpen, setIsRechargeOpen] = useState(false);
-  const [rechargeAmount, setRechargeAmount] = useState('');
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [walletTransactions, setWalletTransactions] = useState<Transaction[]>([]);
 
   const [showRCSConfig, setShowRCSConfig] = useState(false);
   const [showSMSConfig, setShowSMSConfig] = useState(false);
@@ -119,65 +113,6 @@ export default function Settings() {
     };
     fetchProfile();
   }, []);
-
-  // Fetch Wallet Data
-  useEffect(() => {
-    if (activeTab === 'wallet') {
-      const fetchWalletData = async () => {
-        try {
-          const [balanceData, transactionsData] = await Promise.all([
-            walletApi.getBalance(),
-            walletApi.getTransactions()
-          ]);
-
-          if (balanceData.success) {
-            setWalletBalance(balanceData.balance);
-          }
-          if (transactionsData.success) {
-            setWalletTransactions(transactionsData.transactions);
-          }
-        } catch (error) {
-          console.error('Error fetching wallet data:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to fetch wallet information.',
-            variant: 'destructive'
-          });
-        }
-      };
-
-      fetchWalletData();
-    }
-  }, [activeTab]);
-
-  const handleRecharge = async () => {
-    const amount = parseFloat(rechargeAmount);
-    if (amount > 0) {
-      try {
-        const response = await walletApi.rechargeWallet(amount);
-        if (response.success) {
-            toast({
-              title: 'Recharge Successful',
-              description: `₹${amount} has been added to your wallet.`,
-            });
-            setIsRechargeOpen(false);
-            setRechargeAmount('');
-            // Refresh balance and transactions
-            setWalletBalance(response.balance);
-            const transactionsData = await walletApi.getTransactions();
-            if (transactionsData.success) {
-                setWalletTransactions(transactionsData.transactions);
-            }
-        }
-      } catch (error: any) {
-        toast({
-            title: 'Recharge Failed',
-            description: error.response?.data?.message || 'Failed to recharge wallet.',
-            variant: 'destructive'
-        });
-      }
-    }
-  };
 
   const isChannelAuthorized = (channelId: string) => {
     if (dbUser?.role === 'admin' || dbUser?.role === 'superadmin') return true;
@@ -236,15 +171,6 @@ export default function Settings() {
     }
   };
 
-  // Calculate stats
-  const totalCredited = walletTransactions
-    .filter(t => t.type === 'credit')
-    .reduce((acc, t) => acc + parseFloat(t.amount.toString()), 0);
-
-  const totalSpent = walletTransactions
-    .filter(t => t.type === 'debit')
-    .reduce((acc, t) => acc + parseFloat(t.amount.toString()), 0);
-
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in overflow-auto">
       {/* Header */}
@@ -261,10 +187,6 @@ export default function Settings() {
               <span className="hidden sm:inline">Channels</span>
             </TabsTrigger>
 
-            <TabsTrigger value="wallet" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
-              <Wallet className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Wallet</span>
-            </TabsTrigger>
             <TabsTrigger value="language" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
               <Globe className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Language</span>
@@ -435,177 +357,6 @@ export default function Settings() {
             </div>
           )}
         </TabsContent>
-
-
-
-
-
-        {/* Wallet Tab */}
-        <TabsContent value="wallet" className="space-y-6">
-          {/* Wallet Balance Card */}
-          <Card className="card-elevated bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Available Balance</p>
-                  <h2 className="text-4xl font-bold text-primary">₹{walletBalance.toLocaleString()}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">≈ {Math.floor(walletBalance * 20)} WhatsApp messages</p>
-                </div>
-                <Dialog open={isRechargeOpen} onOpenChange={setIsRechargeOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="gradient-primary" size="lg">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Recharge Wallet
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Recharge Wallet</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label>Amount (₹)</Label>
-                        <Input
-                          type="number"
-                          placeholder="Enter amount"
-                          value={rechargeAmount}
-                          onChange={(e) => setRechargeAmount(e.target.value)}
-                        />
-                      </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[100, 250, 500, 1000].map((amount) => (
-                          <Button
-                            key={amount}
-                            variant="outline"
-                            onClick={() => setRechargeAmount(amount.toString())}
-                            className={rechargeAmount === amount.toString() ? 'border-primary bg-primary/10' : ''}
-                          >
-                            ₹{amount}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="pt-4 border-t">
-                        <h4 className="font-medium mb-2">Payment Method</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button variant="outline" className="justify-start gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            Credit/Debit Card
-                          </Button>
-                          <Button variant="outline" className="justify-start gap-2">
-                            <Wallet className="h-4 w-4" />
-                            UPI
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2 pt-4">
-                        <Button variant="outline" onClick={() => setIsRechargeOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleRecharge} className="gradient-primary" disabled={!rechargeAmount}>
-                          Pay ₹{rechargeAmount || '0'}
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="card-elevated">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-500/10">
-                    <ArrowDownLeft className="h-5 w-5 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Credited</p>
-                    <p className="text-xl font-bold">₹{totalCredited.toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="card-elevated">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-red-500/10">
-                    <ArrowUpRight className="h-5 w-5 text-red-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Spent</p>
-                    <p className="text-xl font-bold">₹{totalSpent.toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="card-elevated">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <History className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Transactions</p>
-                    <p className="text-xl font-bold">{walletTransactions.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Transaction History */}
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Transaction History
-              </CardTitle>
-              <CardDescription>Your recent wallet transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {walletTransactions.length > 0 ? (
-                <div className="space-y-3">
-                  {walletTransactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          'p-2 rounded-full',
-                          transaction.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'
-                        )}>
-                          {transaction.type === 'credit' ? (
-                            <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <ArrowUpRight className="h-4 w-4 text-red-500" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium">{transaction.description}</p>
-                          <p className="text-sm text-muted-foreground">{new Date(transaction.created_at).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <div className={cn(
-                        'font-semibold',
-                        transaction.type === 'credit' ? 'text-green-500' : 'text-red-500'
-                      )}>
-                        {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No transactions found.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Language Tab */}
         <TabsContent value="language">
           <LanguageSettings />
@@ -615,10 +366,6 @@ export default function Settings() {
         <TabsContent value="security">
           <SecuritySettings />
         </TabsContent>
-
-
-
-
       </Tabs>
     </div>
   );

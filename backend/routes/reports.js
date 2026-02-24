@@ -207,7 +207,7 @@ router.get('/export', async (req, res) => {
             'Status': r.status,
             'Channel': r.channel,
             'Sent Time': new Date(r.timestamp).toLocaleString(),
-            'Cost': ((r.audience_count || 0) * 0.25).toFixed(2)
+            'Credits Used': (r.sent_count || 0)
         }));
 
         if (format === 'csv') {
