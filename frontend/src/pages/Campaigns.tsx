@@ -39,6 +39,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
+import { SMSCampaignDialog } from '@/components/campaigns/SMSCampaignDialog';
 import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
 import { rcsTemplatesService } from '@/services/rcsTemplatesService';
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
@@ -142,36 +143,36 @@ export default function Campaigns() {
       try {
         const externalRcsData = await rcsCampaignApi.getExternalTemplates();
         if (externalRcsData && Array.isArray(externalRcsData.templates)) {
-            console.log('📦 External RCS Templates API Response:', externalRcsData); // DEBUG LOG
+          console.log('📦 External RCS Templates API Response:', externalRcsData); // DEBUG LOG
 
-            // Map external templates to MessageTemplate format
-            const externalTemplates = externalRcsData.templates.map((t: any) => {
-                // Handle various potential field names from external API - including TemplateName (PascalCase) from logs
-                const tName = t.TemplateName || t.template_name || t.name || t.templateName || t.templateId || (typeof t === 'string' ? t : 'Unknown Template');
-                // Use Name as ID if no ID present, or use API ID
-                const tId = t.Id ? String(t.Id) : tName;
+          // Map external templates to MessageTemplate format
+          const externalTemplates = externalRcsData.templates.map((t: any) => {
+            // Handle various potential field names from external API - including TemplateName (PascalCase) from logs
+            const tName = t.TemplateName || t.template_name || t.name || t.templateName || t.templateId || (typeof t === 'string' ? t : 'Unknown Template');
+            // Use Name as ID if no ID present, or use API ID
+            const tId = t.Id ? String(t.Id) : tName;
 
-                return {
-                    id: tId, 
-                    name: tName,
-                    channel: 'rcs',
-                    status: 'approved', // External templates are assumed approved
-                    language: t.language || 'en',
-                    category: t.category || 'Marketing',
-                    body: t.body || 'External Template (Preview not available)',
-                    header: { type: 'none' },
-                    footer: '',
-                    buttons: [],
-                    variables: []
-                };
-            });
-            
-            // Append to templates list, filtering out duplicates if any (by name)
-            setTemplates(prev => {
-                const existingNames = new Set(prev.filter(p => p.channel === 'rcs').map(p => p.name));
-                const newTemplates = externalTemplates.filter((t: any) => !existingNames.has(t.name));
-                return [...prev, ...newTemplates];
-            });
+            return {
+              id: tId,
+              name: tName,
+              channel: 'rcs',
+              status: 'approved', // External templates are assumed approved
+              language: t.language || 'en',
+              category: t.category || 'Marketing',
+              body: t.body || 'External Template (Preview not available)',
+              header: { type: 'none' },
+              footer: '',
+              buttons: [],
+              variables: []
+            };
+          });
+
+          // Append to templates list, filtering out duplicates if any (by name)
+          setTemplates(prev => {
+            const existingNames = new Set(prev.filter(p => p.channel === 'rcs').map(p => p.name));
+            const newTemplates = externalTemplates.filter((t: any) => !existingNames.has(t.name));
+            return [...prev, ...newTemplates];
+          });
         }
       } catch (rcsErr) {
         console.error('Failed to load external RCS templates', rcsErr);
@@ -189,7 +190,7 @@ export default function Campaigns() {
       setLoading(false);
     }
   };
-  
+
   // Campaign creation state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStep, setCreateStep] = useState(1);
@@ -229,6 +230,9 @@ export default function Campaigns() {
   // Campaign analytics modal
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+
+  // SMS Specific Dialog
+  const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
 
   const filteredCampaigns = (campaigns || []).filter((campaign) =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -284,8 +288,8 @@ export default function Campaigns() {
     }
 
     if (!limit.types.includes(file.type)) {
-       toast({ title: 'Invalid File Type', description: `Allowed types: ${limit.label}`, variant: 'destructive' });
-       return false;
+      toast({ title: 'Invalid File Type', description: `Allowed types: ${limit.label}`, variant: 'destructive' });
+      return false;
     }
     return true;
   };
@@ -295,14 +299,14 @@ export default function Campaigns() {
     if (!file) return;
 
     if (!validateFile(file, type)) {
-        e.target.value = ''; // Reset input
-        return;
+      e.target.value = ''; // Reset input
+      return;
     }
 
     const url = URL.createObjectURL(file);
     setNewTemplate(prev => ({
-        ...prev,
-        header: { ...prev.header, type, content: url, fileName: file.name }
+      ...prev,
+      header: { ...prev.header, type, content: url, fileName: file.name }
     }));
   };
 
@@ -322,7 +326,7 @@ export default function Campaigns() {
         audience_id: campaignData.audienceId || undefined,
         audience_count: campaignData.audienceCount,
         status: 'draft' as any, // Start as draft, update later if 'now'
-        scheduled_at: campaignData.scheduleType === 'scheduled' 
+        scheduled_at: campaignData.scheduleType === 'scheduled'
           ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
           : undefined,
       };
@@ -336,88 +340,88 @@ export default function Campaigns() {
 
       // 2. Handle Contacts Logic
       if (campaignData.contactSource === 'upload' && campaignData.uploadedFile) {
-          isLargeCampaign = true;
-          toast({ title: 'Uploading Contacts', description: 'Streaming file to server...' });
-          await campaignService.uploadContacts(campaignId, campaignData.uploadedFile);
-          toast({ title: 'Contacts Uploaded', description: 'File processed successfully.' });
+        isLargeCampaign = true;
+        toast({ title: 'Uploading Contacts', description: 'Streaming file to server...' });
+        await campaignService.uploadContacts(campaignId, campaignData.uploadedFile);
+        toast({ title: 'Contacts Uploaded', description: 'File processed successfully.' });
 
       } else if (campaignData.contactSource === 'manual') {
-          // Parse manual numbers
-          const mobileNumbers = campaignData.manualNumbers
-            .split(/[\n,\s]+/)
-            .map(n => n.trim())
-            .filter(n => n !== '')
-            .map(n => parseInt(n.replace(/\D/g, '')))
-            .filter(n => !isNaN(n));
-          
-          if (mobileNumbers.length > 50) {
-             isLargeCampaign = true;
-             // Convert to CSV Blob for upload
-             const csvContent = "phone\n" + mobileNumbers.join("\n");
-             const blob = new Blob([csvContent], { type: 'text/csv' });
-             const file = new File([blob], "manual_upload.csv", { type: "text/csv" });
-             
-             toast({ title: 'Uploading Contacts', description: `Processing ${mobileNumbers.length} numbers...` });
-             await campaignService.uploadContacts(campaignId, file);
-          } else {
-             // Small batch - proceed with legacy/immediate flow handled by backend or frontend API
-             // Actually, since we already created the campaign, we should probably upload these too 
-             // OR send them in the start command if the API supports it.
-             // But my start command only creates... actually startCampaign uses /rcs/send-campaign.
-             // Let's just upload them too for consistency if > 0? 
-             // Or keep legacy flow?
-             // To be safe and compliant with new backend logic (which checks queue), let's upload even small batches 
-             // OR use the legacy flow passing 'contacts' array to startCampaign.
-             // We will pass contacts array to startCampaign for small batches.
-          }
+        // Parse manual numbers
+        const mobileNumbers = campaignData.manualNumbers
+          .split(/[\n,\s]+/)
+          .map(n => n.trim())
+          .filter(n => n !== '')
+          .map(n => parseInt(n.replace(/\D/g, '')))
+          .filter(n => !isNaN(n));
+
+        if (mobileNumbers.length > 50) {
+          isLargeCampaign = true;
+          // Convert to CSV Blob for upload
+          const csvContent = "phone\n" + mobileNumbers.join("\n");
+          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const file = new File([blob], "manual_upload.csv", { type: "text/csv" });
+
+          toast({ title: 'Uploading Contacts', description: `Processing ${mobileNumbers.length} numbers...` });
+          await campaignService.uploadContacts(campaignId, file);
+        } else {
+          // Small batch - proceed with legacy/immediate flow handled by backend or frontend API
+          // Actually, since we already created the campaign, we should probably upload these too 
+          // OR send them in the start command if the API supports it.
+          // But my start command only creates... actually startCampaign uses /rcs/send-campaign.
+          // Let's just upload them too for consistency if > 0? 
+          // Or keep legacy flow?
+          // To be safe and compliant with new backend logic (which checks queue), let's upload even small batches 
+          // OR use the legacy flow passing 'contacts' array to startCampaign.
+          // We will pass contacts array to startCampaign for small batches.
+        }
       }
 
       // 3. Trigger Sending (if Now)
       if (campaignData.scheduleType === 'now') {
-          if (isLargeCampaign) {
-              await campaignService.startCampaign(campaignId);
-              toast({
-                title: '🚀 Campaign Started',
-                description: 'Campaign is running in background.',
-              });
-          } else {
-              // Legacy Small Batch / Existing Audience
-              // If existing audience, we need to fetch logic or let backend handle?
-              // Current rcs/send-campaign handles 'contacts' array.
-              
-              let contactsToSend: string[] = [];
-              if (campaignData.contactSource === 'existing') {
-                  const contactsList = await contactService.getContacts();
-                  const selectedContacts = contactsList.filter(c => campaignData.selectedContacts.includes(c.id));
-                  contactsToSend = selectedContacts.map(c => c.phone);
-              } else if (campaignData.contactSource === 'manual') {
-                  contactsToSend = campaignData.manualNumbers.split(/[\n,\s]+/).map(n => n.trim()).filter(Boolean);
-              }
-              
-              // We need to pass campaignId so backend updates the row we just created
-              // instead of creating a new one.
-              if (contactsToSend.length > 0) {
-                  // Call RCS API directly or via service
-                  // We need to pass campaignId to reuse it.
-                  const rcsPayload = {
-                    campaignId, // Backend should handle this
-                    campaignName: campaignData.name,
-                    templateName: templates.find(t => t.id === campaignData.templateId)?.name || campaignData.templateId,
-                    contacts: contactsToSend
-                  };
-                  await rcsCampaignApi.sendCampaign(rcsPayload as any);
-                  
-                  toast({
-                    title: '🚀 Campaign Sent',
-                    description: `Processed ${contactsToSend.length} contacts.`,
-                  });
-              }
-          }
-      } else {
+        if (isLargeCampaign) {
+          await campaignService.startCampaign(campaignId);
           toast({
-            title: '📅 Campaign Scheduled',
-            description: `Campaign scheduled for ${campaignData.scheduledDate}.`,
+            title: '🚀 Campaign Started',
+            description: 'Campaign is running in background.',
           });
+        } else {
+          // Legacy Small Batch / Existing Audience
+          // If existing audience, we need to fetch logic or let backend handle?
+          // Current rcs/send-campaign handles 'contacts' array.
+
+          let contactsToSend: string[] = [];
+          if (campaignData.contactSource === 'existing') {
+            const contactsList = await contactService.getContacts();
+            const selectedContacts = contactsList.filter(c => campaignData.selectedContacts.includes(c.id));
+            contactsToSend = selectedContacts.map(c => c.phone);
+          } else if (campaignData.contactSource === 'manual') {
+            contactsToSend = campaignData.manualNumbers.split(/[\n,\s]+/).map(n => n.trim()).filter(Boolean);
+          }
+
+          // We need to pass campaignId so backend updates the row we just created
+          // instead of creating a new one.
+          if (contactsToSend.length > 0) {
+            // Call RCS API directly or via service
+            // We need to pass campaignId to reuse it.
+            const rcsPayload = {
+              campaignId, // Backend should handle this
+              campaignName: campaignData.name,
+              templateName: templates.find(t => t.id === campaignData.templateId)?.name || campaignData.templateId,
+              contacts: contactsToSend
+            };
+            await rcsCampaignApi.sendCampaign(rcsPayload as any);
+
+            toast({
+              title: '🚀 Campaign Sent',
+              description: `Processed ${contactsToSend.length} contacts.`,
+            });
+          }
+        }
+      } else {
+        toast({
+          title: '📅 Campaign Scheduled',
+          description: `Campaign scheduled for ${campaignData.scheduledDate}.`,
+        });
       }
 
       fetchData();
@@ -438,7 +442,7 @@ export default function Campaigns() {
     try {
       await campaignService.updateStatus(campaignId, newStatus);
       setCampaigns(campaigns.map((c) => (c.id === campaignId ? { ...c, status: newStatus } : c)));
-      
+
       const statusMessages = {
         running: '🚀 Campaign is now running!',
         paused: '⏸️ Campaign paused',
@@ -527,7 +531,7 @@ export default function Campaigns() {
           formDataToSend.append('template_name', newTemplate.name);
           formDataToSend.append('template_type', 'text_message');
           formDataToSend.append('template_content', newTemplate.body);
-          
+
           const suggestions = newTemplate.buttons.map(btn => {
             if (btn.type === 'quick_reply') {
               return { suggestionType: 'reply', displayText: btn.label, postback: btn.label };
@@ -538,11 +542,11 @@ export default function Campaigns() {
             }
             return null;
           }).filter(Boolean);
-          
+
           formDataToSend.append('suggestion', JSON.stringify(suggestions));
-          
+
           const result = await rcsTemplatesService.createExternalTemplate(formDataToSend);
-          
+
           if (result.code !== 0) {
             toast({
               title: 'External API Error',
@@ -575,7 +579,7 @@ export default function Campaigns() {
           description: isDraft ? 'Your template has been saved as draft.' : (newTemplate.channel === 'rcs' ? 'Your template has been created on the RCS panel.' : 'Your template has been submitted for approval.'),
         });
       }
-      
+
       fetchData();
       setIsTemplateOpen(false);
       setEditingTemplate(null);
@@ -591,11 +595,11 @@ export default function Campaigns() {
   };
 
   const resetTemplateForm = () => {
-    setNewTemplate({ 
-      name: '', 
+    setNewTemplate({
+      name: '',
       language: 'en',
-      category: 'Marketing', 
-      channel: 'whatsapp', 
+      category: 'Marketing',
+      channel: 'whatsapp',
       header: { type: 'none' },
       body: '',
       footer: '',
@@ -613,9 +617,9 @@ export default function Campaigns() {
       language: template.language,
       category: template.category,
       channel: template.channel,
-      header: { 
-        type: template.header_type as HeaderType, 
-        content: template.header_content || undefined 
+      header: {
+        type: template.header_type as HeaderType,
+        content: template.header_content || undefined
       },
       body: template.body,
       footer: template.footer || '',
@@ -703,48 +707,48 @@ export default function Campaigns() {
   const renderPhonePreview = () => {
     const getHeaderIcon = () => {
       switch (newTemplate.header.type) {
-        case 'image': 
-           return newTemplate.header.content ? (
-             <div className="mb-2 rounded-lg overflow-hidden">
-               <img src={newTemplate.header.content} alt="Header" className="w-full h-auto object-cover" />
-             </div>
-           ) : (
-             <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Image className="h-8 w-8 text-muted-foreground" /></div>
-           );
+        case 'image':
+          return newTemplate.header.content ? (
+            <div className="mb-2 rounded-lg overflow-hidden">
+              <img src={newTemplate.header.content} alt="Header" className="w-full h-auto object-cover" />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Image className="h-8 w-8 text-muted-foreground" /></div>
+          );
         case 'video':
-           return newTemplate.header.content ? (
-             <div className="mb-2 rounded-lg overflow-hidden bg-black">
-               <video src={newTemplate.header.content} controls className="w-full h-auto" />
-             </div>
-           ) : (
-             <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Video className="h-8 w-8 text-muted-foreground" /></div>
-           );
+          return newTemplate.header.content ? (
+            <div className="mb-2 rounded-lg overflow-hidden bg-black">
+              <video src={newTemplate.header.content} controls className="w-full h-auto" />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Video className="h-8 w-8 text-muted-foreground" /></div>
+          );
         case 'audio':
-             return newTemplate.header.content ? (
-                 <div className="mb-2 p-2 bg-gray-50 rounded-md border flex items-center gap-2">
-                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                         <Phone size={14} className="rotate-90" />
-                     </div>
-                     <div className="flex-1 overflow-hidden">
-                         <div className="text-xs font-medium truncate">{newTemplate.header.fileName || 'Audio File'}</div>
-                         <div className="text-xs text-muted-foreground">Audio Message</div>
-                     </div>
-                 </div>
-             ) : null;
+          return newTemplate.header.content ? (
+            <div className="mb-2 p-2 bg-gray-50 rounded-md border flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <Phone size={14} className="rotate-90" />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <div className="text-xs font-medium truncate">{newTemplate.header.fileName || 'Audio File'}</div>
+                <div className="text-xs text-muted-foreground">Audio Message</div>
+              </div>
+            </div>
+          ) : null;
         case 'document':
-             return newTemplate.header.content ? (
-                 <div className="mb-2 p-3 bg-gray-50 rounded-md border flex items-center gap-3">
-                     <div className="p-2 bg-red-100 rounded text-red-600">
-                         <FileText size={20} />
-                     </div>
-                     <div className="flex-1 overflow-hidden">
-                         <div className="text-sm font-medium truncate">{newTemplate.header.fileName || 'Document.pdf'}</div>
-                         <div className="text-xs text-muted-foreground">PDF Document</div>
-                     </div>
-                 </div>
-             ) : (
-                 <div className="h-20 bg-muted rounded-lg flex items-center justify-center gap-2"><File className="h-6 w-6 text-muted-foreground" /><span className="text-sm text-muted-foreground">Document</span></div>
-             );
+          return newTemplate.header.content ? (
+            <div className="mb-2 p-3 bg-gray-50 rounded-md border flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded text-red-600">
+                <FileText size={20} />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <div className="text-sm font-medium truncate">{newTemplate.header.fileName || 'Document.pdf'}</div>
+                <div className="text-xs text-muted-foreground">PDF Document</div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-20 bg-muted rounded-lg flex items-center justify-center gap-2"><File className="h-6 w-6 text-muted-foreground" /><span className="text-sm text-muted-foreground">Document</span></div>
+          );
         case 'text': return newTemplate.header.content ? <p className="font-bold text-sm">{newTemplate.header.content}</p> : null;
         default: return null;
       }
@@ -764,7 +768,7 @@ export default function Campaigns() {
                   <p className="text-sm font-medium">SMS Message</p>
                 </div>
               </div>
-              
+
               {/* Chat area */}
               <div className="p-3 h-[calc(100%-120px)] overflow-y-auto">
                 <div className="bg-[#E9E9EB] rounded-2xl p-3 shadow-sm max-w-[85%] space-y-2">
@@ -778,7 +782,7 @@ export default function Campaigns() {
                   {newTemplate.body.length}/160 characters ({Math.ceil(newTemplate.body.length / 160) || 1} SMS)
                 </p>
               </div>
-              
+
               {/* Input area */}
               <div className="absolute bottom-0 left-0 right-0 bg-white p-2 flex items-center gap-2 border-t">
                 <div className="flex-1 bg-[#F0F0F0] rounded-full px-4 py-2 text-sm text-muted-foreground">
@@ -811,7 +815,7 @@ export default function Campaigns() {
                 {newTemplate.header.content || 'Subject line...'}
               </p>
             </div>
-            
+
             {/* Email Body */}
             <div className="p-4 min-h-[300px] max-h-[350px] overflow-y-auto">
               {newTemplate.body ? (
@@ -819,7 +823,7 @@ export default function Campaigns() {
               ) : (
                 <p className="text-sm text-muted-foreground italic">Enter your email body content...</p>
               )}
-              
+
               {/* Footer */}
               {newTemplate.footer && (
                 <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
@@ -827,7 +831,7 @@ export default function Campaigns() {
                 </div>
               )}
             </div>
-            
+
             {/* Email Footer */}
             <div className="bg-muted/30 px-4 py-2 border-t">
               <p className="text-[10px] text-muted-foreground text-center">
@@ -853,16 +857,16 @@ export default function Campaigns() {
                   <p className="text-sm font-medium">Voice Call</p>
                 </div>
               </div>
-              
+
               {/* Call Interface */}
               <div className="h-full flex flex-col items-center justify-center p-6 bg-slate-50">
                 <div className="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center mb-6 animate-pulse">
                   <Phone className="h-10 w-10 text-slate-500" />
                 </div>
-                
+
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Incoming Call</h3>
                 <p className="text-sm text-muted-foreground mb-8">Voice Bot Demo</p>
-                
+
                 <div className="w-full bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-8 max-h-[200px] overflow-y-auto">
                   <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">SCRIPT PREVIEW</p>
                   {newTemplate.body ? (
@@ -873,7 +877,7 @@ export default function Campaigns() {
                     <p className="text-sm text-muted-foreground italic">Enter voice script...</p>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-8 mt-auto mb-12">
                   <div className="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
                     <Phone className="h-6 w-6 text-white rotate-[135deg]" />
@@ -903,12 +907,12 @@ export default function Campaigns() {
                 <div className="flex-1">
                   <p className="text-sm font-medium">Business RCS</p>
                   <div className="flex items-center gap-1">
-                     <p className="text-xs opacity-80">Verified</p>
-                     <span className="text-[10px] bg-white/20 px-1 rounded">{newTemplate.language.toUpperCase()}</span>
+                    <p className="text-xs opacity-80">Verified</p>
+                    <span className="text-[10px] bg-white/20 px-1 rounded">{newTemplate.language.toUpperCase()}</span>
                   </div>
                 </div>
               </div>
-              
+
               {/* Chat area */}
               <div className="p-3 h-[calc(100%-120px)] overflow-y-auto">
                 <div className="bg-white rounded-xl p-3 shadow-sm max-w-[90%] space-y-2">
@@ -920,7 +924,7 @@ export default function Campaigns() {
                   )}
                   <p className="text-[10px] text-muted-foreground text-right">10:30 AM</p>
                 </div>
-                
+
                 {/* Buttons preview */}
                 {newTemplate.buttons.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2 max-w-[90%]">
@@ -932,7 +936,7 @@ export default function Campaigns() {
                   </div>
                 )}
               </div>
-              
+
               {/* Input area */}
               <div className="absolute bottom-0 left-0 right-0 bg-white p-2 flex items-center gap-2">
                 <div className="flex-1 bg-[#F1F3F4] rounded-full px-4 py-2 text-sm text-muted-foreground">
@@ -955,7 +959,7 @@ export default function Campaigns() {
         <div className="relative mx-auto">
           {/* Phone notch */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-10" />
-          
+
           {/* Phone screen */}
           <div className="w-[280px] h-[500px] bg-[#ECE5DD] rounded-[2rem] overflow-hidden border-8 border-black relative">
             {/* Status bar */}
@@ -967,7 +971,7 @@ export default function Campaigns() {
                 <p className="text-xs opacity-80">online</p>
               </div>
             </div>
-            
+
             {/* Chat area */}
             <div className="p-3 h-[calc(100%-120px)] overflow-y-auto">
               {/* Message bubble */}
@@ -983,7 +987,7 @@ export default function Campaigns() {
                 )}
                 <p className="text-[10px] text-muted-foreground text-right">10:30 AM</p>
               </div>
-              
+
               {/* Buttons preview */}
               {newTemplate.buttons.length > 0 && (
                 <div className="bg-white rounded-lg mt-1 shadow-sm overflow-hidden max-w-[90%]">
@@ -1001,7 +1005,7 @@ export default function Campaigns() {
                 </div>
               )}
             </div>
-            
+
             {/* Input area */}
             <div className="absolute bottom-0 left-0 right-0 bg-[#F0F0F0] p-2 flex items-center gap-2">
               <div className="flex-1 bg-white rounded-full px-4 py-2 text-sm text-muted-foreground">
@@ -1030,12 +1034,21 @@ export default function Campaigns() {
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary w-full sm:w-auto">
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setIsSmsDialogOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20"
+              >
                 <Plus className="h-4 w-4 mr-2" />
-                Create Campaign
+                New SMS Campaign
               </Button>
-            </DialogTrigger>
+              <DialogTrigger asChild>
+                <Button className="gradient-primary w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Campaign
+                </Button>
+              </DialogTrigger>
+            </div>
             <DialogContent className="max-w-[95vw] w-full h-[90vh] p-0">
               <DialogTitle className="sr-only">Create New Campaign</DialogTitle>
               <DialogDescription className="sr-only">Create a new messaging campaign</DialogDescription>
@@ -1048,6 +1061,19 @@ export default function Campaigns() {
           </Dialog>
         </div>
       </div>
+
+      {/* SMS Specific Dialog Component */}
+      <SMSCampaignDialog
+        open={isSmsDialogOpen}
+        onOpenChange={setIsSmsDialogOpen}
+        onSuccess={() => {
+          fetchData();
+          toast({
+            title: "Success",
+            description: "SMS Campaign created and started successfully."
+          });
+        }}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
@@ -1184,8 +1210,8 @@ export default function Campaigns() {
                         <p className="text-xs text-muted-foreground">Delivered</p>
                       </div>
                       <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
-                         <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{campaign.read_count?.toLocaleString() || 0}</p>
-                         <p className="text-xs text-muted-foreground">Read</p>
+                        <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{campaign.read_count?.toLocaleString() || 0}</p>
+                        <p className="text-xs text-muted-foreground">Read</p>
                       </div>
                       <div className="p-2 rounded-lg bg-destructive/10">
                         <p className="text-lg font-bold text-destructive">{campaign.failed_count.toLocaleString()}</p>
@@ -1352,120 +1378,120 @@ export default function Campaigns() {
             <TabsContent value="all" className="mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredTemplates.map((template) => (
-              <Card key={template.id} className="card-elevated group hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg font-mono">{template.name}</CardTitle>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <ChannelBadge channel={template.channel} />
-                        <Badge variant="outline">{template.category}</Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          {templateLanguages.find(l => l.code === template.language)?.name || template.language}
-                        </Badge>
-                        {template.status === 'pending' && (
-                          <Badge variant="warning" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200 animate-pulse">
-                            Pending Approval
-                          </Badge>
-                        )}
+                  <Card key={template.id} className="card-elevated group hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="text-lg font-mono">{template.name}</CardTitle>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <ChannelBadge channel={template.channel} />
+                            <Badge variant="outline">{template.category}</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {templateLanguages.find(l => l.code === template.language)?.name || template.language}
+                            </Badge>
+                            {template.status === 'pending' && (
+                              <Badge variant="warning" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200 animate-pulse">
+                                Pending Approval
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isAdmin && template.status === 'pending' && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-success hover:text-success hover:bg-success/10 border-success/30"
+                                onClick={() => handleApproveTemplate(template.id, 'approved')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                                onClick={() => handleApproveTemplate(template.id, 'rejected')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {isAdmin && template.status === 'pending' && (
+                                <>
+                                  <DropdownMenuItem className="text-success" onClick={() => handleApproveTemplate(template.id, 'approved')}>
+                                    <Check className="h-4 w-4 mr-2" />
+                                    Approve Template
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-destructive" onClick={() => handleApproveTemplate(template.id, 'rejected')}>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Reject Template
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              {template.analytics && (
+                                <DropdownMenuItem onClick={() => openTemplateAnalytics(template)}>
+                                  <BarChart3 className="h-4 w-4 mr-2" />
+                                  View Analytics
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTemplate(template.id)}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isAdmin && template.status === 'pending' && (
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 text-success hover:text-success hover:bg-success/10 border-success/30"
-                            onClick={() => handleApproveTemplate(template.id, 'approved')}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-                            onClick={() => handleApproveTemplate(template.id, 'rejected')}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                        <p className="line-clamp-3">{template.body}</p>
+                      </div>
+                      {template.variables && template.variables.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {template.variables.map((v: any, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {`{{${v.name || v}}}`}
+                            </Badge>
+                          ))}
                         </div>
                       )}
-                      <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {isAdmin && template.status === 'pending' && (
-                          <>
-                            <DropdownMenuItem className="text-success" onClick={() => handleApproveTemplate(template.id, 'approved')}>
-                              <Check className="h-4 w-4 mr-2" />
-                              Approve Template
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleApproveTemplate(template.id, 'rejected')}>
-                              <X className="h-4 w-4 mr-2" />
-                              Reject Template
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                          </>
+
+
+
+                      <div className="flex gap-2">
+                        {template.channel === 'rcs' && (
+                          <Button variant="outline" size="icon" title="Sync Status" onClick={() => handleSyncTemplate(template.id)}>
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
                         )}
-                        <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
+                        <Button variant="outline" className="flex-1" onClick={() => handleEditTemplate(template)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
-                        </DropdownMenuItem>
-                        {template.analytics && (
-                          <DropdownMenuItem onClick={() => openTemplateAnalytics(template)}>
-                            <BarChart3 className="h-4 w-4 mr-2" />
-                            View Analytics
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTemplate(template.id)}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                    <p className="line-clamp-3">{template.body}</p>
-                  </div>
-                  {template.variables && template.variables.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {template.variables.map((v: any, idx: number) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
-                          {`{{${v.name || v}}}`}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-
-
-                  <div className="flex gap-2">
-                    {template.channel === 'rcs' && (
-                        <Button variant="outline" size="icon" title="Sync Status" onClick={() => handleSyncTemplate(template.id)}>
-                            <RefreshCw className="h-4 w-4" />
                         </Button>
-                    )}
-                    <Button variant="outline" className="flex-1" onClick={() => handleEditTemplate(template)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                    {template.analytics && (
-                      <Button variant="outline" size="icon" onClick={() => openTemplateAnalytics(template)}>
-                        <BarChart3 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        {template.analytics && (
+                          <Button variant="outline" size="icon" onClick={() => openTemplateAnalytics(template)}>
+                            <BarChart3 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </TabsContent>
 
@@ -1519,7 +1545,7 @@ export default function Campaigns() {
                                     )}
                                   </div>
                                 )}
-                                
+
                                 <div className="p-3 rounded-lg bg-muted/50">
                                   <p className="text-xs text-muted-foreground mb-1">Body</p>
                                   <p className="text-sm whitespace-pre-wrap">{template.body}</p>
@@ -1691,8 +1717,8 @@ export default function Campaigns() {
                     <Button variant="outline" onClick={() => handleSaveTemplate(true)}>
                       Save draft
                     </Button>
-                    <Button 
-                      className="gradient-primary" 
+                    <Button
+                      className="gradient-primary"
                       onClick={() => handleSaveTemplate(false)}
                       disabled={!newTemplate.name || !newTemplate.body}
                     >
@@ -1701,7 +1727,7 @@ export default function Campaigns() {
                   </div>
                 </div>
               </DialogHeader>
-              
+
               <div className="flex flex-1 overflow-hidden">
                 {/* Left Panel - Form */}
                 <ScrollArea className="flex-1 border-r">
@@ -1719,7 +1745,7 @@ export default function Campaigns() {
                     {/* Template Details */}
                     <div className="space-y-4">
                       <h3 className="font-semibold">Template Details</h3>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Template Name *</Label>
@@ -1804,11 +1830,11 @@ export default function Campaigns() {
                           <div className="space-y-2">
                             <Label>Header Type</Label>
                             <div className="flex gap-2 flex-wrap">
-                              {(newTemplate.channel === 'whatsapp' 
+                              {(newTemplate.channel === 'whatsapp'
                                 ? ['none', 'text', 'image', 'video', 'document'] as HeaderType[]
-                                : newTemplate.channel === 'rcs' 
-                                ? ['none', 'text', 'image', 'video', 'audio', 'document'] as any 
-                                : ['none', 'text', 'image'] as HeaderType[]
+                                : newTemplate.channel === 'rcs'
+                                  ? ['none', 'text', 'image', 'video', 'audio', 'document'] as any
+                                  : ['none', 'text', 'image'] as HeaderType[]
                               ).map((type: any) => (
                                 <Button
                                   key={type}
@@ -1824,7 +1850,7 @@ export default function Campaigns() {
                               ))}
                             </div>
                           </div>
-                          
+
                           {newTemplate.header.type === 'text' && (
                             <div className="space-y-2">
                               <Label>Header Text</Label>
@@ -1835,60 +1861,60 @@ export default function Campaigns() {
                               />
                             </div>
                           )}
-                          
+
                           {['image', 'video', 'audio', 'document'].includes(newTemplate.header.type) && (
                             <div className="space-y-4">
-                                <div className="p-4 border-2 border-dashed rounded-lg text-center hover:bg-muted/10 transition-colors relative">
-                                    <Input 
-                                        type="file" 
-                                        accept={
-                                            newTemplate.header.type === 'image' ? "image/png, image/jpeg" :
-                                            newTemplate.header.type === 'video' ? "video/mp4" :
-                                            newTemplate.header.type === 'audio' ? "audio/mp3, audio/mpeg" :
-                                            "application/pdf"
-                                        }
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        onChange={(e) => handleHeaderFileChange(e, newTemplate.header.type)}
-                                    />
-                                    <div className="flex flex-col items-center gap-2">
-                                        {newTemplate.header.content ? (
-                                            <>
-                                                {newTemplate.header.type === 'image' ? (
-                                                    <Image className="h-8 w-8 text-primary" />
-                                                ) : newTemplate.header.type === 'video' ? (
-                                                    <Video className="h-8 w-8 text-primary" />
-                                                ) : newTemplate.header.type === 'audio' ? (
-                                                    <Phone className="h-8 w-8 text-primary rotate-90" />
-                                                ) : (
-                                                    <FileText className="h-8 w-8 text-primary" />
-                                                )}
-                                                <p className="text-sm font-medium text-primary">File selected: {newTemplate.header.fileName}</p>
-                                                <p className="text-xs text-muted-foreground">Click to replace</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                {newTemplate.header.type === 'image' ? (
-                                                    <Image className="h-8 w-8 text-muted-foreground" />
-                                                ) : newTemplate.header.type === 'video' ? (
-                                                    <Video className="h-8 w-8 text-muted-foreground" />
-                                                ) : newTemplate.header.type === 'audio' ? (
-                                                    <Phone className="h-8 w-8 text-muted-foreground rotate-90" />
-                                                ) : (
-                                                    <FileText className="h-8 w-8 text-muted-foreground" />
-                                                )}
-                                                <p className="text-sm text-muted-foreground">
-                                                    Click to upload {newTemplate.header.type}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {newTemplate.header.type === 'image' && 'Max 2MB (JPEG, PNG)'}
-                                                    {newTemplate.header.type === 'video' && 'Max 10MB (MP4)'}
-                                                    {newTemplate.header.type === 'audio' && 'Max 5MB (MP3)'}
-                                                    {newTemplate.header.type === 'document' && 'Max 5MB (PDF)'}
-                                                </p>
-                                            </>
-                                        )}
-                                    </div>
+                              <div className="p-4 border-2 border-dashed rounded-lg text-center hover:bg-muted/10 transition-colors relative">
+                                <Input
+                                  type="file"
+                                  accept={
+                                    newTemplate.header.type === 'image' ? "image/png, image/jpeg" :
+                                      newTemplate.header.type === 'video' ? "video/mp4" :
+                                        newTemplate.header.type === 'audio' ? "audio/mp3, audio/mpeg" :
+                                          "application/pdf"
+                                  }
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  onChange={(e) => handleHeaderFileChange(e, newTemplate.header.type)}
+                                />
+                                <div className="flex flex-col items-center gap-2">
+                                  {newTemplate.header.content ? (
+                                    <>
+                                      {newTemplate.header.type === 'image' ? (
+                                        <Image className="h-8 w-8 text-primary" />
+                                      ) : newTemplate.header.type === 'video' ? (
+                                        <Video className="h-8 w-8 text-primary" />
+                                      ) : newTemplate.header.type === 'audio' ? (
+                                        <Phone className="h-8 w-8 text-primary rotate-90" />
+                                      ) : (
+                                        <FileText className="h-8 w-8 text-primary" />
+                                      )}
+                                      <p className="text-sm font-medium text-primary">File selected: {newTemplate.header.fileName}</p>
+                                      <p className="text-xs text-muted-foreground">Click to replace</p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {newTemplate.header.type === 'image' ? (
+                                        <Image className="h-8 w-8 text-muted-foreground" />
+                                      ) : newTemplate.header.type === 'video' ? (
+                                        <Video className="h-8 w-8 text-muted-foreground" />
+                                      ) : newTemplate.header.type === 'audio' ? (
+                                        <Phone className="h-8 w-8 text-muted-foreground rotate-90" />
+                                      ) : (
+                                        <FileText className="h-8 w-8 text-muted-foreground" />
+                                      )}
+                                      <p className="text-sm text-muted-foreground">
+                                        Click to upload {newTemplate.header.type}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {newTemplate.header.type === 'image' && 'Max 2MB (JPEG, PNG)'}
+                                        {newTemplate.header.type === 'video' && 'Max 10MB (MP4)'}
+                                        {newTemplate.header.type === 'audio' && 'Max 5MB (MP3)'}
+                                        {newTemplate.header.type === 'document' && 'Max 5MB (PDF)'}
+                                      </p>
+                                    </>
+                                  )}
                                 </div>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1929,11 +1955,11 @@ export default function Campaigns() {
                       <div className="space-y-2">
                         <Textarea
                           placeholder={
-                            newTemplate.channel === 'sms' 
-                              ? "Enter your SMS text..." 
+                            newTemplate.channel === 'sms'
+                              ? "Enter your SMS text..."
                               : newTemplate.channel === 'email'
-                              ? "Enter your email content here. You can use variables like {{name}} for personalization..."
-                              : "Enter your message body text..."
+                                ? "Enter your email content here. You can use variables like {{name}} for personalization..."
+                                : "Enter your message body text..."
                           }
                           value={newTemplate.body}
                           onChange={(e) => setNewTemplate({ ...newTemplate, body: e.target.value })}
@@ -1998,12 +2024,12 @@ export default function Campaigns() {
                         <div className="space-y-4">
                           <h3 className="font-semibold">Buttons (Optional)</h3>
                           <p className="text-sm text-muted-foreground">
-                            {newTemplate.channel === 'whatsapp' 
+                            {newTemplate.channel === 'whatsapp'
                               ? 'Create buttons that let customers respond to your message or take action. You can add up to 3 buttons.'
                               : 'Add suggested replies or action buttons. You can add up to 4 buttons.'
                             }
                           </p>
-                          
+
                           {newTemplate.buttons.map((button, index) => (
                             <div key={button.id} className="p-4 border rounded-lg space-y-3">
                               <div className="flex items-center justify-between">
@@ -2062,7 +2088,7 @@ export default function Campaigns() {
                               )}
                             </div>
                           ))}
-                          
+
                           {newTemplate.buttons.length < (newTemplate.channel === 'whatsapp' ? 3 : 4) && (
                             <Button type="button" variant="outline" className="w-full" onClick={addButton}>
                               <Plus className="h-4 w-4 mr-2" />

@@ -57,19 +57,19 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
     // Safety check: ensure permissions is an array
     if (!user?.permissions || !Array.isArray(user.permissions)) return false;
-    
+
     // In db, permissions is array of objects: { feature: "Chat - View", admin: true, ... }
     // We check the 'admin' column for now as the user is the account admin
     // User role in DB is 'user' or 'admin' (platform admin). 
     // Here 'admin' column in permission means 'Account Admin' (the user).
-    
+
     // Find permission object for the feature
     // Feature names in DB: "Chat - View", "Campaign - View", etc.
     const perm = user.permissions.find((p: any) => p.feature === feature);
     if (!perm) return false; // Strict: if feature not found, deny
-    
+
     // Check 'admin' column (since logged in user is the Account Admin)
-    return perm.admin === true || perm.admin === 1; 
+    return perm.admin === true || perm.admin === 1;
   };
 
   const navItems = [
@@ -77,9 +77,10 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
     { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
+    { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: true },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
-    { icon: BarChart3, label: 'Reports', path: '/reports', show:  hasPermission('Reports - View') || true }, // Default true for now as requested by user
+    { icon: BarChart3, label: 'Reports', path: '/reports', show: hasPermission('Reports - View') || true }, // Default true for now as requested by user
     { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: true },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },

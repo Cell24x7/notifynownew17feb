@@ -90,6 +90,7 @@ app.use('/api/sms', require('./routes/sms'));
 app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/templates', require('./routes/templates'));
+app.use('/api/dlt-templates', require('./routes/dltTemplates'));
 app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/logs', require('./routes/logs'));
@@ -108,6 +109,9 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Serve uploads as static for sample files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 /* ==================================
