@@ -363,7 +363,7 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
   // Stats
   const totalClients = filteredClients.length;
   const totalActiveUsers = filteredClients.filter(c => c.status === 'active').length;
-  const totalCreditsUsed = filteredClients.reduce((sum, c) => sum + (c.credits_used || 0), 0);
+  const totalCreditsAssigned = filteredClients.reduce((sum, c) => sum + (c.credits_available || 0) + (c.credits_used || 0), 0);
   const totalCreditsAvailable = filteredClients.reduce((sum, c) => sum + (c.credits_available || 0), 0);
 
   return (
@@ -403,15 +403,15 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
             bg="bg-green-500/10" 
         />
         <StatsCard 
-            title="Credits Used" 
-            value={(totalCreditsUsed / 1000).toFixed(1) + 'K'} 
+            title="Total Assigned" 
+            value={(totalCreditsAssigned / 1000).toFixed(1) + 'K'} 
             icon={CreditCard} 
             color="text-red-600" 
             bg="bg-red-500/10" 
         />
         <StatsCard 
             title="Available Credits" 
-            value={(totalCreditsAvailable / 1000).toFixed(1) + 'K'} 
+            value="Unlimited" 
             icon={CreditCard} 
             color="text-blue-600" 
             bg="bg-blue-500/10" 

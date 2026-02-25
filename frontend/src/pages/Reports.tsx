@@ -29,12 +29,16 @@ interface Report {
 interface WebhookLog {
     id: number;
     campaign_id: string;
+    campaign_name: string;
     message_id: string;
     recipient: string;
     status: string;
     send_time: string;
     delivery_time: string | null;
     read_time: string | null;
+    template_name: string;
+    failure_reason: string | null;
+    created_at: string;
     updated_at: string;
 }
 
@@ -48,6 +52,7 @@ export default function Reports() {
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState('campaigns');
 
     useEffect(() => {
         fetchReports();
@@ -98,26 +103,51 @@ export default function Reports() {
     };
 
     const handleExport = () => {
-        const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
-        const csvContent = [
-            headers.join(','),
-            ...reports.map(r => [
-                `"${r.name}"`,
-                `"${r.template_id}"`,
-                format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
-                r.recipient_count,
-                r.sent_count,
-                r.delivered_count,
-                r.read_count,
-                r.failed_count
-            ].join(','))
-        ].join('\n');
+        if (activeTab === 'campaigns') {
+            const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
+            const csvContent = [
+                headers.join(','),
+                ...reports.map(r => [
+                    `"${r.name}"`,
+                    `"${r.template_id}"`,
+                    format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
+                    r.recipient_count,
+                    r.sent_count,
+                    r.delivered_count,
+                    r.read_count,
+                    r.failed_count
+                ].join(','))
+            ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv' });
+            downloadCsv(csvContent, `rcs_summary_${format(new Date(), 'yyyyMMdd')}.csv`);
+        } else {
+            const headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
+            const csvContent = [
+                headers.join(','),
+                ...webhookLogs.map(l => [
+                    l.id,
+                    l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
+                    l.recipient,
+                    l.send_time ? format(new Date(l.send_time), 'HH:mm:ss') : '-',
+                    l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
+                    l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
+                    `"${l.template_name || ''}"`,
+                    `"${l.campaign_name || ''}"`,
+                    l.status,
+                    `"${l.failure_reason || ''}"`
+                ].join(','))
+            ].join('\n');
+
+            downloadCsv(csvContent, `detailed_logs_${format(new Date(), 'yyyyMMdd')}.csv`);
+        }
+    };
+
+    const downloadCsv = (content: string, fileName: string) => {
+        const blob = new Blob([content], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `rcs_reports_${format(new Date(), 'yyyyMMdd')}.csv`;
+        a.download = fileName;
         a.click();
         window.URL.revokeObjectURL(url);
     };
@@ -156,7 +186,7 @@ export default function Reports() {
                 </div>
             </div>
 
-            <Tabs defaultValue="campaigns" className="flex-1 flex flex-col">
+            <Tabs defaultValue="campaigns" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
                 <TabsList className="grid w-[400px] grid-cols-2">
                     <TabsTrigger value="campaigns">Campaign Performance</TabsTrigger>
                     <TabsTrigger value="detailed">Detailed Delivery Logs</TabsTrigger>
@@ -274,70 +304,61 @@ export default function Reports() {
                                 </Badge>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-0 h-[500px] overflow-auto">
+                        <CardContent className="p-0 h-[600px] overflow-auto">
                             <Table>
-                                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
-                                    <TableRow>
-                                        <TableHead className="w-[180px]">Last Update</TableHead>
-                                        <TableHead>Message ID</TableHead>
-                                        <TableHead>Recipient</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Timeline</TableHead>
+                                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
+                                    <TableRow className="bg-muted/30">
+                                        <TableHead className="w-[60px] font-bold text-black border-r">Id</TableHead>
+                                        <TableHead className="w-[140px] font-bold text-black border-r text-center">Rtime</TableHead>
+                                        <TableHead className="w-[120px] font-bold text-black border-r text-center">Mobile</TableHead>
+                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">sendTime</TableHead>
+                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">DelTime</TableHead>
+                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">ReadTime</TableHead>
+                                        <TableHead className="w-[130px] font-bold text-black border-r text-center">Template</TableHead>
+                                        <TableHead className="w-[130px] font-bold text-black border-r text-center">Campaign</TableHead>
+                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">Status</TableHead>
+                                        <TableHead className="w-[150px] font-bold text-black text-center">reason</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {loadingLogs ? (
-                                        <TableRow><TableCell colSpan={5} className="text-center py-10">Fetching logs...</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={10} className="text-center py-10">Fetching logs...</TableCell></TableRow>
                                     ) : webhookLogs.length === 0 ? (
-                                        <TableRow><TableCell colSpan={5} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
                                     ) : (
                                         webhookLogs.map((log) => (
-                                            <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
-                                                <TableCell className="text-xs font-medium">
-                                                    {format(new Date(log.updated_at), 'dd MMM HH:mm:ss')}
+                                            <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
+                                                <TableCell className="text-[11px] font-mono border-r">
+                                                    {log.id}
                                                 </TableCell>
-                                                <TableCell className="font-mono text-[10px] text-muted-foreground truncate max-w-[150px]">
-                                                    {log.message_id || 'N/A'}
+                                                <TableCell className="text-[11px] border-r text-center">
+                                                    {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
                                                 </TableCell>
-                                                <TableCell className="font-bold text-xs">
+                                                <TableCell className="text-[11px] font-bold border-r text-center">
                                                     {log.recipient}
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline" className={cn("uppercase text-[10px] font-bold px-2 py-0.5", getStatusColor(log.status))}>
+                                                <TableCell className="text-[11px] border-r text-center">
+                                                    {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
+                                                </TableCell>
+                                                <TableCell className="text-[11px] border-r text-center text-green-600 font-medium">
+                                                    {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
+                                                </TableCell>
+                                                <TableCell className="text-[11px] border-r text-center text-purple-600 font-medium">
+                                                    {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
+                                                </TableCell>
+                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[130px]" title={log.template_name}>
+                                                    {log.template_name || 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[130px]" title={log.campaign_name}>
+                                                    {log.campaign_name || 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-center border-r">
+                                                    <Badge variant="outline" className={cn("uppercase text-[9px] font-bold px-1.5 py-0", getStatusColor(log.status))}>
                                                         {log.status}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1">
-                                                                <MessageSquare className="h-3 w-3" />
-                                                                View Details
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-[280px] p-3 text-xs">
-                                                            <div className="space-y-3">
-                                                                <p className="font-bold border-b pb-1">Delivery Timeline</p>
-                                                                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                                                                    <span className="text-muted-foreground">Sent:</span>
-                                                                    <span>{log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}</span>
-                                                                    
-                                                                    <span className="text-muted-foreground">Delivered:</span>
-                                                                    <span className={log.delivery_time ? "text-green-600 font-medium" : ""}>
-                                                                        {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : 'Pending'}
-                                                                    </span>
-                                                                    
-                                                                    <span className="text-muted-foreground">Read:</span>
-                                                                    <span className={log.read_time ? "text-purple-600 font-medium" : ""}>
-                                                                        {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : 'Unread'}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="pt-2 border-t text-[10px] text-muted-foreground">
-                                                                    <p>Campaign ID: {log.campaign_id}</p>
-                                                                </div>
-                                                            </div>
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[150px]" title={log.failure_reason || ''}>
+                                                    {log.failure_reason || '-'}
                                                 </TableCell>
                                             </TableRow>
                                         ))
