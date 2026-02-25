@@ -3,6 +3,7 @@ const router = express.Router();
 const { query } = require('../config/db');
 const { v1: uuidv4 } = require('uuid'); // Added uuid for consistency if needed, though project uses Date.now()
 const jwt = require('jsonwebtoken');
+const { submitDotgoTemplate, getDotgoTemplateStatus } = require('../services/rcsService');
 
 // Middleware to authenticate token (using common pattern in project)
 const authenticateToken = (req, res, next) => {
@@ -212,6 +213,51 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // SYNC template status (RCS only) - Disabled as Vi RBM is removed
 router.post('/:id/sync', authenticateToken, async (req, res) => {
     res.status(410).json({ success: false, message: 'Vi RBM sync is no longer available. Template status is managed via Dotgo.' });
+});
+
+/**
+ * @route POST /api/templates/dotgo/submit
+ * @desc Submit a template to Dotgo from local DB or directly
+ */
+router.post('/dotgo/submit', authenticateToken, async (req, res) => {
+    try {
+        const { templateData } = req.body;
+        if (!templateData || !templateData.name) {
+            return res.status(400).json({ success: false, message: 'Invalid template data' });
+        }
+
+        const result = await submitDotgoTemplate(templateData);
+        if (result.success) {
+            // Optionally update local DB status to 'submitted'
+            await query('UPDATE message_templates SET status = "pending" WHERE name = ?', [templateData.name]);
+            res.json(result);
+        } else {
+            res.status(500).json(result);
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * @route GET /api/templates/dotgo/status/:name
+ * @desc Check template approval status on Dotgo
+ */
+router.get('/dotgo/status/:name', authenticateToken, async (req, res) => {
+    try {
+        const { name } = req.params;
+        const result = await getDotgoTemplateStatus(name);
+
+        if (result.success && result.status) {
+            // Update local DB if approved
+            const localStatus = result.status.toLowerCase();
+            await query('UPDATE message_templates SET status = ? WHERE name = ?', [localStatus, name]);
+        }
+
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 module.exports = router;

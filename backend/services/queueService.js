@@ -170,7 +170,6 @@ const processQueue = async () => {
         ]).catch(err => console.error('[QueueProcessor] Batch Error/Timeout:', err));
 
 
-        // Bulk update campaign stats
         for (const [campId, counts] of Object.entries(stats)) {
             if (counts.sent > 0 || counts.failed > 0) {
                 await query(
@@ -178,6 +177,17 @@ const processQueue = async () => {
                     [counts.sent, counts.failed, campId]
                 );
                 console.log(`[Progress] Campaign ${campId}: +${counts.sent} sent, +${counts.failed} failed.`);
+
+                // Check if campaign is finished (no more pending or processing in queue)
+                const [remains] = await query(
+                    'SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status IN ("pending", "processing")',
+                    [campId]
+                );
+
+                if (remains[0].count === 0) {
+                    await query('UPDATE campaigns SET status = "sent" WHERE id = ?', [campId]);
+                    console.log(`✅ Campaign ${campId} marked as SENT (Finished)`);
+                }
             }
         }
 

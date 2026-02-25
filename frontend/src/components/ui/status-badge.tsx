@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-type StatusType = 'active' | 'paused' | 'draft' | 'open' | 'closed' | 'pending' | 'completed' | 'running' | 'scheduled' | 'connected' | 'disconnected' | 'approved' | 'rejected';
+type StatusType = 'active' | 'paused' | 'draft' | 'open' | 'closed' | 'pending' | 'completed' | 'running' | 'scheduled' | 'connected' | 'disconnected' | 'approved' | 'rejected' | 'sent';
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -21,6 +21,7 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   disconnected: { label: 'Not Connected', className: 'bg-muted text-muted-foreground' },
   approved: { label: 'Approved', className: 'bg-success/10 text-success' },
   rejected: { label: 'Rejected', className: 'bg-destructive/10 text-destructive' },
+  sent: { label: 'Sent', className: 'bg-success/10 text-success' },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {

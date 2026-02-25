@@ -1,4 +1,5 @@
 const axios = require("axios");
+const FormData = require("form-data");
 require("dotenv").config();
 
 const DOTGO_AUTH_URL = process.env.DOTGO_AUTH_URL;
@@ -151,6 +152,73 @@ const sendRcsMessage = async (mobile, message) => {
 };
 
 /**
+ * Submit a new template to Dotgo
+ * @param {object} templateData - Template configuration
+ * @returns {Promise<object>}
+ */
+const submitDotgoTemplate = async (templateData) => {
+  try {
+    const token = await getRcsToken();
+    if (!token) return { success: false, error: "Authentication failed" };
+
+    const url = `https://developer-api.dotgo.com/directory/secure/api/v1/bots/${DOTGO_BOT_ID}/templates`;
+
+    const form = new FormData();
+    form.append('rich_template_data', JSON.stringify(templateData));
+
+    console.log(`📤 Submitting Dotgo Template: ${templateData.name}`);
+
+    const response = await axios.post(url, form, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        ...form.getHeaders()
+      }
+    });
+
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("❌ Dotgo Template Submission Error:", error.message);
+    if (error.response) {
+      console.error("📦 Error Response:", JSON.stringify(error.response.data));
+      return { success: false, error: error.response.data?.message || JSON.stringify(error.response.data) };
+    }
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get Dotgo Template Status
+ * @param {string} templateName - Name of the template
+ * @returns {Promise<object>}
+ */
+const getDotgoTemplateStatus = async (templateName) => {
+  try {
+    const token = await getRcsToken();
+    if (!token) return { success: false, error: "Authentication failed" };
+
+    // Base64 encode the template name
+    const base64Name = Buffer.from(templateName).toString('base64');
+    const url = `https://developer-api.dotgo.com/directory/secure/api/v1/bots/${DOTGO_BOT_ID}/templates/${base64Name}/templateStatus`;
+
+    console.log(`🔍 Checking Dotgo Status for: ${templateName} (${base64Name})`);
+
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    return { success: true, status: response.data?.status || 'UNKNOWN', raw: response.data };
+  } catch (error) {
+    console.error("❌ Dotgo Status Check Error:", error.message);
+    if (error.response) {
+      return { success: false, error: error.response.data?.message || JSON.stringify(error.response.data) };
+    }
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Dotgo doesn't seem to have a simple "get all templates" API mentioned in the snippets,
  * but for compatibility with existing UI, we return the hardcoded one the user asked for.
  */
@@ -164,6 +232,8 @@ module.exports = {
   getRcsToken,
   sendRcsTemplate,
   sendRcsMessage,
-  getExternalTemplates
+  getExternalTemplates,
+  submitDotgoTemplate,
+  getDotgoTemplateStatus
 };
 
