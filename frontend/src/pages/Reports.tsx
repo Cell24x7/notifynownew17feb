@@ -42,22 +42,34 @@ interface WebhookLog {
     updated_at: string;
 }
 
+interface RawWebhookLog {
+    id: number;
+    message_id_envelope: string;
+    recipient: string;
+    status: string;
+    event_type: string;
+    created_at: string;
+    raw_payload: string;
+}
+
 export default function Reports() {
     const { user } = useAuth();
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
+    const [rawLogs, setRawLogs] = useState<RawWebhookLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingLogs, setLoadingLogs] = useState(false);
-    const [date, setDate] = useState<Date | undefined>(undefined);
+    const [loadingRaw, setLoadingRaw] = useState(false);
+    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState('campaigns');
+    const [activeTab, setActiveTab] = useState('performance');
 
     useEffect(() => {
         fetchReports();
         fetchWebhookLogs();
-    }, [date, endDate, statusFilter]);
+    }, [startDate, endDate, statusFilter]);
 
     const fetchReports = async () => {
         setLoading(true);
@@ -65,7 +77,7 @@ export default function Reports() {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/rcs/reports?`;
             
-            if (date) url += `startDate=${date.toISOString().split('T')[0]}&`;
+            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
 
@@ -87,23 +99,40 @@ export default function Reports() {
     const fetchWebhookLogs = async () => {
         setLoadingLogs(true);
         try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_BASE_URL}/api/webhooks/message-logs`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
+            const res = await fetch('/api/webhooks/message-logs');
+            const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
             }
         } catch (error) {
-            console.error('Failed to fetch webhook logs', error);
+            console.error('Error fetching logs:', error);
         } finally {
             setLoadingLogs(false);
         }
     };
 
+    const fetchRawLogs = async () => {
+        setLoadingRaw(true);
+        try {
+            const res = await fetch('/api/webhooks/logs');
+            const data = await res.json();
+            if (data.success) {
+                setRawLogs(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching raw logs:', error);
+        } finally {
+            setLoadingRaw(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'detailed') fetchRawLogs();
+        if (activeTab === 'consolidated') fetchWebhookLogs();
+    }, [activeTab]);
+
     const handleExport = () => {
-        if (activeTab === 'campaigns') {
+        if (activeTab === 'performance') {
             const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
             const csvContent = [
                 headers.join(','),
@@ -120,7 +149,22 @@ export default function Reports() {
             ].join('\n');
 
             downloadCsv(csvContent, `rcs_summary_${format(new Date(), 'yyyyMMdd')}.csv`);
-        } else {
+        } else if (activeTab === 'detailed') {
+            const headers = ['Id', 'Received At', 'Recipient', 'Message ID', 'Event', 'Status'];
+            const csvContent = [
+                headers.join(','),
+                ...rawLogs.map(l => [
+                    l.id,
+                    l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
+                    l.recipient || 'N/A',
+                    `"${l.message_id_envelope || ''}"`,
+                    l.event_type || 'Update',
+                    l.status
+                ].join(','))
+            ].join('\n');
+
+            downloadCsv(csvContent, `detailed_webhooks_${format(new Date(), 'yyyyMMdd')}.csv`);
+        } else if (activeTab === 'consolidated') {
             const headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
             const csvContent = [
                 headers.join(','),
@@ -138,18 +182,14 @@ export default function Reports() {
                 ].join(','))
             ].join('\n');
 
-            downloadCsv(csvContent, `detailed_logs_${format(new Date(), 'yyyyMMdd')}.csv`);
+            downloadCsv(csvContent, `delivery_summary_${format(new Date(), 'yyyyMMdd')}.csv`);
         }
     };
 
-    const downloadCsv = (content: string, fileName: string) => {
-        const blob = new Blob([content], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        window.URL.revokeObjectURL(url);
+    const handleRefresh = () => {
+        fetchReports();
+        if (activeTab === 'detailed') fetchRawLogs();
+        if (activeTab === 'consolidated') fetchWebhookLogs();
     };
 
     const filteredReports = reports.filter(r => 
@@ -172,27 +212,28 @@ export default function Reports() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Reports & Logs</h1>
-                    <p className="text-muted-foreground">Monitor campaign performance and detailed delivery events</p>
+                    <p className="text-muted-foreground">Monitor campaign performance and delivery logs</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => { fetchReports(); fetchWebhookLogs(); }}>
-                        <RefreshCw className={cn("mr-2 h-4 w-4", (loading || loadingLogs) && "animate-spin")} />
+                    <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+                        <RefreshCw className={cn("h-4 w-4", (loading || loadingLogs || loadingRaw) && "animate-spin")} />
                         Refresh
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleExport}>
-                        <Download className="mr-2 h-4 w-4" />
+                    <Button variant="default" size="sm" onClick={handleExport} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                        <Download className="h-4 w-4" />
                         Export CSV
                     </Button>
                 </div>
             </div>
 
-            <Tabs defaultValue="campaigns" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <TabsList className="grid w-[400px] grid-cols-2">
-                    <TabsTrigger value="campaigns">Campaign Performance</TabsTrigger>
-                    <TabsTrigger value="detailed">Detailed Delivery Logs</TabsTrigger>
+            <Tabs defaultValue="performance" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                <TabsList className="grid w-[600px] grid-cols-3">
+                    <TabsTrigger value="performance">Campaign Performance</TabsTrigger>
+                    <TabsTrigger value="detailed">Detailed Webhook Logs</TabsTrigger>
+                    <TabsTrigger value="consolidated">Consolidated Delivery Logs</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="campaigns" className="flex-1 flex flex-col space-y-4 pt-4">
+                <TabsContent value="performance" className="flex-1 flex flex-col space-y-4 pt-4">
                     <Card>
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium">Filters</CardTitle>
@@ -205,15 +246,15 @@ export default function Reports() {
                                             variant={"outline"}
                                             className={cn(
                                                 "w-[200px] justify-start text-left font-normal",
-                                                !date && "text-muted-foreground"
+                                                !startDate && "text-muted-foreground"
                                             )}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {date ? format(date, "PPP") : <span>Start Date</span>}
+                                            {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                                        <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
                                     </PopoverContent>
                                 </Popover>
                                 <span className="text-muted-foreground">-</span>
@@ -291,15 +332,75 @@ export default function Reports() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="detailed" className="flex-1 flex flex-col pt-4">
-                    <Card className="flex-1 overflow-hidden">
-                        <CardHeader className="pb-3 border-b">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-lg text-primary">Consolidated Delivery Logs</CardTitle>
-                                    <CardDescription>Live status updates for every recipient</CardDescription>
-                                </div>
-                                <Badge variant="outline" className="font-mono">
+                <TabsContent value="detailed" className="flex-1 mt-4">
+                    <Card className="border-none shadow-sm h-full">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <div className="space-y-1">
+                                <CardTitle className="text-xl font-bold">Detailed Webhook Logs</CardTitle>
+                                <CardDescription>Raw events received from providers</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
+                                    Total Events: {rawLogs.length}
+                                </Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0 h-[600px] overflow-auto">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
+                                    <TableRow className="bg-muted/30">
+                                        <TableHead className="w-[60px] font-bold text-black border-r">Id</TableHead>
+                                        <TableHead className="w-[150px] font-bold text-black border-r">Received At</TableHead>
+                                        <TableHead className="w-[150px] font-bold text-black border-r">Recipient</TableHead>
+                                        <TableHead className="font-bold text-black border-r">Message ID</TableHead>
+                                        <TableHead className="w-[120px] font-bold text-black border-r">Event</TableHead>
+                                        <TableHead className="w-[100px] font-bold text-black">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loadingRaw ? (
+                                        <TableRow><TableCell colSpan={6} className="text-center py-10">Fetching raw logs...</TableCell></TableRow>
+                                    ) : rawLogs.length === 0 ? (
+                                        <TableRow><TableCell colSpan={6} className="text-center py-10">No webhook events available.</TableCell></TableRow>
+                                    ) : (
+                                        rawLogs.map((log) => (
+                                            <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
+                                                <TableCell className="text-[11px] font-mono border-r">{log.id}</TableCell>
+                                                <TableCell className="text-[11px] border-r">
+                                                    {format(new Date(log.created_at), 'dd MMM HH:mm:ss')}
+                                                </TableCell>
+                                                <TableCell className="text-[11px] font-bold border-r">
+                                                    {log.recipient || 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-[11px] font-mono border-r truncate max-w-[200px]" title={log.message_id_envelope}>
+                                                    {log.message_id_envelope || 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-[11px] border-r italic text-muted-foreground uppercase">
+                                                    {log.event_type || 'Update'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={cn("uppercase text-[9px] font-bold px-1.5 py-0", getStatusColor(log.status))}>
+                                                        {log.status}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="consolidated" className="flex-1 mt-4">
+                    <Card className="border-none shadow-sm h-full">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <div className="space-y-1">
+                                <CardTitle className="text-xl font-bold">Consolidated Delivery Summary</CardTitle>
+                                <CardDescription>Consolidated status for every recipient</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
                                     Total Messages: {webhookLogs.length}
                                 </Badge>
                             </div>
