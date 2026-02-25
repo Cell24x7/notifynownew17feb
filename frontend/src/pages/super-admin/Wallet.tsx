@@ -205,7 +205,7 @@ export default function SuperAdminWallet() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Total Purchases</div>
-                <div className="text-xl font-bold">${totalPurchases.toLocaleString()}</div>
+                <div className="text-xl font-bold">₹{totalPurchases.toLocaleString()}</div>
               </div>
             </div>
           </CardContent>

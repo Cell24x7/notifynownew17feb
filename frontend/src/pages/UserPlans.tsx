@@ -225,7 +225,7 @@ export default function UserPlans() {
                 <div className="space-y-1">
                   <span className="text-sm text-muted-foreground">Price</span>
                   <p className="font-bold text-lg">
-                    ${Number(selectedPlan.price).toFixed(2)}/month
+                    ₹{Number(selectedPlan.price).toFixed(2)}/month
                   </p>
                 </div>
 
