@@ -69,7 +69,11 @@ const channelColors: Record<string, string> = {
 
 export default function Dashboard() {
   const { user, refreshUser } = useAuth();
-  const enabledChannels = (user?.channels_enabled || []).map(ch => ch.toLowerCase());
+  const enabledChannels = Array.isArray(user?.channels_enabled) 
+    ? user.channels_enabled.map(ch => ch.toLowerCase())
+    : typeof user?.channels_enabled === 'string'
+      ? (user.channels_enabled as string).split(',').map(ch => ch.trim().toLowerCase())
+      : [];
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);

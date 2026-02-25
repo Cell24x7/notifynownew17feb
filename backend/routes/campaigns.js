@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
+const { deductCampaignCredits } = require('../services/walletService');
 const jwt = require('jsonwebtoken');
 
 // Middleware to authenticate token
@@ -121,6 +122,7 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
+
 // UPDATE campaign status (Pause/Resume/Complete)
 router.put('/:id/status', authenticateToken, async (req, res) => {
     try {
@@ -132,6 +134,12 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
 
         await query('UPDATE campaigns SET status = ? WHERE id = ? AND user_id = ?', [status, id, userId]);
+
+        // If starting/resuming, deduct credits upfront
+        if (status === 'running') {
+            await deductCampaignCredits(id);
+        }
+
         res.json({ success: true, message: `Campaign status updated to ${status}` });
     } catch (error) {
         console.error('Update campaign status error:', error);

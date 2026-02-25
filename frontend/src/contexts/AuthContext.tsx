@@ -45,13 +45,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       try {
         const decoded: any = jwtDecode(token);
+        let channels = decoded.channels_enabled || [];
+        if (typeof channels === 'string') {
+          try {
+            channels = channels.startsWith('[') ? JSON.parse(channels) : channels.split(',').map((c: string) => c.trim());
+          } catch (e) {
+            channels = channels.split(',').map((c: string) => c.trim());
+          }
+        }
+
         setUser({
           id: decoded.id?.toString() || '',
           name: decoded.name || decoded.email?.split('@')[0] || 'User',
           email: decoded.email || '',
           company: decoded.company,
           role: decoded.role,
-          channels_enabled: decoded.channels_enabled || [],
+          channels_enabled: channels,
           permissions: decoded.permissions || [],
           credits_available: decoded.credits_available || 0,
           wallet_balance: decoded.wallet_balance || 0,

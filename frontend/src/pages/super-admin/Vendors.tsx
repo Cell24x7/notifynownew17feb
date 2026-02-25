@@ -355,8 +355,13 @@ export default function Vendors() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 flex-wrap">
-                              {(vendor.channels || []).map((ch: string) => (
-                                <Badge key={ch} variant="secondary" className="text-xs">{ch.toUpperCase()}</Badge>
+                              {(Array.isArray(vendor.channels) 
+                                ? vendor.channels 
+                                : typeof vendor.channels === 'string' 
+                                  ? vendor.channels.split(',') 
+                                  : []
+                              ).map((ch: string) => (
+                                <Badge key={ch} variant="secondary" className="text-xs">{ch.trim().toUpperCase()}</Badge>
                               ))}
                             </div>
                           </TableCell>

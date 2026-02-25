@@ -1,6 +1,7 @@
 const express = require('express');
 require('dotenv').config();
 const { query } = require('../config/db');
+const { deductCampaignCredits } = require('../services/walletService');
 const { getExternalTemplates } = require('../services/rcsService');
 
 const router = express.Router();
@@ -129,9 +130,13 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No contacts provided and no campaign ID' });
     }
 
+
     // 2. Ensuring campaign is set to running
     if (campaignId) {
       await query('UPDATE campaigns SET status = "running" WHERE id = ? AND user_id = ?', [campaignId, userId]);
+
+      // Deduct credits upfront
+      await deductCampaignCredits(campaignId);
 
       return res.json({
         success: true,

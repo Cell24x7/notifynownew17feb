@@ -184,28 +184,41 @@ router.post('/dotgo', async (req, res) => {
 
                 if (logs.length > 0) {
                     const log = logs[0];
-                    await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
+                    const oldStatus = log.status?.toLowerCase();
 
-                    if (finalStatus === 'delivered') {
-                        await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
-                    } else if (finalStatus === 'read') {
-                        await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
-                    }
+                    // Only update if status changed
+                    if (oldStatus !== finalStatus) {
+                        await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
 
-                    if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
-                        await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
-                    } else if (finalStatus === 'read' && log.status !== 'read') {
-                        if (log.status !== 'delivered') {
-                            await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
-                        } else {
-                            await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                        // Handle Timestamps
+                        if (finalStatus === 'delivered') {
+                            await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
+                        } else if (finalStatus === 'read') {
+                            await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
+                        } else if (finalStatus === 'failed') {
+                            await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [decodedData.error || 'Provider rejected', messageId]);
                         }
-                    } else if (finalStatus === 'failed') {
-                        await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
-                    }
 
-                    await query('UPDATE campaign_queue SET status = ? WHERE message_id = ?', [finalStatus, messageId]);
-                    console.log(`✅ Message stats updated for ${messageId}`);
+                        // Handle Campaign Counters (Real-time updates)
+                        if (log.campaign_id) {
+                            if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                            } else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                if (oldStatus !== 'delivered') {
+                                    await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                } else {
+                                    await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                }
+                            } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                            }
+                        }
+
+                        console.log(`✅ Message stats updated for ${messageId} (${oldStatus} -> ${finalStatus})`);
+                    }
+                } else {
+                    // This could be an incoming message or a log we missed during sending
+                    console.log(`ℹ️ Message ID ${messageId} not in logs. Checking for incoming...`);
                 }
             } catch (statusErr) {
                 console.error('❌ Error updating message status:', statusErr.message);
@@ -216,6 +229,33 @@ router.post('/dotgo', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Dotgo Webhook Error:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+// GET /api/webhooks/message-logs
+// Fetch consolidated logs (one row per message) for reporting
+router.get('/message-logs', async (req, res) => {
+    try {
+        const { campaignId } = req.query;
+        let sql = 'SELECT * FROM message_logs';
+        let params = [];
+
+        if (campaignId) {
+            sql += ' WHERE campaign_id = ?';
+            params.push(campaignId);
+        }
+
+        sql += ' ORDER BY updated_at DESC LIMIT 100';
+
+        const [logs] = await query(sql, params);
+        res.json({
+            success: true,
+            count: logs.length,
+            data: logs
+        });
+    } catch (error) {
+        console.error('❌ Error fetching message logs:', error.message);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });

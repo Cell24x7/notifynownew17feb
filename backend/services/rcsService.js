@@ -93,11 +93,24 @@ const sendRcsTemplate = async (mobile, templateName) => {
       }
     });
 
+    console.log(`📥 Dotgo Response [${response.status}]:`, JSON.stringify(response.data));
+
     // Dotgo usually returns a messageId in response
     if (response.status === 200 || response.status === 201) {
+      // Check for multiple possible ID fields
+      const messageId = response.data?.messageId ||
+        response.data?.messageID ||
+        response.data?.id ||
+        response.data?.msgId ||
+        "N/A";
+
+      if (messageId === "N/A") {
+        console.warn("⚠️ Dotgo response missing ID field:", JSON.stringify(response.data));
+      }
+
       return {
         success: true,
-        messageId: response.data?.id || "N/A",
+        messageId: messageId,
         raw: response.data
       };
     }
@@ -140,8 +153,15 @@ const sendRcsMessage = async (mobile, message) => {
       }
     });
 
+    console.log(`📥 Dotgo Text Response [${response.status}]:`, JSON.stringify(response.data));
+
     if (response.status === 200 || response.status === 201) {
-      return { success: true, messageId: response.data?.id || "N/A" };
+      const messageId = response.data?.messageId ||
+        response.data?.messageID ||
+        response.data?.id ||
+        response.data?.msgId ||
+        "N/A";
+      return { success: true, messageId: messageId };
     }
 
     return { success: false, error: `API status ${response.status}` };

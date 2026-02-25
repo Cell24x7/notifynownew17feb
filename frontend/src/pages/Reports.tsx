@@ -28,13 +28,14 @@ interface Report {
 
 interface WebhookLog {
     id: number;
-    received_time: string;
-    business_id: string;
-    event_type: string;
-    message_id_envelope: string;
+    campaign_id: string;
+    message_id: string;
+    recipient: string;
     status: string;
-    created_at: string;
-    message_data: string;
+    send_time: string;
+    delivery_time: string | null;
+    read_time: string | null;
+    updated_at: string;
 }
 
 export default function Reports() {
@@ -82,7 +83,7 @@ export default function Reports() {
         setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_BASE_URL}/api/webhooks/logs`, {
+            const response = await fetch(`${API_BASE_URL}/api/webhooks/message-logs`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -127,20 +128,12 @@ export default function Reports() {
     );
 
     const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
+        switch (status?.toLowerCase()) {
             case 'sent': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'delivered': return 'bg-green-100 text-green-700 border-green-200';
             case 'read': return 'bg-purple-100 text-purple-700 border-purple-200';
             case 'failed': return 'bg-red-100 text-red-700 border-red-200';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';
-        }
-    };
-
-    const decodeBase64Data = (base64: string) => {
-        try {
-            return JSON.parse(atob(base64));
-        } catch (e) {
-            return { error: 'Invalid data' };
         }
     };
 
@@ -273,11 +266,11 @@ export default function Reports() {
                         <CardHeader className="pb-3 border-b">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <CardTitle className="text-lg">Real-time Webhook Logs</CardTitle>
-                                    <CardDescription>Direct status updates from the messaging provider</CardDescription>
+                                    <CardTitle className="text-lg text-primary">Consolidated Delivery Logs</CardTitle>
+                                    <CardDescription>Live status updates for every recipient</CardDescription>
                                 </div>
                                 <Badge variant="outline" className="font-mono">
-                                    Total Logs: {webhookLogs.length}
+                                    Total Messages: {webhookLogs.length}
                                 </Badge>
                             </div>
                         </CardHeader>
@@ -285,57 +278,69 @@ export default function Reports() {
                             <Table>
                                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                                     <TableRow>
-                                        <TableHead className="w-[180px]">Timestamp</TableHead>
+                                        <TableHead className="w-[180px]">Last Update</TableHead>
                                         <TableHead>Message ID</TableHead>
                                         <TableHead>Recipient</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
+                                        <TableHead className="text-right">Timeline</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {loadingLogs ? (
                                         <TableRow><TableCell colSpan={5} className="text-center py-10">Fetching logs...</TableCell></TableRow>
                                     ) : webhookLogs.length === 0 ? (
-                                        <TableRow><TableCell colSpan={5} className="text-center py-10">No logs available yet.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={5} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
                                     ) : (
-                                        webhookLogs.map((log) => {
-                                            const decoded = decodeBase64Data(log.message_data);
-                                            return (
-                                                <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
-                                                    <TableCell className="text-xs font-medium">
-                                                        {format(new Date(log.created_at), 'dd MMM HH:mm:ss')}
-                                                    </TableCell>
-                                                    <TableCell className="font-mono text-[10px] text-muted-foreground truncate max-w-[150px]">
-                                                        {log.message_id_envelope}
-                                                    </TableCell>
-                                                    <TableCell className="font-medium text-xs">
-                                                        {decoded.senderPhoneNumber || 'System'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline" className={cn("uppercase text-[10px] font-bold px-2 py-0.5", getStatusColor(log.status))}>
-                                                            {log.status}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                                    <MessageSquare className="h-4 w-4" />
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-[300px] text-xs">
-                                                                <div className="space-y-2">
-                                                                    <p className="font-bold border-b pb-1">Raw Payload Data</p>
-                                                                    <pre className="p-2 bg-muted rounded overflow-auto max-h-[200px] font-mono whitespace-pre-wrap">
-                                                                        {JSON.stringify(decoded, null, 2)}
-                                                                    </pre>
+                                        webhookLogs.map((log) => (
+                                            <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
+                                                <TableCell className="text-xs font-medium">
+                                                    {format(new Date(log.updated_at), 'dd MMM HH:mm:ss')}
+                                                </TableCell>
+                                                <TableCell className="font-mono text-[10px] text-muted-foreground truncate max-w-[150px]">
+                                                    {log.message_id || 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="font-bold text-xs">
+                                                    {log.recipient}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={cn("uppercase text-[10px] font-bold px-2 py-0.5", getStatusColor(log.status))}>
+                                                        {log.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1">
+                                                                <MessageSquare className="h-3 w-3" />
+                                                                View Details
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-[280px] p-3 text-xs">
+                                                            <div className="space-y-3">
+                                                                <p className="font-bold border-b pb-1">Delivery Timeline</p>
+                                                                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                                                    <span className="text-muted-foreground">Sent:</span>
+                                                                    <span>{log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}</span>
+                                                                    
+                                                                    <span className="text-muted-foreground">Delivered:</span>
+                                                                    <span className={log.delivery_time ? "text-green-600 font-medium" : ""}>
+                                                                        {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : 'Pending'}
+                                                                    </span>
+                                                                    
+                                                                    <span className="text-muted-foreground">Read:</span>
+                                                                    <span className={log.read_time ? "text-purple-600 font-medium" : ""}>
+                                                                        {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : 'Unread'}
+                                                                    </span>
                                                                 </div>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
+                                                                <div className="pt-2 border-t text-[10px] text-muted-foreground">
+                                                                    <p>Campaign ID: {log.campaign_id}</p>
+                                                                </div>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
                                     )}
                                 </TableBody>
                             </Table>

@@ -20,6 +20,8 @@ const normalizeRcsResult = (result) => {
 
 const BATCH_SIZE = 50; // Reduced from 1000 to 50 to prevent timeouts with slow API
 
+const { deductCampaignCredits } = require('./walletService');
+
 const processQueue = async () => {
     try {
         // 1. Fetch pending items
@@ -28,7 +30,7 @@ const processQueue = async () => {
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
-            c.name as campaign_name, c.channel, c.user_id
+            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted
             FROM campaign_queue q
             JOIN campaigns c ON q.campaign_id = c.id
             LEFT JOIN message_templates mt ON c.template_id = mt.id
@@ -39,6 +41,13 @@ const processQueue = async () => {
         const [items] = await query(sql, [BATCH_SIZE]);
 
         if (items.length === 0) return; // Nothing to do
+
+        // Safety Deduct: For any campaign in this batch that isn't deducted yet, deduct it now.
+        // This covers campaigns started via other routes or scheduled campaigns.
+        const uniqueCampaigns = [...new Set(items.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
+        for (const campId of uniqueCampaigns) {
+            await deductCampaignCredits(campId);
+        }
 
         console.log(`[QueueProcessor] Processing ${items.length} items...`);
 
@@ -87,58 +96,22 @@ const processQueue = async () => {
                     );
 
                     // Log to message_logs
-                    await query(
-                        'INSERT INTO message_logs (campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-                        [item.campaign_id, item.campaign_name, item.template_name, result.messageId, item.mobile, 'sent']
-                    );
-
-                    // --- AUTOMATIC WEBHOOK LOGGING (Initial Sent Event) ---
+                    // --- LOG TO MESSAGE_LOGS (Primary source for Reports) ---
                     try {
                         await query(
-                            `INSERT INTO webhook_logs 
-                            (received_time, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [
-                                new Date().toISOString(),
-                                'NA',
-                                Buffer.from(JSON.stringify({ messageId: result.messageId, eventType: 'SENT', senderPhoneNumber: item.mobile })).toString('base64'),
-                                'RBM',
-                                process.env.DOTGO_BOT_ID || 'System',
-                                'event',
-                                'NA',
-                                'SENT',
-                                result.messageId,
-                                new Date().toISOString(),
-                                JSON.stringify({ initialResponse: result, source: 'QueueProcessor' }),
-                                'sent'
-                            ]
+                            `INSERT INTO message_logs 
+                             (campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) 
+                             VALUES (?, ?, ?, ?, ?, 'sent', NOW())`,
+                            [item.campaign_id, item.campaign_name, item.template_name, result.messageId, item.mobile]
                         );
-                        console.log(`[QueueProcessor] Auto-logged SENT status to webhook_logs for ${result.messageId}`);
+                        console.log(`[QueueProcessor] Logged sent message ${result.messageId} to message_logs`);
                     } catch (logErr) {
-                        console.error('[QueueProcessor] Webhook auto-logging failed', logErr.message);
+                        console.error('[QueueProcessor] message_logs entry failed', logErr.message);
                     }
                     // ------------------------------------------------------
 
                     stats[item.campaign_id].sent++;
 
-                    // --- CREDIT DEDUCTION LOGIC ---
-                    // Deduct 1 credit/₹1 per successfully sent message
-                    try {
-                        await query(`
-                            UPDATE users 
-                            SET credits_available = credits_available - 1,
-                                wallet_balance = wallet_balance - 1,
-                                credits_used = credits_used + 1
-                            WHERE id = ?
-                        `, [item.user_id]);
-
-                        await query(`
-                            INSERT INTO transactions (user_id, type, amount, credits, description, status)
-                            VALUES (?, 'debit', 1, 1, ?, 'completed')
-                        `, [item.user_id, `Campaign Deduction: ${item.campaign_name}`]);
-                    } catch (creditErr) {
-                        console.error(`[QueueProcessor] Credit deduction failed for user ${item.user_id}`, creditErr);
-                    }
                     // ------------------------------
                 } else {
                     await query(
