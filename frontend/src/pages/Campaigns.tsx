@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, ChevronRight, Check, ChevronsUpDown, IndianRupee, RefreshCw } from 'lucide-react';
+import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File, Phone, Link, MessageSquare, Smartphone, ChevronRight, Check, ChevronsUpDown, IndianRupee, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1034,28 +1034,23 @@ export default function Campaigns() {
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setIsSmsDialogOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20"
-              >
+            <DialogTrigger asChild>
+              <Button className="gradient-primary w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
-                New SMS Campaign
+                Create Campaign
               </Button>
-              <DialogTrigger asChild>
-                <Button className="gradient-primary w-full sm:w-auto">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Campaign
-                </Button>
-              </DialogTrigger>
-            </div>
+            </DialogTrigger>
             <DialogContent className="max-w-[95vw] w-full h-[90vh] p-0">
               <DialogTitle className="sr-only">Create New Campaign</DialogTitle>
               <DialogDescription className="sr-only">Create a new messaging campaign</DialogDescription>
               <CampaignCreationStepper
-                templates={templates.filter(t => t.status === 'approved')}
+                templates={templates.filter(t => t.status === 'approved') as any}
                 onComplete={handleCampaignComplete}
                 onCancel={() => setIsCreateOpen(false)}
+                onSmsSelect={() => {
+                  setIsCreateOpen(false);
+                  setIsSmsDialogOpen(true);
+                }}
               />
             </DialogContent>
           </Dialog>

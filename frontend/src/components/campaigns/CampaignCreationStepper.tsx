@@ -26,6 +26,7 @@ interface CampaignCreationStepperProps {
   templates: MessageTemplate[];
   onComplete: (campaignData: CampaignData) => void;
   onCancel: () => void;
+  onSmsSelect?: () => void;
 }
 
 export interface CampaignData {
@@ -64,7 +65,7 @@ const channelOptions = [
   { value: 'rcs', label: 'RCS', icon: '💬', costPerMessage: 0.30 },
 ];
 
-export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {
+export default function CampaignCreationStepper({ templates, onComplete, onCancel, onSmsSelect }: CampaignCreationStepperProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const enabledChannels = user?.channels_enabled || [];
@@ -442,11 +443,17 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                           {channelOptions.filter(opt => enabledChannels.includes(opt.value)).map((channel) => (
                             <button
                               key={channel.value}
-                              onClick={() => setCampaignData({ ...campaignData, channel: channel.value as Channel, templateId: '' })}
+                              onClick={() => {
+                                if (channel.value === 'sms' && onSmsSelect) {
+                                  onSmsSelect();
+                                } else {
+                                  setCampaignData({ ...campaignData, channel: channel.value as Channel, templateId: '' });
+                                }
+                              }}
                               className={cn(
                                 "p-4 rounded-lg border-2 text-center transition-all hover:border-primary hover:bg-primary/5",
                                 campaignData.channel === channel.value && "border-primary bg-primary/10"
-                              )}
+                                )}
                             >
                               <span className="text-2xl">{channel.icon}</span>
                               <p className="font-medium mt-1">{channel.label}</p>
@@ -1042,7 +1049,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                   <div className="space-y-2">
                       <Label>Destination (Phone/Email)</Label>
                       <Input 
-                          placeholder={campaignData.channel === 'email' ? 'Enter email...' : 'Enter phone number...'}
+                           placeholder={(campaignData.channel as string) === 'email' ? 'Enter email...' : 'Enter phone number...'}
                           value={testDestination}
                           onChange={(e) => setTestDestination(e.target.value)}
                       />
