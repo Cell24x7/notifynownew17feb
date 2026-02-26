@@ -26,13 +26,19 @@ const processQueue = async () => {
     try {
         // 1. Fetch pending items
         // We join with campaigns to get template_id and status
-        // Only process active campaigns
+        // We join with users to get their specific rcs_config_id
+        // We join with rcs_configs to get the full config details
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
-            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted
+            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted,
+            u.rcs_config_id,
+            rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
+            rc.client_id, rc.client_secret, rc.bot_id
             FROM campaign_queue q
             JOIN campaigns c ON q.campaign_id = c.id
+            JOIN users u ON c.user_id = u.id
+            LEFT JOIN rcs_configs rc ON u.rcs_config_id = rc.id
             LEFT JOIN message_templates mt ON c.template_id = mt.id
             WHERE q.status = 'pending' AND c.status = 'running'
             LIMIT ?
@@ -42,8 +48,7 @@ const processQueue = async () => {
 
         if (items.length === 0) return; // Nothing to do
 
-        // Safety Deduct: For any campaign in this batch that isn't deducted yet, deduct it now.
-        // This covers campaigns started via other routes or scheduled campaigns.
+        // Safety Deduct
         const uniqueCampaigns = [...new Set(items.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
         for (const campId of uniqueCampaigns) {
             await deductCampaignCredits(campId);
@@ -51,16 +56,7 @@ const processQueue = async () => {
 
         console.log(`[QueueProcessor] Processing ${items.length} items...`);
 
-        // Get Token once for batch
-        let rcsToken = null;
-        try {
-            rcsToken = await getRcsToken();
-        } catch (e) {
-            console.error('[QueueProcessor] Failed to get RCS token', e);
-            // Retry later
-            return;
-        }
-
+        // Removed batch-wide rcsToken fetch because it's now config-specific and handled inside rcsService
 
         // Track stats for bulk update
         const stats = {}; // { campaignId: { sent: 0, failed: 0 } }
@@ -75,14 +71,25 @@ const processQueue = async () => {
             let result = { success: false, error: 'Unknown' };
             try {
                 if (item.channel === 'RCS' || item.channel === 'rcs') {
+                    // Prepare config object if exists
+                    const userConfig = item.rcs_config_id ? {
+                        id: item.rcs_config_id,
+                        name: item.rcs_config_name,
+                        auth_url: item.auth_url,
+                        api_base_url: item.api_base_url,
+                        client_id: item.client_id,
+                        client_secret: item.client_secret,
+                        bot_id: item.bot_id
+                    } : null;
+
                     // Try template first
                     try {
-                        console.log(`[QueueDebug] Processing ${item.mobile}. Template: '${item.template_name}'`);
-                        const raw = await sendRcsTemplate(item.mobile, item.template_name);
+                        console.log(`[QueueDebug] Processing ${item.mobile}. Template: '${item.template_name}' (Config: ${userConfig?.name || 'Default'})`);
+                        const raw = await sendRcsTemplate(item.mobile, item.template_name, userConfig);
                         result = normalizeRcsResult(raw);
                     } catch (err) {
                         console.warn(`[QueueProcessor] Template failed for ${item.mobile}, trying text`);
-                        const rawText = await sendRcsMessage(item.mobile, item.campaign_name);
+                        const rawText = await sendRcsMessage(item.mobile, item.campaign_name, userConfig);
                         result = normalizeRcsResult(rawText);
                     }
                 } else {
@@ -96,7 +103,6 @@ const processQueue = async () => {
                     );
 
                     // Log to message_logs
-                    // --- LOG TO MESSAGE_LOGS (Primary source for Reports) ---
                     try {
                         await query(
                             `INSERT INTO message_logs 
@@ -104,15 +110,11 @@ const processQueue = async () => {
                              VALUES (?, ?, ?, ?, ?, 'sent', NOW())`,
                             [item.campaign_id, item.campaign_name, item.template_name, result.messageId, item.mobile]
                         );
-                        console.log(`[QueueProcessor] Logged sent message ${result.messageId} to message_logs`);
                     } catch (logErr) {
                         console.error('[QueueProcessor] message_logs entry failed', logErr.message);
                     }
-                    // ------------------------------------------------------
 
                     stats[item.campaign_id].sent++;
-
-                    // ------------------------------
                 } else {
                     await query(
                         'UPDATE campaign_queue SET status = "failed", error_message = ? WHERE id = ?',

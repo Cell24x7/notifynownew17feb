@@ -41,7 +41,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
 import { SMSCampaignDialog } from '@/components/campaigns/SMSCampaignDialog';
 import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
-import { rcsTemplatesService } from '@/services/rcsTemplatesService';
+import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesService';
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -113,6 +113,7 @@ const dateRangePresets = ['Today', 'Last 7 Days', 'Last 30 Days', 'This Month', 
 export default function Campaigns() {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
+  const { syncTemplate } = useRCSTemplates();
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const enabledChannels = user?.channels_enabled || [];
 
@@ -143,20 +144,15 @@ export default function Campaigns() {
       try {
         const externalRcsData = await rcsCampaignApi.getExternalTemplates();
         if (externalRcsData && Array.isArray(externalRcsData.templates)) {
-          console.log('📦 External RCS Templates API Response:', externalRcsData); // DEBUG LOG
-
           // Map external templates to MessageTemplate format
           const externalTemplates = externalRcsData.templates.map((t: any) => {
-            // Handle various potential field names from external API - including TemplateName (PascalCase) from logs
-            const tName = t.TemplateName || t.template_name || t.name || t.templateName || t.templateId || (typeof t === 'string' ? t : 'Unknown Template');
-            // Use Name as ID if no ID present, or use API ID
-            const tId = t.Id ? String(t.Id) : tName;
-
+            const tName = t.name || t.TemplateName || 'Unknown Template';
+            const tId = tName; // Use name as ID for Dotgo templates
             return {
               id: tId,
               name: tName,
               channel: 'rcs',
-              status: 'approved', // External templates are assumed approved
+              status: t.status || 'approved', // Use dynamic status from API
               language: t.language || 'en',
               category: t.category || 'Marketing',
               body: t.body || 'External Template (Preview not available)',
@@ -209,18 +205,19 @@ export default function Campaigns() {
   const [templateStep, setTemplateStep] = useState<'channel' | 'form'>('channel');
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [templateType, setTemplateType] = useState<'standard' | 'carousel'>('standard');
-  const [newTemplate, setNewTemplate] = useState<Omit<MessageTemplate, 'id' | 'createdAt' | 'usageCount' | 'status'>>({
+  const [newTemplate, setNewTemplate] = useState<any>({
     name: '',
     language: 'en',
     category: 'Marketing',
     channel: 'rcs',
-    templateType: 'standard',
+    template_type: 'standard',
     header: { type: 'none' },
     body: '',
     footer: '',
     buttons: [],
     variables: []
-  });// Language selector popover
+  });
+// Language selector popover
   const [languagePopoverOpen, setLanguagePopoverOpen] = useState(false);
 
   const [templateAnalyticsOpen, setTemplateAnalyticsOpen] = useState(false);
@@ -256,15 +253,31 @@ export default function Campaigns() {
     }
   };
 
-  const handleSyncTemplate = async (templateId: string) => {
+  const handleSyncTemplate = async (template: MessageTemplate) => {
     try {
-      toast({ title: 'Syncing...', description: 'Checking status with Vi RBM...' });
-      await templateService.syncTemplate(templateId);
-      fetchData();
-      toast({ title: 'Synced', description: 'Template status updated.' });
+      toast({ title: 'Syncing...', description: `Checking status for ${template.name}...` });
+      
+      // Use the syncTemplate function from useRCSTemplates hook
+      const result = await syncTemplate(template.name);
+
+      // Update local state so it reflects in the UI immediately
+      setTemplates(prev => prev.map(t => 
+        (t.name === template.name || t.id === template.id) 
+          ? { ...t, status: result.status } as MessageTemplate
+          : t
+      ));
+      
+      toast({ 
+        title: 'Status Updated', 
+        description: `Template "${template.name}" status is now: ${result.status}` 
+      });
     } catch (err: any) {
       console.error('Sync error:', err);
-      toast({ title: 'Sync Failed', description: 'Could not fetch status from Vi RBM', variant: 'destructive' });
+      toast({ 
+        title: 'Sync Failed', 
+        description: err.message || 'Could not fetch status from Dotgo', 
+        variant: 'destructive' 
+      });
     }
   };
 
@@ -526,12 +539,7 @@ export default function Campaigns() {
 
       if (newTemplate.channel === 'rcs' && !isDraft) {
         try {
-          const formDataToSend = new FormData();
-          formDataToSend.append('custId', '7');
-          formDataToSend.append('template_name', newTemplate.name);
-          formDataToSend.append('template_type', 'text_message');
-          formDataToSend.append('template_content', newTemplate.body);
-
+          // Format suggestions for Dotgo API
           const suggestions = newTemplate.buttons.map(btn => {
             if (btn.type === 'quick_reply') {
               return { suggestionType: 'reply', displayText: btn.label, postback: btn.label };
@@ -543,23 +551,30 @@ export default function Campaigns() {
             return null;
           }).filter(Boolean);
 
-          formDataToSend.append('suggestion', JSON.stringify(suggestions));
+          const rcsDotgoPayload = {
+            name: newTemplate.name,
+            type: 'text_message', // Always text_message for now as per user curl
+            textMessageContent: newTemplate.body,
+            fallbackText: newTemplate.body.substring(0, 100), // Simple fallback
+            suggestions: suggestions
+          };
 
-          const result = await rcsTemplatesService.createExternalTemplate(formDataToSend);
+          // Use our standard createTemplate which now routes to backend /api/rcs/templates
+          const result = await rcsTemplatesService.createTemplate(rcsDotgoPayload);
 
-          if (result.code !== 0) {
+          if (!result.success) {
             toast({
-              title: 'External API Error',
-              description: result.msg || 'Failed to create template on RCS panel.',
+              title: 'RCS API Error',
+              description: result.message || 'Failed to create template on Dotgo.',
               variant: 'destructive'
             });
-            return; // Stop if external API fails? Or continue to local save? Assuming user wants both.
+            return;
           }
         } catch (error: any) {
-          console.error('External RCS API error:', error);
+          console.error('RCS Creation error:', error);
           toast({
-            title: 'External API Connection Error',
-            description: error.message || 'Could not connect to RCS external API.',
+            title: 'RCS Error',
+            description: error.message || 'Could not connect to RCS API.',
             variant: 'destructive'
           });
           return;
@@ -600,13 +615,27 @@ export default function Campaigns() {
       language: 'en',
       category: 'Marketing',
       channel: 'whatsapp',
+      template_type: 'standard',
       header: { type: 'none' },
       body: '',
       footer: '',
       buttons: [],
+      variables: []
     });
     setTemplateType('standard');
     setTemplateStep('channel');
+  };
+
+  const handleCreateCampaignFromTemplate = (template: MessageTemplate) => {
+    setNewCampaign({
+      ...newCampaign,
+      channel: template.channel as any,
+      templateId: template.id,
+      name: `${user?.name || 'User'} - NotifyNow - ${Math.random().toString(36).substring(2, 7).toUpperCase()}`
+    });
+    setActiveTab('campaigns');
+    setIsCreateOpen(true);
+    setCreateStep(3); // Skip to step 3 (Audience Selection) as Channel & Template are known
   };
 
   const handleEditTemplate = (template: MessageTemplate) => {
@@ -1389,9 +1418,33 @@ export default function Campaigns() {
                                 Pending Approval
                               </Badge>
                             )}
+                            {template.channel === 'rcs' && template.status && template.status !== 'pending' && (
+                              <Badge 
+                                variant={template.status === 'approved' ? 'success' : template.status === 'rejected' ? 'destructive' : 'secondary'}
+                                className={cn(
+                                  "capitalize",
+                                  template.status === 'approved' && "bg-emerald-100 text-emerald-700 border-emerald-200",
+                                  template.status === 'rejected' && "bg-red-100 text-red-700 border-red-200",
+                                  template.status === 'created' && "bg-blue-100 text-blue-700 border-blue-200"
+                                )}
+                              >
+                                {template.status}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {template.channel === 'rcs' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => handleSyncTemplate(template)}
+                              title="Sync Status from Dotgo"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          )}
                           {isAdmin && template.status === 'pending' && (
                             <div className="flex items-center gap-1">
                               <Button
@@ -1470,14 +1523,21 @@ export default function Campaigns() {
 
                       <div className="flex gap-2">
                         {template.channel === 'rcs' && (
-                          <Button variant="outline" size="icon" title="Sync Status" onClick={() => handleSyncTemplate(template.id)}>
-                            <RefreshCw className="h-4 w-4" />
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 gradient-primary text-white border-none shadow-sm hover:opacity-90" 
+                            onClick={() => handleCreateCampaignFromTemplate(template)}
+                          >
+                            <Zap className="h-4 w-4 mr-2" />
+                            Create Campaign
                           </Button>
                         )}
-                        <Button variant="outline" className="flex-1" onClick={() => handleEditTemplate(template)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
+                        {template.channel !== 'rcs' && (
+                          <Button variant="outline" className="flex-1" onClick={() => handleEditTemplate(template)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        )}
                         {template.analytics && (
                           <Button variant="outline" size="icon" onClick={() => openTemplateAnalytics(template)}>
                             <BarChart3 className="h-4 w-4" />
@@ -1583,7 +1643,7 @@ export default function Campaigns() {
                                 <Button
                                   variant="outline"
                                   className="w-full"
-                                  onClick={() => handleSyncTemplate(template.id)}
+                                  onClick={() => handleSyncTemplate(template)}
                                 >
                                   <RefreshCw className="h-4 w-4 mr-2" />
                                   Sync Status

@@ -36,6 +36,7 @@ import SuperAdminLogs from "./pages/super-admin/Logs";
 import SuperAdminReports from "./pages/super-admin/Reports";
 import SuperAdminVendors from "./pages/super-admin/Vendors";
 import SuperAdminNumbers from "./pages/super-admin/Numbers";
+import SuperAdminRcsConfigs from "./pages/super-admin/RcsConfigs";
 
 import UserPlans from "./pages/UserPlans";
 import TermsOfService from "./pages/TermsOfService";
@@ -91,6 +92,7 @@ const App = () => (
                   <Route path="/super-admin/reports" element={<SuperAdminReports />} />
                   <Route path="/super-admin/vendors" element={<SuperAdminVendors />} />
                   <Route path="/super-admin/numbers" element={<SuperAdminNumbers />} />
+                  <Route path="/super-admin/rcs-configs" element={<SuperAdminRcsConfigs />} />
 
 
                 </Route>

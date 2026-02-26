@@ -74,6 +74,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
    API ROUTES
 ================================== */
 app.use('/api/rcs', require('./routes/rcs'));
+app.use('/api/rcs-configs', require('./routes/rcsConfigs'));
 
 
 app.use('/api/auth', require('./routes/auth'));

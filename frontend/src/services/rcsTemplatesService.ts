@@ -106,6 +106,29 @@ export const rcsTemplatesService = {
     }
   },
 
+  // Sync template status from Dotgo via backend
+  async syncTemplateStatus(templateName: string) {
+    try {
+      const response = await fetch(`${API_BASE}/templates/${templateName}/status`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({} as any));
+        throw new Error(result.message || 'Failed to sync status');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error syncing status:', error);
+      throw error;
+    }
+  },
+
   // External create template (kept as-is)
   async createExternalTemplate(formData: FormData) {
     try {
@@ -398,6 +421,30 @@ export function useRCSTemplates() {
     [templates]
   );
 
+  // Sync template status
+  const syncTemplate = useCallback(
+    async (templateName: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await rcsTemplatesService.syncTemplateStatus(templateName);
+        // Update the local templates list with the new status if found
+        setTemplates(prev => prev.map(t =>
+          (t.name === templateName || t.id === templateName)
+            ? { ...t, status: result.status }
+            : t
+        ));
+        return result;
+      } catch (err: any) {
+        setError(err?.message || 'Failed to sync template status');
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   return {
     templates,
     loading,
@@ -408,5 +455,6 @@ export function useRCSTemplates() {
     deleteTemplate,
     approveTemplate,
     rejectTemplate,
+    syncTemplate,
   };
 }

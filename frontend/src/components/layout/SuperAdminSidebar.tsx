@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Crown,
   LogOut,
-  FileText
+  FileText,
+  MessageSquareMore
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ const menuItems = [
   { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
   { icon: ScrollText, label: 'Reports', path: '/super-admin/reports', permission: 'Reports - View' },
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
+  { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'Vendors - View' },
   { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
 ];

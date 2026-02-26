@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ export default function SuperAdminClients() {
   const [clients, setClients] = useState<any[]>([]);
   const [filteredClients, setFilteredClients] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]); // State for real plans
+  const [rcsConfigs, setRcsConfigs] = useState<any[]>([]); // State for RCS configs
   const [loading, setLoading] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
@@ -45,6 +46,7 @@ export default function SuperAdminClients() {
     status: 'active' as 'active' | 'suspended' | 'pending' | 'trial',
     credits_available: 0,
     channels_enabled: [] as string[],
+    rcs_config_id: '',
   });
 
   // Fetch real plans
@@ -81,9 +83,25 @@ export default function SuperAdminClients() {
     }
   };
 
+  // Fetch RCS configurations
+  const fetchRcsConfigs = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/rcs-configs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setRcsConfigs(res.data.configs || []);
+      }
+    } catch (err) {
+      console.error('Failed to load RCS configs', err);
+    }
+  };
+
   useEffect(() => {
     fetchClients();
     fetchPlans();
+    fetchRcsConfigs();
   }, []);
 
   // Real-time filtering
@@ -236,6 +254,7 @@ export default function SuperAdminClients() {
         status: 'active',
         credits_available: 0,
         channels_enabled: [],
+        rcs_config_id: '',
       });
   }
 
@@ -259,6 +278,7 @@ export default function SuperAdminClients() {
       status: client.status,
       credits_available: client.credits_available || 0,
       channels_enabled: clientChannels,
+      rcs_config_id: client.rcs_config_id || '',
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -276,6 +296,7 @@ export default function SuperAdminClients() {
       status: client.status,
       credits_available: client.credits_available || 0,
        channels_enabled: parseChannels(client.channels_enabled),
+       rcs_config_id: client.rcs_config_id || '',
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -720,6 +741,36 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                         onChange={e => setCurrentClient(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))}
                         disabled={modalMode === 'view'}
                         />
+                    </div>
+                </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Section 3: RCS Configuration */}
+            <div className="space-y-4">
+                 <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4" /> Provider Settings
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label>RCS Configuration</Label>
+                        <Select
+                            value={currentClient.rcs_config_id || 'default'}
+                            onValueChange={v => setCurrentClient(p => ({...p, rcs_config_id: v === 'default' ? '' : v}))}
+                            disabled={modalMode === 'view'}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select RCS Configuration" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="default">None (Select a configuration)</SelectItem>
+                                {rcsConfigs.map(config => (
+                                    <SelectItem key={config.id} value={String(config.id)}>{config.name} ({config.bot_id})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">Each user must have a Dotgo RCS configuration assigned to send messages.</p>
                     </div>
                 </div>
             </div>

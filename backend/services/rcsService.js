@@ -2,30 +2,34 @@ const axios = require("axios");
 const FormData = require("form-data");
 require("dotenv").config();
 
-const DOTGO_AUTH_URL = process.env.DOTGO_AUTH_URL;
-const DOTGO_API_BASE_URL = process.env.DOTGO_API_BASE_URL;
-const DOTGO_CLIENT_ID = process.env.DOTGO_CLIENT_ID;
-const DOTGO_CLIENT_SECRET = process.env.DOTGO_CLIENT_SECRET;
-const DOTGO_BOT_ID = process.env.DOTGO_BOT_ID;
-
-let dotgoAccessToken = null;
-let tokenExpiresAt = null;
+// Token caching Map: configId -> { token, expiresAt }
+// Keys: 'default', 'admin', or configId
+const tokenCache = new Map();
 
 /**
  * Get Dotgo RCS Access Token
+ * @param {object} config - Configuration object containing client_id, client_secret, auth_url, and an optional id for caching.
  * @returns {Promise<string|null>} - Access token
  */
-const getRcsToken = async () => {
+const getRcsToken = async (config) => {
+  if (!config) {
+    console.error("❌ Dotgo Token Error: No configuration provided");
+    return null;
+  }
+
   try {
-    if (dotgoAccessToken && tokenExpiresAt && Date.now() < tokenExpiresAt) {
-      return dotgoAccessToken;
+    const { client_id: clientId, client_secret: clientSecret, auth_url: authUrl, id: cacheKey } = config;
+
+    const cached = tokenCache.get(cacheKey);
+    if (cached && cached.token && cached.expiresAt && Date.now() < cached.expiresAt) {
+      return cached.token;
     }
 
-    console.log("🔑 Fetching Dotgo RCS token...");
-    const auth = Buffer.from(`${DOTGO_CLIENT_ID}:${DOTGO_CLIENT_SECRET}`).toString('base64');
+    console.log(`🔑 Fetching Dotgo RCS token for [${config.name || cacheKey}]...`);
+    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
     const response = await axios.post(
-      DOTGO_AUTH_URL,
+      authUrl,
       "grant_type=client_credentials",
       {
         headers: {
@@ -36,18 +40,19 @@ const getRcsToken = async () => {
     );
 
     const token = response.data?.access_token;
-
     if (!token) {
       console.error("❌ Dotgo Token Error: token not found in response", response.data);
       return null;
     }
 
-    dotgoAccessToken = token;
     const expiresIn = response.data.expires_in || 3600;
-    tokenExpiresAt = Date.now() + (expiresIn * 1000) - 300000; // 5 mins buffer
+    tokenCache.set(cacheKey, {
+      token: token,
+      expiresAt: Date.now() + (expiresIn * 1000) - 300000 // 5 mins buffer
+    });
 
-    console.log("✅ Dotgo Token obtained successfully");
-    return dotgoAccessToken;
+    console.log(`✅ Dotgo Token obtained successfully for [${config.name || cacheKey}]`);
+    return token;
   } catch (error) {
     console.error("❌ Dotgo Token Error:", error.message);
     if (error.response) {
@@ -58,15 +63,34 @@ const getRcsToken = async () => {
 };
 
 /**
+ * Get Dotgo Admin Token for template management
+ */
+const getDotgoAdminToken = async () => {
+  const adminConfig = {
+    id: 'admin',
+    name: 'Main Admin',
+    client_id: process.env.DOTGO_ADMIN_CLIENT_ID,
+    client_secret: process.env.DOTGO_ADMIN_CLIENT_SECRET,
+    auth_url: process.env.DOTGO_ADMIN_AUTH_URL
+  };
+  return getRcsToken(adminConfig);
+};
+
+/**
  * Send RCS Template Message using Dotgo
- * @param {string} mobile - Recipient phone number (e.g. +91XXXXXXXXXX)
+ * @param {string} mobile - Recipient phone number
  * @param {string} templateName - Dotgo templateCode
+ * @param {object} [config] - Optional configuration override
  * @returns {Promise<object>}
  */
-const sendRcsTemplate = async (mobile, templateName) => {
+const sendRcsTemplate = async (mobile, templateName, config) => {
+  if (!config) return { success: false, error: "No RCS configuration assigned to this user" };
+
   try {
-    const token = await getRcsToken();
+    const token = await getRcsToken(config);
     if (!token) return { success: false, error: "Authentication failed" };
+
+    const { api_base_url: apiBaseUrl, bot_id: botId } = config;
 
     // Ensure mobile has + prefix for Dotgo
     const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
@@ -74,7 +98,7 @@ const sendRcsTemplate = async (mobile, templateName) => {
     // Use hardcoded template as per user request if not provided or for testing
     const templateCode = templateName || "Empowering_business";
 
-    const url = `${DOTGO_API_BASE_URL}/phones/${formattedMobile}/agentMessages?botId=${DOTGO_BOT_ID}`;
+    const url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
 
     const payload = {
       contentMessage: {
@@ -84,7 +108,7 @@ const sendRcsTemplate = async (mobile, templateName) => {
       }
     };
 
-    console.log(`📤 Sending Dotgo RCS to ${formattedMobile} (Template: ${templateCode})`);
+    console.log(`📤 Sending Dotgo RCS (Config: ${config?.name || 'Default'}) to ${formattedMobile} (Template: ${templateCode})`);
 
     const response = await axios.post(url, payload, {
       headers: {
@@ -95,24 +119,9 @@ const sendRcsTemplate = async (mobile, templateName) => {
 
     console.log(`📥 Dotgo Response [${response.status}]:`, JSON.stringify(response.data));
 
-    // Dotgo usually returns a messageId in response
     if (response.status === 200 || response.status === 201) {
-      // Check for multiple possible ID fields
-      const messageId = response.data?.messageId ||
-        response.data?.messageID ||
-        response.data?.id ||
-        response.data?.msgId ||
-        "N/A";
-
-      if (messageId === "N/A") {
-        console.warn("⚠️ Dotgo response missing ID field:", JSON.stringify(response.data));
-      }
-
-      return {
-        success: true,
-        messageId: messageId,
-        raw: response.data
-      };
+      const messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
+      return { success: true, messageId: messageId, raw: response.data };
     }
 
     return { success: false, error: `API returned status ${response.status}`, raw: response.data };
@@ -130,15 +139,20 @@ const sendRcsTemplate = async (mobile, templateName) => {
  * Send Plain Text RCS Message using Dotgo
  * @param {string} mobile 
  * @param {string} message 
+ * @param {object} [config]
  * @returns {Promise<object>}
  */
-const sendRcsMessage = async (mobile, message) => {
+const sendRcsMessage = async (mobile, message, config) => {
+  if (!config) return { success: false, error: "No RCS configuration assigned to this user" };
+
   try {
-    const token = await getRcsToken();
+    const token = await getRcsToken(config);
     if (!token) return { success: false, error: "Authentication failed" };
 
+    const { api_base_url: apiBaseUrl, bot_id: botId } = config;
+
     const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
-    const url = `${DOTGO_API_BASE_URL}/phones/${formattedMobile}/agentMessages?botId=${DOTGO_BOT_ID}`;
+    const url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
 
     const payload = {
       contentMessage: {
@@ -156,11 +170,7 @@ const sendRcsMessage = async (mobile, message) => {
     console.log(`📥 Dotgo Text Response [${response.status}]:`, JSON.stringify(response.data));
 
     if (response.status === 200 || response.status === 201) {
-      const messageId = response.data?.messageId ||
-        response.data?.messageID ||
-        response.data?.id ||
-        response.data?.msgId ||
-        "N/A";
+      const messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
       return { success: true, messageId: messageId };
     }
 
@@ -172,21 +182,24 @@ const sendRcsMessage = async (mobile, message) => {
 };
 
 /**
- * Submit a new template to Dotgo
- * @param {object} templateData - Template configuration
+ * Submit a new template to Dotgo using ADMIN credentials
+ * @param {string} botId 
+ * @param {object} templateData 
  * @returns {Promise<object>}
  */
-const submitDotgoTemplate = async (templateData) => {
+const submitDotgoTemplate = async (botId, templateData) => {
   try {
-    const token = await getRcsToken();
-    if (!token) return { success: false, error: "Authentication failed" };
+    const token = await getDotgoAdminToken();
+    if (!token) return { success: false, error: "Admin authentication failed" };
 
-    const url = `https://developer-api.dotgo.com/directory/secure/api/v1/bots/${DOTGO_BOT_ID}/templates`;
+    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    const url = `${baseUrl}/${botId}/templates`;
 
+    console.log(`📤 Submitting Dotgo Template (Admin) for Bot: ${botId}, Template: ${templateData.name}`);
+
+    // Use FormData for multipart/form-data as required by Dotgo
     const form = new FormData();
     form.append('rich_template_data', JSON.stringify(templateData));
-
-    console.log(`📤 Submitting Dotgo Template: ${templateData.name}`);
 
     const response = await axios.post(url, form, {
       headers: {
@@ -207,45 +220,68 @@ const submitDotgoTemplate = async (templateData) => {
 };
 
 /**
- * Get Dotgo Template Status
- * @param {string} templateName - Name of the template
- * @returns {Promise<object>}
+ * Get Dotgo Template Status using ADMIN credentials
  */
-const getDotgoTemplateStatus = async (templateName) => {
+const getDotgoTemplateStatus = async (botId, templateName) => {
   try {
-    const token = await getRcsToken();
-    if (!token) return { success: false, error: "Authentication failed" };
+    const token = await getDotgoAdminToken();
+    if (!token) return { success: false, error: "Admin authentication failed" };
 
-    // Base64 encode the template name
+    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const base64Name = Buffer.from(templateName).toString('base64');
-    const url = `https://developer-api.dotgo.com/directory/secure/api/v1/bots/${DOTGO_BOT_ID}/templates/${base64Name}/templateStatus`;
+    const url = `${baseUrl}/${botId}/templates/${base64Name}/templateStatus`;
 
-    console.log(`🔍 Checking Dotgo Status for: ${templateName} (${base64Name})`);
+    console.log(`🔍 Checking Dotgo Status (Admin) for Bot: ${botId}, Template: ${templateName}`);
 
     const response = await axios.get(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     });
 
     return { success: true, status: response.data?.status || 'UNKNOWN', raw: response.data };
   } catch (error) {
     console.error("❌ Dotgo Status Check Error:", error.message);
-    if (error.response) {
-      return { success: false, error: error.response.data?.message || JSON.stringify(error.response.data) };
-    }
     return { success: false, error: error.message };
   }
 };
 
 /**
- * Dotgo doesn't seem to have a simple "get all templates" API mentioned in the snippets,
- * but for compatibility with existing UI, we return the hardcoded one the user asked for.
+ * Get live external templates from Dotgo using ADMIN credentials
+ * @param {string} botId
  */
-const getExternalTemplates = async () => {
-  return [
-    { name: "Empowering_business", id: "Empowering_business", body: "Hardcoded Dotgo Template" }
-  ];
+const getExternalTemplates = async (botId) => {
+  if (!botId) return [];
+
+  try {
+    const token = await getDotgoAdminToken();
+    if (!token) {
+      console.error("❌ Admin Token failure for template listing");
+      return [];
+    }
+
+    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    const url = `${baseUrl}/${botId}/templates`;
+
+    console.log(`📡 Fetching LIVE Dotgo Templates for Bot: ${botId}`);
+
+    const response = await axios.get(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    // Match the JSON structure provided by the user: { "templateList": [...] }
+    const templateList = response.data?.templateList || [];
+
+    return templateList.map(t => ({
+      id: t.name,
+      name: t.name,
+      status: t.status, // approved, created, etc.
+      type: t.templateType,
+      lastUpdate: t.lastUpdate
+    }));
+
+  } catch (error) {
+    console.error("❌ Fetch External Templates Error:", error.message);
+    return [];
+  }
 };
 
 module.exports = {

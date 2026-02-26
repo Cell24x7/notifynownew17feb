@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
         id, name, email, company AS company_name, contact_phone,
         plan_id, credits_available, wallet_balance, credits_used,
         IFNULL(channels_enabled, '[]') AS channels_enabled,
-        status, created_at, permissions
+        status, created_at, permissions, rcs_config_id
       FROM users
       WHERE role IN ('client', 'user')
       ORDER BY id DESC
@@ -61,11 +61,11 @@ router.post('/', async (req, res) => {
     const [result] = await query(`
       INSERT INTO users (
         name, company, contact_phone, email, password, role,
-        status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?)
+        status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled, rcs_config_id
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?)
     `, [
       name, company_name, contact_phone, email, hash,
-      status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled)
+      status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), req.body.rcs_config_id || null
     ]);
 
     // Log Initial Transaction
@@ -88,7 +88,7 @@ router.put('/:id', async (req, res) => {
   const clientId = req.params.id;
   const {
     name, company_name, contact_phone, email, password,
-    plan_id, status, credits_available, channels_enabled, permissions
+    plan_id, status, credits_available, channels_enabled, permissions, rcs_config_id
   } = req.body;
 
   const fields = [];
@@ -103,6 +103,7 @@ router.put('/:id', async (req, res) => {
   if (credits_available !== undefined) { fields.push('credits_available = ?'); values.push(credits_available); }
   if (channels_enabled !== undefined) { fields.push('channels_enabled = ?'); values.push(JSON.stringify(channels_enabled)); }
   if (permissions !== undefined) { fields.push('permissions = ?'); values.push(JSON.stringify(permissions)); }
+  if (rcs_config_id !== undefined) { fields.push('rcs_config_id = ?'); values.push(rcs_config_id); }
 
   if (credits_available !== undefined) {
     fields.push('wallet_balance = ?');

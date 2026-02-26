@@ -55,7 +55,7 @@ export const rcsCampaignApi = {
       const result = await response.json();
 
       console.log('✅ Campaign sent successfully');
-      console.log(`📊 Results - Sent: ${result.sentMessages}, Failed: ${result.failedMessages}`);
+      console.log(`📊 Results - Queued: ${result.queued || 0}`);
 
       return result;
     } catch (error) {

@@ -99,7 +99,10 @@ export default function Reports() {
     const fetchWebhookLogs = async () => {
         setLoadingLogs(true);
         try {
-            const res = await fetch('/api/webhooks/message-logs');
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${API_BASE_URL}/api/webhooks/message-logs`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
@@ -114,7 +117,10 @@ export default function Reports() {
     const fetchRawLogs = async () => {
         setLoadingRaw(true);
         try {
-            const res = await fetch('/api/webhooks/logs');
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${API_BASE_URL}/api/webhooks/logs`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await res.json();
             if (data.success) {
                 setRawLogs(data.data);

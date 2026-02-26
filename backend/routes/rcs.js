@@ -25,11 +25,103 @@ const authenticateToken = (req, res, next) => {
  */
 router.get('/templates/external', authenticateToken, async (req, res) => {
   try {
-    const templates = await getExternalTemplates();
+    const userId = req.user.id;
+
+    // Fetch user's assigned RCS config to get the bot_id
+    const [configs] = await query(`
+      SELECT rc.bot_id 
+      FROM users u 
+      JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (!configs || configs.length === 0) {
+      return res.json({ success: true, templates: [], message: 'No RCS configuration assigned' });
+    }
+
+    const botId = configs[0].bot_id;
+    const templates = await getExternalTemplates(botId);
+
     res.json({ success: true, templates });
   } catch (error) {
     console.error('❌ Error in /templates/external:', error.message);
     res.status(500).json({ success: false, message: 'Failed to fetch templates' });
+  }
+});
+
+/**
+ * @route POST /api/rcs/templates
+ * @desc Create a new RCS template on Dotgo using Main Admin credentials
+ */
+router.post('/templates', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const templateData = req.body;
+
+    // Fetch user's assigned RCS config to get the bot_id
+    const [configs] = await query(`
+      SELECT rc.bot_id 
+      FROM users u 
+      JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (!configs || configs.length === 0) {
+      return res.status(400).json({ success: false, message: 'No RCS configuration assigned to your account' });
+    }
+
+    const botId = configs[0].bot_id;
+
+    // The rcsService.submitDotgoTemplate now uses Admin credentials
+    const { submitDotgoTemplate } = require('../services/rcsService');
+    const result = await submitDotgoTemplate(botId, templateData);
+
+    if (result.success) {
+      res.json({ success: true, data: result.data });
+    } else {
+      res.status(500).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error('❌ Error in POST /templates:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to create template' });
+  }
+});
+
+/**
+ * @route GET /api/rcs/templates/:name/status
+ * @desc Sync/Fetch RCS template status from Dotgo
+ */
+router.get('/templates/:name/status', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const templateName = req.params.name;
+
+    // Fetch user's assigned RCS config to get the bot_id
+    const [configs] = await query(`
+      SELECT rc.bot_id 
+      FROM users u 
+      JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (!configs || configs.length === 0) {
+      return res.status(400).json({ success: false, message: 'No RCS configuration assigned' });
+    }
+
+    const botId = configs[0].bot_id;
+    const { getDotgoTemplateStatus } = require('../services/rcsService');
+    const result = await getDotgoTemplateStatus(botId, templateName);
+
+    if (result.success) {
+      // Also update the status in our local templates table if needed
+      // For now, just return the live status
+      res.json({ success: true, status: result.status });
+    } else {
+      res.status(500).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error('❌ Error in GET /templates/:name/status:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to sync template status' });
   }
 });
 
@@ -82,8 +174,11 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     let campaignId = req.body.campaignId;
 
-    // Use Dotgo template as requested
-    const finalTemplate = templateName || "Empowering_business";
+    // Use provided Dotgo template name
+    const finalTemplate = templateName;
+    if (!finalTemplate) {
+      return res.status(400).json({ success: false, message: 'Template name is required' });
+    }
 
     // 1. If contacts provided, queue them
     if (contacts && contacts.length > 0) {
