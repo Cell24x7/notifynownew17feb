@@ -145,19 +145,21 @@ router.post('/dotgo', async (req, res) => {
 
         const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
         const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
-        const senderPhoneNumber = decodedData.senderPhoneNumber;
+        const recipient = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.destinationPhoneNumber;
         let finalStatus = eventType ? eventType.toLowerCase() : 'unknown';
 
-        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId})`);
+        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) for ${recipient}`);
 
         // 2. Save to webhook_logs (Envelope/Metadata Logging) - ALWAYS DO THIS
         try {
             await query(
                 `INSERT INTO webhook_logs 
-                (received_time, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                (received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     payload.receivedTime || null,
+                    recipient || null,
+                    messageId || null,
                     payload.subscription || null,
                     payload.message?.data || null,
                     payload.message?.attributes?.product || null,

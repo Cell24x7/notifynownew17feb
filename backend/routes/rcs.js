@@ -27,9 +27,9 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Fetch user's assigned RCS config to get the bot_id
+    // Fetch user's assigned RCS config to get the full credentials
     const [configs] = await query(`
-      SELECT rc.bot_id 
+      SELECT rc.* 
       FROM users u 
       JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
       WHERE u.id = ?
@@ -39,8 +39,8 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
       return res.json({ success: true, templates: [], message: 'No RCS configuration assigned' });
     }
 
-    const botId = configs[0].bot_id;
-    const templates = await getExternalTemplates(botId);
+    const config = configs[0];
+    const templates = await getExternalTemplates(config);
 
     res.json({ success: true, templates });
   } catch (error) {
@@ -58,9 +58,9 @@ router.post('/templates', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const templateData = req.body;
 
-    // Fetch user's assigned RCS config to get the bot_id
+    // Fetch user's assigned RCS config to get the credentials
     const [configs] = await query(`
-      SELECT rc.bot_id 
+      SELECT rc.* 
       FROM users u 
       JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
       WHERE u.id = ?
@@ -70,11 +70,11 @@ router.post('/templates', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No RCS configuration assigned to your account' });
     }
 
-    const botId = configs[0].bot_id;
+    const config = configs[0];
 
-    // The rcsService.submitDotgoTemplate now uses Admin credentials
+    // The rcsService.submitDotgoTemplate now uses bot-specific credentials
     const { submitDotgoTemplate } = require('../services/rcsService');
-    const result = await submitDotgoTemplate(botId, templateData);
+    const result = await submitDotgoTemplate(config, templateData);
 
     if (result.success) {
       res.json({ success: true, data: result.data });
@@ -96,9 +96,9 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const templateName = req.params.name;
 
-    // Fetch user's assigned RCS config to get the bot_id
+    // Fetch user's assigned RCS config to get the credentials
     const [configs] = await query(`
-      SELECT rc.bot_id 
+      SELECT rc.* 
       FROM users u 
       JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
       WHERE u.id = ?
@@ -108,9 +108,9 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No RCS configuration assigned' });
     }
 
-    const botId = configs[0].bot_id;
+    const config = configs[0];
     const { getDotgoTemplateStatus } = require('../services/rcsService');
-    const result = await getDotgoTemplateStatus(botId, templateName);
+    const result = await getDotgoTemplateStatus(config, templateName);
 
     if (result.success) {
       // Also update the status in our local templates table if needed

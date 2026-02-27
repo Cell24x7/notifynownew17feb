@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -52,6 +53,18 @@ interface RawWebhookLog {
     raw_payload: string;
 }
 
+const downloadCsv = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 export default function Reports() {
     const { user } = useAuth();
     const [reports, setReports] = useState<Report[]>([]);
@@ -65,11 +78,25 @@ export default function Reports() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('performance');
+    const [autoRefresh, setAutoRefresh] = useState(false);
 
     useEffect(() => {
         fetchReports();
         fetchWebhookLogs();
+        if (activeTab === 'detailed') fetchRawLogs();
     }, [startDate, endDate, statusFilter]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (autoRefresh) {
+            interval = setInterval(() => {
+                handleRefresh();
+            }, 30000); // Refresh every 30 seconds
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [autoRefresh, activeTab]);
 
     const fetchReports = async () => {
         setLoading(true);
@@ -221,6 +248,16 @@ export default function Reports() {
                     <p className="text-muted-foreground">Monitor campaign performance and delivery logs</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mr-4 bg-muted/50 px-3 py-1.5 rounded-lg border border-border/50">
+                        <Label htmlFor="auto-refresh" className="text-xs font-medium cursor-pointer">Auto-Refresh</Label>
+                        <input
+                            id="auto-refresh"
+                            type="checkbox"
+                            checked={autoRefresh}
+                            onChange={(e) => setAutoRefresh(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
+                        />
+                    </div>
                     <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
                         <RefreshCw className={cn("h-4 w-4", (loading || loadingLogs || loadingRaw) && "animate-spin")} />
                         Refresh

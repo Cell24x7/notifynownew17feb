@@ -18,7 +18,10 @@ const getRcsToken = async (config) => {
   }
 
   try {
-    const { client_id: clientId, client_secret: clientSecret, auth_url: authUrl, id: cacheKey } = config;
+    const clientId = config.client_id?.trim();
+    const clientSecret = config.client_secret?.trim();
+    const authUrl = config.auth_url?.trim();
+    const cacheKey = config.id || config.bot_id;
 
     const cached = tokenCache.get(cacheKey);
     if (cached && cached.token && cached.expiresAt && Date.now() < cached.expiresAt) {
@@ -69,9 +72,9 @@ const getDotgoAdminToken = async () => {
   const adminConfig = {
     id: 'admin',
     name: 'Main Admin',
-    client_id: process.env.DOTGO_ADMIN_CLIENT_ID,
-    client_secret: process.env.DOTGO_ADMIN_CLIENT_SECRET,
-    auth_url: process.env.DOTGO_ADMIN_AUTH_URL
+    client_id: (process.env.DOTGO_ADMIN_CLIENT_ID || '').trim(),
+    client_secret: (process.env.DOTGO_ADMIN_CLIENT_SECRET || '').trim(),
+    auth_url: (process.env.DOTGO_ADMIN_AUTH_URL || '').trim()
   };
   return getRcsToken(adminConfig);
 };
@@ -187,15 +190,16 @@ const sendRcsMessage = async (mobile, message, config) => {
  * @param {object} templateData 
  * @returns {Promise<object>}
  */
-const submitDotgoTemplate = async (botId, templateData) => {
+const submitDotgoTemplate = async (config, templateData) => {
   try {
     const token = await getDotgoAdminToken();
-    if (!token) return { success: false, error: "Admin authentication failed" };
+    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
 
+    const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const url = `${baseUrl}/${botId}/templates`;
 
-    console.log(`📤 Submitting Dotgo Template (Admin) for Bot: ${botId}, Template: ${templateData.name}`);
+    console.log(`📤 Submitting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateData.name}`);
 
     // Use FormData for multipart/form-data as required by Dotgo
     const form = new FormData();
@@ -222,16 +226,17 @@ const submitDotgoTemplate = async (botId, templateData) => {
 /**
  * Get Dotgo Template Status using ADMIN credentials
  */
-const getDotgoTemplateStatus = async (botId, templateName) => {
+const getDotgoTemplateStatus = async (config, templateName) => {
   try {
     const token = await getDotgoAdminToken();
-    if (!token) return { success: false, error: "Admin authentication failed" };
+    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
 
+    const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const base64Name = Buffer.from(templateName).toString('base64');
     const url = `${baseUrl}/${botId}/templates/${base64Name}/templateStatus`;
 
-    console.log(`🔍 Checking Dotgo Status (Admin) for Bot: ${botId}, Template: ${templateName}`);
+    console.log(`🔍 Checking Dotgo Status (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
 
     const response = await axios.get(url, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -248,24 +253,27 @@ const getDotgoTemplateStatus = async (botId, templateName) => {
  * Get live external templates from Dotgo using ADMIN credentials
  * @param {string} botId
  */
-const getExternalTemplates = async (botId) => {
-  if (!botId) return [];
+const getExternalTemplates = async (config) => {
+  if (!config || !config.bot_id) return [];
 
   try {
     const token = await getDotgoAdminToken();
     if (!token) {
-      console.error("❌ Admin Token failure for template listing");
+      console.error("❌ Dotgo Admin Token failure for template listing");
       return [];
     }
 
+    const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const url = `${baseUrl}/${botId}/templates`;
 
-    console.log(`📡 Fetching LIVE Dotgo Templates for Bot: ${botId}`);
+    console.log(`📡 Fetching LIVE Dotgo Templates for Bot: ${botId} (Admin Token)`);
 
     const response = await axios.get(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+
+    console.log(`📥 Dotgo Template List Response [${response.status}]:`, JSON.stringify(response.data));
 
     // Match the JSON structure provided by the user: { "templateList": [...] }
     const templateList = response.data?.templateList || [];

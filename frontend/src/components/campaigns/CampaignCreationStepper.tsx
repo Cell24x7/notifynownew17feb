@@ -412,7 +412,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       <div className="flex-1 overflow-hidden">
         <div className="h-full flex flex-col lg:flex-row">
            {/* Left Column: Form Steps */}
-           <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+           <div className="flex-1 overflow-y-auto p-6 scrollbar-hide no-scrollbar">
               <div className="max-w-2xl mx-auto pb-20">
                 
                 {/* Step 1: Basic Details */}
@@ -1016,14 +1016,16 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
            </div>
 
            {/* Right Column: Sticky Preview */}
-           <div className="hidden lg:block w-[400px] border-l bg-muted/10 p-6">
-              <div className="sticky top-6">
-                 <h3 className="font-semibold mb-4 text-center text-muted-foreground">Live Preview</h3>
-                 <CampaignPreview 
-                    campaignData={campaignData}
-                    template={selectedTemplate}
-                    variables={templateVariables}
-                 />
+           <div className="hidden lg:block w-[380px] border-l bg-muted/5 flex-shrink-0">
+              <div className="sticky top-0 h-screen flex flex-col p-6">
+                 <h3 className="font-semibold mb-6 text-center text-muted-foreground uppercase tracking-widest text-xs">Live Preview</h3>
+                 <div className="flex-1 flex items-start justify-center overflow-hidden">
+                    <CampaignPreview 
+                       campaignData={campaignData}
+                       template={selectedTemplate}
+                       variables={templateVariables}
+                    />
+                 </div>
               </div>
            </div>
         </div>

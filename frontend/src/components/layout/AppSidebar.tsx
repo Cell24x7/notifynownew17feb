@@ -19,6 +19,7 @@ import {
   UserCircle,
   BarChart3,
   ChevronDown,
+  ShoppingCart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -81,6 +82,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: BarChart3, label: 'Reports', path: '/reports', show: hasPermission('Reports - View') || true }, // Default true for now as requested by user
+    { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: true },
     { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: true },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },

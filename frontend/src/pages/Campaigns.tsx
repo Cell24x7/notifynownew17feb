@@ -124,11 +124,25 @@ export default function Campaigns() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [activeTab, setActiveTab] = useState<'campaigns' | 'templates'>('campaigns');
   const [templateSubTab, setTemplateSubTab] = useState<'all' | 'pending'>('all');
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
     fetchData();
     refreshUser();
   }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        fetchData();
+        refreshUser();
+      }, 30000); // 30 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -227,6 +241,11 @@ export default function Campaigns() {
   // Campaign analytics modal
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+
+  const currentCampaign = useMemo(() => {
+    if (!selectedCampaign) return null;
+    return campaigns.find(c => c.id === selectedCampaign.id) || selectedCampaign;
+  }, [campaigns, selectedCampaign]);
 
   // SMS Specific Dialog
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
@@ -1062,6 +1081,16 @@ export default function Campaigns() {
           <p className="text-sm md:text-base text-muted-foreground">Create and manage your messaging campaigns</p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-4 bg-muted/50 px-3 py-1.5 rounded-lg border border-border/50">
+            <Label htmlFor="auto-refresh" className="text-xs font-medium cursor-pointer">Auto-Refresh</Label>
+            <input
+              id="auto-refresh"
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
+            />
+          </div>
           <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary w-full sm:w-auto">
@@ -2317,42 +2346,48 @@ export default function Campaigns() {
               <BarChart3 className="h-5 w-5 text-primary" />
               Campaign Analytics
             </DialogTitle>
-            <DialogDescription>{selectedCampaign?.name}</DialogDescription>
+            <DialogDescription>{currentCampaign?.name}</DialogDescription>
           </DialogHeader>
-          {selectedCampaign && (
+          {currentCampaign && (
             <div className="space-y-6 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-3xl font-bold">{selectedCampaign.audience_count.toLocaleString()}</p>
+                    <p className="text-3xl font-bold">{currentCampaign.audience_count.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Target Audience</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-3xl font-bold">{getDeliveryRate(selectedCampaign)}%</p>
+                    <p className="text-3xl font-bold">{getDeliveryRate(currentCampaign)}%</p>
                     <p className="text-sm text-muted-foreground">Delivery Rate</p>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <Card className="bg-muted/50">
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold">{selectedCampaign.sent_count.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Sent</p>
+                    <p className="text-2xl font-bold">{currentCampaign.sent_count.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground text-xs">Sent</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-success/10">
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold text-success">{selectedCampaign.delivered_count.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Delivered</p>
+                    <p className="text-2xl font-bold text-success">{currentCampaign.delivered_count.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground text-xs">Delivered</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-purple-100/50">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-purple-600">{currentCampaign.read_count?.toLocaleString() || 0}</p>
+                    <p className="text-sm text-muted-foreground text-xs">Read</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-destructive/10">
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold text-destructive">{selectedCampaign.failed_count.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Failed</p>
+                    <p className="text-2xl font-bold text-destructive">{currentCampaign.failed_count.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground text-xs">Failed</p>
                   </CardContent>
                 </Card>
               </div>
@@ -2360,28 +2395,28 @@ export default function Campaigns() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Delivery Progress</span>
-                  <span>{selectedCampaign.audience_count > 0 ? Math.round((selectedCampaign.sent_count / selectedCampaign.audience_count) * 100) : 0}%</span>
+                  <span>{currentCampaign.audience_count > 0 ? Math.round((currentCampaign.sent_count / currentCampaign.audience_count) * 100) : 0}%</span>
                 </div>
-                <Progress value={selectedCampaign.audience_count > 0 ? (selectedCampaign.sent_count / selectedCampaign.audience_count) * 100 : 0} className="h-3" />
+                <Progress value={currentCampaign.audience_count > 0 ? (currentCampaign.sent_count / currentCampaign.audience_count) * 100 : 0} className="h-3" />
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-muted-foreground">Channel</p>
-                  <div className="mt-1"><ChannelBadge channel={selectedCampaign.channel as any} /></div>
+                  <div className="mt-1"><ChannelBadge channel={currentCampaign.channel as any} /></div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-muted-foreground">Status</p>
-                  <div className="mt-1"><StatusBadge status={selectedCampaign.status as any} /></div>
+                  <div className="mt-1"><StatusBadge status={currentCampaign.status as any} /></div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-muted-foreground">Created</p>
-                  <p className="font-medium mt-1">{format(new Date(selectedCampaign.created_at), 'MMM d, yyyy')}</p>
+                  <p className="font-medium mt-1">{format(new Date(currentCampaign.created_at), 'MMM d, yyyy')}</p>
                 </div>
-                {selectedCampaign.scheduled_at && (
+                {currentCampaign.scheduled_at && (
                   <div className="p-3 rounded-lg bg-muted/50">
                     <p className="text-muted-foreground">Scheduled</p>
-                    <p className="font-medium mt-1">{format(new Date(selectedCampaign.scheduled_at), 'MMM d, yyyy')}</p>
+                    <p className="font-medium mt-1">{format(new Date(currentCampaign.scheduled_at), 'MMM d, yyyy')}</p>
                   </div>
                 )}
               </div>
