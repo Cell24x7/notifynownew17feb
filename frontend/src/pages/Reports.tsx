@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Download, Search, RefreshCw, MessageSquare } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, Search, RefreshCw, MessageSquare, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 
@@ -58,6 +58,7 @@ export default function Reports() {
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
     const [rawLogs, setRawLogs] = useState<RawWebhookLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const [sendingEmail, setSendingEmail] = useState<string | null>(null);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [loadingRaw, setLoadingRaw] = useState(false);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -76,7 +77,7 @@ export default function Reports() {
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/rcs/reports?`;
-            
+
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
@@ -84,7 +85,7 @@ export default function Reports() {
             const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
@@ -198,8 +199,34 @@ export default function Reports() {
         if (activeTab === 'consolidated') fetchWebhookLogs();
     };
 
-    const filteredReports = reports.filter(r => 
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const handleSendEmail = async (campaignId: string) => {
+        setSendingEmail(campaignId);
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`${API_BASE_URL}/api/reports/send-campaign-report`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ campaignId })
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert(`Report sent successfully to the user.`);
+            } else {
+                alert(`Failed to send report: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error sending report email:', error);
+            alert('An unexpected error occurred while sending the report email.');
+        } finally {
+            setSendingEmail(null);
+        }
+    };
+
+    const filteredReports = reports.filter(r =>
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.template_id.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -308,6 +335,7 @@ export default function Reports() {
                                         <TableHead className="text-right text-green-600">Deliv.</TableHead>
                                         <TableHead className="text-right text-purple-600">Read</TableHead>
                                         <TableHead className="text-right text-red-600">Failed</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -321,7 +349,7 @@ export default function Reports() {
                                                 <TableCell className="font-medium">{report.name}</TableCell>
                                                 <TableCell className="font-mono text-[10px]">{report.template_id}</TableCell>
                                                 <TableCell className="text-muted-foreground leading-tight">
-                                                    {format(new Date(report.created_at), 'dd MMM yy')}<br/>
+                                                    {format(new Date(report.created_at), 'dd MMM yy')}<br />
                                                     <span className="text-[10px]">{format(new Date(report.created_at), 'HH:mm')}</span>
                                                 </TableCell>
                                                 <TableCell className="text-right font-semibold">{report.recipient_count}</TableCell>
@@ -329,6 +357,19 @@ export default function Reports() {
                                                 <TableCell className="text-right text-green-600">{report.delivered_count}</TableCell>
                                                 <TableCell className="text-right text-purple-600">{report.read_count}</TableCell>
                                                 <TableCell className="text-right text-red-600">{report.failed_count}</TableCell>
+                                                <TableCell className="text-right">
+                                                    {(user?.role === 'admin' || user?.role === 'reseller') && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            title="Send Report via Email"
+                                                            onClick={() => handleSendEmail(report.id)}
+                                                            disabled={sendingEmail === report.id}
+                                                        >
+                                                            <Mail className={cn("h-4 w-4 text-blue-600", sendingEmail === report.id && "animate-pulse")} />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
                                             </TableRow>
                                         ))
                                     )}

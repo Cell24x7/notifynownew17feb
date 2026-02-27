@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
+const { sendEmail } = require('../utils/emailService');
+const fs = require('fs');
+const path = require('path');
+const AdmZip = require('adm-zip');
+const { Parser } = require('json2csv');
 
 // GET /api/reports/summary
 router.get('/summary', async (req, res) => {
@@ -265,6 +270,133 @@ router.get('/export', async (req, res) => {
     } catch (error) {
         console.error('Export error:', error);
         res.status(500).json({ success: false, message: 'Export failed' });
+    }
+});
+
+// POST /api/reports/send-campaign-report
+router.post('/send-campaign-report', authenticateToken, async (req, res) => {
+    try {
+        const { campaignId } = req.body;
+        if (!campaignId) return res.status(400).json({ success: false, message: 'Campaign ID required' });
+
+        // 1. Fetch campaign data
+        const [campaigns] = await query(`
+            SELECT c.*, u.email as user_email, u.name as user_name, u.company
+            FROM campaigns c
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE c.id = ?
+        `, [campaignId]);
+
+        if (campaigns.length === 0) {
+            return res.status(404).json({ success: false, message: 'Campaign not found' });
+        }
+
+        const c = campaigns[0];
+        const recipientEmail = c.user_email;
+
+        if (!recipientEmail) {
+            return res.status(400).json({ success: false, message: 'User email not found' });
+        }
+
+        // 2. Fetch detailed logs for CSV
+        const [logs] = await query(`
+            SELECT recipient as Mobile, status as Status, 
+                   send_time as Sent_Time, delivery_time as Delivery_Time, 
+                   read_time as Read_Time, failure_reason as Failure_Note
+            FROM message_logs 
+            WHERE campaign_id = ?
+        `, [campaignId]);
+
+        // 3. Generate CSV & ZIP
+        let zipLink = null;
+        try {
+            if (logs.length > 0) {
+                const json2csvParser = new Parser();
+                const csv = json2csvParser.parse(logs);
+
+                const zip = new AdmZip();
+                zip.addFile(`Report_${campaignId}.csv`, Buffer.from(csv, 'utf8'));
+
+                const reportsDir = path.join(__dirname, '../uploads/reports');
+                if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
+
+                const zipFilename = `Campaign_Report_${campaignId}_${Date.now()}.zip`;
+                const zipPath = path.join(reportsDir, zipFilename);
+                zip.writeZip(zipPath);
+
+                // Assuming the server is reachable via VITE_RCS_API_URL or similar
+                // For now, providing the path relative to server root
+                const baseUrl = process.env.VITE_RCS_API_URL || 'http://localhost:5000';
+                zipLink = `${baseUrl}/uploads/reports/${zipFilename}`;
+            }
+        } catch (err) {
+            console.error('Error generating ZIP:', err);
+        }
+
+        // 4. Format HTML Body (Professional "Dear Sir" Template)
+        const subject = `Detailed Campaign Report: ${c.name}`;
+        const body = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px;">
+                <h2 style="color: #2563eb; text-align: center;">Campaign Performance Report</h2>
+                <p>Dear Sir/Madam,</p>
+                <p>Please find the detailed report for your campaign: <b>${c.name}</b></p>
+                
+                <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr style="background-color: #f2f2f2;">
+                        <th>Metric</th>
+                        <th>Count</th>
+                        <th>Percentage</th>
+                    </tr>
+                    <tr>
+                        <td><b>Total Base</b></td>
+                        <td>${c.recipient_count}</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr style="color: #2563eb;">
+                        <td>Successfully Sent</td>
+                        <td>${c.sent_count}</td>
+                        <td>${((c.sent_count / c.recipient_count) * 100).toFixed(1)}%</td>
+                    </tr>
+                    <tr style="color: #16a34a;">
+                        <td>Delivered</td>
+                        <td>${c.delivered_count}</td>
+                        <td>${((c.delivered_count / c.recipient_count) * 100).toFixed(1)}%</td>
+                    </tr>
+                    <tr style="color: #9333ea;">
+                        <td>Read Receipts</td>
+                        <td>${c.read_count}</td>
+                        <td>${((c.read_count / c.recipient_count) * 100).toFixed(1)}%</td>
+                    </tr>
+                    <tr style="color: #dc2626;">
+                        <td>Failed/Rejected</td>
+                        <td>${c.failed_count}</td>
+                        <td>${((c.failed_count / c.recipient_count) * 100).toFixed(1)}%</td>
+                    </tr>
+                </table>
+
+                ${zipLink ? `
+                <div style="margin-top: 20px; padding: 15px; border: 2px dashed #2563eb; text-align: center; background-color: #f8fafc;">
+                    <p><b>Detailed Logs (CSV):</b></p>
+                    <a href="${zipLink}" style="background-color: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Download ZIP Report</a>
+                </div>
+                ` : ''}
+
+                <p style="margin-top: 30px;">
+                    Regards,<br>
+                    <b>Operations Team</b><br>
+                    NotifyNow Solutions
+                </p>
+            </div>
+        `;
+
+        // 5. Send Email
+        await sendEmail(recipientEmail, subject, body);
+
+        res.json({ success: true, message: `Detailed report sent to ${recipientEmail}` });
+
+    } catch (error) {
+        console.error('Send detailed campaign report error:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate or send detailed report' });
     }
 });
 

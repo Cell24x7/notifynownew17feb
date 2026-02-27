@@ -28,16 +28,14 @@ const sendEmail = async (to, subject, text) => {
     const apiUrl = process.env.EMAIL_API_URL;
 
     // The API seems to accept query params based on auth.js
-    const response = await axios.get(apiUrl, {
-      params: {
-        user: emailUser,
-        pwd: emailPass,
-        fromAdd: fromAddr,
-        toAdd: to,
-        fromName: 'NotifyNow',
-        subject: subject,
-        body: text
-      }
+    const response = await axios.post(apiUrl, {
+      user: emailUser,
+      pwd: emailPass,
+      fromAdd: fromAddr,
+      toAdd: to,
+      fromName: 'NotifyNow',
+      subject: subject,
+      body: text
     });
     console.log(`📧 Email sent to ${to}:`, response.data);
   } catch (err) {
