@@ -365,7 +365,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
 
 
-  const filteredTemplates = templates.filter(t => t.channel === campaignData.channel);
+  const filteredTemplates = useMemo(() => {
+    return templates.filter(t => t.channel === campaignData.channel && t.status === 'approved');
+  }, [templates, campaignData.channel]);
 
 
 

@@ -20,6 +20,7 @@ import {
   BarChart3,
   ChevronDown,
   ShoppingCart,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -77,6 +78,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: true },
     { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
     { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
+    { icon: FileText, label: 'Templates', path: '/templates', show: true },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: true },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },

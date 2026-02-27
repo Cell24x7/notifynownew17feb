@@ -95,11 +95,11 @@ export const rcsTemplatesService = {
         credentials: 'include',
       });
 
+      const result = await response.json().catch(() => ({} as any));
       if (!response.ok) {
-        const result = await response.json().catch(() => ({} as any));
         throw new Error(result.error || 'Failed to create template');
       }
-      return await response.json();
+      return result;
     } catch (error) {
       console.error('Error creating template:', error);
       throw error;
@@ -147,6 +147,29 @@ export const rcsTemplatesService = {
       return await response.json();
     } catch (error) {
       console.error('External API Error:', error);
+      throw error;
+    }
+  },
+
+  // Delete external template from provider
+  async deleteExternalTemplate(name: string) {
+    try {
+      const response = await fetch(`${API_BASE}/templates/external/${name}`, {
+        method: 'DELETE',
+        headers: {
+          ...getAuthHeaders(),
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      const result = await response.json().catch(() => ({} as any));
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete external template');
+      }
+      return result;
+    } catch (error) {
+      console.error('Error deleting external template:', error);
       throw error;
     }
   },

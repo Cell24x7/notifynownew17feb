@@ -11,7 +11,7 @@ const getAuthHeader = () => {
 
 export interface TemplateButton {
     id: string;
-    type: 'quick_reply' | 'url' | 'phone' | 'copy_code';
+    type: 'quick_reply' | 'url' | 'phone' | 'copy_code' | 'reply' | 'url_action' | 'dialer_action' | 'calendar_event' | 'view_location_latlong' | 'view_location_query' | 'share_location';
     label: string;
     value?: string;
     position: number;
@@ -24,7 +24,7 @@ export interface MessageTemplate {
     language: string;
     category: 'Marketing' | 'Utility' | 'Authentication';
     channel: 'whatsapp' | 'sms' | 'rcs';
-    template_type: 'standard' | 'carousel';
+    template_type: 'standard' | 'carousel' | 'text_message' | 'rich_card';
     header_type: 'none' | 'text' | 'image' | 'video' | 'document';
     header_content: string | null;
     body: string;

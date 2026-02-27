@@ -201,9 +201,33 @@ const submitDotgoTemplate = async (config, templateData) => {
 
     console.log(`📤 Submitting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateData.name}`);
 
-    // Use FormData for multipart/form-data as required by Dotgo
+    // Refine payload structure based on Dotgo Documentation
+    const refinedData = {
+      name: templateData.name,
+      type: templateData.type,
+      fallbackText: templateData.fallbackText || "RCS Message"
+    };
+
+    if (templateData.type === 'text_message') {
+      refinedData.textMessageContent = templateData.textMessageContent;
+      refinedData.suggestions = templateData.suggestions;
+    } else if (templateData.type === 'rich_card') {
+      refinedData.orientation = templateData.orientation || 'VERTICAL';
+      refinedData.height = templateData.height || 'SHORT_HEIGHT';
+      refinedData.standAlone = templateData.richCardContent?.standaloneCard?.cardContent || templateData.standAlone;
+      // Map frontend cardTitle/cardDescription if they exist directly
+      if (templateData.cardTitle) refinedData.standAlone.cardTitle = templateData.cardTitle;
+      if (templateData.cardDescription) refinedData.standAlone.cardDescription = templateData.cardDescription;
+    } else if (templateData.type === 'carousel') {
+      refinedData.height = templateData.height || 'SHORT_HEIGHT';
+      refinedData.width = templateData.width || 'MEDIUM_WIDTH';
+      refinedData.carouselList = templateData.carouselContent?.carouselCards?.map(c => c.cardContent) || templateData.carouselList;
+    }
+
+    // Use FormData with rich_template_data field
+    const FormData = require('form-data');
     const form = new FormData();
-    form.append('rich_template_data', JSON.stringify(templateData));
+    form.append('rich_template_data', JSON.stringify(refinedData));
 
     const response = await axios.post(url, form, {
       headers: {
@@ -245,6 +269,63 @@ const getDotgoTemplateStatus = async (config, templateName) => {
     return { success: true, status: response.data?.status || 'UNKNOWN', raw: response.data };
   } catch (error) {
     console.error("❌ Dotgo Status Check Error:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get Dotgo Template Details using ADMIN credentials
+ */
+const getDotgoTemplateDetails = async (config, templateName) => {
+  try {
+    const token = await getDotgoAdminToken();
+    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
+
+    const botId = config.bot_id;
+    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    const base64Name = Buffer.from(templateName).toString('base64');
+    const url = `${baseUrl}/${botId}/templates/${base64Name}`;
+
+    console.log(`🔍 Fetching Dotgo Details (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
+
+    const response = await axios.get(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("❌ Dotgo Details Fetch Error:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Delete a template from Dotgo using ADMIN credentials
+ */
+const deleteDotgoTemplate = async (config, templateName) => {
+  try {
+    const token = await getDotgoAdminToken();
+    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
+
+    const botId = config.bot_id;
+    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    // Endpoint: {serverRoot}/directory/secure/api/v1/bots/{botId}/deleteTemplate/{name}
+    const url = `${baseUrl}/${botId}/deleteTemplate/${templateName}`;
+
+    console.log(`🗑️ Deleting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
+
+    const response = await axios.delete(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("❌ Dotgo Template Deletion Error:", error.message);
+    if (error.response) {
+      console.error("📦 Error Response:", JSON.stringify(error.response.data));
+      const dotgoError = error.response.data?.error?.message || error.response.data?.message || JSON.stringify(error.response.data);
+      return { success: false, error: dotgoError };
+    }
     return { success: false, error: error.message };
   }
 };
@@ -298,6 +379,8 @@ module.exports = {
   sendRcsMessage,
   getExternalTemplates,
   submitDotgoTemplate,
-  getDotgoTemplateStatus
+  getDotgoTemplateStatus,
+  getDotgoTemplateDetails,
+  deleteDotgoTemplate
 };
 

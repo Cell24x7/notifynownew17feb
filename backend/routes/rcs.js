@@ -79,7 +79,7 @@ router.post('/templates', authenticateToken, async (req, res) => {
     if (result.success) {
       res.json({ success: true, data: result.data });
     } else {
-      res.status(500).json({ success: false, message: result.error });
+      res.status(500).json({ success: false, error: result.error, message: result.error });
     }
   } catch (error) {
     console.error('❌ Error in POST /templates:', error.message);
@@ -249,6 +249,41 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
       success: false,
       message: 'Failed to send campaign'
     });
+  }
+});
+
+/**
+ * @route DELETE /api/rcs/templates/external/:name
+ * @desc Delete an RCS template from Dotgo
+ */
+router.delete('/templates/external/:name', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const templateName = req.params.name;
+
+    // Fetch user's assigned RCS config
+    const [configs] = await query(`
+      SELECT rc.* 
+      FROM users u 
+      JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (!configs || configs.length === 0) {
+      return res.status(400).json({ success: false, message: 'No RCS configuration assigned' });
+    }
+
+    const { deleteDotgoTemplate } = require('../services/rcsService');
+    const result = await deleteDotgoTemplate(configs[0], templateName);
+
+    if (result.success) {
+      res.json({ success: true, message: 'Template deleted from Dotgo' });
+    } else {
+      res.status(500).json({ success: false, message: result.error || 'Failed to delete template' });
+    }
+  } catch (error) {
+    console.error('❌ Delete template error:', error.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
