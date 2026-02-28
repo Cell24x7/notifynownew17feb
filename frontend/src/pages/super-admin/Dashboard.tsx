@@ -88,8 +88,8 @@ export default function SuperAdminDashboard() {
     },
     {
       title: 'Revenue (Total)',
-      value: `₹${stats.revenueTotal.toLocaleString()}`,
-      change: `₹${stats.revenueMonth.toLocaleString()} this month`,
+      value: `\u20B9${stats.revenueTotal.toLocaleString()}`,
+      change: `\u20B9${stats.revenueMonth.toLocaleString()} this month`,
       trend: 'up',
       icon: CreditCard,
     },

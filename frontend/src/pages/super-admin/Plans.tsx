@@ -305,7 +305,7 @@ export default function SuperAdminPlans() {
                 </div>
                 <CardDescription className="mt-1">
                   <span className="text-2xl sm:text-3xl font-bold text-foreground">
-                    ₹{Number(plan.price).toFixed(2)}
+                    {"\u20B9"}{Number(plan.price).toFixed(2)}
                   </span>
                   <span className="text-muted-foreground">/month</span>
                 </CardDescription>
@@ -428,7 +428,7 @@ export default function SuperAdminPlans() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price">Price (₹/month)</Label>
+                <Label htmlFor="price">Price ({"\u20B9"}/month)</Label>
                 <Input
                   id="price"
                   type="number"

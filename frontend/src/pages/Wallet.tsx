@@ -102,7 +102,7 @@ export default function Wallet() {
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 <p className="text-primary-foreground/80 text-sm font-medium">Available Balance</p>
-                <div className="text-4xl font-bold">₹{(user?.wallet_balance || 0).toLocaleString()}</div>
+                <div className="text-4xl font-bold">{"\u20B9"}{(user?.wallet_balance || 0).toLocaleString()}</div>
               </div>
               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
                 <WalletIcon className="w-6 h-6 text-white" />
@@ -120,7 +120,7 @@ export default function Wallet() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Total Added</p>
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                ₹{transactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
+                {"\u20B9"}{transactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-xl">
@@ -134,7 +134,7 @@ export default function Wallet() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-rose-600 dark:text-rose-400">Total Spent</p>
               <p className="text-2xl font-bold text-rose-700 dark:text-rose-300">
-                ₹{transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
+                {"\u20B9"}{transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-3 bg-rose-500/10 rounded-xl">
@@ -185,7 +185,7 @@ export default function Wallet() {
                 <TableRow>
                   <TableHead className="w-[180px]">Transaction Type</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Amount (₹)</TableHead>
+                   <TableHead className="text-right">Amount ({"\u20B9"})</TableHead>
                   <TableHead className="text-right">Date & Time</TableHead>
                 </TableRow>
               </TableHeader>
@@ -226,7 +226,7 @@ export default function Wallet() {
                         "text-right font-bold tabular-nums",
                         txn.type === 'credit' ? "text-emerald-600" : "text-rose-600"
                       )}>
-                        {txn.type === 'credit' ? '+' : '-'}₹{parseFloat(txn.amount).toLocaleString()}
+                        {txn.type === 'credit' ? '+' : '-'}{"\u20B9"}{parseFloat(txn.amount).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">
                         {format(new Date(txn.created_at), 'MMM d, yyyy')}

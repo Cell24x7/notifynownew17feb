@@ -244,12 +244,23 @@ router.get('/message-logs', async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
-        let baseSql = ' FROM message_logs';
+        let baseSql = ' FROM message_logs WHERE 1=1';
         let params = [];
 
         if (campaignId) {
-            baseSql += ' WHERE campaign_id = ?';
+            baseSql += ' AND campaign_id = ?';
             params.push(campaignId);
+        }
+
+        if (req.query.startDate && req.query.endDate) {
+            baseSql += ' AND created_at BETWEEN ? AND ?';
+            params.push(req.query.startDate + ' 00:00:00', req.query.endDate + ' 23:59:59');
+        }
+
+        if (req.query.search) {
+            baseSql += ' AND (recipient LIKE ? OR campaign_name LIKE ? OR template_name LIKE ?)';
+            const searchVal = `%${req.query.search}%`;
+            params.push(searchVal, searchVal, searchVal);
         }
 
         // Get total count
@@ -285,12 +296,26 @@ router.get('/logs', async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
+        let baseSql = ' FROM webhook_logs WHERE 1=1';
+        let params = [];
+
+        if (req.query.startDate && req.query.endDate) {
+            baseSql += ' AND created_at BETWEEN ? AND ?';
+            params.push(req.query.startDate + ' 00:00:00', req.query.endDate + ' 23:59:59');
+        }
+
+        if (req.query.search) {
+            baseSql += ' AND (recipient LIKE ? OR message_id_envelope LIKE ?)';
+            const searchVal = `%${req.query.search}%`;
+            params.push(searchVal, searchVal);
+        }
+
         // Get total count
-        const [countResult] = await query('SELECT COUNT(*) as total FROM webhook_logs');
+        const [countResult] = await query(`SELECT COUNT(*) as total ${baseSql}`, params);
         const total = countResult[0].total;
 
         // Get paginated data
-        const [logs] = await query('SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset]);
+        const [logs] = await query(`SELECT * ${baseSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
 
         res.json({
             success: true,

@@ -346,7 +346,7 @@ export default function Reports() {
                           {visibleColumns.includes('channel') && <TableCell><Badge variant="outline">{record.channel}</Badge></TableCell>}
                           {visibleColumns.includes('timestamp') && <TableCell className="text-sm text-muted-foreground">{record.timestamp}</TableCell>}
                           {visibleColumns.includes('dlrTime') && <TableCell className="text-sm text-muted-foreground">{record.dlrTime}</TableCell>}
-                          {visibleColumns.includes('cost') && <TableCell>₹{record.cost.toFixed(2)}</TableCell>}
+                          {visibleColumns.includes('cost') && <TableCell>{"\u20B9"}{record.cost.toFixed(2)}</TableCell>}
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" onClick={() => handleViewRecord(record)}>
                               <Eye className="w-4 h-4" />
@@ -408,7 +408,7 @@ export default function Reports() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold">
-                  ₹{currentSummaryData.reduce((acc, d) => acc + (d.cost || 0), 0).toLocaleString()}
+                  {"\u20B9"}{currentSummaryData.reduce((acc, d) => acc + (d.cost || 0), 0).toLocaleString()}
                 </div>
                 <p className="text-sm text-muted-foreground">Total Cost</p>
               </CardContent>
@@ -447,7 +447,7 @@ export default function Reports() {
                         <TableCell className="text-right">
                           {row.sent > 0 ? ((row.delivered / row.sent) * 100).toFixed(1) : '0.0'}%
                         </TableCell>
-                        <TableCell className="text-right">₹{row.cost.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{"\u20B9"}{row.cost.toLocaleString()}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -494,7 +494,7 @@ export default function Reports() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Cost</Label>
-                  <p>₹{selectedRecord.cost.toFixed(2)}</p>
+                  <p>{"\u20B9"}{selectedRecord.cost.toFixed(2)}</p>
                 </div>
               </div>
               <div>

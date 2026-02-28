@@ -116,6 +116,7 @@ export default function Reports() {
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
             const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -137,7 +138,12 @@ export default function Reports() {
         setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch(`${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}`, {
+            let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -156,7 +162,12 @@ export default function Reports() {
         setLoadingRaw(true);
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch(`${API_BASE_URL}/api/webhooks/logs?page=${page}&limit=${ITEMS_PER_PAGE}`, {
+            let url = `${API_BASE_URL}/api/webhooks/logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -175,7 +186,7 @@ export default function Reports() {
         if (activeTab === 'performance') fetchReports(perfPage);
         if (activeTab === 'detailed') fetchRawLogs(detailedPage);
         if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
-    }, [activeTab]);
+    }, [activeTab, startDate, endDate, searchQuery]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -250,10 +261,7 @@ export default function Reports() {
         if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
     };
 
-    const filteredReports = reports.filter(r => 
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        r.template_id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredReports = reports;
 
     const getStatusColor = (status: string) => {
         switch (status?.toLowerCase()) {
@@ -334,6 +342,71 @@ export default function Reports() {
                 </div>
             </div>
 
+            <Card>
+                <CardHeader className="pb-3 px-6">
+                    <CardTitle className="text-sm font-medium">Filters</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-4 px-6 pb-4">
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[200px] justify-start text-left font-normal",
+                                        !startDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        <span className="text-muted-foreground">-</span>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[200px] justify-start text-left font-normal",
+                                        !endDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {endDate ? format(endDate, "PPP") : <span>End Date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        {(startDate || endDate) && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
+                                className="text-xs h-8"
+                            >
+                                Clear Dates
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="flex-1 max-w-sm relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search recipient, campaign, template..."
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
             <Tabs defaultValue="performance" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
                 <TabsList className="grid w-[600px] grid-cols-3">
                     <TabsTrigger value="performance">Campaign Performance</TabsTrigger>
@@ -342,60 +415,6 @@ export default function Reports() {
                 </TabsList>
 
                 <TabsContent value="performance" className="flex-1 flex flex-col space-y-4 pt-4">
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium">Filters</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-wrap gap-4">
-                            <div className="flex items-center gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[200px] justify-start text-left font-normal",
-                                                !startDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-muted-foreground">-</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[200px] justify-start text-left font-normal",
-                                                !endDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {endDate ? format(endDate, "PPP") : <span>End Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            <div className="flex-1 max-w-sm relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search campaigns..."
-                                    className="pl-9"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
 
                     <Card className="flex-1 overflow-hidden">
                         <CardContent className="p-0">

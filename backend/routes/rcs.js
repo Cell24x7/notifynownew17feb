@@ -153,6 +153,11 @@ router.get('/reports', authenticateToken, async (req, res) => {
       params.push(status);
     }
 
+    if (req.query.search) {
+      sql += ` AND (c.name LIKE ? OR c.template_id LIKE ?)`;
+      params.push(`%${req.query.search}%`, `%${req.query.search}%`);
+    }
+
     // Get total count for pagination
     const countSql = `SELECT COUNT(*) as total ${sql}`;
     const [countResult] = await query(countSql, params);

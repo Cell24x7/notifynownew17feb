@@ -214,7 +214,7 @@ export default function SuperAdminAffiliates() {
           { label: 'Partners', val: affiliates.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Total Signups', val: totalSignups, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
           { label: 'Active Clients', val: totalActiveClients, icon: Link2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Total Payouts', val: `₹${totalEarnings.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50' }
+          { label: 'Total Payouts', val: `{"\u20B9"}${totalEarnings.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50' }
         ].map((stat, i) => (
           <Card key={i} className="border-none shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
             <CardContent className="p-6">
@@ -336,7 +336,7 @@ export default function SuperAdminAffiliates() {
                        </Badge>
                     </td>
                     <td className="px-6 py-5 text-right font-black text-primary">
-                      ₹{Number(affiliate.commission_earned).toLocaleString()}
+                      {"\u20B9"}{Number(affiliate.commission_earned).toLocaleString()}
                     </td>
                     <td className="px-6 py-5">
                       <Badge className={cn("text-[10px] font-black tracking-widest uppercase border", getPayoutStatusColor(affiliate.payout_status))}>
@@ -371,7 +371,7 @@ export default function SuperAdminAffiliates() {
                           </DropdownMenuItem>
                           <div className="h-[1px] bg-muted my-1 mx-2" />
                           <DropdownMenuItem className="rounded-xl h-11 text-emerald-600" onClick={() => handlePayoutStatusAction(affiliate, 'paid')}>
-                            <span className="w-4 h-4 mr-3 flex items-center justify-center font-bold text-xs">₹</span>
+                            <span className="w-4 h-4 mr-3 flex items-center justify-center font-bold text-xs">{"\u20B9"}</span>
                             Mark as Paid
                           </DropdownMenuItem>
                           <DropdownMenuItem className="rounded-xl h-11 text-destructive" onClick={() => handleDelete(affiliate.id)}>
@@ -519,7 +519,7 @@ export default function SuperAdminAffiliates() {
                 <div className="grid grid-cols-3 gap-6">
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Commission Earned</p>
-                    <p className="text-3xl font-black text-primary">₹{Number(selectedAffiliate.commission_earned).toLocaleString()}</p>
+                    <p className="text-3xl font-black text-primary">{"\u20B9"}{Number(selectedAffiliate.commission_earned).toLocaleString()}</p>
                   </div>
                   <div className="space-y-1 text-center border-x border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Signups</p>
@@ -538,7 +538,7 @@ export default function SuperAdminAffiliates() {
                       {[
                         { label: 'Conversion Rate', val: '12.4%', progress: 65, color: 'bg-blue-500' },
                         { label: 'Renewal Rate', val: '88.0%', progress: 88, color: 'bg-emerald-500' },
-                        { label: 'Avg Sale Value', val: '₹4,500', progress: 45, color: 'bg-amber-500' }
+                        { label: 'Avg Sale Value', val: '{"\u20B9"}4,500', progress: 45, color: 'bg-amber-500' }
                       ].map((item, i) => (
                         <div key={i} className="space-y-1.5">
                           <div className="flex justify-between text-xs font-bold">
