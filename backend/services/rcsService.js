@@ -6,6 +6,13 @@ require("dotenv").config();
 // Keys: 'default', 'admin', or configId
 const tokenCache = new Map();
 
+// Template caching Map: botId -> { data, expiresAt }
+const templateCache = new Map();
+const TEMPLATE_CACHE_TTL = 300000; // 5 minutes
+
+// Single-flight Map to prevent multiple simultaneous auth calls for same config
+const tokenFetchingPromises = new Map();
+
 /**
  * Get Dotgo RCS Access Token
  * @param {object} config - Configuration object containing client_id, client_secret, auth_url, and an optional id for caching.
@@ -28,39 +35,57 @@ const getRcsToken = async (config) => {
       return cached.token;
     }
 
-    console.log(`🔑 Fetching Dotgo RCS token for [${config.name || cacheKey}]...`);
-    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    // Single-flight check: if already fetching, wait for that promise
+    if (tokenFetchingPromises.has(cacheKey)) {
+      console.log(`⏳ Waiting for existing token fetch for [${config.name || cacheKey}]...`);
+      return tokenFetchingPromises.get(cacheKey);
+    }
 
-    const response = await axios.post(
-      authUrl,
-      "grant_type=client_credentials",
-      {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
+    // Create a new fetch promise
+    const fetchPromise = (async () => {
+      try {
+        console.log(`🔑 Fetching Dotgo RCS token for [${config.name || cacheKey}]...`);
+        const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+        const response = await axios.post(
+          authUrl,
+          "grant_type=client_credentials",
+          {
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            timeout: 10000 // 10 seconds timeout
+          }
+        );
+
+        const token = response.data?.access_token;
+        if (!token) {
+          console.error("❌ Dotgo Token Error: token not found in response", response.data);
+          tokenFetchingPromises.delete(cacheKey);
+          return null;
         }
+
+        const expiresIn = response.data.expires_in || 3600;
+        tokenCache.set(cacheKey, {
+          token: token,
+          expiresAt: Date.now() + (expiresIn * 1000) - 300000 // 5 mins buffer
+        });
+
+        console.log(`✅ Dotgo Token obtained successfully for [${config.name || cacheKey}]`);
+        tokenFetchingPromises.delete(cacheKey);
+        return token;
+      } catch (error) {
+        console.error("❌ Dotgo Token Error:", error.message);
+        tokenFetchingPromises.delete(cacheKey);
+        return null;
       }
-    );
+    })();
 
-    const token = response.data?.access_token;
-    if (!token) {
-      console.error("❌ Dotgo Token Error: token not found in response", response.data);
-      return null;
-    }
-
-    const expiresIn = response.data.expires_in || 3600;
-    tokenCache.set(cacheKey, {
-      token: token,
-      expiresAt: Date.now() + (expiresIn * 1000) - 300000 // 5 mins buffer
-    });
-
-    console.log(`✅ Dotgo Token obtained successfully for [${config.name || cacheKey}]`);
-    return token;
+    tokenFetchingPromises.set(cacheKey, fetchPromise);
+    return fetchPromise;
   } catch (error) {
-    console.error("❌ Dotgo Token Error:", error.message);
-    if (error.response) {
-      console.error("📦 Response Data:", JSON.stringify(error.response.data));
-    }
+    console.error("❌ Dotgo Token Error (Outer):", error.message);
     return null;
   }
 };
@@ -201,27 +226,80 @@ const submitDotgoTemplate = async (config, templateData) => {
 
     console.log(`📤 Submitting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateData.name}`);
 
-    // Refine payload structure based on Dotgo Documentation
+    // Refine payload structure based on Dotgo Documentation and frontend field names
     const refinedData = {
       name: templateData.name,
-      type: templateData.type,
+      type: templateData.type || templateData.template_type,
       fallbackText: templateData.fallbackText || "RCS Message"
     };
 
-    if (templateData.type === 'text_message') {
-      refinedData.textMessageContent = templateData.textMessageContent;
-      refinedData.suggestions = templateData.suggestions;
-    } else if (templateData.type === 'rich_card') {
-      refinedData.orientation = templateData.orientation || 'VERTICAL';
-      refinedData.height = templateData.height || 'SHORT_HEIGHT';
-      refinedData.standAlone = templateData.richCardContent?.standaloneCard?.cardContent || templateData.standAlone;
-      // Map frontend cardTitle/cardDescription if they exist directly
-      if (templateData.cardTitle) refinedData.standAlone.cardTitle = templateData.cardTitle;
-      if (templateData.cardDescription) refinedData.standAlone.cardDescription = templateData.cardDescription;
-    } else if (templateData.type === 'carousel') {
-      refinedData.height = templateData.height || 'SHORT_HEIGHT';
-      refinedData.width = templateData.width || 'MEDIUM_WIDTH';
-      refinedData.carouselList = templateData.carouselContent?.carouselCards?.map(c => c.cardContent) || templateData.carouselList;
+    // Helper to map suggestions correctly
+    const mapSuggestions = (btns) => {
+      if (!btns || !Array.isArray(btns)) return [];
+      return btns.map(btn => {
+        const suggestion = {
+          displayText: btn.displayText || btn.text || "Click here"
+        };
+
+        if (btn.type === 'reply') {
+          suggestion.reply = {
+            postback: btn.postback || btn.displayText || "postback"
+          };
+        } else if (btn.type === 'url_action') {
+          suggestion.action = {
+            urlAction: {
+              openUrl: { url: btn.uri || btn.url }
+            }
+          };
+        } else if (btn.type === 'dialer_action') {
+          suggestion.action = {
+            dialerAction: {
+              dialPhoneNumber: { phoneNumber: btn.uri || btn.phoneNumber }
+            }
+          };
+        }
+        // Add more action types as needed (calendar, location, etc.)
+        return suggestion;
+      });
+    };
+
+    if (refinedData.type === 'text_message') {
+      refinedData.textMessageContent = templateData.body || templateData.textMessageContent;
+      refinedData.suggestions = mapSuggestions(templateData.buttons || templateData.suggestions);
+    } else if (refinedData.type === 'rich_card') {
+      refinedData.orientation = templateData.orientation || templateData.metadata?.orientation || 'VERTICAL';
+      refinedData.height = templateData.height || templateData.metadata?.height || 'SHORT_HEIGHT';
+
+      const cardContent = templateData.richCardContent?.standaloneCard?.cardContent || templateData.metadata || {};
+      refinedData.standAlone = {
+        cardTitle: templateData.cardTitle || cardContent.cardTitle || "",
+        cardDescription: templateData.body || cardContent.description || "",
+        media: cardContent.mediaUrl ? {
+          contentInfo: {
+            fileUri: cardContent.mediaUrl,
+            forceRefresh: false
+          },
+          height: refinedData.height
+        } : undefined,
+        suggestions: mapSuggestions(templateData.buttons || cardContent.buttons)
+      };
+    } else if (refinedData.type === 'carousel') {
+      refinedData.height = templateData.height || templateData.metadata?.height || 'SHORT_HEIGHT';
+      refinedData.width = templateData.width || templateData.metadata?.width || 'MEDIUM_WIDTH';
+
+      const carouselList = templateData.carouselContent?.carouselCards?.map(c => c.cardContent) || templateData.metadata?.carouselList || [];
+      refinedData.carouselList = carouselList.map(card => ({
+        cardTitle: card.title || "",
+        cardDescription: card.description || "",
+        media: card.mediaUrl ? {
+          contentInfo: {
+            fileUri: card.mediaUrl,
+            forceRefresh: false
+          },
+          height: refinedData.height
+        } : undefined,
+        suggestions: mapSuggestions(card.buttons)
+      }));
     }
 
     // Use FormData with rich_template_data field
@@ -233,7 +311,8 @@ const submitDotgoTemplate = async (config, templateData) => {
       headers: {
         'Authorization': `Bearer ${token}`,
         ...form.getHeaders()
-      }
+      },
+      timeout: 30000 // 30 seconds for template submission
     });
 
     return { success: true, data: response.data };
@@ -315,7 +394,8 @@ const deleteDotgoTemplate = async (config, templateName) => {
     console.log(`🗑️ Deleting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
 
     const response = await axios.delete(url, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 15000
     });
 
     return { success: true, data: response.data };
@@ -338,28 +418,37 @@ const getExternalTemplates = async (config) => {
   if (!config || !config.bot_id) return [];
 
   try {
+    const botId = config.bot_id;
+
+    // Check Cache first
+    const cached = templateCache.get(botId);
+    if (cached && cached.expiresAt > Date.now()) {
+      console.log(`📦 Returning CACHED templates for Bot: ${botId}`);
+      return cached.data;
+    }
+
     const token = await getDotgoAdminToken();
     if (!token) {
       console.error("❌ Dotgo Admin Token failure for template listing");
       return [];
     }
 
-    const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const url = `${baseUrl}/${botId}/templates`;
 
     console.log(`📡 Fetching LIVE Dotgo Templates for Bot: ${botId} (Admin Token)`);
 
     const response = await axios.get(url, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 20000 // 20 seconds timeout for large lists
     });
 
-    console.log(`📥 Dotgo Template List Response [${response.status}]:`, JSON.stringify(response.data));
+    console.log(`📥 Dotgo Template List Response [${response.status}]`);
 
     // Match the JSON structure provided by the user: { "templateList": [...] }
     const templateList = response.data?.templateList || [];
 
-    return templateList.map(t => ({
+    const mapped = templateList.map(t => ({
       id: t.name,
       name: t.name,
       status: t.status, // approved, created, etc.
@@ -367,8 +456,22 @@ const getExternalTemplates = async (config) => {
       lastUpdate: t.lastUpdate
     }));
 
+    // Update Cache
+    templateCache.set(botId, {
+      data: mapped,
+      expiresAt: Date.now() + TEMPLATE_CACHE_TTL
+    });
+
+    return mapped;
+
   } catch (error) {
     console.error("❌ Fetch External Templates Error:", error.message);
+    // If it's a timeout or error, return the cached data if it exists (even if expired) as a fallback
+    const stale = templateCache.get(config.bot_id);
+    if (stale) {
+      console.log(`⚠️ Returning STALE cache due to fetch error for Bot: ${config.bot_id}`);
+      return stale.data;
+    }
     return [];
   }
 };

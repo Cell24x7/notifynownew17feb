@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Download, Search, RefreshCw, MessageSquare } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, Search, RefreshCw, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 
@@ -70,6 +70,16 @@ export default function Reports() {
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
     const [rawLogs, setRawLogs] = useState<RawWebhookLog[]>([]);
+    
+    // Pagination states
+    const [perfPage, setPerfPage] = useState(1);
+    const [perfTotal, setPerfTotal] = useState(0);
+    const [detailedPage, setDetailedPage] = useState(1);
+    const [detailedTotal, setDetailedTotal] = useState(0);
+    const [consolidatedPage, setConsolidatedPage] = useState(1);
+    const [consolidatedTotal, setConsolidatedTotal] = useState(0);
+    const ITEMS_PER_PAGE = 20;
+
     const [loading, setLoading] = useState(true);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [loadingRaw, setLoadingRaw] = useState(false);
@@ -81,28 +91,27 @@ export default function Reports() {
     const [autoRefresh, setAutoRefresh] = useState(false);
 
     useEffect(() => {
-        fetchReports();
-        fetchWebhookLogs();
-        if (activeTab === 'detailed') fetchRawLogs();
+        setPerfPage(1); // Reset page on filter change
+        fetchReports(1);
     }, [startDate, endDate, statusFilter]);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (autoRefresh) {
-            interval = setInterval(() => {
-                handleRefresh();
-            }, 30000); // Refresh every 30 seconds
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [autoRefresh, activeTab]);
+        fetchReports(perfPage);
+    }, [perfPage]);
 
-    const fetchReports = async () => {
+    useEffect(() => {
+        fetchWebhookLogs(consolidatedPage);
+    }, [consolidatedPage]);
+
+    useEffect(() => {
+        fetchRawLogs(detailedPage);
+    }, [detailedPage]);
+
+    const fetchReports = async (page: number = 1) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/rcs/reports?`;
+            let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
             
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
@@ -115,6 +124,7 @@ export default function Reports() {
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
+                setPerfTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Failed to fetch reports', error);
@@ -123,16 +133,17 @@ export default function Reports() {
         }
     };
 
-    const fetchWebhookLogs = async () => {
+    const fetchWebhookLogs = async (page: number = 1) => {
         setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch(`${API_BASE_URL}/api/webhooks/message-logs`, {
+            const res = await fetch(`${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
+                setConsolidatedTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Error fetching logs:', error);
@@ -141,16 +152,17 @@ export default function Reports() {
         }
     };
 
-    const fetchRawLogs = async () => {
+    const fetchRawLogs = async (page: number = 1) => {
         setLoadingRaw(true);
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch(`${API_BASE_URL}/api/webhooks/logs`, {
+            const res = await fetch(`${API_BASE_URL}/api/webhooks/logs?page=${page}&limit=${ITEMS_PER_PAGE}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (data.success) {
                 setRawLogs(data.data);
+                setDetailedTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Error fetching raw logs:', error);
@@ -160,9 +172,22 @@ export default function Reports() {
     };
 
     useEffect(() => {
-        if (activeTab === 'detailed') fetchRawLogs();
-        if (activeTab === 'consolidated') fetchWebhookLogs();
+        if (activeTab === 'performance') fetchReports(perfPage);
+        if (activeTab === 'detailed') fetchRawLogs(detailedPage);
+        if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
     }, [activeTab]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (autoRefresh) {
+            interval = setInterval(() => {
+                handleRefresh();
+            }, 30000); // Refresh every 30 seconds
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [autoRefresh, activeTab, perfPage, detailedPage, consolidatedPage]);
 
     const handleExport = () => {
         if (activeTab === 'performance') {
@@ -220,9 +245,9 @@ export default function Reports() {
     };
 
     const handleRefresh = () => {
-        fetchReports();
-        if (activeTab === 'detailed') fetchRawLogs();
-        if (activeTab === 'consolidated') fetchWebhookLogs();
+        if (activeTab === 'performance') fetchReports(perfPage);
+        if (activeTab === 'detailed') fetchRawLogs(detailedPage);
+        if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
     };
 
     const filteredReports = reports.filter(r => 
@@ -238,6 +263,46 @@ export default function Reports() {
             case 'failed': return 'bg-red-100 text-red-700 border-red-200';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';
         }
+    };
+
+    const renderPagination = (currentPage: number, totalItems: number, onPageChange: (page: number) => void) => {
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
+                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                    Showing <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}</span> of{' '}
+                    <span className="font-medium">{totalItems}</span> results
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-8 px-2"
+                    >
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="h-8 px-3 font-bold bg-white">
+                            Page {currentPage} of {totalPages}
+                        </Badge>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 px-2"
+                    >
+                        Next <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -371,6 +436,7 @@ export default function Reports() {
                                     )}
                                 </TableBody>
                             </Table>
+                            {renderPagination(perfPage, perfTotal, setPerfPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -388,7 +454,7 @@ export default function Reports() {
                                 </Badge>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-0 h-[600px] overflow-auto">
+                        <CardContent className="p-0 overflow-auto">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
                                     <TableRow className="bg-muted/30">
@@ -431,6 +497,7 @@ export default function Reports() {
                                     )}
                                 </TableBody>
                             </Table>
+                            {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -448,7 +515,7 @@ export default function Reports() {
                                 </Badge>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-0 h-[600px] overflow-auto">
+                        <CardContent className="p-0 overflow-auto">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
                                     <TableRow className="bg-muted/30">
@@ -509,6 +576,7 @@ export default function Reports() {
                                     )}
                                 </TableBody>
                             </Table>
+                            {renderPagination(consolidatedPage, consolidatedTotal, setConsolidatedPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>

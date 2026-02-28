@@ -133,11 +133,11 @@ router.get('/reports', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const { startDate, endDate, status } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
 
     let sql = `
-      SELECT 
-        c.id, c.name, c.template_id, c.template_name, c.created_at,
-        c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status
       FROM campaigns c
       WHERE c.user_id = ? AND c.channel = 'RCS'
     `;
@@ -153,10 +153,33 @@ router.get('/reports', authenticateToken, async (req, res) => {
       params.push(status);
     }
 
-    sql += ` ORDER BY c.created_at DESC`;
+    // Get total count for pagination
+    const countSql = `SELECT COUNT(*) as total ${sql}`;
+    const [countResult] = await query(countSql, params);
+    const total = countResult[0].total;
 
-    const [reports] = await query(sql, params);
-    res.json({ success: true, reports });
+    // Get paginated data
+    const selectSql = `
+      SELECT 
+        c.id, c.name, c.template_id, c.template_name, c.created_at,
+        c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status
+      ${sql}
+      ORDER BY c.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [reports] = await query(selectSql, [...params, limit, offset]);
+
+    res.json({
+      success: true,
+      reports,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
 
   } catch (error) {
     console.error('❌ Reports error:', error.message);
@@ -174,8 +197,16 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     let campaignId = req.body.campaignId;
 
-    // Use provided Dotgo template name
-    const finalTemplate = templateName;
+    // Use provided Dotgo template name or fetch from DB if campaignId exists
+    let finalTemplate = templateName;
+
+    if (!finalTemplate && campaignId) {
+      const [campaigns] = await query('SELECT template_id FROM campaigns WHERE id = ?', [campaignId]);
+      if (campaigns && campaigns.length > 0) {
+        finalTemplate = campaigns[0].template_id;
+      }
+    }
+
     if (!finalTemplate) {
       return res.status(400).json({ success: false, message: 'Template name is required' });
     }

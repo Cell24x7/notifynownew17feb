@@ -240,21 +240,36 @@ router.post('/dotgo', async (req, res) => {
 router.get('/message-logs', async (req, res) => {
     try {
         const { campaignId } = req.query;
-        let sql = 'SELECT * FROM message_logs';
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        let baseSql = ' FROM message_logs';
         let params = [];
 
         if (campaignId) {
-            sql += ' WHERE campaign_id = ?';
+            baseSql += ' WHERE campaign_id = ?';
             params.push(campaignId);
         }
 
-        sql += ' ORDER BY updated_at DESC LIMIT 100';
+        // Get total count
+        const countSql = `SELECT COUNT(*) as total ${baseSql}`;
+        const [countResult] = await query(countSql, params);
+        const total = countResult[0].total;
 
-        const [logs] = await query(sql, params);
+        // Get paginated data
+        const selectSql = `SELECT * ${baseSql} ORDER BY updated_at DESC LIMIT ? OFFSET ?`;
+        const [logs] = await query(selectSql, [...params, limit, offset]);
+
         res.json({
             success: true,
-            count: logs.length,
-            data: logs
+            data: logs,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         console.error('❌ Error fetching message logs:', error.message);
@@ -266,11 +281,26 @@ router.get('/message-logs', async (req, res) => {
 // Fetch last 50 webhook logs for debugging/viewing
 router.get('/logs', async (req, res) => {
     try {
-        const [logs] = await query('SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT 50');
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const [countResult] = await query('SELECT COUNT(*) as total FROM webhook_logs');
+        const total = countResult[0].total;
+
+        // Get paginated data
+        const [logs] = await query('SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset]);
+
         res.json({
             success: true,
-            count: logs.length,
-            data: logs
+            data: logs,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         console.error('❌ Error fetching webhook logs:', error.message);

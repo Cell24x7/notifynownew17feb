@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Image as ImageIcon, Link as LinkIcon, Phone, MapPin, Calendar, Smartphone } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Link as LinkIcon, Phone, MapPin, Calendar, Smartphone, Zap } from 'lucide-react';
 
 interface RCSTemplateFormProps {
     data: any;
@@ -436,6 +436,18 @@ const ActionItem = ({ btn, onUpdate, onRemove }: { btn: any, onUpdate: (f: strin
                     className="h-10 rounded-xl bg-white border-gray-100 focus:ring-primary h-11"
                 />
             </div>
+
+            {btn.type === 'reply' && (
+                <div className="space-y-1 mt-1">
+                    <Label className="text-[10px] text-gray-400 ml-1 uppercase font-bold tracking-tight">Postback Value (Required)</Label>
+                    <Input 
+                        placeholder="Internal identifier (e.g. YES_UPGRADE)" 
+                        value={btn.postback || ''}
+                        onChange={(e) => onUpdate('postback', e.target.value)}
+                        className="h-9 text-xs rounded-xl bg-gray-50/30 border-gray-100 italic"
+                    />
+                </div>
+            )}
 
             {btn.type === 'url_action' && (
                 <Input 

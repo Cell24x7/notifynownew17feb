@@ -18,16 +18,13 @@ const normalizeRcsResult = (result) => {
     return { success: false, error: result.error || result.description || JSON.stringify(result) };
 };
 
-const BATCH_SIZE = 50; // Reduced from 1000 to 50 to prevent timeouts with slow API
+const BATCH_SIZE = 500; // Increased for maximum throughput
 
 const { deductCampaignCredits } = require('./walletService');
 
 const processQueue = async () => {
     try {
         // 1. Fetch pending items
-        // We join with campaigns to get template_id and status
-        // We join with users to get their specific rcs_config_id
-        // We join with rcs_configs to get the full config details
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
@@ -48,30 +45,29 @@ const processQueue = async () => {
 
         if (items.length === 0) return; // Nothing to do
 
-        // Safety Deduct
+        // Safety Deduct Campaign Credits
         const uniqueCampaigns = [...new Set(items.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
         for (const campId of uniqueCampaigns) {
             await deductCampaignCredits(campId);
         }
 
-        console.log(`[QueueProcessor] Processing ${items.length} items...`);
+        const itemIds = items.map(i => i.id);
 
-        // Removed batch-wide rcsToken fetch because it's now config-specific and handled inside rcsService
+        // 2. Batch Update to 'processing' (Optimization: One query instead of N)
+        await query('UPDATE campaign_queue SET status = "processing" WHERE id IN (?)', [itemIds]);
 
-        // Track stats for bulk update
+        console.log(`[QueueProcessor] Processing ${items.length} items in parallel...`);
+
         const stats = {}; // { campaignId: { sent: 0, failed: 0 } }
+        const results = []; // Collect results for bulk update
 
-        // Process in parallel
+        // 3. Process in parallel (API Calls)
         const promises = items.map(async (item) => {
             if (!stats[item.campaign_id]) stats[item.campaign_id] = { sent: 0, failed: 0 };
-
-            // Update status to processing
-            await query('UPDATE campaign_queue SET status = "processing" WHERE id = ?', [item.id]);
 
             let result = { success: false, error: 'Unknown' };
             try {
                 if (item.channel === 'RCS' || item.channel === 'rcs') {
-                    // Prepare config object if exists
                     const userConfig = item.rcs_config_id ? {
                         id: item.rcs_config_id,
                         name: item.rcs_config_name,
@@ -82,9 +78,7 @@ const processQueue = async () => {
                         bot_id: item.bot_id
                     } : null;
 
-                    // Try template first
                     try {
-                        console.log(`[QueueDebug] Processing ${item.mobile}. Template: '${item.template_name}' (Config: ${userConfig?.name || 'Default'})`);
                         const raw = await sendRcsTemplate(item.mobile, item.template_name, userConfig);
                         result = normalizeRcsResult(raw);
                     } catch (err) {
@@ -96,47 +90,41 @@ const processQueue = async () => {
                     result = { success: false, error: 'Channel not supported' };
                 }
 
+                results.push({
+                    id: item.id,
+                    campaign_id: item.campaign_id,
+                    campaign_name: item.campaign_name,
+                    template_name: item.template_name,
+                    mobile: item.mobile,
+                    success: result.success,
+                    messageId: result.messageId,
+                    error: result.error
+                });
+
                 if (result.success) {
-                    await query(
-                        'UPDATE campaign_queue SET status = "sent", message_id = ?, created_at = NOW() WHERE id = ?',
-                        [result.messageId, item.id]
-                    );
-
-                    // Log to message_logs
-                    try {
-                        await query(
-                            `INSERT INTO message_logs 
-                             (campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) 
-                             VALUES (?, ?, ?, ?, ?, 'sent', NOW())`,
-                            [item.campaign_id, item.campaign_name, item.template_name, result.messageId, item.mobile]
-                        );
-                    } catch (logErr) {
-                        console.error('[QueueProcessor] message_logs entry failed', logErr.message);
-                    }
-
                     stats[item.campaign_id].sent++;
                 } else {
-                    await query(
-                        'UPDATE campaign_queue SET status = "failed", error_message = ? WHERE id = ?',
-                        [result.error, item.id]
-                    );
                     stats[item.campaign_id].failed++;
                 }
 
             } catch (err) {
                 console.error(`[QueueProcessor] Error processing item ${item.id}`, err);
-                await query(
-                    'UPDATE campaign_queue SET status = "failed", error_message = ? WHERE id = ?',
-                    [err.message, item.id]
-                );
+                results.push({
+                    id: item.id,
+                    campaign_id: item.campaign_id,
+                    campaign_name: item.campaign_name,
+                    template_name: item.template_name,
+                    mobile: item.mobile,
+                    success: false,
+                    error: err.message
+                });
                 stats[item.campaign_id].failed++;
             }
         });
 
-
-        // Safety timeout for the entire batch (2 minutes)
+        // Safety timeout for the entire batch (3 minutes for 200 items)
         const batchTimeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Batch processing timed out')), 120000)
+            setTimeout(() => reject(new Error('Batch processing timed out')), 180000)
         );
 
         await Promise.race([
@@ -144,24 +132,69 @@ const processQueue = async () => {
             batchTimeout
         ]).catch(err => console.error('[QueueProcessor] Batch Error/Timeout:', err));
 
+        // 4. Final Bulk Updates (Optimization: Minimize DB roundtrips)
 
+        // Update campaign_queue in bulk (Success)
+        const sentIds = results.filter(r => r.success).map(r => r.id);
+        if (sentIds.length > 0) {
+            // Note: We can't easily bulk update different message_ids in one standard MySQL query without CASE, 
+            // but we can update status. message_id is optional or we can do it per-row if needed.
+            // For now, let's update status in bulk, and message_ids individually or just skip if not critical.
+            // Actually, message_id is important. We'll do individual updates for the final status 
+            // but maybe wrap them? No, let's use the individual updates but the processing update was the big win.
+
+            // Reverting to individual for final status to keep message_id mapping, 
+            // but the 'processing' update was already batched.
+            for (const r of results.filter(r => r.success)) {
+                await query('UPDATE campaign_queue SET status = "sent", message_id = ?, created_at = NOW() WHERE id = ?', [r.messageId, r.id]);
+            }
+        }
+
+        // Update campaign_queue in bulk (Failure)
+        const failedItems = results.filter(r => !r.success);
+        for (const r of failedItems) {
+            await query('UPDATE campaign_queue SET status = "failed", error_message = ? WHERE id = ?', [r.error, r.id]);
+        }
+
+        // Bulk Insert into message_logs (True Optimization)
+        const logs = results.filter(r => r.success).map(r => [
+            r.campaign_id, r.campaign_name, r.template_name, r.messageId, r.mobile, 'sent', new Date()
+        ]);
+
+        if (logs.length > 0) {
+            try {
+                await query(
+                    'INSERT INTO message_logs (campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) VALUES ?',
+                    [logs]
+                );
+            } catch (logErr) {
+                console.error('[QueueProcessor] Bulk message_logs failed', logErr.message);
+            }
+        }
+
+        // Update Campaign Totals
         for (const [campId, counts] of Object.entries(stats)) {
             if (counts.sent > 0 || counts.failed > 0) {
                 await query(
-                    'UPDATE campaigns SET sent_count = sent_count + ?, failed_count = failed_count + ? WHERE id = ?',
+                    'UPDATE campaigns SET sent_count = COALESCE(sent_count, 0) + ?, failed_count = COALESCE(failed_count, 0) + ? WHERE id = ?',
                     [counts.sent, counts.failed, campId]
                 );
-                console.log(`[Progress] Campaign ${campId}: +${counts.sent} sent, +${counts.failed} failed.`);
 
-                // Check if campaign is finished (no more pending or processing in queue)
+                // Check if campaign is finished
                 const [remains] = await query(
                     'SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status IN ("pending", "processing")',
                     [campId]
                 );
 
                 if (remains[0].count === 0) {
-                    await query('UPDATE campaigns SET status = "sent" WHERE id = ?', [campId]);
-                    console.log(`✅ Campaign ${campId} marked as SENT (Finished)`);
+                    // Safety: Double check if we actually processed anything or if it's just an empty campaign
+                    const [checks] = await query('SELECT recipient_count, sent_count, failed_count FROM campaigns WHERE id = ?', [campId]);
+                    if (checks.length > 0 && (checks[0].recipient_count > 0 || (checks[0].sent_count + checks[0].failed_count) > 0)) {
+                        await query('UPDATE campaigns SET status = "sent" WHERE id = ?', [campId]);
+                        console.log(`✅ Campaign ${campId} marked as SENT (Finished)`);
+                    } else if (checks.length > 0 && checks[0].recipient_count === 0) {
+                        console.log(`[QueueProcessor] Campaign ${campId} has 0 recipients, skipping auto-finish.`);
+                    }
                 }
             }
         }
@@ -172,5 +205,6 @@ const processQueue = async () => {
         console.error('[QueueProcessor] Fatal Error:', error);
     }
 };
+
 
 module.exports = { processQueue };
