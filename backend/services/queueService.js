@@ -147,6 +147,18 @@ const processQueue = async () => {
             // but the 'processing' update was already batched.
             for (const r of results.filter(r => r.success)) {
                 await query('UPDATE campaign_queue SET status = "sent", message_id = ?, created_at = NOW() WHERE id = ?', [r.messageId, r.id]);
+
+                // NEW: Immediate log in webhook_logs for real-time visualization
+                try {
+                    await query(
+                        `INSERT INTO webhook_logs 
+                        (recipient, message_id, status, event_type, raw_payload, created_at) 
+                        VALUES (?, ?, ?, ?, ?, NOW())`,
+                        [r.mobile, r.messageId, 'sent', 'SENT', JSON.stringify({ note: 'Initial status from queue' })]
+                    );
+                } catch (logErr) {
+                    console.error('[QueueProcessor] Failed to create initial webhook_log:', logErr.message);
+                }
             }
         }
 

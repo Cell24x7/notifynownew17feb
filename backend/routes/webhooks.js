@@ -150,33 +150,58 @@ router.post('/dotgo', async (req, res) => {
 
         console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) for ${recipient}`);
 
-        // 2. Save to webhook_logs (Envelope/Metadata Logging) - ALWAYS DO THIS
+        // 2. Save/Update webhook_logs (Smart UPSERT logic)
         try {
-            await query(
-                `INSERT INTO webhook_logs 
-                (received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    payload.receivedTime || null,
-                    recipient || null,
-                    messageId || null,
-                    payload.subscription || null,
-                    payload.message?.data || null,
-                    payload.message?.attributes?.product || null,
-                    payload.message?.attributes?.business_id || null,
-                    payload.message?.attributes?.type || null,
-                    payload.message?.attributes?.project_number || null,
-                    payload.message?.attributes?.event_type || null,
-                    payload.message?.messageId || null,
-                    payload.message?.publishTime || null,
-                    JSON.stringify(payload),
-                    finalStatus
-                ]
-            );
-            console.log(`✅ Dotgo Webhook metadata saved to database`);
+            const [existing] = await query('SELECT id FROM webhook_logs WHERE message_id = ? LIMIT 1', [messageId]);
+
+            if (existing.length > 0) {
+                // UPDATE existing row
+                await query(
+                    `UPDATE webhook_logs SET 
+                    status = ?, 
+                    event_type = ?, 
+                    raw_payload = ?,
+                    received_time = COALESCE(?, received_time),
+                    publish_time = COALESCE(?, publish_time),
+                    updated_at = NOW()
+                    WHERE id = ?`,
+                    [
+                        finalStatus,
+                        eventType || null,
+                        JSON.stringify(payload),
+                        payload.receivedTime || null,
+                        payload.message?.publishTime || null,
+                        existing[0].id
+                    ]
+                );
+                console.log(`✅ Updated existing webhook_log (ID: ${existing[0].id}) for ${messageId}`);
+            } else {
+                // INSERT new row as fallback
+                await query(
+                    `INSERT INTO webhook_logs 
+                    (received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        payload.receivedTime || null,
+                        recipient || null,
+                        messageId || null,
+                        payload.subscription || null,
+                        payload.message?.data || null,
+                        payload.message?.attributes?.product || null,
+                        payload.message?.attributes?.business_id || null,
+                        payload.message?.attributes?.type || null,
+                        payload.message?.attributes?.project_number || null,
+                        payload.message?.attributes?.event_type || null,
+                        payload.message?.messageId || null,
+                        payload.message?.publishTime || null,
+                        JSON.stringify(payload),
+                        finalStatus
+                    ]
+                );
+                console.log(`✅ Created new webhook_log for ${messageId}`);
+            }
         } catch (logErr) {
-            console.error('❌ Error saving to webhook_logs:', logErr.message);
-            // Don't fail the whole request, proceed to update statuses if possible
+            console.error('❌ Error handling webhook_logs:', logErr.message);
         }
 
         // 3. Update message_logs & Campaign counts
