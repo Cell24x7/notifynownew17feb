@@ -21,6 +21,9 @@ interface User {
   credits_available?: number;
   wallet_balance?: number;
   plan_name?: string;
+  rcs_text_price?: number;
+  rcs_rich_card_price?: number;
+  rcs_carousel_price?: number;
 }
 
 interface AuthContextType {
@@ -64,6 +67,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           permissions: decoded.permissions || [],
           credits_available: decoded.credits_available || 0,
           wallet_balance: decoded.wallet_balance || 0,
+          rcs_text_price: decoded.rcs_text_price,
+          rcs_rich_card_price: decoded.rcs_rich_card_price,
+          rcs_carousel_price: decoded.rcs_carousel_price,
         });
       } catch (err) {
         console.error('Invalid token on load:', err);
@@ -101,7 +107,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           permissions: permissions, // CRITICAL FIX: Set permissions immediately
           credits_available: userData.credits_available || 0,
           wallet_balance: userData.wallet_balance || 0,
-          plan_name: userData.plan_name
+          plan_name: userData.plan_name,
+          rcs_text_price: userData.rcs_text_price,
+          rcs_rich_card_price: userData.rcs_rich_card_price,
+          rcs_carousel_price: userData.rcs_carousel_price,
         });
         return true;
       }
@@ -140,6 +149,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           permissions: typeof userData.permissions === 'string' ? JSON.parse(userData.permissions) : (userData.permissions || []),
           credits_available: userData.credits_available || 0,
           wallet_balance: userData.wallet_balance || 0,
+          rcs_text_price: userData.rcs_text_price,
+          rcs_rich_card_price: userData.rcs_rich_card_price,
+          rcs_carousel_price: userData.rcs_carousel_price,
         });
         return true;
       }
@@ -178,6 +190,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : (userData.permissions || []),
           credits_available: userData.credits_available || 0,
           wallet_balance: userData.wallet_balance || 0,
+          rcs_text_price: userData.rcs_text_price,
+          rcs_rich_card_price: userData.rcs_rich_card_price,
+          rcs_carousel_price: userData.rcs_carousel_price,
         });
       }
     } catch (err) {

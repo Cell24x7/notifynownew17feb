@@ -218,11 +218,21 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
 
     // Use provided Dotgo template name or fetch from DB if campaignId exists
     let finalTemplate = templateName;
+    let templateType = 'standard';
 
     if (!finalTemplate && campaignId) {
-      const [campaigns] = await query('SELECT template_id FROM campaigns WHERE id = ?', [campaignId]);
+      const [campaigns] = await query('SELECT template_id, template_type FROM campaigns WHERE id = ?', [campaignId]);
       if (campaigns && campaigns.length > 0) {
         finalTemplate = campaigns[0].template_id;
+        templateType = campaigns[0].template_type || 'standard';
+      }
+    }
+
+    // Try to get template type from message_templates if we have finalTemplate
+    if (finalTemplate) {
+      const [templates] = await query('SELECT template_type FROM message_templates WHERE id = ? OR name = ?', [finalTemplate, finalTemplate]);
+      if (templates && templates.length > 0) {
+        templateType = templates[0].template_type || 'standard';
       }
     }
 
@@ -237,8 +247,8 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
       if (!campaignId) {
         campaignId = `CAMP_${Date.now()}`;
         await query(
-          `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
+          `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, template_type, recipient_count, sent_count, failed_count, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
           [
             campaignId,
             userId,
@@ -246,12 +256,13 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
             'RCS',
             finalTemplate,
             finalTemplate,
+            templateType,
             contacts.length
           ]
         );
-        console.log(`✅ Created new Dotgo campaign ${campaignId} for ${contacts.length} contacts`);
+        console.log(`✅ Created new Dotgo campaign ${campaignId} for ${contacts.length} contacts (Type: ${templateType})`);
       } else {
-        await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contacts.length, campaignId]);
+        await query('UPDATE campaigns SET recipient_count = recipient_count + ?, template_type = ? WHERE id = ?', [contacts.length, templateType, campaignId]);
       }
 
       // Prepare queue items

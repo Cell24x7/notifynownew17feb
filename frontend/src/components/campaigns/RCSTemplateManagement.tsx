@@ -343,7 +343,16 @@ export default function RCSTemplateManagement() {
   // Helper to render preview
   const renderDevicePreview = () => {
     return (
-      <div className="border rounded-3xl border-gray-800 bg-white overflow-hidden w-[300px] h-[600px] relative mx-auto shadow-xl">
+      <div 
+        className="rounded-[3rem] bg-[#000a14] overflow-hidden w-[300px] h-[600px] relative mx-auto shadow-xl transition-all duration-500"
+        style={{ 
+          boxShadow: '0 0 40px rgba(0, 114, 255, 0.2), inset 0 0 20px rgba(0, 114, 255, 0.1)',
+          border: '4px solid transparent',
+          backgroundImage: 'linear-gradient(#000a14, #000a14), linear-gradient(to right, #0072FF, #00C6FF, #D81B60)',
+          backgroundOrigin: 'border-box',
+          backgroundClip: 'padding-box, border-box',
+        }}
+      >
          {/* Status Bar */}
          <div className="bg-gray-100 p-2 flex justify-between items-center text-xs border-b">
              <span>10:00</span>

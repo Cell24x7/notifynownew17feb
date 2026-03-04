@@ -562,8 +562,14 @@ export default function Templates() {
       return (
         <div className="flex flex-col h-full items-center justify-start py-2 overflow-y-auto max-h-[750px] no-scrollbar">
             <div 
-              className="w-[340px] h-[680px] bg-[#000a14] rounded-[3.5rem] p-3 shadow-2xl relative border-[4px] border-[#0c1a2e] flex flex-col shrink-0"
-              style={{ boxShadow: '0 0 60px rgba(0, 106, 255, 0.1)' }}
+              className="w-[340px] h-[680px] bg-[#000a14] rounded-[3.5rem] p-3 shadow-2xl relative transition-all duration-500 flex flex-col shrink-0"
+              style={{ 
+                boxShadow: '0 0 40px rgba(0, 114, 255, 0.2), inset 0 0 20px rgba(0, 114, 255, 0.1)',
+                border: '4px solid transparent',
+                backgroundImage: 'linear-gradient(#000a14, #000a14), linear-gradient(to right, #0072FF, #00C6FF, #D81B60)',
+                backgroundOrigin: 'border-box',
+                backgroundClip: 'padding-box, border-box',
+              }}
             >
               {/* Phone Notch/Features */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 h-8 w-32 bg-black rounded-full z-20 shadow-inner flex items-center justify-center gap-1.5">

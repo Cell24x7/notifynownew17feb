@@ -36,10 +36,14 @@ export function CampaignPreview({ campaignData, template, variables }: CampaignP
   return (
     <div className="flex flex-col items-center justify-start h-full pb-10 overflow-y-auto no-scrollbar">
       <div 
-        className="w-[300px] h-[600px] bg-[#000a14] rounded-[3rem] p-3 shadow-2xl relative border-[4px] border-[#0c1a2e] transition-all duration-500 origin-top flex-shrink-0"
+        className="w-[300px] h-[600px] bg-[#000a14] rounded-[3rem] p-3 shadow-2xl relative transition-all duration-500 origin-top flex-shrink-0"
         style={{ 
           transform: 'scale(1)',
-          boxShadow: '0 0 20px rgba(0, 106, 255, 0.2), inset 0 0 10px rgba(0, 106, 255, 0.1)',
+          boxShadow: '0 0 30px rgba(0, 114, 255, 0.3), inset 0 0 15px rgba(0, 114, 255, 0.1)',
+          border: '4px solid transparent',
+          backgroundImage: 'linear-gradient(#000a14, #000a14), linear-gradient(to right, #0072FF, #00C6FF, #D81B60)',
+          backgroundOrigin: 'border-box',
+          backgroundClip: 'padding-box, border-box',
         }}
       >
         {/* Hotstar Gradient Border Glow */}

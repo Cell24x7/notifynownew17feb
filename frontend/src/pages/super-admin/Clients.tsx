@@ -47,6 +47,9 @@ export default function SuperAdminClients() {
     credits_available: 0,
     channels_enabled: [] as string[],
     rcs_config_id: '',
+    rcs_text_price: 0.10,
+    rcs_rich_card_price: 0.15,
+    rcs_carousel_price: 0.20,
   });
 
   // Fetch real plans
@@ -255,6 +258,9 @@ export default function SuperAdminClients() {
         credits_available: 0,
         channels_enabled: [],
         rcs_config_id: '',
+        rcs_text_price: 0.10,
+        rcs_rich_card_price: 0.15,
+        rcs_carousel_price: 0.20,
       });
   }
 
@@ -279,6 +285,9 @@ export default function SuperAdminClients() {
       credits_available: client.credits_available || 0,
       channels_enabled: clientChannels,
       rcs_config_id: client.rcs_config_id || '',
+      rcs_text_price: client.rcs_text_price || 0.10,
+      rcs_rich_card_price: client.rcs_rich_card_price || 0.15,
+      rcs_carousel_price: client.rcs_carousel_price || 0.20,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -297,6 +306,9 @@ export default function SuperAdminClients() {
       credits_available: client.credits_available || 0,
        channels_enabled: parseChannels(client.channels_enabled),
        rcs_config_id: client.rcs_config_id || '',
+       rcs_text_price: client.rcs_text_price || 0.10,
+       rcs_rich_card_price: client.rcs_rich_card_price || 0.15,
+       rcs_carousel_price: client.rcs_carousel_price || 0.20,
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -771,6 +783,53 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                             </SelectContent>
                         </Select>
                         <p className="text-[10px] text-muted-foreground">Each user must have a Dotgo RCS configuration assigned to send messages.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="h-px bg-border" />
+            
+            {/* Section 4: RCS Custom Pricing */}
+            <div className="space-y-4">
+                 <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <Globe className="w-4 h-4" /> RCS Custom Pricing (Per Message)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                        <Label>Normal Message (₹)</Label>
+                        <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={currentClient.rcs_text_price}
+                        onChange={e => setCurrentClient(prev => ({...prev, rcs_text_price: parseFloat(e.target.value) || 0 }))}
+                        disabled={modalMode === 'view'}
+                        />
+                        <p className="text-[10px] text-muted-foreground">Standard text templates</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Rich Card (₹)</Label>
+                        <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={currentClient.rcs_rich_card_price}
+                        onChange={e => setCurrentClient(prev => ({...prev, rcs_rich_card_price: parseFloat(e.target.value) || 0 }))}
+                        disabled={modalMode === 'view'}
+                        />
+                        <p className="text-[10px] text-muted-foreground">Single rich cards</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Carousel (₹)</Label>
+                        <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={currentClient.rcs_carousel_price}
+                        onChange={e => setCurrentClient(prev => ({...prev, rcs_carousel_price: parseFloat(e.target.value) || 0 }))}
+                        disabled={modalMode === 'view'}
+                        />
+                        <p className="text-[10px] text-muted-foreground">Carousel/multi-card</p>
                     </div>
                 </div>
             </div>

@@ -2,8 +2,31 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-04]
+- updated code (f1f6db8)
+- sandeep update (abef612)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (b6eccf0)
+- Resolve merge conflict in Reports.tsx (be9fff2)
+- updated code (2930f5c)
+- Updated Dotgo RCS template integration and frontend template UI (8f75979)
+
+---
+
+## [2026-03-02]
+- updated code (4ef6b56)
+
+---
+
+## [2026-02-28]
+- updated code (790569a)
+- updated code (2ea5c27)
+
+---
+
 ## [2026-02-27]
+- updated code (c18f9e5)
 - sandeep update (8da9392)
+- updated code by vikas (43da1aa)
 
 ---
 
@@ -125,11 +148,6 @@ This document is automatically updated based on development activity.
 - updated all api (7a2f55f)
 - Update CampaignCreationStepper component (d6760f3)
 - Add contacts feature and update backend/frontend (16a9e3c)
-
----
-
-## [2026-02-02]
-- Project update (c1b2d21)
 
 ---
 

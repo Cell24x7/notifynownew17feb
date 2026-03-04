@@ -157,10 +157,27 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
   const channelConfig = channelOptions.find(c => c.value === campaignData.channel);
 
+  // Get current rate per message
+  const getCurrentRate = () => {
+    let costPerMsg = channelConfig?.costPerMessage || 0.25;
+    
+    if (campaignData.channel === 'rcs') {
+      const type = (selectedTemplate as any)?.template_type || (selectedTemplate as any)?.templateType || 'standard';
+      const u = user as any;
+      if (type === 'standard' || type === 'text_message') {
+        costPerMsg = parseFloat(u?.rcs_text_price) || 0.10;
+      } else if (type === 'rich_card' || type === 'rich-card') {
+        costPerMsg = parseFloat(u?.rcs_rich_card_price) || 0.15;
+      } else if (type === 'carousel') {
+        costPerMsg = parseFloat(u?.rcs_carousel_price) || 0.20;
+      }
+    }
+    return costPerMsg;
+  };
+
   // Calculate estimated cost
   const calculateCost = () => {
-    const costPerMsg = channelConfig?.costPerMessage || 0.25;
-    return campaignData.audienceCount * costPerMsg;
+    return campaignData.audienceCount * getCurrentRate();
   };
 
   const handleNext = () => {
@@ -863,7 +880,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                          <span className="text-sm font-medium text-muted-foreground">₹</span>
                                          <span className="font-semibold text-2xl text-primary">{calculateCost().toFixed(2)}</span>
                                       </div>
-                                      <div className="text-xs text-muted-foreground">@ ₹{channelConfig?.costPerMessage}/msg</div>
+                                       <div className="text-xs text-muted-foreground">@ ₹{getCurrentRate().toFixed(2)}/msg</div>
                                    </CardContent>
                                 </Card>
                              </div>
@@ -1035,37 +1052,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       
 
 
-       {/* Test Campaign Dialog */}
-       <Dialog open={isTestDialogOpen} onOpenChange={setIsTestDialogOpen}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>Send Test Message</DialogTitle>
-                  <DialogDescription>
-                      Enter a phone number or email to receive a test message.
-                      This will use the currently selected template and variables.
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                      <Label>Destination (Phone/Email)</Label>
-                      <Input 
-                           placeholder={(campaignData.channel as string) === 'email' ? 'Enter email...' : 'Enter phone number...'}
-                          value={testDestination}
-                          onChange={(e) => setTestDestination(e.target.value)}
-                      />
-                       <p className="text-xs text-muted-foreground">
-                          Make sure to include country code for phone numbers (e.g., +91...)
-                      </p>
-                  </div>
-              </div>
-              <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsTestDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSendTest} disabled={!testDestination || isSendingTest}>
-                      {isSendingTest ? "Sending..." : "Send Test"}
-                  </Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
+
       
       {/* Footer */}
       <div className="flex-shrink-0 px-6 py-4 border-t bg-background flex items-center justify-between z-50 relative">
@@ -1092,15 +1079,6 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
               {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
             </p>
           )}
-          {currentStep === 5 && (
-             <Button 
-                variant="outline"
-                className="mr-2 border-primary/20 hover:bg-primary/5 text-primary" 
-                onClick={() => setIsTestDialogOpen(true)}
-             >
-                Test Campaign
-             </Button>
-           )}
            <Button
              onClick={handleNext}
              disabled={!canProceed()}

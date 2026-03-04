@@ -10,7 +10,7 @@ const deductCampaignCredits = async (campaignId) => {
     try {
         // 1. Fetch campaign and user details
         const [campaigns] = await query(
-            `SELECT c.*, u.credits_available, u.wallet_balance 
+            `SELECT c.*, u.credits_available, u.wallet_balance, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price
              FROM campaigns c 
              JOIN users u ON c.user_id = u.id 
              WHERE c.id = ?`,
@@ -28,23 +28,35 @@ const deductCampaignCredits = async (campaignId) => {
             return { success: true, message: 'Credits already deducted for this campaign' };
         }
 
-        // 3. Calculate total cost (1 credit per recipient)
+        // 3. Calculate total cost based on channel and template type
         const recipientCount = campaign.recipient_count || campaign.audience_count || 0;
 
         if (recipientCount === 0) {
             return { success: true, message: 'No recipients to deduct credits for' };
         }
 
-        const totalCost = recipientCount;
+        let costPerMsg = 1.0; // Default
+
+        if (campaign.channel === 'RCS') {
+            const templateType = campaign.template_type || 'standard';
+            if (templateType === 'standard') {
+                costPerMsg = parseFloat(campaign.rcs_text_price || 0.10);
+            } else if (templateType === 'rich_card') {
+                costPerMsg = parseFloat(campaign.rcs_rich_card_price || 0.15);
+            } else if (templateType === 'carousel') {
+                costPerMsg = parseFloat(campaign.rcs_carousel_price || 0.20);
+            }
+        } else if (campaign.channel === 'SMS') {
+            costPerMsg = 0.25; // Example fixed price for SMS
+        } else if (campaign.channel === 'whatsapp') {
+            costPerMsg = 0.35; // Example fixed price for WhatsApp
+        }
+
+        const totalCost = recipientCount * costPerMsg;
 
         // 4. Check balance
         if (campaign.wallet_balance < totalCost) {
             console.warn(`[WalletService] User ${campaign.user_id} has insufficient balance (${campaign.wallet_balance}) for campaign ${campaignId} (cost: ${totalCost})`);
-            // We still return success: true but log a warning, 
-            // OR we could prevent the campaign from running.
-            // For now, let's just proceed or at least deduct what's available?
-            // Usually we should stop, but let's see how strict the user wants it.
-            // Based on user feedback, they want accurate tracking.
         }
 
         // 5. Perform deduction in a transaction (conceptually, or serial queries)

@@ -185,7 +185,10 @@ router.post('/login', async (req, res) => {
         channels_enabled: user.channels_enabled,
         permissions: finalPermissions,
         wallet_balance: user.wallet_balance,
-        credits_available: user.credits_available
+        credits_available: user.credits_available,
+        rcs_text_price: user.rcs_text_price,
+        rcs_rich_card_price: user.rcs_rich_card_price,
+        rcs_carousel_price: user.rcs_carousel_price
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -205,7 +208,10 @@ router.post('/login', async (req, res) => {
         permissions: finalPermissions,
         plan_name: user.plan_name,
         wallet_balance: user.wallet_balance,
-        credits_available: user.credits_available
+        credits_available: user.credits_available,
+        rcs_text_price: user.rcs_text_price,
+        rcs_rich_card_price: user.rcs_rich_card_price,
+        rcs_carousel_price: user.rcs_carousel_price
       }
     });
 
@@ -351,7 +357,10 @@ router.post('/signup', async (req, res) => {
         channels_enabled: finalUser.channels_enabled,
         permissions: defaultPermissions,
         wallet_balance: finalUser.wallet_balance,
-        credits_available: finalUser.credits_available
+        credits_available: finalUser.credits_available,
+        rcs_text_price: finalUser.rcs_text_price,
+        rcs_rich_card_price: finalUser.rcs_rich_card_price,
+        rcs_carousel_price: finalUser.rcs_carousel_price
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -370,7 +379,10 @@ router.post('/signup', async (req, res) => {
         channels_enabled: finalUser.channels_enabled,
         permissions: defaultPermissions,
         wallet_balance: finalUser.wallet_balance,
-        credits_available: finalUser.credits_available
+        credits_available: finalUser.credits_available,
+        rcs_text_price: finalUser.rcs_text_price,
+        rcs_rich_card_price: finalUser.rcs_rich_card_price,
+        rcs_carousel_price: finalUser.rcs_carousel_price
       }
     });
 

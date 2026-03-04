@@ -75,7 +75,7 @@ export default function Campaigns() {
       interval = setInterval(() => {
         fetchData();
         refreshUser();
-      }, 30000); // 30 seconds
+      }, 5000); // 5 seconds
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -85,6 +85,9 @@ export default function Campaigns() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Refresh user to get latest wallet balance and custom pricing
+      await refreshUser();
+      
       const [campaignsData, templatesData] = await Promise.all([
         campaignService.getCampaigns(),
         templateService.getTemplates()

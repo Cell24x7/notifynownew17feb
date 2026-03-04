@@ -21,7 +21,8 @@ router.get('/', async (req, res) => {
         id, name, email, company AS company_name, contact_phone,
         plan_id, credits_available, wallet_balance, credits_used,
         IFNULL(channels_enabled, '[]') AS channels_enabled,
-        status, created_at, permissions, rcs_config_id
+        status, created_at, permissions, rcs_config_id,
+        rcs_text_price, rcs_rich_card_price, rcs_carousel_price
       FROM users
       WHERE role IN ('client', 'user')
       ORDER BY id DESC
@@ -45,7 +46,8 @@ router.post('/', async (req, res) => {
   const {
     name = '', company_name = '', contact_phone = '',
     email, password, plan_id = '', status = 'active',
-    credits_available = 0, channels_enabled = []
+    credits_available = 0, channels_enabled = [],
+    rcs_text_price = 0.10, rcs_rich_card_price = 0.15, rcs_carousel_price = 0.20
   } = req.body;
 
   if (!email || !password) {
@@ -61,11 +63,13 @@ router.post('/', async (req, res) => {
     const [result] = await query(`
       INSERT INTO users (
         name, company, contact_phone, email, password, role,
-        status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled, rcs_config_id
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?)
+        status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled, rcs_config_id,
+        rcs_text_price, rcs_rich_card_price, rcs_carousel_price
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
     `, [
       name, company_name, contact_phone, email, hash,
-      status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), req.body.rcs_config_id || null
+      status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), req.body.rcs_config_id || null,
+      rcs_text_price, rcs_rich_card_price, rcs_carousel_price
     ]);
 
     // Log Initial Transaction
@@ -88,7 +92,8 @@ router.put('/:id', async (req, res) => {
   const clientId = req.params.id;
   const {
     name, company_name, contact_phone, email, password,
-    plan_id, status, credits_available, channels_enabled, permissions, rcs_config_id
+    plan_id, status, credits_available, channels_enabled, permissions, rcs_config_id,
+    rcs_text_price, rcs_rich_card_price, rcs_carousel_price
   } = req.body;
 
   const fields = [];
@@ -104,6 +109,9 @@ router.put('/:id', async (req, res) => {
   if (channels_enabled !== undefined) { fields.push('channels_enabled = ?'); values.push(JSON.stringify(channels_enabled)); }
   if (permissions !== undefined) { fields.push('permissions = ?'); values.push(JSON.stringify(permissions)); }
   if (rcs_config_id !== undefined) { fields.push('rcs_config_id = ?'); values.push(rcs_config_id); }
+  if (rcs_text_price !== undefined) { fields.push('rcs_text_price = ?'); values.push(rcs_text_price); }
+  if (rcs_rich_card_price !== undefined) { fields.push('rcs_rich_card_price = ?'); values.push(rcs_rich_card_price); }
+  if (rcs_carousel_price !== undefined) { fields.push('rcs_carousel_price = ?'); values.push(rcs_carousel_price); }
 
   if (credits_available !== undefined) {
     fields.push('wallet_balance = ?');
@@ -187,6 +195,7 @@ router.post('/:id/impersonate', async (req, res) => {
     // Updated query to fetch permissions and plan permissions
     const [rows] = await query(`
       SELECT u.id, u.name, u.email, u.company, u.role, u.channels_enabled, u.permissions,
+             u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
              p.permissions as plan_permissions
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
@@ -226,6 +235,9 @@ router.post('/:id/impersonate', async (req, res) => {
       originalRole: 'user',
       permissions: finalPermissions, // Added
       channels_enabled: channelsEnabled, // Added
+      rcs_text_price: client.rcs_text_price,
+      rcs_rich_card_price: client.rcs_rich_card_price,
+      rcs_carousel_price: client.rcs_carousel_price,
       iat: Math.floor(Date.now() / 1000)
     };
 

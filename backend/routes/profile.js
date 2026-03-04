@@ -23,7 +23,7 @@ router.get('/', authenticate, async (req, res) => {
     const [rows] = await query(
       `SELECT u.id, u.name, u.email, u.company, u.contact_phone, u.plan_id, 
               u.credits_available, u.wallet_balance, u.credits_used, u.status, u.created_at, u.role, u.channels_enabled,
-              u.permissions, p.permissions as plan_permissions
+              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, p.permissions as plan_permissions
        FROM users u
        LEFT JOIN plans p ON u.plan_id = p.id
        WHERE u.id = ?`,

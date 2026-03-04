@@ -24,6 +24,14 @@ const { deductCampaignCredits } = require('./walletService');
 
 const processQueue = async () => {
     try {
+        // Auto-start scheduled campaigns whose time has passed
+        await query(`
+            UPDATE campaigns 
+            SET status = 'running' 
+            WHERE status = 'scheduled' 
+            AND scheduled_at <= NOW()
+        `);
+
         // 1. Fetch pending items
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
