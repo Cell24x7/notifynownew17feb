@@ -6,14 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Image as ImageIcon, Link as LinkIcon, Phone, MapPin, Calendar, Smartphone, Zap } from 'lucide-react';
 
 interface RCSTemplateFormProps {
     data: any;
     onChange: (data: any) => void;
+    onFileChange?: (file: File | null) => void;
+    onCarouselFileChange?: (index: number, file: File | null) => void;
 }
 
-export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange }) => {
+export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange, onFileChange, onCarouselFileChange }) => {
     const handleChange = (field: string, value: any) => {
         onChange({ ...data, [field]: value });
     };
@@ -190,8 +193,7 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                             
                             <div className="space-y-3 bg-gray-50/50 p-4 rounded-2xl border border-dashed border-gray-200">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[11px] font-bold text-gray-700 ml-1">Media Content URL</Label>
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-col gap-2">
                                         <div className="relative flex-1">
                                             <Input 
                                                 placeholder="https://example.com/image.jpg" 
@@ -201,8 +203,20 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                                             />
                                             <ImageIcon className="absolute right-3 top-3.5 h-4 w-4 text-gray-400" />
                                         </div>
+                                        <div className="flex items-center gap-2">
+                                            <Input 
+                                                type="file" 
+                                                accept="image/*,video/*" 
+                                                onChange={(e) => onFileChange?.(e.target.files?.[0] || null)}
+                                                className="h-9 text-xs flex-1 bg-white"
+                                            />
+                                            {data.metadata?.isUpload && <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Selected</Badge>}
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground ml-1">Supports JPEG, PNG, or Video URL</p>
+                                    <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-100">
+                                        <Zap className="h-3 w-3 text-amber-600" />
+                                        <p className="text-[10px] text-amber-700 font-medium">Important: Use 2:1 aspect ratio for images. Media URL should be a direct link (no base64).</p>
+                                    </div>
                                 </div>
                                 
                                 <div className="space-y-1.5">
@@ -300,13 +314,20 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                                     <CardContent className="p-4 space-y-4">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-1.5">
-                                                <Label className="text-[11px] font-bold text-gray-600 ml-1">Media URL</Label>
-                                                <Input 
-                                                    placeholder="https://..." 
-                                                    value={card.mediaUrl || ''}
-                                                    onChange={(e) => updateCarouselCard(idx, 'mediaUrl', e.target.value)}
-                                                    className="h-10 rounded-xl border-gray-100 bg-white"
-                                                />
+                                                <div className="flex flex-col gap-2">
+                                                    <Input 
+                                                        placeholder="https://..." 
+                                                        value={card.mediaUrl || ''}
+                                                        onChange={(e) => updateCarouselCard(idx, 'mediaUrl', e.target.value)}
+                                                        className="h-10 rounded-xl border-gray-100 bg-white"
+                                                    />
+                                                    <Input 
+                                                        type="file" 
+                                                        accept="image/*,video/*" 
+                                                        onChange={(e) => onCarouselFileChange?.(idx, e.target.files?.[0] || null)}
+                                                        className="h-9 text-xs bg-white"
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label className="text-[11px] font-bold text-gray-600 ml-1">Title</Label>

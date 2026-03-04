@@ -82,9 +82,9 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: true },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
-    { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
+    { icon: Puzzle, label: 'Marketplace', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: BarChart3, label: 'Reports', path: '/reports', show: hasPermission('Reports - View') || true }, // Default true for now as requested by user
-    { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: true },
+    { icon: ShoppingCart, label: 'Old Marketplace', path: '/marketplace', show: false },
     { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: true },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },

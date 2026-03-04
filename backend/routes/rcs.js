@@ -19,6 +19,9 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit for rich media
+
 /**
  * @route GET /api/rcs/templates/external
  * @desc Get list of external templates (Now returns Dotgo hardcoded template)
@@ -36,13 +39,13 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
     `, [userId]);
 
     if (!configs || configs.length === 0) {
-      return res.json({ success: true, templates: [], message: 'No RCS configuration assigned' });
+      return res.json({ success: true, data: [], templates: [], message: 'No RCS configuration assigned' });
     }
 
     const config = configs[0];
     const templates = await getExternalTemplates(config);
 
-    res.json({ success: true, templates });
+    res.json({ success: true, data: templates, templates });
   } catch (error) {
     console.error('❌ Error in /templates/external:', error.message);
     res.status(500).json({ success: false, message: 'Failed to fetch templates' });
@@ -51,14 +54,26 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
 
 /**
  * @route POST /api/rcs/templates
- * @desc Create a new RCS template on Dotgo using Main Admin credentials
+ * @desc Create or Update an RCS template on Dotgo
  */
-router.post('/templates', authenticateToken, async (req, res) => {
+router.post('/templates', authenticateToken, upload.array('multimedia_files'), async (req, res) => {
   try {
     const userId = req.user.id;
-    const templateData = req.body;
 
-    // Fetch user's assigned RCS config to get the credentials
+    // If it's multipart, req.body might need parsing or accessing directly
+    // Multer populates req.body and req.files
+    let templateData = req.body;
+
+    // Sometimes frontend sends rich_template_data as a string in FormData
+    if (typeof templateData.rich_template_data === 'string') {
+      try {
+        templateData = JSON.parse(templateData.rich_template_data);
+      } catch (e) {
+        console.error('Error parsing rich_template_data string:', e);
+      }
+    }
+
+    // Fetch user's assigned RCS config
     const [configs] = await query(`
       SELECT rc.* 
       FROM users u 
@@ -71,10 +86,11 @@ router.post('/templates', authenticateToken, async (req, res) => {
     }
 
     const config = configs[0];
-
-    // The rcsService.submitDotgoTemplate now uses bot-specific credentials
     const { submitDotgoTemplate } = require('../services/rcsService');
-    const result = await submitDotgoTemplate(config, templateData);
+    const originalName = req.query.originalName;
+
+    // Pass config, data, uploaded files, and originalName
+    const result = await submitDotgoTemplate(config, templateData, req.files || [], originalName);
 
     if (result.success) {
       res.json({ success: true, data: result.data });
@@ -83,7 +99,7 @@ router.post('/templates', authenticateToken, async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Error in POST /templates:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to create template' });
+    res.status(500).json({ success: false, message: 'Failed to process template request' });
   }
 });
 
@@ -96,7 +112,7 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const templateName = req.params.name;
 
-    // Fetch user's assigned RCS config to get the credentials
+    // Fetch user's assigned RCS config
     const [configs] = await query(`
       SELECT rc.* 
       FROM users u 
@@ -113,8 +129,6 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
     const result = await getDotgoTemplateStatus(config, templateName);
 
     if (result.success) {
-      // Also update the status in our local templates table if needed
-      // For now, just return the live status
       res.json({ success: true, status: result.status });
     } else {
       res.status(500).json({ success: false, message: result.error });

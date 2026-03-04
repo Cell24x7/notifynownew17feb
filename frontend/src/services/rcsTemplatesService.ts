@@ -3,6 +3,7 @@
 
 import { API_BASE_URL } from '@/config/api';
 import { useState, useCallback } from 'react';
+import axios from 'axios';
 
 // ? Correct API base (backend routes)
 const API_BASE = `${API_BASE_URL}/api/rcs`;
@@ -82,27 +83,43 @@ export const rcsTemplatesService = {
     }
   },
 
-  // Create new template (if backend supports it)
-  async createTemplate(templateData: any) {
+  // Create or Update template via backend
+  async createTemplate(templateData: any, originalName?: string) {
     try {
-      const response = await fetch(`${API_BASE}/templates`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(templateData),
-        credentials: 'include',
-      });
+      const isFormData = templateData instanceof FormData;
 
-      const result = await response.json().catch(() => ({} as any));
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create template');
+      if (isFormData) {
+        // Use axios for multipart to handle originalName param and file uploads easily
+        const url = `${API_BASE}/templates${originalName ? `?originalName=${encodeURIComponent(originalName)}` : ''}`;
+        const response = await axios.post(url, templateData, {
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'multipart/form-data'
+          },
+          withCredentials: true
+        });
+        return response.data;
+      } else {
+        const response = await fetch(`${API_BASE}/templates`, {
+          method: 'POST',
+          headers: {
+            ...getAuthHeaders(),
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(templateData),
+          credentials: 'include',
+        });
+
+        const result = await response.json().catch(() => ({} as any));
+        if (!response.ok) {
+          throw new Error(result.error || result.message || 'Failed to process template');
+        }
+        return result;
       }
-      return result;
-    } catch (error) {
-      console.error('Error creating template:', error);
-      throw error;
+    } catch (error: any) {
+      console.error('Error in createTemplate:', error);
+      const message = error.response?.data?.message || error.message || 'Failed to process template';
+      throw new Error(message);
     }
   },
 
@@ -357,7 +374,7 @@ export function useRCSTemplates() {
       setError(null);
       try {
         const newTemplate = await rcsTemplatesService.createTemplate(templateData);
-        setTemplates([newTemplate, ...templates]);
+        setTemplates(prev => [newTemplate, ...prev]);
         return newTemplate;
       } catch (err: any) {
         setError(err?.message || 'Failed to create template');
@@ -366,7 +383,7 @@ export function useRCSTemplates() {
         setLoading(false);
       }
     },
-    [templates]
+    []
   );
 
   // Update template
@@ -376,7 +393,7 @@ export function useRCSTemplates() {
       setError(null);
       try {
         const updatedTemplate = await rcsTemplatesService.updateTemplate(id, templateData);
-        setTemplates(templates.map((t: any) => (String(t.id) === String(id) ? updatedTemplate : t)));
+        setTemplates(prev => prev.map((t: any) => (String(t.id) === String(id) ? updatedTemplate : t)));
         return updatedTemplate;
       } catch (err: any) {
         setError(err?.message || 'Failed to update template');
@@ -385,7 +402,7 @@ export function useRCSTemplates() {
         setLoading(false);
       }
     },
-    [templates]
+    []
   );
 
   // Delete template
@@ -395,7 +412,7 @@ export function useRCSTemplates() {
       setError(null);
       try {
         await rcsTemplatesService.deleteTemplate(id);
-        setTemplates(templates.filter((t: any) => String(t.id) !== String(id)));
+        setTemplates(prev => prev.filter((t: any) => String(t.id) !== String(id)));
       } catch (err: any) {
         setError(err?.message || 'Failed to delete template');
         throw err;
@@ -403,7 +420,7 @@ export function useRCSTemplates() {
         setLoading(false);
       }
     },
-    [templates]
+    []
   );
 
   // Approve template
@@ -413,7 +430,7 @@ export function useRCSTemplates() {
       setError(null);
       try {
         const approvedTemplate = await rcsTemplatesService.approveTemplate(id, approvedBy || 'system');
-        setTemplates(templates.map((t: any) => (String(t.id) === String(id) ? approvedTemplate : t)));
+        setTemplates(prev => prev.map((t: any) => (String(t.id) === String(id) ? approvedTemplate : t)));
         return approvedTemplate;
       } catch (err: any) {
         setError(err?.message || 'Failed to approve template');
@@ -422,7 +439,7 @@ export function useRCSTemplates() {
         setLoading(false);
       }
     },
-    [templates]
+    []
   );
 
   // Reject template
@@ -432,7 +449,7 @@ export function useRCSTemplates() {
       setError(null);
       try {
         const rejectedTpl = await rcsTemplatesService.rejectTemplate(id, reason, rejectedBy || 'system');
-        setTemplates(templates.map((t: any) => (String(t.id) === String(id) ? rejectedTpl : t)));
+        setTemplates(prev => prev.map((t: any) => (String(t.id) === String(id) ? rejectedTpl : t)));
         return rejectedTpl;
       } catch (err: any) {
         setError(err?.message || 'Failed to reject template');
@@ -441,7 +458,7 @@ export function useRCSTemplates() {
         setLoading(false);
       }
     },
-    [templates]
+    []
   );
 
   // Sync template status

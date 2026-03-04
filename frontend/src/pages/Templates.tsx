@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, MoreVertical, BarChart3, Edit, Trash2, Eye, Zap, FileText, Clock, X, Image, Video, File, Phone, Link, RefreshCw, Check, Sparkles, TrendingUp, Target, Smartphone, ChevronRight, ChevronsUpDown, Send, MessageSquare } from 'lucide-react';
+import { Plus, Search, MoreVertical, BarChart3, Edit, Trash2, Eye, Zap, FileText, Clock, X, Image, Video, File, Phone, Link, RefreshCw, Check, Sparkles, TrendingUp, Target, Smartphone, ChevronRight, ChevronLeft, Shield, ChevronsUpDown, Send, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,6 +75,27 @@ export default function Templates() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [templateSubTab, setTemplateSubTab] = useState<'all' | 'pending'>('all');
+
+  // File states for RCS uploads
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [carouselFiles, setCarouselFiles] = useState<Record<number, File | null>>({});
+  const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const previews: Record<string, string> = {};
+    if (selectedFile) {
+      previews['main'] = URL.createObjectURL(selectedFile);
+    }
+    Object.entries(carouselFiles).forEach(([idx, file]) => {
+      if (file) previews[`carousel_${idx}`] = URL.createObjectURL(file);
+    });
+    
+    setFilePreviews(previews);
+
+    return () => {
+      Object.values(previews).forEach(URL.revokeObjectURL);
+    };
+  }, [selectedFile, carouselFiles]);
 
   useEffect(() => {
     fetchTemplates();
@@ -201,6 +222,23 @@ export default function Templates() {
 
   const handleSaveTemplate = async (isDraft: boolean = false) => {
     try {
+      // Frontend Validation
+      if (!newTemplate.name?.trim()) {
+        toast({ title: "Validation Error", description: "Template name is required", variant: "destructive" });
+        return;
+      }
+      
+      if (newTemplate.channel === 'rcs' && !isDraft) {
+        if (newTemplate.template_type === 'text_message' && !newTemplate.body?.trim()) {
+          toast({ title: "Validation Error", description: "Message body is required for text templates", variant: "destructive" });
+          return;
+        }
+        if (newTemplate.template_type === 'rich_card' && !newTemplate.metadata?.cardTitle?.trim() && !newTemplate.body?.trim()) {
+          toast({ title: "Validation Error", description: "Rich card requires at least a title or body content", variant: "destructive" });
+          return;
+        }
+      }
+
       // Map buttons for local database format (label/value) instead of RCS format (displayText/uri)
       const mappedButtons = newTemplate.channel === 'rcs' 
         ? newTemplate.buttons.map((btn: any, index: number) => {
@@ -297,9 +335,37 @@ export default function Templates() {
           }));
         }
 
-        const result = await rcsTemplatesService.createTemplate(rcsDotgoPayload);
-        if (!result.success) {
-          toast({ title: 'RCS API Error', description: result.message || 'Failed to create template on Dotgo.', variant: 'destructive' });
+        const rcsFormData = new FormData();
+        rcsDotgoPayload.isUpdate = !!editingTemplate;
+        
+        // Clean up mediaUrls if files are provided to prevent base64/conflicting errors
+        if (selectedFile) {
+          if (rcsDotgoPayload.standAlone) {
+            rcsDotgoPayload.standAlone.mediaUrl = undefined;
+            rcsDotgoPayload.standAlone.fileName = selectedFile.name; // Set fileName for Dotgo
+            rcsFormData.append('multimedia_files', selectedFile);
+          }
+        }
+
+        if (Object.keys(carouselFiles).length > 0) {
+          if (rcsDotgoPayload.carouselList) {
+            rcsDotgoPayload.carouselList.forEach((card: any, idx: number) => {
+              if (carouselFiles[idx]) {
+                const file = carouselFiles[idx]!;
+                card.mediaUrl = undefined;
+                card.fileName = file.name; // Set fileName for Dotgo
+                rcsFormData.append('multimedia_files', file);
+              }
+            });
+          }
+        }
+
+        rcsFormData.append('rich_template_data', JSON.stringify(rcsDotgoPayload));
+
+        // Use originalName if this is an update to ensure Dotgo finds the right template
+        const createResult = await rcsTemplatesService.createTemplate(rcsFormData, editingTemplate?.name);
+        if (!createResult.success) {
+          toast({ title: 'RCS API Error', description: createResult.message || 'Failed to process template on Dotgo.', variant: 'destructive' });
           return;
         }
       }
@@ -318,7 +384,17 @@ export default function Templates() {
       resetTemplateForm();
     } catch (err: any) {
       console.error('Save template error:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to save template.';
+      // Try to extract a clean message from Dotgo JSON if it exists
+      let errorMessage = err.message || 'Failed to save template.';
+      if (typeof err === 'string' && err.includes('"message":')) {
+        try {
+          const parsed = JSON.parse(err);
+          errorMessage = parsed.error?.message || parsed.message || err;
+        } catch(e) {}
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+
       toast({ 
         title: 'Error Saving Template', 
         description: errorMessage, 
@@ -348,6 +424,8 @@ export default function Templates() {
       variables: []
     });
     setTemplateStep('channel');
+    setSelectedFile(null);
+    setCarouselFiles({});
   };
 
   const handleEditTemplate = (template: MessageTemplate) => {
@@ -431,23 +509,30 @@ export default function Templates() {
     if (newTemplate.channel === 'rcs') {
       const { template_type, metadata, body, buttons } = newTemplate;
       
-      const renderCard = (cardData: any, isCarousel = false) => {
+      const renderCard = (cardData: any, isCarousel = false, index?: number) => {
         const orientation = cardData?.orientation || metadata?.orientation || 'VERTICAL';
         const alignment = cardData?.alignment || metadata?.alignment || 'LEFT';
         const height = cardData?.height || metadata?.height || 'SHORT_HEIGHT';
+        
+        // Use preview from local file if available
+        const previewUrl = isCarousel && index !== undefined 
+          ? filePreviews[`carousel_${index}`] 
+          : filePreviews['main'];
+        
+        const mediaSource = cardData?.mediaUrl || previewUrl;
 
         return (
           <div className={cn(
-            "bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-100",
-            !isCarousel && orientation === 'HORIZONTAL' ? "flex-row h-36" : "w-[220px]"
+            "bg-white dark:bg-[#1f2c33] rounded-2xl shadow-md overflow-hidden flex flex-col border border-black/5",
+            !isCarousel && orientation === 'HORIZONTAL' ? "flex-row h-36" : "w-[240px]"
           )}>
-            {cardData?.mediaUrl && (
+            {mediaSource && (
               <div className={cn(
                 "bg-muted relative shrink-0",
                 !isCarousel && orientation === 'HORIZONTAL' ? "w-[40%] h-full" : "w-full",
-                height === 'SHORT_HEIGHT' ? "h-24" : height === 'MEDIUM_HEIGHT' ? "h-32" : "h-44"
+                height === 'SHORT_HEIGHT' ? "h-28" : height === 'MEDIUM_HEIGHT' ? "h-36" : "h-48"
               )}>
-                <img src={cardData.mediaUrl} className="w-full h-full object-cover" alt="Card" />
+                <img src={mediaSource} className="w-full h-full object-cover" alt="Card" />
               </div>
             )}
             <div className={cn(
@@ -455,16 +540,16 @@ export default function Templates() {
               alignment === 'RIGHT' ? "text-right" : "text-left"
             )}>
               {(cardData?.title || cardData?.cardTitle) && (
-                <h4 className="text-[11px] font-bold text-gray-800 truncate leading-tight">{cardData.title || cardData.cardTitle}</h4>
+                <h4 className="text-[13px] font-bold text-[#111b21] dark:text-[#e9edef] truncate leading-tight">{cardData.title || cardData.cardTitle}</h4>
               )}
-              <p className="text-[10px] text-gray-500 line-clamp-2 leading-snug">
+              <p className="text-[11px] text-[#667781] dark:text-[#8696a0] line-clamp-2 leading-snug">
                 {cardData?.description || cardData?.body || body || 'No content...'}
               </p>
-              {cardData?.buttons?.length > 0 && (
-                <div className="pt-2 flex flex-col gap-1.5 mt-auto">
-                  {cardData.buttons.slice(0, 2).map((btn: any, i: number) => (
-                    <div key={i} className="text-[9px] py-1.5 border border-primary/10 rounded-lg text-primary font-bold text-center bg-primary/5 truncate">
-                      {btn.displayText || 'Action'}
+              {(cardData?.buttons?.length > 0 || (isCarousel && buttons?.length > 0) || (!isCarousel && buttons?.length > 0)) && (
+                <div className="pt-2 flex flex-col gap-1 mt-auto">
+                  {(cardData?.buttons || buttons || []).slice(0, 2).map((btn: any, i: number) => (
+                    <div key={i} className="text-[11px] py-1.5 border-t border-[#f0f2f5] dark:border-white/5 text-[#00a884] dark:text-[#53bdeb] font-bold text-center hover:bg-black/5 cursor-pointer">
+                      {btn.displayText || btn.label || 'Action'}
                     </div>
                   ))}
                 </div>
@@ -475,68 +560,94 @@ export default function Templates() {
       };
 
       return (
-        <div className="flex flex-col h-full scale-[0.68] origin-center">
-          <div className="relative mx-auto mt-4">
-            <div className="w-[300px] h-[550px] bg-[#F8F9FA] rounded-[3rem] overflow-hidden border-[12px] border-gray-900 shadow-2xl relative">
-              {/* Top Bar */}
-              <div className="bg-white px-6 py-4 border-b flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MessageSquare className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold leading-none">Business RCS</p>
-                  <p className="text-[10px] text-green-600 font-semibold uppercase flex items-center gap-0.5 mt-0.5">
-                    <Check className="h-2 w-2" /> Verified
-                  </p>
-                </div>
+        <div className="flex flex-col h-full items-center justify-start py-2 overflow-y-auto max-h-[750px] no-scrollbar">
+            <div 
+              className="w-[340px] h-[680px] bg-[#000a14] rounded-[3.5rem] p-3 shadow-2xl relative border-[4px] border-[#0c1a2e] flex flex-col shrink-0"
+              style={{ boxShadow: '0 0 60px rgba(0, 106, 255, 0.1)' }}
+            >
+              {/* Phone Notch/Features */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 h-8 w-32 bg-black rounded-full z-20 shadow-inner flex items-center justify-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-900/40" />
+                <div className="w-12 h-1.5 rounded-full bg-zinc-800/60" />
               </div>
 
-              {/* Chat Area */}
-              <div className="p-4 h-[calc(100%-120px)] overflow-y-auto no-scrollbar space-y-4">
-                {template_type === 'text_message' && (
-                   <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%]">
-                     <p className="text-xs whitespace-pre-wrap">{body || 'Type your message...'}</p>
-                   </div>
-                )}
-
-                {template_type === 'rich_card' && renderCard(metadata)}
-
-                {template_type === 'carousel' && (
-                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-1 px-1">
-                    {(metadata.carouselList || []).length > 0 ? (
-                      metadata.carouselList.map((card: any, i: number) => (
-                        <div key={i} className="flex-shrink-0">
-                          {renderCard(card, true)}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="w-[200px] h-32 bg-white rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-muted-foreground">
-                        Add Carousel Cards
-                      </div>
-                    )}
+              <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10 no-scrollbar">
+                {/* Header */}
+                <div className="px-4 pt-10 pb-3 bg-[#1A73E8] text-white flex items-center gap-3 shadow-md border-b border-white/5">
+                  <ChevronLeft className="h-5 w-5" />
+                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-[11px] font-bold border border-blue-400/20">
+                    RCS
                   </div>
-                )}
-                
-                {/* Global Chip Actions */}
-                {template_type !== 'carousel' && buttons?.length > 0 && (
-                   <div className="flex flex-wrap gap-2 pt-2">
-                     {buttons.map((btn: any, i: number) => (
-                       <div key={i} className="px-3 py-1.5 bg-white border border-primary/30 text-primary rounded-full text-[10px] font-medium shadow-sm flex items-center gap-1">
-                         {btn.type === 'url_action' && <Link className="h-2 w-2" />}
-                         {btn.type === 'dialer_action' && <Phone className="h-2 w-2" />}
-                         {btn.displayText || 'Reply'}
-                       </div>
-                     ))}
-                   </div>
-                )}
-              </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold truncate tracking-tight">Business Profile</p>
+                    <p className="text-[9px] opacity-70 flex items-center gap-0.5">
+                      <Shield className="h-2.5 w-2.5" /> Verified Account
+                    </p>
+                  </div>
+                  <MoreVertical className="h-4 w-4 opacity-70" />
+                </div>
 
-              {/* Bottom Bar */}
-              <div className="absolute bottom-4 left-4 right-4 h-10 bg-white rounded-full shadow-inner border flex items-center px-4">
-                <div className="text-[10px] text-muted-foreground">Chat message</div>
+                {/* Chat Area */}
+                <div className="flex-1 p-4 overflow-y-auto no-scrollbar space-y-4">
+                  {/* Date Bubble */}
+                  <div className="flex justify-center">
+                    <span className="bg-black/5 dark:bg-white/5 text-[9px] px-2.5 py-0.5 rounded-md text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest">
+                      Today
+                    </span>
+                  </div>
+
+                  {template_type === 'text_message' && (
+                    <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-md border border-black/5 max-w-[90%]">
+                      <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap">{body || 'Type your message...'}</p>
+                      <div className="flex justify-end mt-1">
+                        <span className="text-[9px] text-[#667781] dark:text-[#8696a0]">10:45 AM</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {template_type === 'rich_card' && renderCard(metadata)}
+
+                  {template_type === 'carousel' && (
+                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-2 px-2">
+                      {(metadata.carouselList || []).length > 0 ? (
+                        metadata.carouselList.map((card: any, i: number) => (
+                          <div key={i} className="flex-shrink-0">
+                            {renderCard(card, true, i)}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="w-[200px] h-32 bg-white dark:bg-[#1f2c33] rounded-2xl border-2 border-dashed border-[#f0f2f5] dark:border-white/5 flex items-center justify-center text-[11px] text-muted-foreground">
+                          Add Carousel Cards
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Global Chip Actions (suggestions) */}
+                  {buttons?.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {buttons.map((btn: any, i: number) => (
+                        <div key={i} className="px-4 py-2 bg-white dark:bg-[#1f2c33] border border-[#f0f2f5] dark:border-white/10 text-[#00a884] dark:text-[#53bdeb] rounded-full text-[11px] font-bold shadow-sm flex items-center gap-1.5 cursor-pointer hover:bg-black/5">
+                          {btn.type === 'url_action' && <Link className="h-3 w-3" />}
+                          {btn.type === 'dialer_action' && <Phone className="h-3 w-3" />}
+                          {btn.displayText || btn.label || 'Reply'}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Bar */}
+                <div className="p-3 bg-white dark:bg-[#111b21] border-t dark:border-white/5 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#f0f2f5] dark:bg-[#1f2b33] flex items-center justify-center">
+                    <Plus className="h-4 w-4 text-[#8696a0]" />
+                  </div>
+                  <div className="flex-1 h-8 rounded-full bg-[#f0f2f5] dark:bg-[#2a3942] px-3 flex items-center text-[#8696a0] text-[11px]">
+                    Type a message
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
         </div>
       );
     }
@@ -692,8 +803,8 @@ export default function Templates() {
       {/* Template View/Edit Dialog */}
       <Dialog open={isTemplateOpen} onOpenChange={setIsTemplateOpen}>
         <DialogContent className={cn(
-          "max-w-[95vw] w-full transition-all duration-300 no-scrollbar p-0 overflow-hidden",
-          templateStep === 'channel' ? "lg:max-w-2xl" : "lg:max-w-5xl h-[90vh]"
+          "max-w-[95vw] w-full transition-all duration-300 no-scrollbar p-0 overflow-hidden bg-white sm:rounded-3xl border-none shadow-2xl",
+          templateStep === 'channel' ? "sm:max-w-2xl" : "sm:max-w-5xl h-[90vh]"
         )}>
           <DialogHeader className={cn(
             "p-6 pb-2",
@@ -720,34 +831,49 @@ export default function Templates() {
                 templateStep === 'channel' && "max-w-xl mx-auto"
               )}>
                 {templateStep === 'channel' ? (
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-3">
+                  <div className="space-y-6 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {[
                         { 
                           id: 'whatsapp', 
-                          title: 'WhatsApp', 
-                          description: 'Rich templates with headers, buttons & media',
-                          icon: <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors"><MessageSquare className="h-6 w-6 text-green-600" /></div>,
-                          enabled: user?.channels_enabled?.includes('whatsapp') || true 
-                        },
-                        { 
-                          id: 'sms', 
-                          title: 'SMS', 
-                          description: 'Simple text messages up to 160 characters',
-                          icon: <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors"><Smartphone className="h-6 w-6 text-amber-600" /></div>,
-                          enabled: user?.channels_enabled?.includes('sms')
+                          title: 'WhatsApp Business', 
+                          description: 'Rich templates with headers, interactive buttons & high-engagement media.',
+                          icon: <MessageSquare className="h-7 w-7 text-green-600" />,
+                          bg: "bg-green-50",
+                          hover: "hover:bg-green-100",
+                          border: "border-green-100",
+                          accent: "bg-green-600",
+                          enabled: user?.channels_enabled?.includes('whatsapp')
                         },
                         { 
                           id: 'rcs', 
-                          title: 'RCS', 
-                          description: 'Rich messaging with buttons & suggested replies',
-                          icon: <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors"><Sparkles className="h-6 w-6 text-blue-600" /></div>,
-                          enabled: user?.channels_enabled?.includes('rcs') || true
+                          title: 'RCS Messaging', 
+                          description: 'Next-gen rich messaging with carousels, rich cards & suggested actions.',
+                          icon: <Sparkles className="h-7 w-7 text-blue-600" />,
+                          bg: "bg-blue-50",
+                          hover: "hover:bg-blue-100",
+                          border: "border-blue-100",
+                          accent: "bg-blue-600",
+                          enabled: user?.channels_enabled?.includes('rcs')
+                        },
+                        { 
+                          id: 'sms', 
+                          title: 'SMS Gateway', 
+                          description: 'Reliable, text-only messages delivered instantly to any mobile device.',
+                          icon: <Smartphone className="h-7 w-7 text-amber-600" />,
+                          bg: "bg-amber-50",
+                          hover: "hover:bg-amber-100",
+                          border: "border-amber-100",
+                          accent: "bg-amber-600",
+                          enabled: user?.channels_enabled?.includes('sms')
                         }
                       ].filter(c => c.enabled).map((channel) => (
                         <Card 
                           key={channel.id}
-                          className="group hover:border-primary cursor-pointer transition-all hover:shadow-md border-muted-foreground/10" 
+                          className={cn(
+                            "group relative overflow-hidden h-full border-2 transition-all duration-300 cursor-pointer hover:shadow-xl active:scale-[0.98]",
+                            "border-transparent hover:border-primary/20 bg-muted/30"
+                          )} 
                           onClick={() => { 
                             setNewTemplate({ 
                               ...newTemplate, 
@@ -757,17 +883,45 @@ export default function Templates() {
                             setTemplateStep('form'); 
                           }}
                         >
-                          <CardContent className="p-4 flex items-center gap-4">
-                            {channel.icon}
-                            <div className="flex-1">
-                              <h3 className="font-bold text-gray-900">{channel.title}</h3>
-                              <p className="text-xs text-muted-foreground">{channel.description}</p>
+                          <CardContent className="p-6 flex flex-col items-center text-center space-y-4 h-full animate-in fade-in zoom-in-95 duration-500">
+                            <div className={cn(
+                              "w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300",
+                              channel.bg
+                            )}>
+                              {channel.icon}
                             </div>
-                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors pr-2" />
+                            <div className="space-y-2">
+                              <h3 className="font-bold text-lg text-gray-900 leading-none">{channel.title}</h3>
+                              <p className="text-xs text-muted-foreground leading-relaxed px-2">
+                                {channel.description}
+                              </p>
+                            </div>
+                            <div className="pt-2 mt-auto w-full">
+                               <div className="flex items-center justify-center gap-1.5 text-primary text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300">
+                                 Get Started <ChevronRight className="h-3 w-3" />
+                               </div>
+                            </div>
                           </CardContent>
+                          <div className={cn("absolute top-0 right-0 w-16 h-16 opacity-10 -mr-8 -mt-8 rounded-full", channel.accent)} />
                         </Card>
                       ))}
                     </div>
+                    {(['whatsapp', 'rcs', 'sms'].filter(id => (user?.channels_enabled || []).includes(id)).length === 0) && (
+                      <div className="text-center py-12 space-y-4 bg-muted/20 rounded-3xl border border-dashed border-muted-foreground/20">
+                         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+                            <Zap className="h-8 w-8 text-muted-foreground" />
+                         </div>
+                         <div className="space-y-1">
+                            <h3 className="font-bold text-lg">No Channels Enabled</h3>
+                            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                               Please enable channels in your settings page to start creating templates.
+                            </p>
+                         </div>
+                         <Button variant="outline" onClick={() => navigate('/settings?tab=channels')} className="rounded-xl">
+                            Go to Settings
+                         </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -823,6 +977,18 @@ export default function Templates() {
                        <RCSTemplateForm 
                          data={newTemplate} 
                          onChange={(data) => setNewTemplate(data)} 
+                         onFileChange={(file) => {
+                           setSelectedFile(file);
+                           if (file) {
+                             setNewTemplate({
+                               ...newTemplate,
+                               metadata: { ...newTemplate.metadata, isUpload: true }
+                             });
+                           }
+                         }}
+                         onCarouselFileChange={(idx, file) => {
+                           setCarouselFiles(prev => ({ ...prev, [idx]: file }));
+                         }}
                        />
                      ) : (
                        <div className="space-y-4">

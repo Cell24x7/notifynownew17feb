@@ -14,6 +14,17 @@ const TEMPLATE_CACHE_TTL = 300000; // 5 minutes
 const tokenFetchingPromises = new Map();
 
 /**
+ * Base64URL Encode a string
+ */
+const base64UrlEncode = (str) => {
+  if (!str) return '';
+  return Buffer.from(str)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_'); // Keeping padding (the ==)
+};
+
+/**
  * Get Dotgo RCS Access Token
  * @param {object} config - Configuration object containing client_id, client_secret, auth_url, and an optional id for caching.
  * @returns {Promise<string|null>} - Access token
@@ -211,54 +222,60 @@ const sendRcsMessage = async (mobile, message, config) => {
 
 /**
  * Submit a new template to Dotgo using ADMIN credentials
- * @param {string} botId 
+ * @param {object} config 
  * @param {object} templateData 
+ * @param {Array} [files] - Array of uploaded files from multer
+ * @param {string} [existingName] - If provided, performs an UPDATE instead of CREATE
  * @returns {Promise<object>}
  */
-const submitDotgoTemplate = async (config, templateData) => {
+const submitDotgoTemplate = async (config, templateData, files = [], existingName = null) => {
   try {
     const token = await getDotgoAdminToken();
     if (!token) return { success: false, error: "Platform Admin Authentication failed" };
 
     const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
-    const url = `${baseUrl}/${botId}/templates`;
 
-    console.log(`📤 Submitting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateData.name}`);
+    // Pattern: {serverRoot}/directory/secure/api/v1/bots/{botId}/templates[/{name}]
+    let url = `${baseUrl}/${botId}/templates`;
+    if (existingName || templateData.isUpdate) {
+      const targetName = existingName || templateData.name;
+      const base64Name = base64UrlEncode(targetName);
+      url = `${url}/${base64Name}`;
+      console.log(`🔄 Updating Dotgo Template: ${targetName} (B64URL: ${base64Name})`);
+    } else {
+      console.log(`📤 Creating Dotgo Template for Bot: ${botId}, Template: ${templateData.name}`);
+    }
 
     // Refine payload structure based on Dotgo Documentation and frontend field names
     const refinedData = {
       name: templateData.name,
-      type: templateData.type || templateData.template_type,
-      fallbackText: templateData.fallbackText || "RCS Message"
+      type: templateData.type || templateData.template_type || 'text_message',
+      fallbackText: templateData.fallbackText || templateData.body?.substring(0, 100) || "RCS Message"
     };
 
-    // Helper to map suggestions correctly
+    // Strict type check to prevent Dotgo "Invalid Template Type" error
+    const validTypes = ['text_message', 'rich_card', 'carousel'];
+    if (!validTypes.includes(refinedData.type)) {
+      refinedData.type = 'text_message'; // Default to text if invalid
+    }
+
+    // Helper to map suggestions correctly according to provided curl examples
     const mapSuggestions = (btns) => {
       if (!btns || !Array.isArray(btns)) return [];
       return btns.map(btn => {
         const suggestion = {
-          displayText: btn.displayText || btn.text || "Click here"
+          suggestionType: btn.suggestionType || (btn.type === 'url' || btn.type === 'url_action' ? 'url_action' : btn.type === 'phone' || btn.type === 'dialer_action' ? 'dialer_action' : 'reply'),
+          displayText: btn.displayText || btn.label || "Click here",
+          postback: btn.postback || btn.value || "postback"
         };
 
-        if (btn.type === 'reply') {
-          suggestion.reply = {
-            postback: btn.postback || btn.displayText || "postback"
-          };
-        } else if (btn.type === 'url_action') {
-          suggestion.action = {
-            urlAction: {
-              openUrl: { url: btn.uri || btn.url }
-            }
-          };
-        } else if (btn.type === 'dialer_action') {
-          suggestion.action = {
-            dialerAction: {
-              dialPhoneNumber: { phoneNumber: btn.uri || btn.phoneNumber }
-            }
-          };
+        if (suggestion.suggestionType === 'url_action') {
+          suggestion.url = btn.url || btn.value || btn.uri;
+        } else if (suggestion.suggestionType === 'dialer_action') {
+          suggestion.phoneNumber = btn.phoneNumber || btn.value || btn.uri;
         }
-        // Add more action types as needed (calendar, location, etc.)
+
         return suggestion;
       });
     };
@@ -270,36 +287,44 @@ const submitDotgoTemplate = async (config, templateData) => {
       refinedData.orientation = templateData.orientation || templateData.metadata?.orientation || 'VERTICAL';
       refinedData.height = templateData.height || templateData.metadata?.height || 'SHORT_HEIGHT';
 
-      const cardContent = templateData.richCardContent?.standaloneCard?.cardContent || templateData.metadata || {};
+      const cardContent = templateData.standAlone || templateData.metadata || {};
       refinedData.standAlone = {
         cardTitle: templateData.cardTitle || cardContent.cardTitle || "",
-        cardDescription: templateData.body || cardContent.description || "",
-        media: cardContent.mediaUrl ? {
-          contentInfo: {
-            fileUri: cardContent.mediaUrl,
-            forceRefresh: false
-          },
-          height: refinedData.height
-        } : undefined,
-        suggestions: mapSuggestions(templateData.buttons || cardContent.buttons)
+        cardDescription: templateData.body || cardContent.cardDescription || cardContent.description || "",
+        suggestions: mapSuggestions(templateData.buttons || cardContent.buttons || cardContent.suggestions)
       };
+
+      // Handle Media URL vs File Upload
+      // Priority: If fileName exists in cardContent (set by frontend when file is picked), use it.
+      // If mediaUrl is a data: URL (base64), IGNORE IT and rely on files array.
+      if (cardContent.fileName) {
+        refinedData.standAlone.fileName = cardContent.fileName;
+        if (cardContent.thumbnailFileName) refinedData.standAlone.thumbnailFileName = cardContent.thumbnailFileName;
+      } else if (cardContent.mediaUrl && !cardContent.mediaUrl.startsWith('data:')) {
+        refinedData.standAlone.mediaUrl = cardContent.mediaUrl;
+        if (cardContent.thumbnailUrl) refinedData.standAlone.thumbnailUrl = cardContent.thumbnailUrl;
+      }
     } else if (refinedData.type === 'carousel') {
       refinedData.height = templateData.height || templateData.metadata?.height || 'SHORT_HEIGHT';
       refinedData.width = templateData.width || templateData.metadata?.width || 'MEDIUM_WIDTH';
 
-      const carouselList = templateData.carouselContent?.carouselCards?.map(c => c.cardContent) || templateData.metadata?.carouselList || [];
-      refinedData.carouselList = carouselList.map(card => ({
-        cardTitle: card.title || "",
-        cardDescription: card.description || "",
-        media: card.mediaUrl ? {
-          contentInfo: {
-            fileUri: card.mediaUrl,
-            forceRefresh: false
-          },
-          height: refinedData.height
-        } : undefined,
-        suggestions: mapSuggestions(card.buttons)
-      }));
+      const carouselList = templateData.carouselList || templateData.metadata?.carouselList || [];
+      refinedData.carouselList = carouselList.map(card => {
+        const mappedCard = {
+          cardTitle: card.cardTitle || card.title || "",
+          cardDescription: card.cardDescription || card.description || "",
+          suggestions: mapSuggestions(card.buttons || card.suggestions)
+        };
+
+        if (card.fileName) {
+          mappedCard.fileName = card.fileName;
+          if (card.thumbnailFileName) mappedCard.thumbnailFileName = card.thumbnailFileName;
+        } else if (card.mediaUrl && !card.mediaUrl.startsWith('data:')) {
+          mappedCard.mediaUrl = card.mediaUrl;
+          if (card.thumbnailUrl) mappedCard.thumbnailUrl = card.thumbnailUrl;
+        }
+        return mappedCard;
+      });
     }
 
     // Use FormData with rich_template_data field
@@ -307,13 +332,35 @@ const submitDotgoTemplate = async (config, templateData) => {
     const form = new FormData();
     form.append('rich_template_data', JSON.stringify(refinedData));
 
+    // Append any actual files if present (multer)
+    if (files && Array.isArray(files)) {
+      files.forEach(file => {
+        form.append('multimedia_files', file.buffer, {
+          filename: file.originalname,
+          contentType: file.mimetype
+        });
+      });
+    }
+
     const response = await axios.post(url, form, {
       headers: {
         'Authorization': `Bearer ${token}`,
         ...form.getHeaders()
       },
-      timeout: 30000 // 30 seconds for template submission
+      timeout: 60000
     });
+
+    console.log(`✅ Dotgo Response [${response.status}]:`, JSON.stringify(response.data).substring(0, 500));
+
+    // Some versions of Dotgo API return 200 OK with an error status inside the JSON
+    if (response.data && (response.data.status === 'Bad Request' || response.data.error)) {
+      const errorMsg = response.data.error?.message || response.data.message || JSON.stringify(response.data);
+      console.error("❌ Dotgo Business Error (inside 200 OK):", errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    // Clear cache so the next list fetch is fresh
+    templateCache.delete(botId);
 
     return { success: true, data: response.data };
   } catch (error) {
@@ -336,7 +383,7 @@ const getDotgoTemplateStatus = async (config, templateName) => {
 
     const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
-    const base64Name = Buffer.from(templateName).toString('base64');
+    const base64Name = base64UrlEncode(templateName);
     const url = `${baseUrl}/${botId}/templates/${base64Name}/templateStatus`;
 
     console.log(`🔍 Checking Dotgo Status (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
@@ -362,7 +409,7 @@ const getDotgoTemplateDetails = async (config, templateName) => {
 
     const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
-    const base64Name = Buffer.from(templateName).toString('base64');
+    const base64Name = base64UrlEncode(templateName);
     const url = `${baseUrl}/${botId}/templates/${base64Name}`;
 
     console.log(`🔍 Fetching Dotgo Details (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
@@ -388,15 +435,21 @@ const deleteDotgoTemplate = async (config, templateName) => {
 
     const botId = config.bot_id;
     const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
-    // Endpoint: {serverRoot}/directory/secure/api/v1/bots/{botId}/deleteTemplate/{name}
-    const url = `${baseUrl}/${botId}/deleteTemplate/${templateName}`;
 
-    console.log(`🗑️ Deleting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
+    // Pattern: {serverRoot}/directory/secure/api/v1/bots/{botId}/deleteTemplate/{base64_name}
+    const base64Name = base64UrlEncode(templateName);
+    const url = `${baseUrl}/${botId}/deleteTemplate/${base64Name}`;
 
-    const response = await axios.delete(url, {
+    console.log(`🗑️ Deleting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateName} (B64: ${base64Name})`);
+
+    // The user's curl shows POST for deletion
+    const response = await axios.post(url, {}, {
       headers: { 'Authorization': `Bearer ${token}` },
       timeout: 15000
     });
+
+    // Clear cache so the next list fetch is fresh
+    templateCache.delete(botId);
 
     return { success: true, data: response.data };
   } catch (error) {
@@ -445,15 +498,15 @@ const getExternalTemplates = async (config) => {
 
     console.log(`📥 Dotgo Template List Response [${response.status}]`);
 
-    // Match the JSON structure provided by the user: { "templateList": [...] }
-    const templateList = response.data?.templateList || [];
+    // Match the JSON structure: { "templateList": [...] } or sometimes it's an array directly
+    const templateList = response.data?.templateList || (Array.isArray(response.data) ? response.data : []);
 
     const mapped = templateList.map(t => ({
-      id: t.name,
-      name: t.name,
-      status: t.status, // approved, created, etc.
-      type: t.templateType,
-      lastUpdate: t.lastUpdate
+      id: t.name || t.id,
+      name: t.name || t.id,
+      status: t.status || t.templateStatus,
+      type: t.templateType || t.type,
+      lastUpdate: t.lastUpdate || t.updatedAt
     }));
 
     // Update Cache
