@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Download, Search, RefreshCw, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 
@@ -43,15 +43,6 @@ interface WebhookLog {
     updated_at: string;
 }
 
-interface RawWebhookLog {
-    id: number;
-    message_id_envelope: string;
-    recipient: string;
-    status: string;
-    event_type: string;
-    created_at: string;
-    raw_payload: string;
-}
 
 const downloadCsv = (content: string, filename: string) => {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
@@ -69,42 +60,32 @@ export default function Reports() {
     const { user } = useAuth();
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
-    const [rawLogs, setRawLogs] = useState<RawWebhookLog[]>([]);
-    
-    // Pagination states
-    const [perfPage, setPerfPage] = useState(1);
-    const [perfTotal, setPerfTotal] = useState(0);
+    const [summaryPage, setSummaryPage] = useState(1);
+    const [summaryTotal, setSummaryTotal] = useState(0);
     const [detailedPage, setDetailedPage] = useState(1);
     const [detailedTotal, setDetailedTotal] = useState(0);
-    const [consolidatedPage, setConsolidatedPage] = useState(1);
-    const [consolidatedTotal, setConsolidatedTotal] = useState(0);
     const ITEMS_PER_PAGE = 20;
 
     const [loading, setLoading] = useState(true);
     const [loadingLogs, setLoadingLogs] = useState(false);
-    const [loadingRaw, setLoadingRaw] = useState(false);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState('performance');
-    const [autoRefresh, setAutoRefresh] = useState(false);
+    const [activeTab, setActiveTab] = useState('summary');
+    const [autoRefresh] = useState(true); // Mandatory auto-refresh
 
     useEffect(() => {
-        setPerfPage(1); // Reset page on filter change
+        setSummaryPage(1); // Reset page on filter change
         fetchReports(1);
     }, [startDate, endDate, statusFilter]);
 
     useEffect(() => {
-        fetchReports(perfPage);
-    }, [perfPage]);
+        fetchReports(summaryPage);
+    }, [summaryPage]);
 
     useEffect(() => {
-        fetchWebhookLogs(consolidatedPage);
-    }, [consolidatedPage]);
-
-    useEffect(() => {
-        fetchRawLogs(detailedPage);
+        fetchWebhookLogs(detailedPage);
     }, [detailedPage]);
 
     const fetchReports = async (page: number = 1) => {
@@ -125,7 +106,7 @@ export default function Reports() {
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
-                setPerfTotal(data.pagination?.total || 0);
+                setSummaryTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Failed to fetch reports', error);
@@ -149,7 +130,7 @@ export default function Reports() {
             const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
-                setConsolidatedTotal(data.pagination?.total || 0);
+                setDetailedTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Error fetching logs:', error);
@@ -158,34 +139,10 @@ export default function Reports() {
         }
     };
 
-    const fetchRawLogs = async (page: number = 1) => {
-        setLoadingRaw(true);
-        try {
-            const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/webhooks/logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
-            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
-            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
-
-            const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-                setRawLogs(data.data);
-                setDetailedTotal(data.pagination?.total || 0);
-            }
-        } catch (error) {
-            console.error('Error fetching raw logs:', error);
-        } finally {
-            setLoadingRaw(false);
-        }
-    };
 
     useEffect(() => {
-        if (activeTab === 'performance') fetchReports(perfPage);
-        if (activeTab === 'detailed') fetchRawLogs(detailedPage);
-        if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
+        if (activeTab === 'summary') fetchReports(summaryPage);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
     }, [activeTab, startDate, endDate, searchQuery]);
 
     useEffect(() => {
@@ -198,10 +155,10 @@ export default function Reports() {
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [autoRefresh, activeTab, perfPage, detailedPage, consolidatedPage]);
+    }, [autoRefresh, activeTab, summaryPage, detailedPage]);
 
     const handleExport = () => {
-        if (activeTab === 'performance') {
+        if (activeTab === 'summary') {
             const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
             const csvContent = [
                 headers.join(','),
@@ -219,21 +176,6 @@ export default function Reports() {
 
             downloadCsv(csvContent, `rcs_summary_${format(new Date(), 'yyyyMMdd')}.csv`);
         } else if (activeTab === 'detailed') {
-            const headers = ['Id', 'Received At', 'Recipient', 'Message ID', 'Event', 'Status'];
-            const csvContent = [
-                headers.join(','),
-                ...rawLogs.map(l => [
-                    l.id,
-                    l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
-                    l.recipient || 'N/A',
-                    `"${l.message_id_envelope || ''}"`,
-                    l.event_type || 'Update',
-                    l.status
-                ].join(','))
-            ].join('\n');
-
-            downloadCsv(csvContent, `detailed_webhooks_${format(new Date(), 'yyyyMMdd')}.csv`);
-        } else if (activeTab === 'consolidated') {
             const headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
             const csvContent = [
                 headers.join(','),
@@ -256,9 +198,8 @@ export default function Reports() {
     };
 
     const handleRefresh = () => {
-        if (activeTab === 'performance') fetchReports(perfPage);
-        if (activeTab === 'detailed') fetchRawLogs(detailedPage);
-        if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
+        if (activeTab === 'summary') fetchReports(summaryPage);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
     };
 
     const filteredReports = reports;
@@ -321,20 +262,6 @@ export default function Reports() {
                     <p className="text-muted-foreground">Monitor campaign performance and delivery logs</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 mr-4 bg-muted/50 px-3 py-1.5 rounded-lg border border-border/50">
-                        <Label htmlFor="auto-refresh" className="text-xs font-medium cursor-pointer">Auto-Refresh</Label>
-                        <input
-                            id="auto-refresh"
-                            type="checkbox"
-                            checked={autoRefresh}
-                            onChange={(e) => setAutoRefresh(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
-                        />
-                    </div>
-                    <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-                        <RefreshCw className={cn("h-4 w-4", (loading || loadingLogs || loadingRaw) && "animate-spin")} />
-                        Refresh
-                    </Button>
                     <Button variant="default" size="sm" onClick={handleExport} className="gap-2 bg-blue-600 hover:bg-blue-700">
                         <Download className="h-4 w-4" />
                         Export CSV
@@ -407,14 +334,13 @@ export default function Reports() {
                 </CardContent>
             </Card>
 
-            <Tabs defaultValue="performance" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <TabsList className="grid w-[600px] grid-cols-3">
-                    <TabsTrigger value="performance">Campaign Performance</TabsTrigger>
-                    <TabsTrigger value="detailed">Detailed Webhook Logs</TabsTrigger>
-                    <TabsTrigger value="consolidated">Consolidated Delivery Logs</TabsTrigger>
+            <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                <TabsList className="grid w-[400px] grid-cols-2">
+                    <TabsTrigger value="summary">Summary Report</TabsTrigger>
+                    <TabsTrigger value="detailed">Detailed Reports</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="performance" className="flex-1 flex flex-col space-y-4 pt-4">
+                <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
 
                     <Card className="flex-1 overflow-hidden">
                         <CardContent className="p-0">
@@ -455,77 +381,17 @@ export default function Reports() {
                                     )}
                                 </TableBody>
                             </Table>
-                            {renderPagination(perfPage, perfTotal, setPerfPage)}
+                            {renderPagination(summaryPage, summaryTotal, setSummaryPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>
+
 
                 <TabsContent value="detailed" className="flex-1 mt-4">
                     <Card className="border-none shadow-sm h-full">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <div className="space-y-1">
-                                <CardTitle className="text-xl font-bold">Detailed Webhook Logs</CardTitle>
-                                <CardDescription>Raw events received from providers</CardDescription>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
-                                    Total Events: {rawLogs.length}
-                                </Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0 overflow-auto">
-                            <Table>
-                                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
-                                    <TableRow className="bg-muted/30">
-                                        <TableHead className="w-[60px] font-bold text-black border-r">Id</TableHead>
-                                        <TableHead className="w-[150px] font-bold text-black border-r">Received At</TableHead>
-                                        <TableHead className="w-[150px] font-bold text-black border-r">Recipient</TableHead>
-                                        <TableHead className="font-bold text-black border-r">Message ID</TableHead>
-                                        <TableHead className="w-[120px] font-bold text-black border-r">Event</TableHead>
-                                        <TableHead className="w-[100px] font-bold text-black">Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loadingRaw ? (
-                                        <TableRow><TableCell colSpan={6} className="text-center py-10">Fetching raw logs...</TableCell></TableRow>
-                                    ) : rawLogs.length === 0 ? (
-                                        <TableRow><TableCell colSpan={6} className="text-center py-10">No webhook events available.</TableCell></TableRow>
-                                    ) : (
-                                        rawLogs.map((log) => (
-                                            <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
-                                                <TableCell className="text-[11px] font-mono border-r">{log.id}</TableCell>
-                                                <TableCell className="text-[11px] border-r">
-                                                    {format(new Date(log.created_at), 'dd MMM HH:mm:ss')}
-                                                </TableCell>
-                                                <TableCell className="text-[11px] font-bold border-r">
-                                                    {log.recipient || 'N/A'}
-                                                </TableCell>
-                                                <TableCell className="text-[11px] font-mono border-r truncate max-w-[200px]" title={log.message_id_envelope}>
-                                                    {log.message_id_envelope || 'N/A'}
-                                                </TableCell>
-                                                <TableCell className="text-[11px] border-r italic text-muted-foreground uppercase">
-                                                    {log.event_type || 'Update'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline" className={cn("uppercase text-[9px] font-bold px-1.5 py-0", getStatusColor(log.status))}>
-                                                        {log.status}
-                                                    </Badge>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                            {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="consolidated" className="flex-1 mt-4">
-                    <Card className="border-none shadow-sm h-full">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <div className="space-y-1">
-                                <CardTitle className="text-xl font-bold">Consolidated Delivery Summary</CardTitle>
+                                <CardTitle className="text-xl font-bold">Detailed Delivery Reports</CardTitle>
                                 <CardDescription>Consolidated status for every recipient</CardDescription>
                             </div>
                             <div className="flex items-center gap-2">
@@ -538,16 +404,16 @@ export default function Reports() {
                             <Table>
                                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
                                     <TableRow className="bg-muted/30">
-                                        <TableHead className="w-[60px] font-bold text-black border-r">Id</TableHead>
-                                        <TableHead className="w-[140px] font-bold text-black border-r text-center">Rtime</TableHead>
-                                        <TableHead className="w-[120px] font-bold text-black border-r text-center">Mobile</TableHead>
-                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">sendTime</TableHead>
-                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">DelTime</TableHead>
-                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">ReadTime</TableHead>
-                                        <TableHead className="w-[130px] font-bold text-black border-r text-center">Template</TableHead>
-                                        <TableHead className="w-[130px] font-bold text-black border-r text-center">Campaign</TableHead>
-                                        <TableHead className="w-[100px] font-bold text-black border-r text-center">Status</TableHead>
-                                        <TableHead className="w-[150px] font-bold text-black text-center">reason</TableHead>
+                                        <TableHead className="w-[50px] font-bold text-black border-r px-2 text-[10px]">Id</TableHead>
+                                        <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Rtime</TableHead>
+                                        <TableHead className="w-[100px] font-bold text-black border-r text-center px-2 text-[10px]">Mobile</TableHead>
+                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">sendTime</TableHead>
+                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">DelTime</TableHead>
+                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">ReadTime</TableHead>
+                                        <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Template</TableHead>
+                                        <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Campaign</TableHead>
+                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">Status</TableHead>
+                                        <TableHead className="font-bold text-black text-center px-2 text-[10px]">reason</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -558,36 +424,36 @@ export default function Reports() {
                                     ) : (
                                         webhookLogs.map((log) => (
                                             <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
-                                                <TableCell className="text-[11px] font-mono border-r">
+                                                <TableCell className="text-[10px] font-mono border-r px-2">
                                                     {log.id}
                                                 </TableCell>
-                                                <TableCell className="text-[11px] border-r text-center">
+                                                <TableCell className="text-[10px] border-r text-center px-2">
                                                     {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
                                                 </TableCell>
-                                                <TableCell className="text-[11px] font-bold border-r text-center">
-                                                    {log.recipient}
+                                                <TableCell className="text-[10px] border-r text-center px-2">
+                                                    {log.recipient?.replace(/^\+/, '')}
                                                 </TableCell>
-                                                <TableCell className="text-[11px] border-r text-center">
+                                                <TableCell className="text-[10px] border-r text-center px-2">
                                                     {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
                                                 </TableCell>
-                                                <TableCell className="text-[11px] border-r text-center text-green-600 font-medium">
+                                                <TableCell className="text-[10px] border-r text-center text-green-600 font-medium px-2">
                                                     {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
                                                 </TableCell>
-                                                <TableCell className="text-[11px] border-r text-center text-purple-600 font-medium">
+                                                <TableCell className="text-[10px] border-r text-center text-purple-600 font-medium px-2">
                                                     {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
                                                 </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[130px]" title={log.template_name}>
+                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.template_name}>
                                                     {log.template_name || 'N/A'}
                                                 </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[130px]" title={log.campaign_name}>
+                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.campaign_name}>
                                                     {log.campaign_name || 'N/A'}
                                                 </TableCell>
-                                                <TableCell className="text-center border-r">
-                                                    <Badge variant="outline" className={cn("uppercase text-[9px] font-bold px-1.5 py-0", getStatusColor(log.status))}>
+                                                <TableCell className="text-center border-r px-1">
+                                                    <Badge variant="outline" className={cn("uppercase text-[8px] font-bold px-1 py-0", getStatusColor(log.status))}>
                                                         {log.status}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[150px]" title={log.failure_reason || ''}>
+                                                <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[120px] px-2" title={log.failure_reason || ''}>
                                                     {log.failure_reason || '-'}
                                                 </TableCell>
                                             </TableRow>
@@ -595,7 +461,7 @@ export default function Reports() {
                                     )}
                                 </TableBody>
                             </Table>
-                            {renderPagination(consolidatedPage, consolidatedTotal, setConsolidatedPage)}
+                            {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>

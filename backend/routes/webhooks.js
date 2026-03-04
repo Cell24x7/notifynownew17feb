@@ -223,7 +223,8 @@ router.post('/dotgo', async (req, res) => {
                         } else if (finalStatus === 'read') {
                             await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
                         } else if (finalStatus === 'failed') {
-                            await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [decodedData.error || 'Provider rejected', messageId]);
+                            const reason = decodedData.description || decodedData.reason || decodedData.error || decodedData.failureCode || decodedData.errorMessage || 'Provider rejected (check logs)';
+                            await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [reason, messageId]);
                         }
 
                         // Handle Campaign Counters (Real-time updates)
