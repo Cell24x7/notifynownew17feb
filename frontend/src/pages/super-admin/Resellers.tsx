@@ -244,7 +244,7 @@ export default function SuperAdminResellers() {
     // Abhi simple toast, future mein backend call add kar sakte ho
     toast({
       title: 'Payout Processed',
-      description: `₹${(reseller.payout_pending || 0).toLocaleString()} paid to ${reseller.name}.`,
+      description: `{"\u20B9"}${(reseller.payout_pending || 0).toLocaleString()} paid to ${reseller.name}.`,
     });
     // Optional: Backend call to reset payout_pending to 0
   };
@@ -338,11 +338,11 @@ export default function SuperAdminResellers() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="text-primary">₹</span>
+                <span className="text-primary">{"\u20B9"}</span>
               </div>
               <div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Revenue Generated</p>
-                <p className="text-lg sm:text-2xl font-bold">₹{totalRevenue.toLocaleString()}</p>
+                <p className="text-lg sm:text-2xl font-bold">{"\u20B9"}{totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -351,11 +351,11 @@ export default function SuperAdminResellers() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                <span className="text-warning">₹</span>
+                <span className="text-warning">{"\u20B9"}</span>
               </div>
               <div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Pending Payouts</p>
-                <p className="text-lg sm:text-2xl font-bold">₹{totalPending.toLocaleString()}</p>
+                <p className="text-lg sm:text-2xl font-bold">{"\u20B9"}{totalPending.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -444,10 +444,10 @@ export default function SuperAdminResellers() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-medium text-primary">
-                    ₹{(reseller.revenue_generated || 0).toLocaleString()}
+                    {"\u20B9"}{(reseller.revenue_generated || 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right font-medium text-warning">
-                    ₹{(reseller.payout_pending || 0).toLocaleString()}
+                    {"\u20B9"}{(reseller.payout_pending || 0).toLocaleString()}
                   </TableCell>
                   <TableCell>
                     <Badge className={cn('text-xs', getStatusColor(reseller.status))}>
@@ -474,7 +474,7 @@ export default function SuperAdminResellers() {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleProcessPayout(reseller)}>
-                          <span className="w-4 h-4 mr-2">₹</span>
+                          <span className="w-4 h-4 mr-2">{"\u20B9"}</span>
                           Process Payout
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -546,7 +546,7 @@ export default function SuperAdminResellers() {
                         <SelectValue placeholder="Select Plan" />
                     </SelectTrigger>
                     <SelectContent>
-                        {plans.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} (₹{p.price})</SelectItem>)}
+                        {plans.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} ({"\u20B9"}{p.price})</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>
@@ -648,13 +648,13 @@ export default function SuperAdminResellers() {
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <div className="text-xl sm:text-2xl font-bold">₹{(currentReseller.revenue_generated || 0).toLocaleString()}</div>
+                    <div className="text-xl sm:text-2xl font-bold">{"\u20B9"}{(currentReseller.revenue_generated || 0).toLocaleString()}</div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Revenue</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-warning">₹{(currentReseller.payout_pending || 0).toLocaleString()}</div>
+                    <div className="text-xl sm:text-2xl font-bold text-warning">{"\u20B9"}{(currentReseller.payout_pending || 0).toLocaleString()}</div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Pending Payout</div>
                   </CardContent>
                 </Card>

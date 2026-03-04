@@ -571,7 +571,7 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
                     <TableCell className="text-right">
                         <div className="flex flex-col items-end gap-0.5">
                             <span className="text-xs font-medium text-green-600">
-                                ₹{(client.wallet_balance || 0).toLocaleString()}
+                                {"\u20B9"}{(client.wallet_balance || 0).toLocaleString()}
                              </span>
                              <span className="text-[10px] text-muted-foreground">
                                 {client.credits_available.toLocaleString()} units

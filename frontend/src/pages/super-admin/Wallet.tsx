@@ -201,11 +201,11 @@ export default function SuperAdminWallet() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="w-5 h-5 text-primary flex items-center justify-center font-bold">₹</span>
+                <span className="w-5 h-5 text-primary flex items-center justify-center font-bold">{"\u20B9"}</span>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Total Purchases</div>
-                <div className="text-xl font-bold">₹{totalPurchases.toLocaleString()}</div>
+                <div className="text-xl font-bold">{"\u20B9"}{totalPurchases.toLocaleString()}</div>
               </div>
             </div>
           </CardContent>
@@ -333,13 +333,13 @@ export default function SuperAdminWallet() {
                       {txn.description}
                     </TableCell>
                     <TableCell className="text-right">
-                      {txn.amount > 0 ? `₹${txn.amount.toLocaleString()}` : '-'}
+                      {txn.amount > 0 ? `{"\u20B9"}${txn.amount.toLocaleString()}` : '-'}
                     </TableCell>
                     <TableCell className={cn(
                       'text-right font-medium',
                       'text-primary'
                     )}>
-                       {txn.type === 'credit' ? '+' : ''}₹{txn.amount.toLocaleString()}
+                       {txn.type === 'credit' ? '+' : ''}{"\u20B9"}{txn.amount.toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">
@@ -379,7 +379,7 @@ export default function SuperAdminWallet() {
                 <SelectContent>
                   {clients.map(client => (
                     <SelectItem key={client.id} value={client.id.toString()}>
-                      {client.name} (₹{(client.wallet_balance || 0).toLocaleString()})
+                      {client.name} ({"\u20B9"}{(client.wallet_balance || 0).toLocaleString()})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -390,7 +390,7 @@ export default function SuperAdminWallet() {
               <div className="p-3 bg-muted/50 rounded-lg border border-dashed flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Selected Client Balance:</span>
                 <span className="font-bold text-primary">
-                  ₹{(clients.find(c => c.id.toString() === adjustForm.clientId)?.wallet_balance || 0).toLocaleString()}
+                  {"\u20B9"}{(clients.find(c => c.id.toString() === adjustForm.clientId)?.wallet_balance || 0).toLocaleString()}
                 </span>
               </div>
             )}

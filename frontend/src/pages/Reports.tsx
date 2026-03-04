@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Download, Search, RefreshCw, MessageSquare, Mail } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, Search, RefreshCw, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 
@@ -52,13 +53,34 @@ interface RawWebhookLog {
     raw_payload: string;
 }
 
+const downloadCsv = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 export default function Reports() {
     const { user } = useAuth();
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
     const [rawLogs, setRawLogs] = useState<RawWebhookLog[]>([]);
+    
+    // Pagination states
+    const [perfPage, setPerfPage] = useState(1);
+    const [perfTotal, setPerfTotal] = useState(0);
+    const [detailedPage, setDetailedPage] = useState(1);
+    const [detailedTotal, setDetailedTotal] = useState(0);
+    const [consolidatedPage, setConsolidatedPage] = useState(1);
+    const [consolidatedTotal, setConsolidatedTotal] = useState(0);
+    const ITEMS_PER_PAGE = 20;
+
     const [loading, setLoading] = useState(true);
-    const [sendingEmail, setSendingEmail] = useState<string | null>(null);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [loadingRaw, setLoadingRaw] = useState(false);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -66,29 +88,44 @@ export default function Reports() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('performance');
+    const [autoRefresh, setAutoRefresh] = useState(false);
 
     useEffect(() => {
-        fetchReports();
-        fetchWebhookLogs();
+        setPerfPage(1); // Reset page on filter change
+        fetchReports(1);
     }, [startDate, endDate, statusFilter]);
 
-    const fetchReports = async () => {
+    useEffect(() => {
+        fetchReports(perfPage);
+    }, [perfPage]);
+
+    useEffect(() => {
+        fetchWebhookLogs(consolidatedPage);
+    }, [consolidatedPage]);
+
+    useEffect(() => {
+        fetchRawLogs(detailedPage);
+    }, [detailedPage]);
+
+    const fetchReports = async (page: number = 1) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/rcs/reports?`;
-
+            let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
             const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
+            
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
+                setPerfTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Failed to fetch reports', error);
@@ -97,16 +134,22 @@ export default function Reports() {
         }
     };
 
-    const fetchWebhookLogs = async () => {
+    const fetchWebhookLogs = async (page: number = 1) => {
         setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch(`${API_BASE_URL}/api/webhooks/message-logs`, {
+            let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
+                setConsolidatedTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Error fetching logs:', error);
@@ -115,16 +158,22 @@ export default function Reports() {
         }
     };
 
-    const fetchRawLogs = async () => {
+    const fetchRawLogs = async (page: number = 1) => {
         setLoadingRaw(true);
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch(`${API_BASE_URL}/api/webhooks/logs`, {
+            let url = `${API_BASE_URL}/api/webhooks/logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (data.success) {
                 setRawLogs(data.data);
+                setDetailedTotal(data.pagination?.total || 0);
             }
         } catch (error) {
             console.error('Error fetching raw logs:', error);
@@ -134,9 +183,22 @@ export default function Reports() {
     };
 
     useEffect(() => {
-        if (activeTab === 'detailed') fetchRawLogs();
-        if (activeTab === 'consolidated') fetchWebhookLogs();
-    }, [activeTab]);
+        if (activeTab === 'performance') fetchReports(perfPage);
+        if (activeTab === 'detailed') fetchRawLogs(detailedPage);
+        if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
+    }, [activeTab, startDate, endDate, searchQuery]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (autoRefresh) {
+            interval = setInterval(() => {
+                handleRefresh();
+            }, 30000); // Refresh every 30 seconds
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [autoRefresh, activeTab, perfPage, detailedPage, consolidatedPage]);
 
     const handleExport = () => {
         if (activeTab === 'performance') {
@@ -194,41 +256,12 @@ export default function Reports() {
     };
 
     const handleRefresh = () => {
-        fetchReports();
-        if (activeTab === 'detailed') fetchRawLogs();
-        if (activeTab === 'consolidated') fetchWebhookLogs();
+        if (activeTab === 'performance') fetchReports(perfPage);
+        if (activeTab === 'detailed') fetchRawLogs(detailedPage);
+        if (activeTab === 'consolidated') fetchWebhookLogs(consolidatedPage);
     };
 
-    const handleSendEmail = async (campaignId: string) => {
-        setSendingEmail(campaignId);
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_BASE_URL}/api/reports/send-campaign-report`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ campaignId })
-            });
-            const data = await response.json();
-            if (data.success) {
-                alert(`Report sent successfully to the user.`);
-            } else {
-                alert(`Failed to send report: ${data.message}`);
-            }
-        } catch (error) {
-            console.error('Error sending report email:', error);
-            alert('An unexpected error occurred while sending the report email.');
-        } finally {
-            setSendingEmail(null);
-        }
-    };
-
-    const filteredReports = reports.filter(r =>
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.template_id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredReports = reports;
 
     const getStatusColor = (status: string) => {
         switch (status?.toLowerCase()) {
@@ -240,6 +273,46 @@ export default function Reports() {
         }
     };
 
+    const renderPagination = (currentPage: number, totalItems: number, onPageChange: (page: number) => void) => {
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
+                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                    Showing <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}</span> of{' '}
+                    <span className="font-medium">{totalItems}</span> results
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-8 px-2"
+                    >
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="h-8 px-3 font-bold bg-white">
+                            Page {currentPage} of {totalPages}
+                        </Badge>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 px-2"
+                    >
+                        Next <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="h-full flex flex-col space-y-6 p-8">
             <div className="flex items-center justify-between">
@@ -248,6 +321,16 @@ export default function Reports() {
                     <p className="text-muted-foreground">Monitor campaign performance and delivery logs</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mr-4 bg-muted/50 px-3 py-1.5 rounded-lg border border-border/50">
+                        <Label htmlFor="auto-refresh" className="text-xs font-medium cursor-pointer">Auto-Refresh</Label>
+                        <input
+                            id="auto-refresh"
+                            type="checkbox"
+                            checked={autoRefresh}
+                            onChange={(e) => setAutoRefresh(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
+                        />
+                    </div>
                     <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
                         <RefreshCw className={cn("h-4 w-4", (loading || loadingLogs || loadingRaw) && "animate-spin")} />
                         Refresh
@@ -259,6 +342,71 @@ export default function Reports() {
                 </div>
             </div>
 
+            <Card>
+                <CardHeader className="pb-3 px-6">
+                    <CardTitle className="text-sm font-medium">Filters</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-4 px-6 pb-4">
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[200px] justify-start text-left font-normal",
+                                        !startDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        <span className="text-muted-foreground">-</span>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[200px] justify-start text-left font-normal",
+                                        !endDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {endDate ? format(endDate, "PPP") : <span>End Date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        {(startDate || endDate) && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
+                                className="text-xs h-8"
+                            >
+                                Clear Dates
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="flex-1 max-w-sm relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search recipient, campaign, template..."
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
             <Tabs defaultValue="performance" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
                 <TabsList className="grid w-[600px] grid-cols-3">
                     <TabsTrigger value="performance">Campaign Performance</TabsTrigger>
@@ -267,60 +415,6 @@ export default function Reports() {
                 </TabsList>
 
                 <TabsContent value="performance" className="flex-1 flex flex-col space-y-4 pt-4">
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium">Filters</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-wrap gap-4">
-                            <div className="flex items-center gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[200px] justify-start text-left font-normal",
-                                                !startDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-muted-foreground">-</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[200px] justify-start text-left font-normal",
-                                                !endDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {endDate ? format(endDate, "PPP") : <span>End Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            <div className="flex-1 max-w-sm relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search campaigns..."
-                                    className="pl-9"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
 
                     <Card className="flex-1 overflow-hidden">
                         <CardContent className="p-0">
@@ -335,7 +429,6 @@ export default function Reports() {
                                         <TableHead className="text-right text-green-600">Deliv.</TableHead>
                                         <TableHead className="text-right text-purple-600">Read</TableHead>
                                         <TableHead className="text-right text-red-600">Failed</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -349,7 +442,7 @@ export default function Reports() {
                                                 <TableCell className="font-medium">{report.name}</TableCell>
                                                 <TableCell className="font-mono text-[10px]">{report.template_id}</TableCell>
                                                 <TableCell className="text-muted-foreground leading-tight">
-                                                    {format(new Date(report.created_at), 'dd MMM yy')}<br />
+                                                    {format(new Date(report.created_at), 'dd MMM yy')}<br/>
                                                     <span className="text-[10px]">{format(new Date(report.created_at), 'HH:mm')}</span>
                                                 </TableCell>
                                                 <TableCell className="text-right font-semibold">{report.recipient_count}</TableCell>
@@ -357,24 +450,12 @@ export default function Reports() {
                                                 <TableCell className="text-right text-green-600">{report.delivered_count}</TableCell>
                                                 <TableCell className="text-right text-purple-600">{report.read_count}</TableCell>
                                                 <TableCell className="text-right text-red-600">{report.failed_count}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {(user?.role === 'admin' || user?.role === 'reseller') && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            title="Send Report via Email"
-                                                            onClick={() => handleSendEmail(report.id)}
-                                                            disabled={sendingEmail === report.id}
-                                                        >
-                                                            <Mail className={cn("h-4 w-4 text-blue-600", sendingEmail === report.id && "animate-pulse")} />
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
                                             </TableRow>
                                         ))
                                     )}
                                 </TableBody>
                             </Table>
+                            {renderPagination(perfPage, perfTotal, setPerfPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -392,7 +473,7 @@ export default function Reports() {
                                 </Badge>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-0 h-[600px] overflow-auto">
+                        <CardContent className="p-0 overflow-auto">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
                                     <TableRow className="bg-muted/30">
@@ -435,6 +516,7 @@ export default function Reports() {
                                     )}
                                 </TableBody>
                             </Table>
+                            {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -452,7 +534,7 @@ export default function Reports() {
                                 </Badge>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-0 h-[600px] overflow-auto">
+                        <CardContent className="p-0 overflow-auto">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
                                     <TableRow className="bg-muted/30">
@@ -513,6 +595,7 @@ export default function Reports() {
                                     )}
                                 </TableBody>
                             </Table>
+                            {renderPagination(consolidatedPage, consolidatedTotal, setConsolidatedPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>

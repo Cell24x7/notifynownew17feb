@@ -19,6 +19,9 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit for rich media
+
 /**
  * @route GET /api/rcs/templates/external
  * @desc Get list of external templates (Now returns Dotgo hardcoded template)
@@ -27,22 +30,22 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Fetch user's assigned RCS config to get the bot_id
+    // Fetch user's assigned RCS config to get the full credentials
     const [configs] = await query(`
-      SELECT rc.bot_id 
+      SELECT rc.* 
       FROM users u 
       JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
       WHERE u.id = ?
     `, [userId]);
 
     if (!configs || configs.length === 0) {
-      return res.json({ success: true, templates: [], message: 'No RCS configuration assigned' });
+      return res.json({ success: true, data: [], templates: [], message: 'No RCS configuration assigned' });
     }
 
-    const botId = configs[0].bot_id;
-    const templates = await getExternalTemplates(botId);
+    const config = configs[0];
+    const templates = await getExternalTemplates(config);
 
-    res.json({ success: true, templates });
+    res.json({ success: true, data: templates, templates });
   } catch (error) {
     console.error('❌ Error in /templates/external:', error.message);
     res.status(500).json({ success: false, message: 'Failed to fetch templates' });
@@ -51,16 +54,28 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
 
 /**
  * @route POST /api/rcs/templates
- * @desc Create a new RCS template on Dotgo using Main Admin credentials
+ * @desc Create or Update an RCS template on Dotgo
  */
-router.post('/templates', authenticateToken, async (req, res) => {
+router.post('/templates', authenticateToken, upload.array('multimedia_files'), async (req, res) => {
   try {
     const userId = req.user.id;
-    const templateData = req.body;
 
-    // Fetch user's assigned RCS config to get the bot_id
+    // If it's multipart, req.body might need parsing or accessing directly
+    // Multer populates req.body and req.files
+    let templateData = req.body;
+
+    // Sometimes frontend sends rich_template_data as a string in FormData
+    if (typeof templateData.rich_template_data === 'string') {
+      try {
+        templateData = JSON.parse(templateData.rich_template_data);
+      } catch (e) {
+        console.error('Error parsing rich_template_data string:', e);
+      }
+    }
+
+    // Fetch user's assigned RCS config
     const [configs] = await query(`
-      SELECT rc.bot_id 
+      SELECT rc.* 
       FROM users u 
       JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
       WHERE u.id = ?
@@ -70,20 +85,21 @@ router.post('/templates', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No RCS configuration assigned to your account' });
     }
 
-    const botId = configs[0].bot_id;
-
-    // The rcsService.submitDotgoTemplate now uses Admin credentials
+    const config = configs[0];
     const { submitDotgoTemplate } = require('../services/rcsService');
-    const result = await submitDotgoTemplate(botId, templateData);
+    const originalName = req.query.originalName;
+
+    // Pass config, data, uploaded files, and originalName
+    const result = await submitDotgoTemplate(config, templateData, req.files || [], originalName);
 
     if (result.success) {
       res.json({ success: true, data: result.data });
     } else {
-      res.status(500).json({ success: false, message: result.error });
+      res.status(500).json({ success: false, error: result.error, message: result.error });
     }
   } catch (error) {
     console.error('❌ Error in POST /templates:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to create template' });
+    res.status(500).json({ success: false, message: 'Failed to process template request' });
   }
 });
 
@@ -96,9 +112,9 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const templateName = req.params.name;
 
-    // Fetch user's assigned RCS config to get the bot_id
+    // Fetch user's assigned RCS config
     const [configs] = await query(`
-      SELECT rc.bot_id 
+      SELECT rc.* 
       FROM users u 
       JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
       WHERE u.id = ?
@@ -108,13 +124,11 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No RCS configuration assigned' });
     }
 
-    const botId = configs[0].bot_id;
+    const config = configs[0];
     const { getDotgoTemplateStatus } = require('../services/rcsService');
-    const result = await getDotgoTemplateStatus(botId, templateName);
+    const result = await getDotgoTemplateStatus(config, templateName);
 
     if (result.success) {
-      // Also update the status in our local templates table if needed
-      // For now, just return the live status
       res.json({ success: true, status: result.status });
     } else {
       res.status(500).json({ success: false, message: result.error });
@@ -133,11 +147,11 @@ router.get('/reports', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const { startDate, endDate, status } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
 
     let sql = `
-      SELECT 
-        c.id, c.name, c.template_id, c.template_name, c.created_at,
-        c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status
       FROM campaigns c
       WHERE c.user_id = ? AND c.channel = 'RCS'
     `;
@@ -153,10 +167,38 @@ router.get('/reports', authenticateToken, async (req, res) => {
       params.push(status);
     }
 
-    sql += ` ORDER BY c.created_at DESC`;
+    if (req.query.search) {
+      sql += ` AND (c.name LIKE ? OR c.template_id LIKE ?)`;
+      params.push(`%${req.query.search}%`, `%${req.query.search}%`);
+    }
 
-    const [reports] = await query(sql, params);
-    res.json({ success: true, reports });
+    // Get total count for pagination
+    const countSql = `SELECT COUNT(*) as total ${sql}`;
+    const [countResult] = await query(countSql, params);
+    const total = countResult[0].total;
+
+    // Get paginated data
+    const selectSql = `
+      SELECT 
+        c.id, c.name, c.template_id, c.template_name, c.created_at,
+        c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status
+      ${sql}
+      ORDER BY c.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [reports] = await query(selectSql, [...params, limit, offset]);
+
+    res.json({
+      success: true,
+      reports,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
 
   } catch (error) {
     console.error('❌ Reports error:', error.message);
@@ -174,8 +216,16 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     let campaignId = req.body.campaignId;
 
-    // Use provided Dotgo template name
-    const finalTemplate = templateName;
+    // Use provided Dotgo template name or fetch from DB if campaignId exists
+    let finalTemplate = templateName;
+
+    if (!finalTemplate && campaignId) {
+      const [campaigns] = await query('SELECT template_id FROM campaigns WHERE id = ?', [campaignId]);
+      if (campaigns && campaigns.length > 0) {
+        finalTemplate = campaigns[0].template_id;
+      }
+    }
+
     if (!finalTemplate) {
       return res.status(400).json({ success: false, message: 'Template name is required' });
     }
@@ -249,6 +299,41 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
       success: false,
       message: 'Failed to send campaign'
     });
+  }
+});
+
+/**
+ * @route DELETE /api/rcs/templates/external/:name
+ * @desc Delete an RCS template from Dotgo
+ */
+router.delete('/templates/external/:name', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const templateName = req.params.name;
+
+    // Fetch user's assigned RCS config
+    const [configs] = await query(`
+      SELECT rc.* 
+      FROM users u 
+      JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (!configs || configs.length === 0) {
+      return res.status(400).json({ success: false, message: 'No RCS configuration assigned' });
+    }
+
+    const { deleteDotgoTemplate } = require('../services/rcsService');
+    const result = await deleteDotgoTemplate(configs[0], templateName);
+
+    if (result.success) {
+      res.json({ success: true, message: 'Template deleted from Dotgo' });
+    } else {
+      res.status(500).json({ success: false, message: result.error || 'Failed to delete template' });
+    }
+  } catch (error) {
+    console.error('❌ Delete template error:', error.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

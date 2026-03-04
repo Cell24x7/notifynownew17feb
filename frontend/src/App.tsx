@@ -20,6 +20,7 @@ import Contacts from "./pages/Contacts";
 import Settings from "./pages/Settings";
 import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
+import Templates from "./pages/Templates";
 
 
 // Super Admin Pages
@@ -39,6 +40,7 @@ import SuperAdminNumbers from "./pages/super-admin/Numbers";
 import SuperAdminRcsConfigs from "./pages/super-admin/RcsConfigs";
 
 import UserPlans from "./pages/UserPlans";
+import Marketplace from "./pages/Marketplace";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import DLTTemplates from "./pages/DLTTemplates";
@@ -53,7 +55,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/terms" element={<TermsOfService />} />
@@ -68,6 +70,8 @@ const App = () => (
                   <Route path="/contacts" element={<Contacts />} />
                   <Route path="/campaigns" element={<Campaigns />} />
                   <Route path="/dlt-templates" element={<DLTTemplates />} />
+                  <Route path="/marketplace" element={<Marketplace />} />
+                  <Route path="/templates" element={<Templates />} />
                   <Route path="/reports" element={<Reports />} />
 
                   <Route path="/automations" element={<Automations />} />

@@ -138,7 +138,7 @@ export default function UserPlans() {
                 </div>
                 <CardDescription className="mt-1">
                   <span className="text-2xl sm:text-3xl font-bold text-foreground">
-                    ₹{Number(plan.price).toFixed(2)}
+                    {"\u20B9"}{Number(plan.price).toFixed(2)}
                   </span>
                   <span className="text-muted-foreground">/month</span>
                 </CardDescription>
@@ -225,7 +225,7 @@ export default function UserPlans() {
                 <div className="space-y-1">
                   <span className="text-sm text-muted-foreground">Price</span>
                   <p className="font-bold text-lg">
-                    ₹{Number(selectedPlan.price).toFixed(2)}/month
+                    {"\u20B9"}{Number(selectedPlan.price).toFixed(2)}/month
                   </p>
                 </div>
 

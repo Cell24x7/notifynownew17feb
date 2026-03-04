@@ -24,10 +24,11 @@ router.get('/balance', authenticateToken, async (req, res) => {
 // GET wallet transactions (Admin sees all, User sees theirs)
 router.get('/transactions', authenticateToken, async (req, res) => {
   try {
-    let sql = `
-      SELECT 
-        t.id, t.type, t.amount, t.description, t.status, t.created_at,
-        u.name as client_name, u.email as client_email
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    let baseSql = `
       FROM transactions t
       LEFT JOIN users u ON t.user_id = u.id
     `;
@@ -36,15 +37,36 @@ router.get('/transactions', authenticateToken, async (req, res) => {
 
     // If not admin, filter by user_id
     if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      sql += ' WHERE t.user_id = ?';
+      baseSql += ' WHERE t.user_id = ?';
       params.push(req.user.id);
     }
 
-    sql += ' ORDER BY t.created_at DESC';
+    // Get total count
+    const [countResult] = await query(`SELECT COUNT(*) as total ${baseSql}`, params);
+    const total = countResult[0].total;
 
-    const [rows] = await query(sql, params);
+    // Get paginated data
+    const selectSql = `
+      SELECT 
+        t.id, t.type, t.amount, t.description, t.status, t.created_at,
+        u.name as client_name, u.email as client_email
+      ${baseSql}
+      ORDER BY t.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
 
-    res.json({ success: true, transactions: rows });
+    const [rows] = await query(selectSql, [...params, limit, offset]);
+
+    res.json({
+      success: true,
+      transactions: rows,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     console.error('TRANSACTIONS ERROR:', err.message);
     res.status(500).json({ success: false, message: err.message });

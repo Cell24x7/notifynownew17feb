@@ -57,24 +57,20 @@ router.post('/', authenticateToken, async (req, res) => {
 
         let enabledChannels = [];
 
-        try {
-            if (userRows[0].channels_enabled) {
-                // Check if it's already a clean string like "whatsapp,rcs"
-                if (userRows[0].channels_enabled.includes(',') && !userRows[0].channels_enabled.startsWith('[')) {
-                    enabledChannels = userRows[0].channels_enabled.split(',').map(c => c.trim().replace(/"/g, ''));
+        const rawChannels = userRows[0].channels_enabled;
+        if (rawChannels) {
+            if (typeof rawChannels === 'string') {
+                if (rawChannels.startsWith('[') && rawChannels.endsWith(']')) {
+                    try {
+                        enabledChannels = JSON.parse(rawChannels);
+                    } catch (e) {
+                        enabledChannels = rawChannels.split(',').map(c => c.trim().replace(/"/g, ''));
+                    }
                 } else {
-                    enabledChannels = JSON.parse(userRows[0].channels_enabled);
+                    enabledChannels = rawChannels.split(',').map(c => c.trim().replace(/"/g, ''));
                 }
-            } else {
-                enabledChannels = [];
-            }
-        } catch (e) {
-            console.error('Error parsing channels_enabled:', e);
-            // Fallback: try to split by comma if JSON parse failed
-            if (userRows[0].channels_enabled && typeof userRows[0].channels_enabled === 'string') {
-                enabledChannels = userRows[0].channels_enabled.split(',').map(c => c.trim().replace(/"/g, ''));
-            } else {
-                enabledChannels = [];
+            } else if (Array.isArray(rawChannels)) {
+                enabledChannels = rawChannels;
             }
         }
 
@@ -250,6 +246,7 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
         const processBatch = async (currentBatch) => {
             if (currentBatch.length === 0) return;
             const values = currentBatch.map(mobile => [campaignId, mobile, 'pending']);
+            console.log(`[Upload] Inserting batch of ${currentBatch.length} for campaign ${campaignId}`);
             await query('INSERT INTO campaign_queue (campaign_id, mobile, status) VALUES ?', [values]);
         };
 
@@ -258,12 +255,30 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
             fs.createReadStream(req.file.path)
                 .pipe(csv())
                 .on('data', (row) => {
-                    // Start simplified: Assume first column or 'phone'/'mobile' column
-                    const values = Object.values(row);
-                    let mobile = row.phone || row.mobile || values[0];
+                    // Smart search for phone/mobile columns
+                    let mobile = null;
+
+                    // 1. Try common keys
+                    const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
+                    const lowerRow = {};
+                    Object.keys(row).forEach(k => lowerRow[k.toLowerCase().replace(/\s/g, '')] = row[k]);
+
+                    for (const key of commonKeys) {
+                        if (lowerRow[key]) {
+                            mobile = lowerRow[key];
+                            break;
+                        }
+                    }
+
+                    // 2. Fallback to first column if no common key found
+                    if (!mobile) {
+                        const values = Object.values(row);
+                        if (values.length > 0) mobile = values[0];
+                    }
 
                     if (mobile) {
-                        mobile = mobile.replace(/\D/g, ''); // Clean
+                        mobile = String(mobile).replace(/\D/g, ''); // Clean non-digits
+                        // Valid mobile must be at least 10 digits (Standard for IN + country code)
                         if (mobile.length >= 10) {
                             batch.push(mobile);
                             contactCount++;
@@ -282,8 +297,10 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                     await Promise.all(insertPromises);
                     fs.unlinkSync(req.file.path); // Cleanup
 
+                    console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
+
                     // Update campaign count
-                    await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contactCount, campaignId]);
+                    await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
 
                     res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
                 })

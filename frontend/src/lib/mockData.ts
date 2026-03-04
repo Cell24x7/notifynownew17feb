@@ -221,6 +221,7 @@ export interface TemplateButton {
   type: 'url' | 'phone' | 'quick_reply' | 'copy_code';
   label: string;
   value: string;
+  displayText?: string;
 }
 
 // Message Templates with enhanced structure
@@ -231,6 +232,9 @@ export interface MessageTemplate {
   category: 'Utility' | 'Marketing' | 'Authentication';
   channel: TemplateChannel;
   templateType: 'standard' | 'carousel';
+  type?: string;
+  title?: string;
+  mediaUrl?: string;
   header: {
     type: HeaderType;
     content?: string;

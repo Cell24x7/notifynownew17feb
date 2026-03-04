@@ -145,36 +145,63 @@ router.post('/dotgo', async (req, res) => {
 
         const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
         const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
-        const senderPhoneNumber = decodedData.senderPhoneNumber;
+        const recipient = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.destinationPhoneNumber;
         let finalStatus = eventType ? eventType.toLowerCase() : 'unknown';
 
-        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId})`);
+        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) for ${recipient}`);
 
-        // 2. Save to webhook_logs (Envelope/Metadata Logging) - ALWAYS DO THIS
+        // 2. Save/Update webhook_logs (Smart UPSERT logic)
         try {
-            await query(
-                `INSERT INTO webhook_logs 
-                (received_time, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    payload.receivedTime || null,
-                    payload.subscription || null,
-                    payload.message?.data || null,
-                    payload.message?.attributes?.product || null,
-                    payload.message?.attributes?.business_id || null,
-                    payload.message?.attributes?.type || null,
-                    payload.message?.attributes?.project_number || null,
-                    payload.message?.attributes?.event_type || null,
-                    payload.message?.messageId || null,
-                    payload.message?.publishTime || null,
-                    JSON.stringify(payload),
-                    finalStatus
-                ]
-            );
-            console.log(`✅ Dotgo Webhook metadata saved to database`);
+            const [existing] = await query('SELECT id FROM webhook_logs WHERE message_id = ? LIMIT 1', [messageId]);
+
+            if (existing.length > 0) {
+                // UPDATE existing row
+                await query(
+                    `UPDATE webhook_logs SET 
+                    status = ?, 
+                    event_type = ?, 
+                    raw_payload = ?,
+                    received_time = COALESCE(?, received_time),
+                    publish_time = COALESCE(?, publish_time),
+                    updated_at = NOW()
+                    WHERE id = ?`,
+                    [
+                        finalStatus,
+                        eventType || null,
+                        JSON.stringify(payload),
+                        payload.receivedTime || null,
+                        payload.message?.publishTime || null,
+                        existing[0].id
+                    ]
+                );
+                console.log(`✅ Updated existing webhook_log (ID: ${existing[0].id}) for ${messageId}`);
+            } else {
+                // INSERT new row as fallback
+                await query(
+                    `INSERT INTO webhook_logs 
+                    (received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        payload.receivedTime || null,
+                        recipient || null,
+                        messageId || null,
+                        payload.subscription || null,
+                        payload.message?.data || null,
+                        payload.message?.attributes?.product || null,
+                        payload.message?.attributes?.business_id || null,
+                        payload.message?.attributes?.type || null,
+                        payload.message?.attributes?.project_number || null,
+                        payload.message?.attributes?.event_type || null,
+                        payload.message?.messageId || null,
+                        payload.message?.publishTime || null,
+                        JSON.stringify(payload),
+                        finalStatus
+                    ]
+                );
+                console.log(`✅ Created new webhook_log for ${messageId}`);
+            }
         } catch (logErr) {
-            console.error('❌ Error saving to webhook_logs:', logErr.message);
-            // Don't fail the whole request, proceed to update statuses if possible
+            console.error('❌ Error handling webhook_logs:', logErr.message);
         }
 
         // 3. Update message_logs & Campaign counts
@@ -238,21 +265,47 @@ router.post('/dotgo', async (req, res) => {
 router.get('/message-logs', async (req, res) => {
     try {
         const { campaignId } = req.query;
-        let sql = 'SELECT * FROM message_logs';
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        let baseSql = ' FROM message_logs WHERE 1=1';
         let params = [];
 
         if (campaignId) {
-            sql += ' WHERE campaign_id = ?';
+            baseSql += ' AND campaign_id = ?';
             params.push(campaignId);
         }
 
-        sql += ' ORDER BY updated_at DESC LIMIT 100';
+        if (req.query.startDate && req.query.endDate) {
+            baseSql += ' AND created_at BETWEEN ? AND ?';
+            params.push(req.query.startDate + ' 00:00:00', req.query.endDate + ' 23:59:59');
+        }
 
-        const [logs] = await query(sql, params);
+        if (req.query.search) {
+            baseSql += ' AND (recipient LIKE ? OR campaign_name LIKE ? OR template_name LIKE ?)';
+            const searchVal = `%${req.query.search}%`;
+            params.push(searchVal, searchVal, searchVal);
+        }
+
+        // Get total count
+        const countSql = `SELECT COUNT(*) as total ${baseSql}`;
+        const [countResult] = await query(countSql, params);
+        const total = countResult[0].total;
+
+        // Get paginated data
+        const selectSql = `SELECT * ${baseSql} ORDER BY updated_at DESC LIMIT ? OFFSET ?`;
+        const [logs] = await query(selectSql, [...params, limit, offset]);
+
         res.json({
             success: true,
-            count: logs.length,
-            data: logs
+            data: logs,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         console.error('❌ Error fetching message logs:', error.message);
@@ -264,11 +317,40 @@ router.get('/message-logs', async (req, res) => {
 // Fetch last 50 webhook logs for debugging/viewing
 router.get('/logs', async (req, res) => {
     try {
-        const [logs] = await query('SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT 50');
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        let baseSql = ' FROM webhook_logs WHERE 1=1';
+        let params = [];
+
+        if (req.query.startDate && req.query.endDate) {
+            baseSql += ' AND created_at BETWEEN ? AND ?';
+            params.push(req.query.startDate + ' 00:00:00', req.query.endDate + ' 23:59:59');
+        }
+
+        if (req.query.search) {
+            baseSql += ' AND (recipient LIKE ? OR message_id_envelope LIKE ?)';
+            const searchVal = `%${req.query.search}%`;
+            params.push(searchVal, searchVal);
+        }
+
+        // Get total count
+        const [countResult] = await query(`SELECT COUNT(*) as total ${baseSql}`, params);
+        const total = countResult[0].total;
+
+        // Get paginated data
+        const [logs] = await query(`SELECT * ${baseSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+
         res.json({
             success: true,
-            count: logs.length,
-            data: logs
+            data: logs,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         console.error('❌ Error fetching webhook logs:', error.message);

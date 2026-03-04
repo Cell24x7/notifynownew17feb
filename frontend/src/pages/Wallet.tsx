@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, Loader2, Filter, History } from 'lucide-react';
+import { Search, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, Loader2, Filter, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,16 +22,22 @@ export default function Wallet() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const ITEMS_PER_PAGE = 20;
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (pageNum: number = 1) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
-      const res = await axios.get(`${API_URL}/wallet/transactions`, {
+      const res = await axios.get(`${API_URL}/wallet/transactions?page=${pageNum}&limit=${ITEMS_PER_PAGE}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
         setTransactions(res.data.transactions || []);
+        setTotal(res.data.pagination?.total || 0);
       } else {
         toast({ title: 'Error', description: res.data.message || 'Failed to load transactions', variant: 'destructive' });
       }
@@ -47,7 +53,10 @@ export default function Wallet() {
   };
 
   useEffect(() => {
-    fetchTransactions();
+    fetchTransactions(page);
+  }, [page]);
+
+  useEffect(() => {
     refreshUser(); // Sync balance with DB
   }, []);
 
@@ -81,7 +90,7 @@ export default function Wallet() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Wallet & Credits</h1>
           <p className="text-muted-foreground">Monitor your credit usage and transaction history</p>
         </div>
-        <Button variant="outline" onClick={fetchTransactions} className="hidden sm:flex self-start">
+        <Button variant="outline" onClick={() => fetchTransactions(page)} className="hidden sm:flex self-start">
           <History className="w-4 h-4 mr-2" /> Refresh History
         </Button>
       </div>
@@ -93,7 +102,7 @@ export default function Wallet() {
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 <p className="text-primary-foreground/80 text-sm font-medium">Available Balance</p>
-                <div className="text-4xl font-bold">₹{(user?.wallet_balance || 0).toLocaleString()}</div>
+                <div className="text-4xl font-bold">{"\u20B9"}{(user?.wallet_balance || 0).toLocaleString()}</div>
               </div>
               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
                 <WalletIcon className="w-6 h-6 text-white" />
@@ -111,7 +120,7 @@ export default function Wallet() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Total Added</p>
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                ₹{transactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
+                {"\u20B9"}{transactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-xl">
@@ -125,7 +134,7 @@ export default function Wallet() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-rose-600 dark:text-rose-400">Total Spent</p>
               <p className="text-2xl font-bold text-rose-700 dark:text-rose-300">
-                ₹{transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
+                {"\u20B9"}{transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-3 bg-rose-500/10 rounded-xl">
@@ -176,7 +185,7 @@ export default function Wallet() {
                 <TableRow>
                   <TableHead className="w-[180px]">Transaction Type</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Amount (₹)</TableHead>
+                   <TableHead className="text-right">Amount ({"\u20B9"})</TableHead>
                   <TableHead className="text-right">Date & Time</TableHead>
                 </TableRow>
               </TableHeader>
@@ -217,7 +226,7 @@ export default function Wallet() {
                         "text-right font-bold tabular-nums",
                         txn.type === 'credit' ? "text-emerald-600" : "text-rose-600"
                       )}>
-                        {txn.type === 'credit' ? '+' : '-'}₹{parseFloat(txn.amount).toLocaleString()}
+                        {txn.type === 'credit' ? '+' : '-'}{"\u20B9"}{parseFloat(txn.amount).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">
                         {format(new Date(txn.created_at), 'MMM d, yyyy')}
@@ -231,6 +240,40 @@ export default function Wallet() {
             </Table>
           </div>
         </CardContent>
+        {total > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              Showing <span className="font-medium">{((page - 1) * ITEMS_PER_PAGE) + 1}</span> to{' '}
+              <span className="font-medium">{Math.min(page * ITEMS_PER_PAGE, total)}</span> of{' '}
+              <span className="font-medium">{total}</span> results
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page - 1)}
+                disabled={page === 1}
+                className="h-8 px-2"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="h-8 px-3 font-bold bg-white">
+                  Page {page} of {Math.ceil(total / ITEMS_PER_PAGE)}
+                </Badge>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page + 1)}
+                disabled={page === Math.ceil(total / ITEMS_PER_PAGE)}
+                className="h-8 px-2"
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

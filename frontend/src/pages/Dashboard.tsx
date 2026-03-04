@@ -144,7 +144,7 @@ export default function Dashboard() {
     },
     {
       title: 'Available Credits',
-      value: `₹${(user?.wallet_balance || 0).toLocaleString()}`,
+      value: `\u20B9${(user?.wallet_balance || 0).toLocaleString()}`,
       change: '',
       trend: 'up',
       icon: Wallet,
