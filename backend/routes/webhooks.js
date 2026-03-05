@@ -145,8 +145,8 @@ router.post('/dotgo', async (req, res) => {
 
         const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
         const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
-        const recipient = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.destinationPhoneNumber;
-        let finalStatus = eventType ? eventType.toLowerCase() : 'unknown';
+        const recipient = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.destinationPhoneNumber || decodedData.recipient;
+        const finalStatus = eventType ? eventType.toLowerCase() : 'unknown';
 
         console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) for ${recipient}`);
 
@@ -205,48 +205,70 @@ router.post('/dotgo', async (req, res) => {
         }
 
         // 3. Update message_logs & Campaign counts
-        if (messageId) {
+        if (messageId || recipient) {
             try {
-                const [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                // Try matching by message_id first
+                let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+
+                // Fallback: Match by recipient if message_id is 'N/A' or not found
+                if (logs.length === 0 && recipient) {
+                    const cleanRecipient = recipient.replace(/\D/g, ''); // Remove all non-digits (919918...)
+                    console.log(`🔍 No ID match for ${messageId}. Searching by recipient: ${cleanRecipient}`);
+
+                    [logs] = await query(
+                        'SELECT * FROM message_logs WHERE (recipient = ? OR recipient = ?) AND (message_id = "N/A" OR message_id IS NULL OR status = "sent") ORDER BY created_at DESC LIMIT 1',
+                        [cleanRecipient, `+${cleanRecipient}`]
+                    );
+
+                    if (logs.length > 0) {
+                        console.log(`✨ REPAIR: Found log ID ${logs[0].id} for ${recipient}. Linking UUID: ${messageId}`);
+                        await query('UPDATE message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
+                    }
+                }
 
                 if (logs.length > 0) {
                     const log = logs[0];
-                    const oldStatus = log.status?.toLowerCase();
+                    const oldStatus = (log.status || '').toLowerCase();
 
-                    // Only update if status changed
+                    // Only update if status is actually different
                     if (oldStatus !== finalStatus) {
-                        await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
+                        console.log(`📝 Updating Log ${log.id}: ${oldStatus} -> ${finalStatus}`);
+
+                        await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE id = ?', [finalStatus, log.id]);
 
                         // Handle Timestamps
                         if (finalStatus === 'delivered') {
-                            await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
+                            await query('UPDATE message_logs SET delivery_time = NOW() WHERE id = ?', [log.id]);
                         } else if (finalStatus === 'read') {
-                            await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
+                            await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?', [log.id]);
                         } else if (finalStatus === 'failed') {
-                            const reason = decodedData.description || decodedData.reason || decodedData.error || decodedData.failureCode || decodedData.errorMessage || 'Provider rejected (check logs)';
-                            await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [reason, messageId]);
+                            const reason = decodedData.reason || decodedData.description || decodedData.error || 'Provider rejected (Check raw data)';
+                            await query('UPDATE message_logs SET failure_reason = ? WHERE id = ?', [reason, log.id]);
                         }
 
                         // Handle Campaign Counters (Real-time updates)
                         if (log.campaign_id) {
                             if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
                                 await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                                console.log(`📈 Campaign ${log.campaign_id}: Delivered count +1`);
                             } else if (finalStatus === 'read' && oldStatus !== 'read') {
                                 if (oldStatus !== 'delivered') {
                                     await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                    console.log(`📈 Campaign ${log.campaign_id}: Delivered & Read count +1`);
                                 } else {
                                     await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                    console.log(`📈 Campaign ${log.campaign_id}: Read count +1`);
                                 }
                             } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
                                 await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                                console.log(`📉 Campaign ${log.campaign_id}: Failed count +1`);
                             }
                         }
-
-                        console.log(`✅ Message stats updated for ${messageId} (${oldStatus} -> ${finalStatus})`);
+                    } else {
+                        console.log(`ℹ️ Status for Log ${log.id} is already ${oldStatus}. No update needed.`);
                     }
                 } else {
-                    // This could be an incoming message or a log we missed during sending
-                    console.log(`ℹ️ Message ID ${messageId} not in logs. Checking for incoming...`);
+                    console.log(`ℹ️ No matching log found for MsgID: ${messageId}, Recipient: ${recipient}`);
                 }
             } catch (statusErr) {
                 console.error('❌ Error updating message status:', statusErr.message);
