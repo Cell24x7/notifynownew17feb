@@ -57,7 +57,10 @@ export default function Vendors() {
   const fetchVendors = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(API_URL);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(API_URL, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setVendors(res.data.vendors || []);
       } else {
@@ -77,7 +80,10 @@ export default function Vendors() {
   // Fetch mappings
   const fetchMappings = async () => {
     try {
-      const res = await axios.get(`${API_URL}/mappings`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/mappings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setMappings(res.data.mappings || []);
       }
@@ -89,7 +95,10 @@ export default function Vendors() {
   // Fetch users (from /api/clients)
   const fetchUsers = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/clients`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/clients`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setUsers(res.data.clients || []);
       }
@@ -147,11 +156,16 @@ export default function Vendors() {
 
     setFormLoading(true);
     try {
+      const token = localStorage.getItem('authToken');
       let res;
       if (selectedVendor) {
-        res = await axios.put(`${API_URL}/${selectedVendor.id}`, formData);
+        res = await axios.put(`${API_URL}/${selectedVendor.id}`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       } else {
-        res = await axios.post(API_URL, formData);
+        res = await axios.post(API_URL, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       }
 
       if (res.data.success) {
@@ -192,7 +206,10 @@ export default function Vendors() {
     if (!window.confirm('Are you sure you want to delete this vendor?')) return;
 
     try {
-      const res = await axios.delete(`${API_URL}/${vendorId}`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.delete(`${API_URL}/${vendorId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         toast({ title: 'Success', description: 'Vendor deleted' });
         fetchVendors();
@@ -216,9 +233,12 @@ export default function Vendors() {
 
   const handleSaveMappings = async () => {
     try {
+      const token = localStorage.getItem('authToken');
       const res = await axios.post(`${API_URL}/mappings`, {
         vendor_id: selectedVendorForMapping,
         user_ids: selectedUsers,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (res.data.success) {

@@ -100,6 +100,7 @@ const processQueue = async () => {
 
                 results.push({
                     id: item.id,
+                    user_id: item.user_id,
                     campaign_id: item.campaign_id,
                     campaign_name: item.campaign_name,
                     template_name: item.template_name,
@@ -119,6 +120,7 @@ const processQueue = async () => {
                 console.error(`[QueueProcessor] Error processing item ${item.id}`, err);
                 results.push({
                     id: item.id,
+                    user_id: item.user_id,
                     campaign_id: item.campaign_id,
                     campaign_name: item.campaign_name,
                     template_name: item.template_name,
@@ -160,9 +162,9 @@ const processQueue = async () => {
                 try {
                     await query(
                         `INSERT INTO webhook_logs 
-                        (recipient, message_id, status, event_type, raw_payload, created_at) 
-                        VALUES (?, ?, ?, ?, ?, NOW())`,
-                        [r.mobile, r.messageId, 'sent', 'SENT', JSON.stringify({ note: 'Initial status from queue' })]
+                        (user_id, recipient, message_id, status, event_type, raw_payload, created_at) 
+                        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+                        [r.user_id, r.mobile, r.messageId, 'sent', 'SENT', JSON.stringify({ note: 'Initial status from queue' })]
                     );
                 } catch (logErr) {
                     console.error('[QueueProcessor] Failed to create initial webhook_log:', logErr.message);
@@ -178,13 +180,13 @@ const processQueue = async () => {
 
         // Bulk Insert into message_logs (True Optimization)
         const logs = results.filter(r => r.success).map(r => [
-            r.campaign_id, r.campaign_name, r.template_name, r.messageId, r.mobile, 'sent', new Date()
+            r.user_id, r.campaign_id, r.campaign_name, r.template_name, r.messageId, r.mobile, 'sent', new Date()
         ]);
 
         if (logs.length > 0) {
             try {
                 await query(
-                    'INSERT INTO message_logs (campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) VALUES ?',
+                    'INSERT INTO message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) VALUES ?',
                     [logs]
                 );
             } catch (logErr) {

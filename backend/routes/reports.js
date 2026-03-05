@@ -9,13 +9,19 @@ const AdmZip = require('adm-zip');
 const { Parser } = require('json2csv');
 
 // GET /api/reports/summary
-router.get('/summary', async (req, res) => {
+router.get('/summary', authenticateToken, async (req, res) => {
     try {
-        const { from, to, channel, status } = req.query;
+        const { from, to, channel, status, userId } = req.query;
+
+        // Use targetUserId if provided and user is admin, else use own id
+        let targetUserId = req.user.id;
+        if ((req.user.role === 'superadmin' || req.user.role === 'admin') && userId) {
+            targetUserId = userId;
+        }
 
         // Base filter conditions
-        let conditions = ["1=1"];
-        let params = [];
+        let conditions = ["c.user_id = ?"];
+        let params = [targetUserId];
 
         if (from) {
             conditions.push("c.created_at >= ?");
@@ -92,12 +98,17 @@ router.get('/summary', async (req, res) => {
 });
 
 // GET /api/reports/detail
-router.get('/detail', async (req, res) => {
+router.get('/detail', authenticateToken, async (req, res) => {
     try {
-        const { from, to, channel, status } = req.query;
+        const { from, to, channel, status, userId } = req.query;
 
-        let conditions = ["1=1"];
-        let params = [];
+        let targetUserId = req.user.id;
+        if ((req.user.role === 'superadmin' || req.user.role === 'admin') && userId) {
+            targetUserId = userId;
+        }
+
+        let conditions = ["c.user_id = ?"];
+        let params = [targetUserId];
 
         if (from) {
             conditions.push("c.created_at >= ?");
@@ -116,7 +127,7 @@ router.get('/detail', async (req, res) => {
             params.push(status);
         }
 
-        console.log('Reports Detail Request:', { from, to, channel, status });
+        console.log('Reports Detail Request:', { from, to, channel, status, targetUserId });
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
         console.log('SQL:', `SELECT ... ${whereClause}`, params);
 
@@ -161,13 +172,14 @@ router.get('/detail', async (req, res) => {
 });
 
 // GET /api/reports/export
-router.get('/export', async (req, res) => {
+router.get('/export', authenticateToken, async (req, res) => {
     try {
+        const userId = req.user.id;
         const { from, to, channel, status, format } = req.query;
-        console.log('Export Request:', { from, to, channel, status, format });
+        console.log('Export Request:', { from, to, channel, status, format, userId });
 
-        let conditions = ["1=1"];
-        let params = [];
+        let conditions = ["c.user_id = ?"];
+        let params = [userId];
 
         if (from) {
             conditions.push("c.created_at >= ?");

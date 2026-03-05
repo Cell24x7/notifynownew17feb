@@ -145,7 +145,6 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
  */
 router.get('/reports', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
     const { startDate, endDate, status } = req.query;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -153,9 +152,21 @@ router.get('/reports', authenticateToken, async (req, res) => {
 
     let sql = `
       FROM campaigns c
-      WHERE c.user_id = ? AND c.channel = 'RCS'
+      WHERE c.channel = 'RCS'
     `;
-    const params = [userId];
+    const params = [];
+
+    // Filter by userId. If provided and user is admin, use targetUserId.
+    // Otherwise, use authenticated userId for non-admins.
+    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+      if (req.query.userId) {
+        sql += ` AND c.user_id = ?`;
+        params.push(req.query.userId);
+      }
+    } else {
+      sql += ` AND c.user_id = ?`;
+      params.push(req.user.id);
+    }
 
     if (startDate && endDate) {
       sql += ` AND c.created_at BETWEEN ? AND ?`;
@@ -270,14 +281,14 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
         const mobile = typeof c === 'object' ? (c.mobile || c.phone) : c;
         if (!mobile) return null;
         const cleanMobile = mobile.replace(/\D/g, '');
-        return [campaignId, cleanMobile, 'pending'];
+        return [campaignId, userId, cleanMobile, 'pending'];
       }).filter(Boolean);
 
       if (values.length > 0) {
         // Batch insert to queue
         const BATCH = 1000;
         for (let i = 0; i < values.length; i += BATCH) {
-          await query('INSERT INTO campaign_queue (campaign_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
+          await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
         }
         console.log(`✅ Queued ${values.length} contacts for Dotgo campaign ${campaignId}`);
       }

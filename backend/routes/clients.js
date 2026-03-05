@@ -8,13 +8,21 @@ require('dotenv').config(); // ← Yeh line zaruri hai .env load karne ke liye
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const authenticateToken = require('../middleware/authMiddleware');
+
+const isAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Unauthorized. Admin access required.' });
+  }
+  next();
+};
 
 if (!JWT_SECRET) {
   console.error('CRITICAL: JWT_SECRET is missing in .env file! Impersonate will fail.');
 }
 
-// GET all clients
-router.get('/', async (req, res) => {
+// GET all clients (Admin only)
+router.get('/', authenticateToken, isAdmin, async (req, res) => {
   try {
     const [rows] = await query(`
       SELECT
@@ -41,8 +49,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ADD client (baaki code same – no change needed)
-router.post('/', async (req, res) => {
+// ADD client (Admin only)
+router.post('/', authenticateToken, isAdmin, async (req, res) => {
   const {
     name = '', company_name = '', contact_phone = '',
     email, password, plan_id = '', status = 'active',
@@ -87,8 +95,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// UPDATE client
-router.put('/:id', async (req, res) => {
+// UPDATE client (Admin only)
+router.put('/:id', authenticateToken, isAdmin, async (req, res) => {
   const clientId = req.params.id;
   const {
     name, company_name, contact_phone, email, password,
@@ -156,8 +164,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE client (same)
-router.delete('/:id', async (req, res) => {
+// DELETE client (Admin only)
+router.delete('/:id', authenticateToken, isAdmin, async (req, res) => {
   const clientId = req.params.id;
 
   try {
@@ -176,8 +184,8 @@ router.delete('/:id', async (req, res) => {
 });
 
 // IMPERSONATE client – Yeh final safe version hai
-// IMPERSONATE client – Yeh final safe version hai
-router.post('/:id/impersonate', async (req, res) => {
+// IMPERSONATE client – Yeh final safe version hai (Admin only)
+router.post('/:id/impersonate', authenticateToken, isAdmin, async (req, res) => {
   const clientId = req.params.id;
   console.log(`[IMPERSONATE START] Requested for client ID: ${clientId}`);
 

@@ -6,6 +6,11 @@ const authenticate = require('../middleware/authMiddleware');
 // --- Super Admin Stats ---
 router.get('/super-admin', authenticate, async (req, res) => {
     try {
+        // Multi-tenancy safeguard: Only admins see global stats
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+            return res.status(403).json({ success: false, message: 'Unauthorized: Admin access required' });
+        }
+
         // 1. Basic Counters
         // Count both 'client' and 'user' roles as clients for the dashboard
         const [userCounts] = await query("SELECT COUNT(*) as total FROM users WHERE role IN ('client', 'user')");

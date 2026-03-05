@@ -34,7 +34,10 @@ export default function SuperAdminRoles() {
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/plans?admin=true`);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_BASE_URL}/api/plans?admin=true`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await res.json();
       setPlans(data);
       if (data.length > 0) {
@@ -58,8 +61,11 @@ export default function SuperAdminRoles() {
 
     const fetchEntities = async () => {
       try {
+        const token = localStorage.getItem('authToken');
         const endpoint = selectedRoleType === 'user' ? '/api/clients' : '/api/resellers';
-        const res = await fetch(`${API_BASE_URL}${endpoint}`);
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const data = await res.json();
         
         if (selectedRoleType === 'user') {
@@ -130,13 +136,17 @@ export default function SuperAdminRoles() {
     if (selectedEntityId && selectedRoleType) {
       setIsSaving(true);
       try {
+        const token = localStorage.getItem('authToken');
         const endpoint = selectedRoleType === 'user' 
           ? `/api/clients/${selectedEntityId}` 
           : `/api/resellers/${selectedEntityId}`;
         
         const res = await fetch(`${API_BASE_URL}${endpoint}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
           body: JSON.stringify({ permissions })
         });
 
@@ -179,9 +189,13 @@ export default function SuperAdminRoles() {
         api_access: plan.apiAccess
       };
       
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_BASE_URL}/api/plans/${selectedPlanId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify(updatedPlan)
       });
 
@@ -332,13 +346,17 @@ export default function SuperAdminRoles() {
                        onClick={async () => {
                          if (!confirm('Are you sure you want to reset to Plan defaults?')) return;
                          // Save empty permissions to reset
+                         const token = localStorage.getItem('authToken');
                          const endpoint = selectedRoleType === 'user' 
                            ? `/api/clients/${selectedEntity.id}` 
                            : `/api/resellers/${selectedEntity.id}`;
                          
                          await fetch(`${API_BASE_URL}${endpoint}`, {
                            method: 'PUT',
-                           headers: { 'Content-Type': 'application/json' },
+                           headers: { 
+                             'Content-Type': 'application/json',
+                             Authorization: `Bearer ${token}`
+                           },
                            body: JSON.stringify({ permissions: [] }) // Empty array or null to reset
                          });
                          

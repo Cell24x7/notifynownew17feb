@@ -55,7 +55,10 @@ export default function SuperAdminClients() {
   // Fetch real plans
   const fetchPlans = async () => {
     try {
-      const res = await axios.get(`${API_URL}/plans`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/plans`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data) {
         setPlans(res.data);
       }
@@ -68,7 +71,10 @@ export default function SuperAdminClients() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/clients?_t=${Date.now()}`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/clients?_t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setClients(res.data.clients || []);
         setFilteredClients(res.data.clients || []);
@@ -184,7 +190,10 @@ export default function SuperAdminClients() {
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/clients`, currentClient);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.post(`${API_URL}/clients`, currentClient, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         toast({
           title: 'Success',
@@ -223,7 +232,10 @@ export default function SuperAdminClients() {
       if (!payload.password.trim()) {
         delete (payload as any).password;
       }
-      const res = await axios.put(`${API_URL}/clients/${currentClient.id}`, payload);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.put(`${API_URL}/clients/${currentClient.id}`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         toast({
           title: 'Success',
@@ -317,7 +329,10 @@ export default function SuperAdminClients() {
   const handleSuspend = async (client: any) => {
     try {
       const newStatus = client.status === 'suspended' ? 'active' : 'suspended';
-      await axios.put(`${API_URL}/clients/${client.id}`, { status: newStatus });
+      const token = localStorage.getItem('authToken');
+      await axios.put(`${API_URL}/clients/${client.id}`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       toast({
         title: 'Success',
         description: `Client ${newStatus === 'active' ? 'activated' : 'suspended'}`,
@@ -339,13 +354,16 @@ const handleLoginAsClient = async (clientId: string | number | undefined) => {
   }
 
   const id = String(clientId);
+  const token = localStorage.getItem('authToken');
 
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/clients/${id}/impersonate`);
-    const { success, token, redirectTo } = response.data;
+    const response = await axios.post(`${API_BASE_URL}/api/clients/${id}/impersonate`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const { success, token: impToken, redirectTo } = response.data;
 
-    if (success && token) {
-      localStorage.setItem('authToken', token);
+    if (success && impToken) {
+      localStorage.setItem('authToken', impToken);
       toast({
         title: "Success",
         description: "Successfully logged in as client",

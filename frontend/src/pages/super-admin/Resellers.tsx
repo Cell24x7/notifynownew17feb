@@ -49,7 +49,10 @@ export default function SuperAdminResellers() {
   // Fetch plans
   const fetchPlans = async () => {
     try {
-      const res = await axios.get(`${API_URL}/plans?admin=true`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/plans?admin=true`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data) {
         setPlans(res.data);
       }
@@ -62,7 +65,10 @@ export default function SuperAdminResellers() {
   const fetchResellers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/resellers`);
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/resellers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setResellers(res.data.resellers || []);
         setFilteredResellers(res.data.resellers || []);
@@ -163,11 +169,16 @@ export default function SuperAdminResellers() {
 
     setLoading(true);
     try {
+      const token = localStorage.getItem('authToken');
       let res;
       if (modalMode === 'add') {
-        res = await axios.post(`${API_URL}/resellers`, currentReseller);
+        res = await axios.post(`${API_URL}/resellers`, currentReseller, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       } else {
-        res = await axios.put(`${API_URL}/resellers/${currentReseller.id}`, currentReseller);
+        res = await axios.put(`${API_URL}/resellers/${currentReseller.id}`, currentReseller, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       }
 
       if (res.data.success) {

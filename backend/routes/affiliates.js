@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const authenticateToken = require('../middleware/authMiddleware');
 
-// Get all affiliates
-router.get('/', async (req, res) => {
+// GET all affiliates for current user
+router.get('/', authenticateToken, async (req, res) => {
     try {
-        const [rows] = await query('SELECT * FROM affiliates ORDER BY created_at DESC');
+        const userId = req.user.id;
+        const [rows] = await query('SELECT * FROM affiliates WHERE user_id = ? ORDER BY created_at DESC', [userId]);
         res.json({ success: true, data: rows });
     } catch (error) {
         console.error('Error fetching affiliates:', error);
@@ -15,7 +17,8 @@ router.get('/', async (req, res) => {
 });
 
 // Create new affiliate
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
     const { name, email, referral_code } = req.body;
 
     if (!name || !email) {
@@ -26,8 +29,8 @@ router.post('/', async (req, res) => {
 
     try {
         const [result] = await query(
-            'INSERT INTO affiliates (name, email, referral_code) VALUES (?, ?, ?)',
-            [name, email, code]
+            'INSERT INTO affiliates (user_id, name, email, referral_code) VALUES (?, ?, ?, ?)',
+            [userId, name, email, code]
         );
         res.status(201).json({
             success: true,
@@ -44,7 +47,8 @@ router.post('/', async (req, res) => {
 });
 
 // Update affiliate (Supports partial updates)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
     const { id } = req.params;
     const updates = req.body;
 
@@ -67,11 +71,11 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: 'No valid fields provided' });
     }
 
-    values.push(id);
+    values.push(id, userId);
 
     try {
         await query(
-            `UPDATE affiliates SET ${fields.join(', ')} WHERE id = ?`,
+            `UPDATE affiliates SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`,
             values
         );
         res.json({ success: true, message: 'Affiliate updated successfully' });
@@ -85,10 +89,11 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete affiliate
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
     const { id } = req.params;
     try {
-        await query('DELETE FROM affiliates WHERE id = ?', [id]);
+        await query('DELETE FROM affiliates WHERE id = ? AND user_id = ?', [id, userId]);
         res.json({ success: true, message: 'Affiliate deleted successfully' });
     } catch (error) {
         console.error('Error deleting affiliate:', error);

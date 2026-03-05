@@ -245,9 +245,9 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
 
         const processBatch = async (currentBatch) => {
             if (currentBatch.length === 0) return;
-            const values = currentBatch.map(mobile => [campaignId, mobile, 'pending']);
-            console.log(`[Upload] Inserting batch of ${currentBatch.length} for campaign ${campaignId}`);
-            await query('INSERT INTO campaign_queue (campaign_id, mobile, status) VALUES ?', [values]);
+            const values = currentBatch.map(mobile => [campaignId, userId, mobile, 'pending']);
+            console.log(`[Upload] Inserting batch of ${currentBatch.length} for campaign ${campaignId} (User: ${userId})`);
+            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status) VALUES ?', [values]);
         };
 
         if (req.file) {

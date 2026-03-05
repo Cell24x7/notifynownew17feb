@@ -1,535 +1,518 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, Eye, Filter, Calendar, BarChart3, PieChart, TrendingUp, Settings2, Check, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
+import { useToast } from '@/hooks/use-toast';
 
-// Types for our data
-interface ReportRecord {
-  id: string;
-  msisdn: string;
-  sender: string;
-  message: string;
-  status: string;
-  channel: string;
-  timestamp: string;
-  dlrTime: string;
-  cost: number;
+interface Report {
+    id: string;
+    name: string;
+    template_id: string;
+    recipient_count: number;
+    sent_count: number;
+    delivered_count: number;
+    read_count: number;
+    failed_count: number;
+    created_at: string;
 }
 
-interface SummaryCategory {
-  category: string;
-  data: {
-    label: string;
-    sent: number;
-    delivered: number;
-    failed: number;
-    pending: number;
-    cost: number;
-  }[];
+interface WebhookLog {
+    id: number;
+    campaign_id: string;
+    campaign_name: string;
+    message_id: string;
+    recipient: string;
+    status: string;
+    send_time: string;
+    delivery_time: string | null;
+    read_time: string | null;
+    template_name: string;
+    failure_reason: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
-// Available columns for configuration
-const availableColumns = [
-  { id: 'msisdn', label: 'MSISDN / Audience', default: true },
-  { id: 'sender', label: 'Sender ID', default: true },
-  { id: 'message', label: 'Message / Campaign', default: true },
-  { id: 'status', label: 'Status', default: true },
-  { id: 'channel', label: 'Channel', default: true },
-  { id: 'timestamp', label: 'Sent Time', default: true },
-  { id: 'dlrTime', label: 'DLR Time', default: false },
-  { id: 'cost', label: 'Cost', default: false },
-  { id: 'errorCode', label: 'Error Code', default: false },
-  { id: 'operator', label: 'Operator', default: false },
-  { id: 'circle', label: 'Circle', default: false },
-];
+interface Client {
+    id: string;
+    name: string;
+    email: string;
+    company_name: string;
+}
 
-export default function Reports() {
-  const [activeTab, setActiveTab] = useState('detail');
-  const [summaryCategory, setSummaryCategory] = useState('By Channel');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [selectedChannel, setSelectedChannel] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<ReportRecord | null>(null);
-  const [configDialogOpen, setConfigDialogOpen] = useState(false);
-  
-  // State for Real Data
-  const [detailedReportData, setDetailedReportData] = useState<ReportRecord[]>([]);
-  const [summaryCategories, setSummaryCategories] = useState<SummaryCategory[]>([]);
-  const [loading, setLoading] = useState(false);
+const ITEMS_PER_PAGE = 20;
 
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(
-    availableColumns.filter(c => c.default).map(c => c.id)
-  );
-  const { toast } = useToast();
+const downloadCsv = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
-  // Fetch Data Effect
-  useEffect(() => {
-    fetchReports();
-  }, [activeTab]);
+export default function SuperAdminReports() {
+    const { toast } = useToast();
+    const [clients, setClients] = useState<Client[]>([]);
+    const [selectedUserId, setSelectedUserId] = useState<string>('');
+    const [reports, setReports] = useState<Report[]>([]);
+    const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
+    const [summaryPage, setSummaryPage] = useState(1);
+    const [summaryTotal, setSummaryTotal] = useState(0);
+    const [detailedPage, setDetailedPage] = useState(1);
+    const [detailedTotal, setDetailedTotal] = useState(0);
 
-  const fetchReports = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      const queryParams = new URLSearchParams({
-        from: dateFrom,
-        to: dateTo,
-        channel: selectedChannel,
-        status: selectedStatus
-      }).toString();
+    const [loading, setLoading] = useState(false);
+    const [loadingLogs, setLoadingLogs] = useState(false);
+    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState('summary');
 
-      // 1. Fetch Summary Data
-      if (activeTab === 'summary') {
-        const res = await fetch(`${API_BASE_URL}/api/reports/summary?${queryParams}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-          // Transform API summary to UI format
-          const newSummaryCategories: SummaryCategory[] = [
-            { 
-              category: 'By Channel', 
-              data: data.summary.byChannel || [] 
-            },
-            { 
-              category: 'By Sender', // Mapping 'By User' to 'By Sender' for UI consistency
-              data: data.summary.byUser || [] 
-            },
-            { 
-              category: 'By Date',
-              data: data.summary.byDate || []
-            },
-            // 'By User' duplicate removed, using 'By Sender' as primary user view
-          ];
-          setSummaryCategories(newSummaryCategories);
+    // Fetch clients on mount
+    useEffect(() => {
+        fetchClients();
+    }, []);
+
+    const fetchClients = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`${API_BASE_URL}/api/clients`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                setClients(data.clients);
+            }
+        } catch (error) {
+            console.error('Failed to fetch clients', error);
         }
-      }
+    };
 
-      // 2. Fetch Detailed Data
-      if (activeTab === 'detail') {
-        const res = await fetch(`${API_BASE_URL}/api/reports/detail?${queryParams}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-          // Transform API detailed records to UI format
-          const mappedRecords = data.reports.map((r: any) => ({
-             id: r.id,
-             msisdn: r.audience_count > 1 ? `Multiple (${r.audience_count})` : 'Single', // Adapting for Campaign data
-             sender: r.sender || 'System',
-             message: r.message || r.campaign_name, // Fallback
-             status: r.status,
-             channel: r.channel,
-             timestamp: new Date(r.timestamp).toLocaleString(),
-             dlrTime: new Date(r.timestamp).toLocaleString(), // Placeholder as DLRs match sent time for now
-             cost: r.cost
-          }));
-          setDetailedReportData(mappedRecords);
+    useEffect(() => {
+        if (selectedUserId) {
+            setSummaryPage(1);
+            fetchReports(1);
         }
-      }
+    }, [startDate, endDate, selectedUserId]);
 
-    } catch (error) {
-      console.error("Failed to fetch reports:", error);
-      toast({ title: 'Error', description: 'Failed to load report data', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
+    useEffect(() => {
+        if (selectedUserId) {
+            fetchReports(summaryPage);
+        }
+    }, [summaryPage]);
 
-  const handleApplyFilters = () => {
-    fetchReports();
-  };
+    useEffect(() => {
+        if (selectedUserId) {
+            fetchWebhookLogs(detailedPage);
+        }
+    }, [detailedPage]);
 
-  const handleDownload = (format: 'csv' | 'excel' | 'pdf') => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const query = new URLSearchParams({
-          from: dateFrom,
-          to: dateTo,
-          channel: selectedChannel,
-          status: selectedStatus,
-          format: format
-      }).toString();
-      
-      const downloadUrl = `${API_BASE_URL}/api/reports/export?${query}`;
-      
-      // For authenticated downloads, we might need to use fetch with blob, 
-      // but since we temporarily disabled auth for reports, direct link works.
-      // If auth is re-enabled, we'd need to pass token in a different way or use cookies.
-      // For now, let's try direct open which is simplest for file downloads.
-      window.open(downloadUrl, '_blank');
-      
-      toast({
-        title: "Download Started",
-        description: `Generating ${format.toUpperCase()} report...`,
-      });
-    } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: "Could not start download.",
-        variant: "destructive"
-      });
-    }
-  };
+    useEffect(() => {
+        if (!selectedUserId) return;
+        if (activeTab === 'summary') fetchReports(summaryPage);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
+    }, [activeTab, searchQuery]);
 
-  const handleViewRecord = (record: ReportRecord) => {
-    setSelectedRecord(record);
-    setViewDialogOpen(true);
-  };
+    const fetchReports = async (page: number = 1) => {
+        if (!selectedUserId) return;
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            let url = `${API_BASE_URL}/api/rcs/reports?userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            
+            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
-  const toggleColumn = (columnId: string) => {
-    setVisibleColumns(prev =>
-      prev.includes(columnId)
-        ? prev.filter(id => id !== columnId)
-        : [...prev, columnId]
-    );
-  };
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                setReports(data.reports);
+                setSummaryTotal(data.pagination?.total || 0);
+            }
+        } catch (error) {
+            console.error('Failed to fetch reports', error);
+            toast({ title: 'Error', description: 'Failed to load summary reports', variant: 'destructive' });
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'delivered':
-      case 'completed': // Handle both backend status types
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Delivered</Badge>;
-      case 'failed':
-        return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Failed</Badge>;
-      case 'pending':
-      case 'running':
-      case 'draft': 
-        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
+    const fetchWebhookLogs = async (page: number = 1) => {
+        if (!selectedUserId) return;
+        setLoadingLogs(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            let url = `${API_BASE_URL}/api/webhooks/message-logs?userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
-  const currentSummaryData = summaryCategories.find(c => c.category === summaryCategory)?.data || [];
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setWebhookLogs(data.data);
+                setDetailedTotal(data.pagination?.total || 0);
+            }
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+            toast({ title: 'Error', description: 'Failed to load detailed reports', variant: 'destructive' });
+        } finally {
+            setLoadingLogs(false);
+        }
+    };
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Reports</h1>
-          <p className="text-muted-foreground">View detailed and summary reports with download options</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setConfigDialogOpen(true)}>
-            <Settings2 className="w-4 h-4 mr-2" />
-            Configure Columns
-          </Button>
-        </div>
-      </div>
+    const handleExport = () => {
+        if (!selectedUserId) {
+            toast({ title: 'Selection Required', description: 'Please select a user first' });
+            return;
+        }
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="space-y-2">
-              <Label>From Date</Label>
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        if (activeTab === 'summary') {
+            const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
+            const csvContent = [
+                headers.join(','),
+                ...reports.map(r => [
+                    `"${r.name}"`,
+                    `"${r.template_id}"`,
+                    format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
+                    r.recipient_count,
+                    r.sent_count,
+                    r.delivered_count,
+                    r.read_count,
+                    r.failed_count
+                ].join(','))
+            ].join('\n');
+
+            downloadCsv(csvContent, `super_admin_summary_${selectedUserId}_${format(new Date(), 'yyyyMMdd')}.csv`);
+        } else if (activeTab === 'detailed') {
+            const headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
+            const csvContent = [
+                headers.join(','),
+                ...webhookLogs.map(l => [
+                    l.id,
+                    l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
+                    l.recipient,
+                    l.send_time ? format(new Date(l.send_time), 'HH:mm:ss') : '-',
+                    l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
+                    l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
+                    `"${l.template_name || ''}"`,
+                    `"${l.campaign_name || ''}"`,
+                    l.status,
+                    `"${l.failure_reason || ''}"`
+                ].join(','))
+            ].join('\n');
+
+            downloadCsv(csvContent, `super_admin_detailed_${selectedUserId}_${format(new Date(), 'yyyyMMdd')}.csv`);
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status?.toLowerCase()) {
+            case 'sent': return 'bg-blue-100 text-blue-700 border-blue-200';
+            case 'delivered': return 'bg-green-100 text-green-700 border-green-200';
+            case 'read': return 'bg-purple-100 text-purple-700 border-purple-200';
+            case 'failed': return 'bg-red-100 text-red-700 border-red-200';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
+    };
+
+    const renderPagination = (currentPage: number, totalItems: number, onPageChange: (page: number) => void) => {
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
+                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                    Showing <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}</span> of{' '}
+                    <span className="font-medium">{totalItems}</span> results
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-8 px-2"
+                    >
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="h-8 px-3 font-bold bg-white">
+                            Page {currentPage} of {totalPages}
+                        </Badge>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 px-2"
+                    >
+                        Next <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                </div>
             </div>
-            <div className="space-y-2">
-              <Label>To Date</Label>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Channel</Label>
-              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Channels</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="rcs">RCS</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button className="w-full" onClick={handleApplyFilters} disabled={loading}>
-                <Filter className="w-4 h-4 mr-2" />
-                {loading ? 'Loading...' : 'Apply Filters'}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        );
+    };
 
-      {/* Report Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="detail" className="gap-2">
-              <FileText className="w-4 h-4" />
-              Detailed Report
-            </TabsTrigger>
-            <TabsTrigger value="summary" className="gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Summary Report
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => handleDownload('csv')}>
-              <Download className="w-4 h-4 mr-2" />
-              CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleDownload('excel')}>
-              <Download className="w-4 h-4 mr-2" />
-              Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleDownload('pdf')}>
-              <Download className="w-4 h-4 mr-2" />
-              PDF
-            </Button>
-          </div>
-        </div>
+    return (
+        <div className="h-full flex flex-col space-y-6 p-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Global MIS Analytics</h1>
+                    <p className="text-muted-foreground">Monitor performance across all users</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                        <SelectTrigger className="w-[280px] bg-primary/5 border-primary/20">
+                            <User className="w-4 h-4 mr-2" />
+                            <SelectValue placeholder="Select User to View Report" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {clients.map(client => (
+                                <SelectItem key={client.id} value={client.id.toString()}>
+                                    {client.company_name || client.name} ({client.email})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button variant="default" size="sm" onClick={handleExport} disabled={!selectedUserId} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                        <Download className="h-4 w-4" />
+                        Export CSV
+                    </Button>
+                </div>
+            </div>
 
-        {/* Detailed Report */}
-        <TabsContent value="detail" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              <ScrollArea className="w-full">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {visibleColumns.includes('msisdn') && <TableHead>MSISDN</TableHead>}
-                      {visibleColumns.includes('sender') && <TableHead>Sender</TableHead>}
-                      {visibleColumns.includes('message') && <TableHead>Message</TableHead>}
-                      {visibleColumns.includes('status') && <TableHead>Status</TableHead>}
-                      {visibleColumns.includes('channel') && <TableHead>Channel</TableHead>}
-                      {visibleColumns.includes('timestamp') && <TableHead>Sent Time</TableHead>}
-                      {visibleColumns.includes('dlrTime') && <TableHead>DLR Time</TableHead>}
-                      {visibleColumns.includes('cost') && <TableHead>Cost</TableHead>}
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detailedReportData.length === 0 ? (
-                       <TableRow>
-                         <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8 text-muted-foreground">
-                           {loading ? 'Loading reports...' : 'No records found matching your filters.'}
-                         </TableCell>
-                       </TableRow>
-                    ) : (
-                      detailedReportData.map(record => (
-                        <TableRow key={record.id}>
-                          {visibleColumns.includes('msisdn') && <TableCell className="font-mono">{record.msisdn}</TableCell>}
-                          {visibleColumns.includes('sender') && <TableCell>{record.sender}</TableCell>}
-                          {visibleColumns.includes('message') && <TableCell className="max-w-[200px] truncate">{record.message}</TableCell>}
-                          {visibleColumns.includes('status') && <TableCell>{getStatusBadge(record.status)}</TableCell>}
-                          {visibleColumns.includes('channel') && <TableCell><Badge variant="outline">{record.channel}</Badge></TableCell>}
-                          {visibleColumns.includes('timestamp') && <TableCell className="text-sm text-muted-foreground">{record.timestamp}</TableCell>}
-                          {visibleColumns.includes('dlrTime') && <TableCell className="text-sm text-muted-foreground">{record.dlrTime}</TableCell>}
-                          {visibleColumns.includes('cost') && <TableCell>{"\u20B9"}{record.cost.toFixed(2)}</TableCell>}
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleViewRecord(record)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            {!selectedUserId ? (
+                <Card className="flex-1 flex flex-col items-center justify-center border-dashed border-2 py-20">
+                    <div className="bg-primary/10 p-6 rounded-full mb-4">
+                        <User className="w-12 h-12 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">No User Selected</h3>
+                    <p className="text-muted-foreground text-center max-w-sm">
+                        Please select a user from the dropdown above to view their detailed and summary campaign reports.
+                    </p>
+                </Card>
+            ) : (
+                <>
+                    <Card>
+                        <CardHeader className="pb-3 px-6">
+                            <CardTitle className="text-sm font-medium">Filters for {clients.find(c => c.id.toString() === selectedUserId)?.company_name || 'Selected User'}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-wrap gap-4 px-6 pb-4">
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[200px] justify-start text-left font-normal",
+                                                !startDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                <span className="text-muted-foreground">-</span>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[200px] justify-start text-left font-normal",
+                                                !endDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {endDate ? format(endDate, "PPP") : <span>End Date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                {(startDate || endDate) && (
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
+                                        className="text-xs h-8"
+                                    >
+                                        Clear Dates
+                                    </Button>
+                                )}
+                            </div>
 
-        {/* Summary Report */}
-        <TabsContent value="summary" className="mt-4 space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            {summaryCategories.length === 0 && !loading && (
-                <div className="p-2 text-sm text-muted-foreground">No summary data available.</div>
+                            <div className="flex-1 max-w-sm relative">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search recipient, campaign, template..."
+                                    className="pl-9"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                        <TabsList className="grid w-[400px] grid-cols-2">
+                            <TabsTrigger value="summary">Summary Report</TabsTrigger>
+                            <TabsTrigger value="detailed">Detailed Reports</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
+                            <Card className="flex-1 overflow-hidden">
+                                <CardContent className="p-0">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Campaign Name</TableHead>
+                                                <TableHead>Template</TableHead>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead className="text-right">Total</TableHead>
+                                                <TableHead className="text-right text-blue-600">Sent</TableHead>
+                                                <TableHead className="text-right text-green-600">Deliv.</TableHead>
+                                                <TableHead className="text-right text-purple-600">Read</TableHead>
+                                                <TableHead className="text-right text-red-600">Failed</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {loading ? (
+                                                <TableRow><TableCell colSpan={8} className="text-center py-10">Loading reports...</TableCell></TableRow>
+                                            ) : reports.length === 0 ? (
+                                                <TableRow><TableCell colSpan={8} className="text-center py-10">No reports found.</TableCell></TableRow>
+                                            ) : (
+                                                reports.map((report) => (
+                                                    <TableRow key={report.id}>
+                                                        <TableCell className="font-medium">{report.name}</TableCell>
+                                                        <TableCell className="font-mono text-[10px]">{report.template_id}</TableCell>
+                                                        <TableCell className="text-muted-foreground leading-tight">
+                                                            {format(new Date(report.created_at), 'dd MMM yy')}<br/>
+                                                            <span className="text-[10px]">{format(new Date(report.created_at), 'HH:mm')}</span>
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-semibold">{report.recipient_count}</TableCell>
+                                                        <TableCell className="text-right text-blue-600">{report.sent_count}</TableCell>
+                                                        <TableCell className="text-right text-green-600">{report.delivered_count}</TableCell>
+                                                        <TableCell className="text-right text-purple-600">{report.read_count}</TableCell>
+                                                        <TableCell className="text-right text-red-600">{report.failed_count}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                    {renderPagination(summaryPage, summaryTotal, setSummaryPage)}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="detailed" className="flex-1 mt-4">
+                            <Card className="border-none shadow-sm h-full">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-xl font-bold">Detailed Delivery Reports</CardTitle>
+                                        <CardDescription>Consolidated status for every recipient</CardDescription>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
+                                            Total Messages: {detailedTotal}
+                                        </Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0 overflow-auto">
+                                    <Table>
+                                        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
+                                            <TableRow className="bg-muted/30">
+                                                <TableHead className="w-[50px] font-bold text-black border-r px-2 text-[10px]">Id</TableHead>
+                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Rtime</TableHead>
+                                                <TableHead className="w-[100px] font-bold text-black border-r text-center px-2 text-[10px]">Mobile</TableHead>
+                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">sendTime</TableHead>
+                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">DelTime</TableHead>
+                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">ReadTime</TableHead>
+                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Template</TableHead>
+                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Campaign</TableHead>
+                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">Status</TableHead>
+                                                <TableHead className="font-bold text-black text-center px-2 text-[10px]">reason</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {loadingLogs ? (
+                                                <TableRow><TableCell colSpan={10} className="text-center py-10">Fetching logs...</TableCell></TableRow>
+                                            ) : webhookLogs.length === 0 ? (
+                                                <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
+                                            ) : (
+                                                webhookLogs.map((log) => (
+                                                    <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
+                                                        <TableCell className="text-[10px] font-mono border-r px-2">
+                                                            {log.id}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r text-center px-2">
+                                                            {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r text-center px-2">
+                                                            {log.recipient?.replace(/^\+/, '')}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r text-center px-2">
+                                                            {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r text-center text-green-600 font-medium px-2">
+                                                            {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r text-center text-purple-600 font-medium px-2">
+                                                            {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.template_name}>
+                                                            {log.template_name || 'N/A'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.campaign_name}>
+                                                            {log.campaign_name || 'N/A'}
+                                                        </TableCell>
+                                                        <TableCell className="text-center border-r px-1">
+                                                            <Badge variant="outline" className={cn("uppercase text-[8px] font-bold px-1 py-0", getStatusColor(log.status))}>
+                                                                {log.status}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[120px] px-2" title={log.failure_reason || ''}>
+                                                            {log.failure_reason || '-'}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                    {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                </>
             )}
-            {summaryCategories.map(cat => (
-              <Button
-                key={cat.category}
-                variant={summaryCategory === cat.category ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSummaryCategory(cat.category)}
-              >
-                {cat.category}
-              </Button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-primary">
-                  {currentSummaryData.reduce((acc, d) => acc + (d.sent || 0), 0).toLocaleString()}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Sent</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-green-600">
-                  {currentSummaryData.reduce((acc, d) => acc + (d.delivered || 0), 0).toLocaleString()}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Delivered</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-red-600">
-                  {currentSummaryData.reduce((acc, d) => acc + (d.failed || 0), 0).toLocaleString()}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Failed</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold">
-                  {"\u20B9"}{currentSummaryData.reduce((acc, d) => acc + (d.cost || 0), 0).toLocaleString()}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Cost</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{summaryCategory.replace('By ', '')}</TableHead>
-                    <TableHead className="text-right">Sent</TableHead>
-                    <TableHead className="text-right">Delivered</TableHead>
-                    <TableHead className="text-right">Failed</TableHead>
-                    <TableHead className="text-right">Pending</TableHead>
-                    <TableHead className="text-right">Delivery %</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentSummaryData.length === 0 ? (
-                       <TableRow>
-                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                             No summary data available for this category.
-                         </TableCell>
-                       </TableRow>
-                  ) : (
-                    currentSummaryData.map((row, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="font-medium">{row.label}</TableCell>
-                        <TableCell className="text-right">{row.sent.toLocaleString()}</TableCell>
-                        <TableCell className="text-right text-green-600">{row.delivered.toLocaleString()}</TableCell>
-                        <TableCell className="text-right text-red-600">{row.failed.toLocaleString()}</TableCell>
-                        <TableCell className="text-right text-yellow-600">{row.pending.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">
-                          {row.sent > 0 ? ((row.delivered / row.sent) * 100).toFixed(1) : '0.0'}%
-                        </TableCell>
-                        <TableCell className="text-right">{"\u20B9"}{row.cost.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* View Record Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Message Details</DialogTitle>
-            <DialogDescription>Complete details of the message record</DialogDescription>
-          </DialogHeader>
-          {selectedRecord && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">MSISDN</Label>
-                  <p className="font-mono">{selectedRecord.msisdn}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Sender</Label>
-                  <p>{selectedRecord.sender}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Channel</Label>
-                  <p>{selectedRecord.channel}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <div className="mt-1">{getStatusBadge(selectedRecord.status)}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Sent Time</Label>
-                  <p className="text-sm">{selectedRecord.timestamp}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">DLR Time</Label>
-                  <p className="text-sm">{selectedRecord.dlrTime}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Cost</Label>
-                  <p>{"\u20B9"}{selectedRecord.cost.toFixed(2)}</p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Message</Label>
-                <p className="mt-1 p-3 bg-muted rounded-lg">{selectedRecord.message}</p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Column Configuration Dialog */}
-      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Configure Report Columns</DialogTitle>
-            <DialogDescription>Select which columns to display in the detailed report</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {availableColumns.map(column => (
-              <div key={column.id} className="flex items-center gap-3">
-                <Checkbox
-                  id={column.id}
-                  checked={visibleColumns.includes(column.id)}
-                  onCheckedChange={() => toggleColumn(column.id)}
-                />
-                <Label htmlFor={column.id} className="cursor-pointer">{column.label}</Label>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setConfigDialogOpen(false)}>Save Configuration</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+        </div>
+    );
 }

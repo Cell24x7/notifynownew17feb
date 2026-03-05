@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
+const authenticateToken = require('../middleware/authMiddleware');
 
 // POST /api/webhooks/rcs/callback
 // Standard endpoint for RCS Delivery Reports & Incoming Messages
@@ -152,12 +153,20 @@ router.post('/dotgo', async (req, res) => {
 
         // 2. Save/Update webhook_logs (Smart UPSERT logic)
         try {
+            // Try to find the user_id for this message
+            let userId = null;
+            const [ownerLookup] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
+            if (ownerLookup.length > 0) {
+                userId = ownerLookup[0].user_id;
+            }
+
             const [existing] = await query('SELECT id FROM webhook_logs WHERE message_id = ? LIMIT 1', [messageId]);
 
             if (existing.length > 0) {
                 // UPDATE existing row
                 await query(
                     `UPDATE webhook_logs SET 
+                    user_id = COALESCE(?, user_id),
                     status = ?, 
                     event_type = ?, 
                     raw_payload = ?,
@@ -166,6 +175,7 @@ router.post('/dotgo', async (req, res) => {
                     updated_at = NOW()
                     WHERE id = ?`,
                     [
+                        userId,
                         finalStatus,
                         eventType || null,
                         JSON.stringify(payload),
@@ -179,9 +189,10 @@ router.post('/dotgo', async (req, res) => {
                 // INSERT new row as fallback
                 await query(
                     `INSERT INTO webhook_logs 
-                    (received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    (user_id, received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
+                        userId,
                         payload.receivedTime || null,
                         recipient || null,
                         messageId || null,
@@ -285,8 +296,9 @@ router.post('/dotgo', async (req, res) => {
 
 // GET /api/webhooks/message-logs
 // Fetch consolidated logs (one row per message) for reporting
-router.get('/message-logs', async (req, res) => {
+router.get('/message-logs', authenticateToken, async (req, res) => {
     try {
+        const userId = req.user.id;
         const { campaignId } = req.query;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -294,6 +306,18 @@ router.get('/message-logs', async (req, res) => {
 
         let baseSql = ' FROM message_logs WHERE 1=1';
         let params = [];
+
+        // Filter by userId
+        const targetUserId = req.query.userId || req.user.id;
+        if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+            if (req.query.userId) {
+                baseSql += ' AND user_id = ?';
+                params.push(req.query.userId);
+            }
+        } else {
+            baseSql += ' AND user_id = ?';
+            params.push(req.user.id);
+        }
 
         if (campaignId) {
             baseSql += ' AND campaign_id = ?';
@@ -337,15 +361,23 @@ router.get('/message-logs', async (req, res) => {
 });
 
 // GET /api/webhooks/logs
-// Fetch last 50 webhook logs for debugging/viewing
-router.get('/logs', async (req, res) => {
+// Fetch last 50 webhook logs for debugging/viewing (Admin only or isolated per user)
+router.get('/logs', authenticateToken, async (req, res) => {
     try {
+        const userId = req.user.id;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
-        let baseSql = ' FROM webhook_logs WHERE 1=1';
-        let params = [];
+        let baseSql = ' FROM webhook_logs WHERE user_id = ?';
+        let params = [userId];
+
+        // If user is admin, allow seeing all logs? No, keep it separate for now.
+        if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+            // Admin sees everything
+            baseSql = ' FROM webhook_logs WHERE 1=1';
+            params = [];
+        }
 
         if (req.query.startDate && req.query.endDate) {
             baseSql += ' AND created_at BETWEEN ? AND ?';

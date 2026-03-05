@@ -82,7 +82,10 @@ export default function SuperAdminPlans() {
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/plans?admin=true`);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_BASE_URL}/api/plans?admin=true`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
@@ -119,9 +122,13 @@ export default function SuperAdminPlans() {
 
       const method = isCreating ? 'POST' : 'PUT';
 
+      const token = localStorage.getItem('authToken');
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify(data),
       });
 
@@ -176,8 +183,10 @@ export default function SuperAdminPlans() {
   const handleDeleteConfirm = async () => {
     if (!planToDelete) return;
     try {
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_BASE_URL}/api/plans/${planToDelete}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -203,8 +212,10 @@ export default function SuperAdminPlans() {
 
   const handleToggleStatus = async (id: string) => {
     try {
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_BASE_URL}/api/plans/${id}/toggle`, {
         method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

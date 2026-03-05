@@ -105,12 +105,13 @@ export default function Numbers() {
     setLoading(true);
     setError(null);
     try {
+      const token = localStorage.getItem('authToken');
       const [vmnsRes, msisdnsRes, sendersRes, usersRes, reportsRes] = await Promise.all([
-        axios.get(`${API_BASE}/vmns`),
-        axios.get(`${API_BASE}/msisdns`),
-        axios.get(`${API_BASE}/senders`),
-        axios.get(`${API_BASE}/users`),
-        axios.get(`${API_BASE}/vmn-reports`),
+        axios.get(`${API_BASE}/vmns`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE}/msisdns`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE}/senders`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE}/users`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE}/vmn-reports`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       setVMNs(vmnsRes.data);
       setMSISDNs(msisdnsRes.data);
@@ -143,11 +144,12 @@ export default function Numbers() {
       userId: data.userId === 'global' ? '' : data.userId,
     };
     try {
+      const token = localStorage.getItem('authToken');
       if (selectedVMN) {
-        await axios.put(`${API_BASE}/vmns/${selectedVMN.id}`, submitData);
+        await axios.put(`${API_BASE}/vmns/${selectedVMN.id}`, submitData, { headers: { Authorization: `Bearer ${token}` } });
         toast({ title: 'VMN updated' });
       } else {
-        await axios.post(`${API_BASE}/vmns`, submitData);
+        await axios.post(`${API_BASE}/vmns`, submitData, { headers: { Authorization: `Bearer ${token}` } });
         toast({ title: 'VMN added' });
       }
       fetchAllData();
@@ -159,7 +161,8 @@ export default function Numbers() {
 
   const handleDeleteVMN = async (id: string) => {
     try {
-      await axios.delete(`${API_BASE}/vmns/${id}`);
+      const token = localStorage.getItem('authToken');
+      await axios.delete(`${API_BASE}/vmns/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       toast({ title: 'VMN deleted' });
       fetchAllData();
     } catch (err) {
@@ -185,11 +188,12 @@ export default function Numbers() {
       userId: data.userId === 'global' ? '' : data.userId,
     };
     try {
+      const token = localStorage.getItem('authToken');
       if (selectedMSISDN) {
-        await axios.put(`${API_BASE}/msisdns/${selectedMSISDN.id}`, submitData);
+        await axios.put(`${API_BASE}/msisdns/${selectedMSISDN.id}`, submitData, { headers: { Authorization: `Bearer ${token}` } });
         toast({ title: 'MSISDN updated' });
       } else {
-        await axios.post(`${API_BASE}/msisdns`, submitData);
+        await axios.post(`${API_BASE}/msisdns`, submitData, { headers: { Authorization: `Bearer ${token}` } });
         toast({ title: 'MSISDN added' });
       }
       fetchAllData();
@@ -201,7 +205,8 @@ export default function Numbers() {
 
   const handleDeleteMSISDN = async (id: string) => {
     try {
-      await axios.delete(`${API_BASE}/msisdns/${id}`);
+      const token = localStorage.getItem('authToken');
+      await axios.delete(`${API_BASE}/msisdns/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       toast({ title: 'MSISDN deleted' });
       fetchAllData();
     } catch (err) {
@@ -227,11 +232,12 @@ export default function Numbers() {
       userId: data.userId === 'shared' ? '' : data.userId,
     };
     try {
+      const token = localStorage.getItem('authToken');
       if (selectedSender) {
-        await axios.put(`${API_BASE}/senders/${selectedSender.id}`, submitData);
+        await axios.put(`${API_BASE}/senders/${selectedSender.id}`, submitData, { headers: { Authorization: `Bearer ${token}` } });
         toast({ title: 'Sender updated' });
       } else {
-        await axios.post(`${API_BASE}/senders`, submitData);
+        await axios.post(`${API_BASE}/senders`, submitData, { headers: { Authorization: `Bearer ${token}` } });
         toast({ title: 'Sender added' });
       }
       fetchAllData();
@@ -243,7 +249,8 @@ export default function Numbers() {
 
   const handleDeleteSender = async (id: string) => {
     try {
-      await axios.delete(`${API_BASE}/senders/${id}`);
+      const token = localStorage.getItem('authToken');
+      await axios.delete(`${API_BASE}/senders/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       toast({ title: 'Sender deleted' });
       fetchAllData();
     } catch (err) {
@@ -256,7 +263,8 @@ export default function Numbers() {
     const lines = bulkData.split('\n').filter(l => l.trim());
     if (lines.length === 0) return toast({ title: 'No data' });
     try {
-      await axios.post(`${API_BASE}/msisdns/bulk`, { msisdns: lines });
+      const token = localStorage.getItem('authToken');
+      await axios.post(`${API_BASE}/msisdns/bulk`, { msisdns: lines }, { headers: { Authorization: `Bearer ${token}` } });
       toast({ title: 'Bulk upload successful' });
       fetchAllData();
       setBulkUploadOpen(false);
