@@ -199,6 +199,30 @@
       "Key": "MUL",
       "Default": null,
       "Extra": ""
+    },
+    {
+      "Field": "rcs_text_price",
+      "Type": "decimal(10,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0.10",
+      "Extra": ""
+    },
+    {
+      "Field": "rcs_rich_card_price",
+      "Type": "decimal(10,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0.15",
+      "Extra": ""
+    },
+    {
+      "Field": "rcs_carousel_price",
+      "Type": "decimal(10,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0.20",
+      "Extra": ""
     }
   ],
   "message_templates": [
@@ -483,6 +507,14 @@
       "Key": "",
       "Default": "0",
       "Extra": ""
+    },
+    {
+      "Field": "template_type",
+      "Type": "enum('standard','rich_card','carousel')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "standard",
+      "Extra": ""
     }
   ],
   "campaign_queue": [
@@ -499,6 +531,14 @@
       "Type": "varchar(255)",
       "Null": "YES",
       "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "user_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
       "Default": null,
       "Extra": ""
     },

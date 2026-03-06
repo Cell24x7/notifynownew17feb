@@ -108,6 +108,57 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
         newList.splice(index, 1);
         handleMetadataChange('carouselList', newList);
     };
+    const validateImage = (file: File, orientation: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const maxSize = 2 * 1024 * 1024; // 2MB
+            // GSMA/Dotgo specs for templates:
+            // Vertical/Carousel usually 1000x1000 or similar square
+            // Horizontal usually 1440x448
+            const expectedWidth = orientation === 'HORIZONTAL' ? 1440 : 1000;
+            const expectedHeight = orientation === 'HORIZONTAL' ? 448 : 1000;
+
+            if (file.size > maxSize) {
+                alert(`File Too Large. Max size is 2MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+                resolve(false);
+                return;
+            }
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(img.src);
+                if (img.width !== expectedWidth || img.height !== expectedHeight) {
+                    alert(`Invalid Dimensions. For ${orientation.toLowerCase()} orientation, image must be exactly ${expectedWidth}x${expectedHeight} px.\nDetected: ${img.width}x${img.height} px`);
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            };
+            img.onerror = () => {
+                alert("Invalid image file.");
+                resolve(false);
+            };
+        });
+    };
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, isCarousel: boolean = false, index?: number) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const orientation = isCarousel ? 'VERTICAL' : (data.metadata?.orientation || 'VERTICAL');
+        const isValid = await validateImage(file, orientation);
+        
+        if (!isValid) {
+            e.target.value = ''; // Reset input
+            return;
+        }
+
+        if (isCarousel && typeof index === 'number') {
+            onCarouselFileChange?.(index, file);
+        } else {
+            onFileChange?.(file);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -207,7 +258,7 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                                             <Input 
                                                 type="file" 
                                                 accept="image/*,video/*" 
-                                                onChange={(e) => onFileChange?.(e.target.files?.[0] || null)}
+                                                onChange={(e) => handleFileSelect(e)}
                                                 className="h-9 text-xs flex-1 bg-white"
                                             />
                                             {data.metadata?.isUpload && <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Selected</Badge>}
@@ -215,7 +266,9 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                                     </div>
                                     <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-100">
                                         <Zap className="h-3 w-3 text-amber-600" />
-                                        <p className="text-[10px] text-amber-700 font-medium">Important: Use 2:1 aspect ratio for images. Media URL should be a direct link (no base64).</p>
+                                        <p className="text-[10px] text-amber-700 font-medium">
+                                            Important: {data.metadata?.orientation === 'HORIZONTAL' ? '1440x448 px (Horizontal)' : '1000x1000 px (Vertical)'} | Max 2MB. Use direct links (no base64).
+                                        </p>
                                     </div>
                                 </div>
                                 
@@ -324,9 +377,10 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                                                     <Input 
                                                         type="file" 
                                                         accept="image/*,video/*" 
-                                                        onChange={(e) => onCarouselFileChange?.(idx, e.target.files?.[0] || null)}
+                                                        onChange={(e) => handleFileSelect(e, true, idx)}
                                                         className="h-9 text-xs bg-white"
                                                     />
+                                                    <p className="text-[9px] text-muted-foreground px-1">Req: 1000x1000 px | Max 2MB</p>
                                                 </div>
                                             </div>
                                             <div className="space-y-1.5">

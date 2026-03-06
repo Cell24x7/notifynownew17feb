@@ -35,7 +35,6 @@ const channels: { label: string; value: Channel | 'all' }[] = [
   { label: 'WhatsApp', value: 'whatsapp' },
   { label: 'SMS', value: 'sms' },
   { label: 'RCS', value: 'rcs' },
-  { label: 'RCS', value: 'rcs' },
 ];
 
 export default function Chats() {

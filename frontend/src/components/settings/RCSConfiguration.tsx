@@ -14,7 +14,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'; // ← Yeh add kiya (error fix)
+} from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -29,11 +29,19 @@ import {
   Shield, 
   Languages,
   Loader2,
-  Database
+  Database,
+  Building2,
+  Globe,
+  MapPin,
+  Image as ImageIcon,
+  ShieldCheck
 } from 'lucide-react';
 import { RCSPreview } from './RCSPreview';
 import { RCSBotsList } from './RCSBotsList';
-import { rcsApi } from '@/services/rcsApi';
+import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
+
+const API_URL = `${API_BASE_URL}/api/bots`;
 
 interface PhoneEntry {
   id: string;
@@ -48,20 +56,24 @@ interface EmailEntry {
 
 interface RCSConfig {
   botType: 'domestic' | 'international' | '';
-  messageType: 'otp' | 'transactional' | 'promotional' | '';
+  messageType: 'OTP' | 'TRANSACTIONAL' | 'PROMOTIONAL' | '';
   botName: string;
   brandName: string;
-  botLogo: string | null;
-  botLogoFile: File | null;
-  bannerImage: string | null;
-  bannerImageFile: File | null;
   shortDescription: string;
+  webhookUrl: string;
+  industryType: string;
+  address: string;
   phoneNumbers: PhoneEntry[];
   emails: EmailEntry[];
+  websiteUrl: string;
   termsOfUseUrl: string;
   privacyPolicyUrl: string;
   languagesSupported: string;
   agreeToLaunch: boolean;
+  botLogoFile: File | null;
+  botLogoUrl: string | null;
+  bannerFile: File | null;
+  bannerUrl: string | null;
 }
 
 const countryCodes = [
@@ -74,103 +86,87 @@ const countryCodes = [
 export function RCSConfiguration() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [existingBot, setExistingBot] = useState<any>(null); // Track existing bot
-
   const [config, setConfig] = useState<RCSConfig>({
-    botType: '',
-    messageType: '',
+    botType: 'domestic',
+    messageType: 'PROMOTIONAL',
     botName: '',
     brandName: '',
-    botLogo: null,
-    botLogoFile: null,
-    bannerImage: null,
-    bannerImageFile: null,
     shortDescription: '',
+    webhookUrl: '',
+    industryType: 'Telecom',
+    address: '',
     phoneNumbers: [{ id: '1', countryCode: '+91', number: '' }],
     emails: [{ id: '1', email: '' }],
+    websiteUrl: '',
     termsOfUseUrl: '',
     privacyPolicyUrl: '',
-    languagesSupported: '',
+    languagesSupported: 'English',
     agreeToLaunch: false,
+    botLogoFile: null,
+    botLogoUrl: null,
+    bannerFile: null,
+    bannerUrl: null,
   });
-
-  const checkExistingBot = async () => {
-    try {
-      const bots = await rcsApi.getAllBots();
-      if (bots && bots.length > 0) {
-        setExistingBot(bots[0]);
-      } else {
-        setExistingBot(null);
-      }
-    } catch (error) {
-      console.error('Error checking existing bots:', error);
-    }
-  };
-
-  useEffect(() => {
-    checkExistingBot();
-  }, []);
 
   const isValidText = (text: string) => /^[a-zA-Z\s]*$/.test(text);
 
-  const validateImage = (file: File, type: 'logo' | 'banner'): boolean => {
-    const maxSize = type === 'logo' ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
-    const allowedFormats = ['image/png', 'image/jpeg', 'image/jpg'];
+  const validateImage = (file: File, type: 'logo' | 'banner'): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const maxSize = type === 'logo' ? 1024 * 1024 : 2 * 1024 * 1024; // 1MB or 2MB
+      const expectedWidth = type === 'logo' ? 224 : 1440;
+      const expectedHeight = type === 'logo' ? 224 : 448;
 
-    if (!allowedFormats.includes(file.type)) {
-      toast({
-        title: 'Invalid Format',
-        description: 'Only PNG, JPG, JPEG formats are allowed.',
-        variant: 'destructive'
-      });
-      return false;
-    }
+      if (file.size > maxSize) {
+        toast({ 
+          title: "File Too Large", 
+          description: `Max size for ${type} is ${type === 'logo' ? '1MB' : '2MB'}.`, 
+          variant: "destructive" 
+        });
+        resolve(false);
+        return;
+      }
 
-    if (file.size > maxSize) {
-      const maxSizeMB = type === 'logo' ? 2 : 5;
-      toast({
-        title: 'File Too Large',
-        description: `Maximum file size is ${maxSizeMB}MB.`,
-        variant: 'destructive'
-      });
-      return false;
-    }
-
-    return true;
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        if (img.width !== expectedWidth || img.height !== expectedHeight) {
+          toast({ 
+            title: "Invalid Dimensions", 
+            description: `${type === 'logo' ? 'Logo' : 'Banner'} must be exactly ${expectedWidth}x${expectedHeight} px.`, 
+            variant: "destructive" 
+          });
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      };
+      img.onerror = () => {
+        toast({ title: "Error", description: "Invalid image file.", variant: "destructive" });
+        resolve(false);
+      };
+    });
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (validateImage(file, 'logo')) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setConfig({ 
-          ...config, 
-          botLogo: event.target?.result as string,
-          botLogoFile: file 
-        });
-      };
-      reader.readAsDataURL(file);
+    const isValid = await validateImage(file, type);
+    if (!isValid) {
+      e.target.value = ''; // Reset input
+      return;
     }
-  };
 
-  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (validateImage(file, 'banner')) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setConfig({ 
-          ...config, 
-          bannerImage: event.target?.result as string,
-          bannerImageFile: file 
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (type === 'logo') {
+        setConfig({ ...config, botLogoFile: file, botLogoUrl: event.target?.result as string });
+      } else {
+        setConfig({ ...config, bannerFile: file, bannerUrl: event.target?.result as string });
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const addPhoneNumber = () => {
@@ -206,119 +202,126 @@ export function RCSConfiguration() {
   };
 
   const handleSubmit = async () => {
-    const errors: string[] = [];
-
-    if (!config.botType) errors.push('Bot Type is required (Domestic or International)');
-    if (!config.messageType) errors.push('Message Type is required');
-
-    if (!config.botName.trim()) {
-      errors.push('Bot Name is required');
-    } else if (!isValidText(config.botName)) {
-      errors.push('Bot Name can only contain letters and spaces (no numbers or symbols)');
-    } else if (config.botName.length > 40) {
-      errors.push('Bot Name must be maximum 40 characters');
-    }
-
-    if (!config.brandName.trim()) {
-      errors.push('Brand Name is required');
-    } else if (!isValidText(config.brandName)) {
-      errors.push('Brand Name can only contain letters and spaces (no numbers or symbols)');
-    } else if (config.brandName.length > 40) {
-      errors.push('Brand Name must be maximum 40 characters');
-    }
-
-    if (!config.botLogo) errors.push('Bot Logo is required');
-    if (!config.bannerImage) errors.push('Banner Image is required');
-
-    if (!config.shortDescription.trim()) {
-      errors.push('Short Description is required');
-    } else if (config.shortDescription.length > 100) {
-      errors.push('Short Description must be maximum 100 characters');
-    }
-
-    const hasValidPhone = config.phoneNumbers.some(p => 
-      p.number.trim() && /^\d{7,15}$/.test(p.number.trim())
-    );
-    if (!hasValidPhone) errors.push('At least one valid phone number (7-15 digits) is required');
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const hasValidEmail = config.emails.some(e => e.email.trim() && emailRegex.test(e.email));
-    if (!hasValidEmail) errors.push('At least one valid email address is required');
-
-    if (!config.termsOfUseUrl.trim()) errors.push('Terms of Use URL is required');
-    if (!config.privacyPolicyUrl.trim()) errors.push('Privacy Policy URL is required');
-    if (!config.languagesSupported.trim()) errors.push('Languages Supported is required');
-
-    if (!config.agreeToLaunch) {
-      errors.push('You must agree to launch the bot on all carriers');
-    }
-
-    if (errors.length > 0) {
-      toast({
-        title: 'Validation Error',
-        description: errors[0],
-        variant: 'destructive'
-      });
+    // Basic validation
+    if (!config.botName || !config.brandName || !config.botLogoFile) {
+      toast({ title: 'Missing Info', description: 'Bot Name, Brand Name, and Logo are required.', variant: 'destructive' });
       return;
     }
 
     setIsLoading(true);
     try {
-      const contacts = [
-        ...config.phoneNumbers.filter(p => p.number.trim()).map(p => ({
-          contact_type: 'PHONE' as const,
-          contact_value: p.countryCode + p.number,
-          label: ''
-        })),
-        ...config.emails.filter(e => e.email.trim()).map(e => ({
-          contact_type: 'EMAIL' as const,
-          contact_value: e.email,
-          label: ''
-        })),
-      ];
+      const token = localStorage.getItem('authToken');
 
-      const messageTypeMap: Record<string, 'OTP' | 'TRANSACTIONAL' | 'PROMOTIONAL'> = {
-        'otp': 'OTP',
-        'transactional': 'TRANSACTIONAL',
-        'promotional': 'PROMOTIONAL'
+      // 1. Submit Bot Details (Step 1)
+      const creationData: any = {
+        data: {
+          bot: {
+            privacy_url: config.privacyPolicyUrl,
+            term_and_condition_url: config.termsOfUseUrl,
+            platform: 'GSMA API',
+            phone_list: config.phoneNumbers.filter(p => p.number).map(p => ({ value: p.countryCode + p.number, label: 'Support' })),
+            email_list: config.emails.filter(e => e.email).map(e => ({ value: e.email, label: 'Support' })),
+            website_list: config.websiteUrl ? [{ value: config.websiteUrl, label: 'Website' }] : []
+          },
+          rcs_bot: {
+            lang_supported: config.languagesSupported,
+            agent_msg_type: config.messageType === 'OTP' ? 'OTP' : 
+                             config.messageType === 'TRANSACTIONAL' ? 'Transactional' : 
+                             config.messageType === 'PROMOTIONAL' ? 'Promotional' : config.messageType,
+            billing_category: 'Non_Conversational',
+            webhook_url: config.webhookUrl
+          },
+          bot_desc: [{ bot_name: config.botName, bot_summary: config.shortDescription }],
+          agent_color: '#000000'
+        },
+        brand_details: { 
+          brand_name: config.brandName,
+          brand_address: config.address,
+          brand_industry: config.industryType
+        },
+        carrier_details: { carrier_list: [97, 77, 98], global_reach: false },
+        region: config.botType === 'domestic' ? 'India' : 'International'
       };
 
-      const botData: any = {
-        bot_name: config.botName,
-        brand_name: config.brandName,
-        short_description: config.shortDescription,
-        bot_logo_url: config.botLogo || '',
-        banner_image_url: config.bannerImage || '',
-        terms_url: config.termsOfUseUrl,
-        privacy_url: config.privacyPolicyUrl,
-        route_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL'),
-        bot_type: (config.botType === 'domestic' ? 'DOMESTIC' : 'INTERNATIONAL'),
-        message_type: messageTypeMap[config.messageType] || 'TRANSACTIONAL',
-        languages_supported: config.languagesSupported,
-        agree_all_carriers: config.agreeToLaunch,
-        status: 'DRAFT',
-        brand_color: '#7C3AED',
-        billing_category: 'CONVERSATIONAL',
-        development_platform: 'GOOGLE_API',
-        webhook_url: 'https://example.com/webhook',
-        contacts,
+      const formData = new FormData();
+      formData.append('creation_data', JSON.stringify(creationData));
+      
+      if (config.botLogoFile) {
+        formData.append('botLogoFile', config.botLogoFile);
+      }
+      if (config.bannerFile) {
+        formData.append('bannerFile', config.bannerFile);
+      }
+
+      const submitRes = await axios.post(`${API_URL}/submit`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (!submitRes.data.success) throw new Error(submitRes.data.message || 'Step 1 failed');
+
+      const { bot_id, brand_id } = submitRes.data;
+
+      // 2. Submit Verification (Step 2)
+      const verifyData = {
+        bot_id,
+        webhook_url: config.webhookUrl,
+        trigger_action: 'Initial contact via campaign or opt-in.',
+        opt_in_message: 'User opt-in via portal.',
+        video_url: '',
+        bot_access_instructions: 'Standard access.',
+        bot_interaction_types: 'Promotional/Transactional.',
+        is_carrier_edited: true,
+        carrier_list: [97, 77, 98],
+        is_opt_out_by_platform: true,
+        opt_out_keyword: 'STOP',
+        opt_out_message: 'Unsubscribed successfully.',
+        revoke_opt_out: 'START',
+        revoke_opt_out_message: 'Resubscribed successfully.',
+        is_conversational_supported: false,
+        brand_details: {
+          brand_name: config.brandName,
+          brand_id,
+          industry_id: 5,
+          industry_type: config.industryType,
+          address: {
+            address_line_1: config.address,
+            address_line_2: '',
+            city: config.address.split(',')[0] || '',
+            state: config.address.split(',')[1] || '',
+            zip_code: '',
+            country_id: 1
+          },
+          brand_emails_json: [{
+            contact_first_name: 'Admin',
+            contact_last_name: 'User',
+            contact_designation: 'Owner',
+            email: config.emails[0].email,
+            mobile: config.phoneNumbers[0].number
+          }],
+          brand_website: ''
+        }
       };
 
-      const response = await rcsApi.createBot(botData);
-      
-      toast({ 
-        title: 'Success', 
-        description: 'RCS Bot configuration has been saved successfully.',
+      const verifyFormData = new FormData();
+      verifyFormData.append('data', JSON.stringify(verifyData));
+      if (config.botLogoFile) verifyFormData.append('brandLogoImage', config.botLogoFile);
+      if (config.bannerFile) verifyFormData.append('screenImages', config.bannerFile);
+
+      await axios.post(`${API_URL}/verify`, verifyFormData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
       });
-      
-      console.log('Bot created with ID:', response.id);
-    } catch (error) {
-      console.error('Error saving configuration:', error);
-      toast({ 
-        title: 'Error', 
-        description: 'Failed to save configuration.',
-        variant: 'destructive'
-      });
+
+      toast({ title: 'Success', description: 'RCS Bot created and submitted for verification!' });
+      // Reset or redirect?
+    } catch (error: any) {
+      console.error('Submission Error:', error);
+      toast({ title: 'Error', description: error.response?.data?.message || 'Failed to onboard bot.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -330,506 +333,360 @@ export function RCSConfiguration() {
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="create" className="flex items-center gap-2">
             <Smartphone className="h-4 w-4" />
-            <span className="hidden sm:inline">Create Bot</span>
-            <span className="sm:hidden">Create</span>
+            <span>Create Bot</span>
           </TabsTrigger>
           <TabsTrigger value="view" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
-            <span className="hidden sm:inline">View Bots</span>
-            <span className="sm:hidden">View</span>
+            <span>View Bots</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-4">
-            <div className="flex flex-col lg:flex-row gap-6">
-              {existingBot ? (
-                 <div className="w-full flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-xl bg-muted/30">
-                    <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
-                      <Smartphone className="h-8 w-8 text-yellow-600" />
-                    </div>
-                    <h3 className="text-xl font-bold mb-2">Limit Reached</h3>
-                    <p className="text-muted-foreground text-center max-w-md mb-6">
-                      You have already created an RCS bot. You can only have one active bot per channel. 
-                      Please view or edit your existing bot configuration.
-                    </p>
-                    <div className="p-4 bg-background border rounded-lg flex items-center gap-4 mb-6 shadow-sm w-full max-w-md">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            {existingBot.bot_logo_url ? (
-                                <img src={existingBot.bot_logo_url} alt="Bot" className="w-full h-full object-cover rounded-lg" />
-                            ) : (
-                                <Smartphone className="h-5 w-5 text-primary" />
-                            )}
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Form Column */}
+            <div className="flex-1 min-w-0 order-2 lg:order-1">
+              <ScrollArea className="h-[calc(100vh-280px)] pr-4">
+                <div className="space-y-6">
+                  {/* Basic Branding */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        Brand & Bot Identity
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Brand Name *</Label>
+                          <Input 
+                            placeholder="e.g. Acme Corp" 
+                            value={config.brandName}
+                            onChange={(e) => setConfig({...config, brandName: e.target.value})}
+                          />
                         </div>
-                        <div>
-                            <p className="font-bold">{existingBot.bot_name}</p>
-                            <p className="text-xs text-muted-foreground">{existingBot.brand_name}</p>
-                        </div>
-                        <Badge variant="outline" className="ml-auto">{existingBot.status}</Badge>
-                    </div>
-                    <Button onClick={() => (document.querySelector('[value="view"]') as HTMLElement)?.click()}>
-                      View Existing Bot
-                    </Button>
-                 </div>
-              ) : (
-                <>
-                <div className="flex-1 min-w-0 order-2 lg:order-1">
-                  <ScrollArea className="h-[calc(100vh-280px)] md:h-[calc(100vh-200px)]">
-                    <div className="space-y-6 pr-0 md:pr-4">
-
-                      {/* Header */}
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-purple-500/10">
-                          <Smartphone className="h-6 w-6 text-purple-500" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-semibold">RCS Bot Configuration</h2>
-                          <p className="text-sm text-muted-foreground">Configure your RCS Business Messaging bot details</p>
+                        <div className="space-y-2">
+                          <Label>Bot Name *</Label>
+                          <Input 
+                            placeholder="e.g. Acme Support" 
+                            value={config.botName}
+                            onChange={(e) => setConfig({...config, botName: e.target.value})}
+                          />
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Label>Short Description</Label>
+                        <Textarea 
+                          placeholder="Brief summary of your bot..." 
+                          value={config.shortDescription}
+                          onChange={(e) => setConfig({...config, shortDescription: e.target.value})}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                      {/* Bot Type */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-base">Bot Type <span className="text-destructive">*</span></CardTitle>
+                  {/* Classification */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-primary" />
+                        Classification
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-3">
+                        <Label>Bot Type</Label>
+                        <RadioGroup 
+                          value={config.botType} 
+                          onValueChange={(val: any) => setConfig({...config, botType: val})}
+                          className="flex gap-6"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="domestic" id="domestic" />
+                            <Label htmlFor="domestic">Domestic</Label>
                           </div>
-                          <CardDescription>
-                            Carrier decides domestic/international classification.
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <RadioGroup
-                            value={config.botType}
-                            onValueChange={(value: 'domestic' | 'international') => 
-                              setConfig({ ...config, botType: value })
-                            }
-                            className="flex gap-8"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="domestic" id="domestic" />
-                              <Label htmlFor="domestic">Domestic</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="international" id="international" />
-                              <Label htmlFor="international">International</Label>
-                            </div>
-                          </RadioGroup>
-                        </CardContent>
-                      </Card>
-
-                      {/* Message Type */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">Message Type <span className="text-destructive">*</span></CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <RadioGroup
-                            value={config.messageType}
-                            onValueChange={(value: 'otp' | 'transactional' | 'promotional') => 
-                              setConfig({ ...config, messageType: value })
-                            }
-                            className="flex gap-6 flex-wrap"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="otp" id="otp" />
-                              <Label htmlFor="otp">OTP</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="transactional" id="transactional" />
-                              <Label htmlFor="transactional">Transactional</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="promotional" id="promotional" />
-                              <Label htmlFor="promotional">Promotional</Label>
-                            </div>
-                          </RadioGroup>
-                        </CardContent>
-                      </Card>
-
-                      {/* Bot Name */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">Bot Name <span className="text-destructive">*</span></CardTitle>
-                          <CardDescription>Letters and spaces only, max 40 characters</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <Input
-                              value={config.botName}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === '' || isValidText(val)) {
-                                  setConfig({ ...config, botName: val.slice(0, 40) });
-                                }
-                              }}
-                              placeholder="Enter bot name"
-                              maxLength={40}
-                            />
-                            <p className="text-xs text-muted-foreground text-right">
-                              {40 - config.botName.length} characters left
-                            </p>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="international" id="international" />
+                            <Label htmlFor="international">International</Label>
                           </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Brand Name */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">Brand Name <span className="text-destructive">*</span></CardTitle>
-                          <CardDescription>Letters and spaces only, max 40 characters</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <Input
-                              value={config.brandName}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === '' || isValidText(val)) {
-                                  setConfig({ ...config, brandName: val.slice(0, 40) });
-                                }
-                              }}
-                              placeholder="Enter brand name"
-                              maxLength={40}
-                            />
-                            <p className="text-xs text-muted-foreground text-right">
-                              {40 - config.brandName.length} characters left
-                            </p>
+                        </RadioGroup>
+                      </div>
+                      <div className="space-y-3">
+                        <Label>Default Message Type</Label>
+                        <RadioGroup 
+                          value={config.messageType} 
+                          onValueChange={(val: any) => setConfig({...config, messageType: val})}
+                          className="flex gap-6 flex-wrap"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="OTP" id="otp" />
+                            <Label htmlFor="otp">OTP</Label>
                           </div>
-                        </CardContent>
-                      </Card>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="TRANSACTIONAL" id="trans" />
+                            <Label htmlFor="trans">Transactional</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="PROMOTIONAL" id="promo" />
+                            <Label htmlFor="promo">Promotional</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                      {/* Bot Logo */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">Bot Logo <span className="text-destructive">*</span></CardTitle>
-                          <CardDescription>224px × 224px recommended</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-start gap-4">
-                            <label 
-                              htmlFor="logo-upload"
-                              className={`w-32 h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                                config.botLogo ? 'border-green-400 bg-green-50' : 'border-purple-300 hover:border-purple-400 bg-purple-50'
-                              }`}
-                            >
-                              {config.botLogo ? (
-                                <img src={config.botLogo} alt="preview" className="w-full h-full object-cover rounded-lg" />
-                              ) : (
-                                <>
-                                  <Upload className="h-8 w-8 text-purple-400 mb-2" />
-                                  <span className="text-xs text-purple-500 font-medium">Upload Logo</span>
-                                </>
-                              )}
-                            </label>
-                            <input 
-                              id="logo-upload" 
-                              type="file" 
-                              accept="image/png,image/jpeg,image/jpg" 
-                              className="hidden" 
-                              onChange={handleLogoUpload}
-                            />
-                            <div className="text-sm text-muted-foreground">
-                              <p>PNG or JPG</p>
-                              <p>Max 2MB</p>
+                  {/* Media */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4 text-primary" />
+                        Media Assets
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <Label className="flex justify-between items-center">
+                          <span>Bot Logo *</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">224x224 px | Max 1MB</span>
+                        </Label>
+                        <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-xl transition-all hover:border-primary/50">
+                          {config.botLogoUrl ? (
+                            <img src={config.botLogoUrl} className="w-24 h-24 rounded-lg object-cover shadow-md" alt="Logo" />
+                          ) : (
+                            <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                              No Logo
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Banner Image */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">Banner Image <span className="text-destructive">*</span></CardTitle>
-                          <CardDescription>1440px × 448px recommended</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-start gap-4">
-                            <label 
-                              htmlFor="banner-upload"
-                              className={`w-64 h-24 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer transition-colors relative ${
-                                config.bannerImage ? 'border-green-400 bg-green-50' : 'border-purple-300 hover:border-purple-400 bg-purple-50'
-                              }`}
-                            >
-                              {config.bannerImage ? (
-                                <img src={config.bannerImage} alt="preview" className="w-full h-full object-cover rounded-lg" />
-                              ) : (
-                                <>
-                                  <Upload className="h-6 w-6 text-purple-400 mr-2" />
-                                  <span className="text-xs text-purple-500 font-medium">Upload Banner</span>
-                                </>
-                              )}
-                            </label>
-                            <input 
-                              id="banner-upload" 
-                              type="file" 
-                              accept="image/png,image/jpeg,image/jpg" 
-                              className="hidden" 
-                              onChange={handleBannerUpload}
-                            />
-                            <div className="text-sm text-muted-foreground">
-                              <p>PNG or JPG</p>
-                              <p>Max 5MB</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Short Description */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">Short Description <span className="text-destructive">*</span></CardTitle>
-                          <CardDescription>Max 100 characters</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <Textarea
-                              value={config.shortDescription}
-                              onChange={(e) => setConfig({ ...config, shortDescription: e.target.value.slice(0, 100) })}
-                              placeholder="Enter a short description of your bot"
-                              maxLength={100}
-                              rows={3}
-                            />
-                            <p className="text-xs text-muted-foreground text-right">
-                              {100 - config.shortDescription.length} characters left
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Separator />
-
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Phone className="h-5 w-5" />
-                        Contact Information
-                      </h3>
-
-                      {/* Phone Numbers */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Phone className="h-4 w-4" />
-                            Phone Numbers
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {config.phoneNumbers.map((phone, index) => (
-                            <div key={phone.id} className="grid grid-cols-1 md:grid-cols-9 gap-3 items-start">
-                              <div className="md:col-span-7">
-                                <Label className="text-sm">{index === 0 ? 'Primary phone number *' : `Phone number ${index + 1}`}</Label>
-                                <div className="flex gap-2 mt-1.5">
-                                  <Select
-                                    value={phone.countryCode}
-                                    onValueChange={(value) => {
-                                      const updated = [...config.phoneNumbers];
-                                      updated[index].countryCode = value;
-                                      setConfig({ ...config, phoneNumbers: updated });
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-24">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {countryCodes.map((cc) => (
-                                        <SelectItem key={cc.code} value={cc.code}>
-                                          {cc.flag} {cc.code}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <Input
-                                    value={phone.number}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/[^0-9]/g, '');
-                                      const updated = [...config.phoneNumbers];
-                                      updated[index].number = val;
-                                      setConfig({ ...config, phoneNumbers: updated });
-                                    }}
-                                    placeholder="Phone number"
-                                    className="flex-1"
-                                  />
-                                </div>
-                              </div>
-                              <div className="md:col-span-2 flex items-end pb-6">
-                                {index > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removePhoneNumber(phone.id)}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                          <Button variant="link" onClick={addPhoneNumber} className="text-primary p-0 h-auto">
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add Phone Number
+                          )}
+                          <Button variant="outline" size="sm" className="relative cursor-pointer">
+                            <Upload className="h-4 w-4 mr-2" /> Upload Logo
+                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(e, 'logo')} />
                           </Button>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="flex justify-between items-center">
+                          <span>Banner Image</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">1440x448 px | Max 2MB</span>
+                        </Label>
+                        <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-xl transition-all hover:border-primary/50">
+                          {config.bannerUrl ? (
+                            <img src={config.bannerUrl} className="w-full h-24 rounded-lg object-cover shadow-md" alt="Banner" />
+                          ) : (
+                            <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                              No Banner
+                            </div>
+                          )}
+                          <Button variant="outline" size="sm" className="relative cursor-pointer">
+                            <Upload className="h-4 w-4 mr-2" /> Upload Banner
+                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(e, 'banner')} />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                      {/* Email Addresses */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Mail className="h-4 w-4" />
-                            Email Addresses
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {config.emails.map((email, index) => (
-                            <div key={email.id} className="grid grid-cols-1 md:grid-cols-9 gap-3 items-start">
-                              <div className="md:col-span-7">
-                                <Label className="text-sm">{index === 0 ? 'Primary email id *' : `Email ${index + 1}`}</Label>
-                                <Input
-                                  value={email.email}
+                  {/* Technical & Verification */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Verification & Tech Specs
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Webhook URL</Label>
+                          <Input 
+                            placeholder="https://..." 
+                            value={config.webhookUrl}
+                            onChange={(e) => setConfig({...config, webhookUrl: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Website URL</Label>
+                          <Input 
+                            placeholder="https://yourwebsite.com" 
+                            value={config.websiteUrl}
+                            onChange={(e) => setConfig({...config, websiteUrl: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Industry Type</Label>
+                          <Select 
+                            value={config.industryType} 
+                            onValueChange={(val) => setConfig({...config, industryType: val})}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select industry" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Telecom">Telecom</SelectItem>
+                              <SelectItem value="Retail">Retail</SelectItem>
+                              <SelectItem value="Finance">Finance</SelectItem>
+                              <SelectItem value="Healthcare">Healthcare</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Brand Address</Label>
+                        <Input 
+                          placeholder="City, State, Country" 
+                          value={config.address}
+                          onChange={(e) => setConfig({...config, address: e.target.value})}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Contacts */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-primary" />
+                        Support Contacts
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-4">
+                        {config.phoneNumbers.map((phone, idx) => (
+                          <div key={phone.id} className="flex gap-2 items-end">
+                            <div className="flex-1 space-y-2">
+                              {idx === 0 && <Label>Phone Numbers *</Label>}
+                              <div className="flex gap-2">
+                                <Select value={phone.countryCode} onValueChange={(val) => {
+                                  const list = [...config.phoneNumbers];
+                                  list[idx].countryCode = val;
+                                  setConfig({...config, phoneNumbers: list});
+                                }}>
+                                  <SelectTrigger className="w-24">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {countryCodes.map(cc => <SelectItem key={cc.code} value={cc.code}>{cc.flag} {cc.code}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <Input 
+                                  placeholder="Number" 
+                                  value={phone.number}
                                   onChange={(e) => {
-                                    const updated = [...config.emails];
-                                    updated[index].email = e.target.value;
-                                    setConfig({ ...config, emails: updated });
+                                    const list = [...config.phoneNumbers];
+                                    list[idx].number = e.target.value;
+                                    setConfig({...config, phoneNumbers: list});
                                   }}
-                                  placeholder="abc@xyz.com"
-                                  className="mt-1.5"
                                 />
                               </div>
-                              <div className="md:col-span-2 flex items-end pb-6">
-                                {index > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeEmail(email.id)}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
                             </div>
-                          ))}
-                          <Button variant="link" onClick={addEmail} className="text-primary p-0 h-auto">
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add Email ID
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      <Separator />
-
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Shield className="h-5 w-5" />
-                        Legal & Compliance
-                      </h3>
-
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center">
-                            <CardTitle className="text-base flex items-center gap-2">
-                              <FileText className="h-4 w-4" />
-                              Terms of Use URL <span className="text-destructive ml-1">*</span>
-                            </CardTitle>
+                            <Button variant="ghost" size="icon" className="text-destructive mb-0.5" onClick={() => removePhoneNumber(phone.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <Input
-                            value={config.termsOfUseUrl}
-                            onChange={(e) => setConfig({ ...config, termsOfUseUrl: e.target.value })}
-                            placeholder="https://example.com/terms"
-                          />
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center">
-                            <CardTitle className="text-base flex items-center gap-2">
-                              <Shield className="h-4 w-4" />
-                              Privacy Policy URL <span className="text-destructive ml-1">*</span>
-                            </CardTitle>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <Input
-                            value={config.privacyPolicyUrl}
-                            onChange={(e) => setConfig({ ...config, privacyPolicyUrl: e.target.value })}
-                            placeholder="https://example.com/privacy"
-                          />
-                        </CardContent>
-                      </Card>
-
-                      <Separator />
-
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center">
-                            <CardTitle className="text-base flex items-center gap-2">
-                              <Languages className="h-4 w-4" />
-                              Languages Supported <span className="text-destructive ml-1">*</span>
-                            </CardTitle>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <Input
-                            value={config.languagesSupported}
-                            onChange={(e) => setConfig({ ...config, languagesSupported: e.target.value })}
-                            placeholder="English, Hindi, Tamil..."
-                          />
-                        </CardContent>
-                      </Card>
-
-                      <Separator />
-
-                      <Card>
-                        <CardContent className="pt-6">
-                          <div className="flex items-start space-x-3">
-                            <Checkbox
-                              id="agree"
-                              checked={config.agreeToLaunch}
-                              onCheckedChange={(checked) => setConfig({ ...config, agreeToLaunch: checked as boolean })}
-                            />
-                            <Label htmlFor="agree" className="text-sm leading-relaxed cursor-pointer">
-                              I agree to launch the bot on all Indian carriers.
-                            </Label>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <div className="flex justify-end gap-3 pb-6">
-                        <Button variant="outline" disabled={isLoading}>Back</Button>
-                        <Button 
-                          onClick={handleSubmit} 
-                          disabled={isLoading}
-                          className="bg-red-500 hover:bg-red-600 text-white"
-                        >
-                          {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                          {isLoading ? 'Saving...' : 'Submit'}
+                        ))}
+                        <Button variant="outline" size="sm" onClick={addPhoneNumber} className="w-full border-dashed">
+                          <Plus className="h-4 w-4 mr-2" /> Add Phone
                         </Button>
                       </div>
 
-                    </div>
-                  </ScrollArea>
-                </div>
+                      <div className="space-y-4">
+                        {config.emails.map((email, idx) => (
+                          <div key={email.id} className="flex gap-2 items-end">
+                            <div className="flex-1 space-y-2">
+                              {idx === 0 && <Label>Emails *</Label>}
+                              <Input 
+                                placeholder="Email" 
+                                value={email.email}
+                                onChange={(e) => {
+                                  const list = [...config.emails];
+                                  list[idx].email = e.target.value;
+                                  setConfig({...config, emails: list});
+                                }}
+                              />
+                            </div>
+                            <Button variant="ghost" size="icon" className="text-destructive mb-0.5" onClick={() => removeEmail(email.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button variant="outline" size="sm" onClick={addEmail} className="w-full border-dashed">
+                          <Plus className="h-4 w-4 mr-2" /> Add Email
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                <div className="w-full lg:w-[320px] flex-shrink-0 order-1 lg:order-2">
-                  <RCSPreview
-                    botName={config.botName}
-                    brandName={config.brandName}
-                    shortDescription={config.shortDescription}
-                    brandColor="#7C3AED"
-                    botLogo={config.botLogo}
-                    bannerImage={config.bannerImage}
-                    phoneNumber={config.phoneNumbers[0]?.number}
-                    email={config.emails[0]?.email}
-                  />
+                  {/* Legal */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        Legal & Compliance
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Terms URL *</Label>
+                          <Input 
+                            placeholder="https://..." 
+                            value={config.termsOfUseUrl}
+                            onChange={(e) => setConfig({...config, termsOfUseUrl: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Privacy URL *</Label>
+                          <Input 
+                            placeholder="https://..." 
+                            value={config.privacyPolicyUrl}
+                            onChange={(e) => setConfig({...config, privacyPolicyUrl: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3 pt-2">
+                        <Checkbox 
+                          id="agree" 
+                          checked={config.agreeToLaunch}
+                          onCheckedChange={(val: boolean) => setConfig({...config, agreeToLaunch: val})}
+                        />
+                        <Label htmlFor="agree" className="text-sm font-normal cursor-pointer">
+                          I agree to launch the bot on all registered carriers.
+                        </Label>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="pb-10 pt-4">
+                    <Button 
+                      className="w-full h-12 text-lg shadow-lg shadow-primary/20" 
+                      onClick={handleSubmit}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <ShieldCheck className="h-5 w-5 mr-2" />}
+                      Onboard Bot Now
+                    </Button>
+                  </div>
                 </div>
-                </>
-              )}
+              </ScrollArea>
             </div>
+
+            {/* Preview Column */}
+            <div className="hidden lg:block w-[340px] shrink-0 order-1 lg:order-2">
+              <RCSPreview 
+                botName={config.botName}
+                brandName={config.brandName}
+                shortDescription={config.shortDescription}
+                botLogo={config.botLogoUrl}
+                bannerImage={config.bannerUrl}
+                phoneNumber={config.phoneNumbers[0].number}
+                email={config.emails[0].email}
+              />
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="view" className="space-y-4">
-          <RCSBotsList onUpdate={checkExistingBot} />
+        <TabsContent value="view">
+          <RCSBotsList />
         </TabsContent>
       </Tabs>
     </div>

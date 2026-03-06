@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-05]
+- updated code (14e00fd)
 - updated code (30da4c0)
 
 ---
@@ -147,13 +148,6 @@ This document is automatically updated based on development activity.
 
 ## [2026-02-05]
 - updated code (75ab5c4)
-
----
-
-## [2026-02-03]
-- updated all api (7a2f55f)
-- Update CampaignCreationStepper component (d6760f3)
-- Add contacts feature and update backend/frontend (16a9e3c)
 
 ---
 

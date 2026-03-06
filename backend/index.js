@@ -78,6 +78,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 ================================== */
 app.use('/api/rcs', require('./routes/rcs'));
 app.use('/api/rcs-configs', require('./routes/rcsConfigs'));
+app.use('/api/bots', require('./routes/bots'));
 
 
 app.use('/api/auth', require('./routes/auth'));

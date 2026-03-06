@@ -529,6 +529,113 @@ const getExternalTemplates = async (config) => {
   }
 };
 
+/**
+ * Step 1: Submit Bot to Dotgo
+ * @param {object} creationData 
+ * @returns {Promise<object>}
+ */
+const submitBotToDotgo = async (creationData) => {
+  try {
+    const token = await getDotgoAdminToken();
+    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
+
+    const url = `https://developer-api.dotgo.com/directory/secure/api/v1/bots/submit_bot`;
+
+    const form = new FormData();
+
+    // Safety check: Warn if a local URL is being sent to Dotgo
+    const logoUrl = creationData.data?.bot_logo_url || "";
+    const bannerUrl = creationData.data?.banner_logo_url || "";
+    if (logoUrl.includes('localhost') || bannerUrl.includes('localhost') || logoUrl.includes('127.0.0.1')) {
+      console.warn("⚠️ WARNING: Submitting local URLs (localhost) to Dotgo. They will NOT be able to access these images.");
+    }
+
+    form.append('creation_data', JSON.stringify(creationData));
+
+    console.log(`📤 Submitting Bot to Dotgo: ${creationData.brand_details?.brand_name}`);
+    console.log(`📦 Payload:`, JSON.stringify(creationData, null, 2));
+
+    const response = await axios.post(url, form, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        ...form.getHeaders()
+      }
+    });
+
+    console.log(`✅ Dotgo Response [${response.status}]:`, JSON.stringify(response.data));
+
+    if (response.data && response.data.status_message === 'success') {
+      return { success: true, brand_id: response.data.brand_id, bot_id: response.data.bot_id };
+    }
+
+    return { success: false, error: response.data?.status_message || "Submission failed", raw: response.data };
+  } catch (error) {
+    if (error.response) {
+      console.error("❌ Dotgo Bot Submission Error Body:", JSON.stringify(error.response.data));
+      return { success: false, error: error.response.data?.status_message || error.response.data?.message || JSON.stringify(error.response.data) };
+    }
+    console.error("❌ Dotgo Bot Submission Error:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Step 2: Verify Bot to Dotgo
+ * @param {object} verifyData 
+ * @param {object} files - { screenImages, brandLogoImage }
+ * @returns {Promise<object>}
+ */
+const verifyBotToDotgo = async (verifyData, files = {}) => {
+  try {
+    const token = await getDotgoAdminToken();
+    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
+
+    const url = `https://developer-api.dotgo.com/directory/secure/api/v1/bots/submit_bot_for_verification`;
+
+    const form = new FormData();
+    form.append('data', JSON.stringify(verifyData));
+
+    if (files.screenImages) {
+      form.append('screenImages', files.screenImages.buffer, {
+        filename: files.screenImages.originalname,
+        contentType: files.screenImages.mimetype
+      });
+    }
+
+    if (files.brandLogoImage) {
+      form.append('brandLogoImage', files.brandLogoImage.buffer, {
+        filename: files.brandLogoImage.originalname,
+        contentType: files.brandLogoImage.mimetype
+      });
+    }
+
+    console.log(`📤 Submitting Bot for Verification: ${verifyData.bot_id}`);
+    console.log(`📦 Verification Data:`, JSON.stringify(verifyData, null, 2));
+
+    const response = await axios.post(url, form, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        ...form.getHeaders()
+      }
+    });
+
+    console.log(`✅ Dotgo Verification Response [${response.status}]:`, JSON.stringify(response.data));
+
+    if (response.data && response.data.status_message === 'success') {
+      return { success: true, data: response.data };
+    }
+
+    return { success: false, error: response.data?.status_message || "Verification submission failed", raw: response.data };
+  } catch (error) {
+    if (error.response) {
+      console.error("❌ Dotgo Bot Verification Error Body:", JSON.stringify(error.response.data));
+      return { success: false, error: error.response.data?.status_message || error.response.data?.message || JSON.stringify(error.response.data) };
+    }
+    console.error("❌ Dotgo Bot Verification Error:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   getRcsToken,
   sendRcsTemplate,
@@ -537,6 +644,8 @@ module.exports = {
   submitDotgoTemplate,
   getDotgoTemplateStatus,
   getDotgoTemplateDetails,
-  deleteDotgoTemplate
+  deleteDotgoTemplate,
+  submitBotToDotgo,
+  verifyBotToDotgo
 };
 

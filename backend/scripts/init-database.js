@@ -1,7 +1,8 @@
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+const mysql = require('mysql2/promise');
+const dotenv = require('dotenv');
+const path = require('path');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 async function initializeDatabase() {
   let connection;
@@ -10,7 +11,7 @@ async function initializeDatabase() {
     connection = await mysql.createConnection({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
+      password: process.env.DB_PASS,
       port: process.env.DB_PORT,
       multipleStatements: true
     });
@@ -27,7 +28,7 @@ async function initializeDatabase() {
     connection = await mysql.createConnection({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
+      password: process.env.DB_PASS,
       database: process.env.DB_NAME,
       port: process.env.DB_PORT
     });
@@ -36,28 +37,33 @@ async function initializeDatabase() {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS rcs_bot_master (
         id bigint NOT NULL AUTO_INCREMENT,
-        route_type enum('DOMESTIC','INTERNATIONAL') COLLATE utf8mb4_unicode_ci NOT NULL,
-        bot_type enum('DOMESTIC','INTERNATIONAL') COLLATE utf8mb4_unicode_ci NOT NULL,
-        message_type enum('OTP','TRANSACTIONAL','PROMOTIONAL') COLLATE utf8mb4_unicode_ci NOT NULL,
-        billing_category enum('CONVERSATIONAL') COLLATE utf8mb4_unicode_ci NOT NULL,
-        bot_name varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
-        brand_name varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-        short_description varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-        brand_color varchar(7) COLLATE utf8mb4_unicode_ci NOT NULL,
-        bot_logo_url varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-        banner_image_url varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-        terms_url varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-        privacy_url varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-        development_platform enum('GSMA_API','GOOGLE_API') COLLATE utf8mb4_unicode_ci NOT NULL,
-        webhook_url varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-        callback_url varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-        languages_supported varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+        user_id int DEFAULT NULL,
+        bot_id varchar(100) DEFAULT NULL,
+        brand_id varchar(100) DEFAULT NULL,
+        route_type varchar(50) DEFAULT 'DOMESTIC',
+        bot_type varchar(50) DEFAULT 'DOMESTIC',
+        message_type varchar(50) DEFAULT 'Promotional',
+        billing_category varchar(50) DEFAULT 'Non_Conversational',
+        bot_name varchar(100) NOT NULL,
+        brand_name varchar(100) NOT NULL,
+        brand_address text,
+        brand_industry varchar(100),
+        short_description text,
+        brand_color varchar(20) DEFAULT '#000000',
+        bot_logo_url varchar(255) DEFAULT NULL,
+        banner_image_url varchar(255) DEFAULT NULL,
+        terms_url varchar(255) DEFAULT NULL,
+        privacy_url varchar(255) DEFAULT NULL,
+        development_platform varchar(50) DEFAULT 'GSMA_API',
+        webhook_url varchar(255) DEFAULT NULL,
+        callback_url varchar(255) DEFAULT NULL,
+        languages_supported varchar(255) DEFAULT 'English',
         agree_all_carriers tinyint(1) DEFAULT '0',
-        status enum('DRAFT','SUBMITTED','APPROVED','REJECTED') COLLATE utf8mb4_unicode_ci DEFAULT 'DRAFT',
+        status varchar(50) DEFAULT 'DRAFT',
         created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id)
-      ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     console.log('✓ Table rcs_bot_master created/verified');
 
@@ -73,7 +79,7 @@ async function initializeDatabase() {
         PRIMARY KEY (id),
         KEY bot_id (bot_id),
         CONSTRAINT rcs_bot_contacts_ibfk_1 FOREIGN KEY (bot_id) REFERENCES rcs_bot_master (id) ON DELETE CASCADE
-      ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     console.log('✓ Table rcs_bot_contacts created/verified');
 
@@ -88,7 +94,7 @@ async function initializeDatabase() {
         PRIMARY KEY (id),
         KEY bot_id (bot_id),
         CONSTRAINT rcs_bot_media_ibfk_1 FOREIGN KEY (bot_id) REFERENCES rcs_bot_master (id) ON DELETE CASCADE
-      ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     console.log('✓ Table rcs_bot_media created/verified');
 
@@ -100,4 +106,8 @@ async function initializeDatabase() {
   }
 }
 
-initializeDatabase();
+if (require.main === module) {
+  initializeDatabase();
+}
+
+module.exports = initializeDatabase;

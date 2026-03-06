@@ -162,6 +162,40 @@ export default function RCSTemplateManagement() {
     // ... handle other fields
   };
 
+  const validateTemplateImage = (file: File, orientation: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      const expectedWidth = orientation === 'HORIZONTAL' ? 1440 : 1000;
+      const expectedHeight = orientation === 'HORIZONTAL' ? 448 : 1000;
+
+      if (file.size > maxSize) {
+        toast({ title: 'File Too Large', description: `Max size for image is 2MB.`, variant: 'destructive' });
+        resolve(false);
+        return;
+      }
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        if (img.width !== expectedWidth || img.height !== expectedHeight) {
+          toast({ 
+            title: 'Invalid Dimensions', 
+            description: `Rich cards with ${orientation.toLowerCase()} orientation must be exactly ${expectedWidth}x${expectedHeight} px.`, 
+            variant: 'destructive' 
+          });
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      };
+      img.onerror = () => {
+        toast({ title: 'Error', description: "Invalid image file.", variant: 'destructive' });
+        resolve(false);
+      };
+    });
+  };
+
   const validateFile = (file: File, type: 'image' | 'video' | 'audio' | 'document') => {
     const limits = {
       image: { size: 2 * 1024 * 1024, types: ['image/jpeg', 'image/png'], label: '2MB (JPEG, PNG)' },
@@ -178,14 +212,9 @@ export default function RCSTemplateManagement() {
       return false;
     }
 
-    if (!limit.types.some(t => file.type.includes(t.split('/')[1]) || file.type === t)) {
-        // Simple type check, can be more robust
-       // toast({ title: 'Invalid File Type', description: `Allowed types: ${limit.label}`, variant: 'destructive' });
-       // allowing a bit loose check for now or strict? Let's use the explicit types
-       if(!limit.types.includes(file.type)) {
-          toast({ title: 'Invalid File Type', description: `Allowed types: ${limit.label}`, variant: 'destructive' });
-          return false;
-       }
+    if (!limit.types.includes(file.type)) {
+      toast({ title: 'Invalid File Type', description: `Allowed types: ${limit.label}`, variant: 'destructive' });
+      return false;
     }
     return true;
   };
@@ -207,10 +236,15 @@ export default function RCSTemplateManagement() {
       }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'richCard' | 'carousel', index?: number) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'richCard' | 'carousel', index?: number) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!validateFile(file, 'image')) return; // Rich cards only support images usually
+      const orientation = type === 'richCard' ? formData.richCard.orientation : 'VERTICAL';
+      const isValid = await validateTemplateImage(file, orientation);
+      if (!isValid) {
+        e.target.value = '';
+        return;
+      }
       
       const url = URL.createObjectURL(file);
       if (type === 'richCard') {
@@ -807,7 +841,10 @@ export default function RCSTemplateManagement() {
                                 </div>
                                 
                                 <div>
-                                    <Label className="mb-1 block">Image</Label>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <Label>Image</Label>
+                                        <span className="text-[10px] text-muted-foreground">{formData.richCard.orientation === 'HORIZONTAL' ? '1440x448 px' : '1000x1000 px'} | Max 2MB</span>
+                                    </div>
                                     <Input className="bg-white" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'richCard')} />
                                 </div>
 
@@ -874,6 +911,10 @@ export default function RCSTemplateManagement() {
                                                  <CardTitle className="text-sm font-medium">Card {idx + 1}</CardTitle>
                                              </CardHeader>
                                              <CardContent className="p-4 pt-0 space-y-3">
+                                                 <div className="flex justify-between items-center">
+                                                     <Label className="text-[10px] text-gray-400">Card Media</Label>
+                                                     <span className="text-[9px] text-muted-foreground">1000x1000 px | Max 2MB</span>
+                                                 </div>
                                                  <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'carousel', idx)} />
                                                  <Input placeholder="Card Title" value={card.title} onChange={(e) => {
                                                      const newCards = [...formData.carousel.cards];
