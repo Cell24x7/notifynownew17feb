@@ -22,6 +22,24 @@ const BATCH_SIZE = 500; // Increased for maximum throughput
 
 const { deductCampaignCredits } = require('./walletService');
 
+const replaceVariables = (text, variablesJson) => {
+    if (!text || !variablesJson) return text;
+    try {
+        const vars = typeof variablesJson === 'string' ? JSON.parse(variablesJson) : variablesJson;
+        let result = text;
+
+        Object.keys(vars).forEach(key => {
+            const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\[${escapedKey}\\]|\\{\\{${escapedKey}\\}\\}`, 'gi');
+            result = result.replace(regex, vars[key]);
+        });
+
+        return result;
+    } catch (err) {
+        return text;
+    }
+};
+
 const processQueue = async () => {
     try {
         // Auto-start scheduled campaigns whose time has passed
@@ -36,8 +54,9 @@ const processQueue = async () => {
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
+            mt.body as template_body, mt.template_type,
             c.name as campaign_name, c.channel, c.user_id, c.credits_deducted,
-            u.rcs_config_id,
+            u.rcs_config_id, q.variables,
             rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
             rc.client_id, rc.client_secret, rc.bot_id
             FROM campaign_queue q
@@ -93,8 +112,18 @@ const processQueue = async () => {
                     } : null;
 
                     try {
-                        const raw = await sendRcsTemplate(item.mobile, item.template_name, userConfig);
-                        result = normalizeRcsResult(raw);
+                        // If it's a text message or we have a body with placeholders, prioritize sending as custom text
+                        // to ensure variable replacement works. 
+                        // Note: If template_name refers to a Dotgo template that handles its own variables,
+                        // this logic might need adjustment. For now, we favor the local body replacement.
+                        if (item.template_type === 'text_message' || (item.template_body && item.template_body.includes('['))) {
+                            const customMessage = replaceVariables(item.template_body || item.campaign_name, item.variables);
+                            const rawText = await sendRcsMessage(item.mobile, customMessage, userConfig);
+                            result = normalizeRcsResult(rawText);
+                        } else {
+                            const raw = await sendRcsTemplate(item.mobile, item.template_name, userConfig);
+                            result = normalizeRcsResult(raw);
+                        }
                     } catch (err) {
                         console.warn(`[QueueProcessor] Template failed for ${item.mobile}, trying text`);
                         const rawText = await sendRcsMessage(item.mobile, item.campaign_name, userConfig);

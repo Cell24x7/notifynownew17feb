@@ -251,9 +251,9 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
 
         const processBatch = async (currentBatch) => {
             if (currentBatch.length === 0) return;
-            const values = currentBatch.map(mobile => [campaignId, userId, mobile, 'pending']);
-            console.log(`[Upload] Inserting batch of ${currentBatch.length} for campaign ${campaignId} (User: ${userId})`);
-            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status) VALUES ?', [values]);
+            const values = currentBatch.map(item => [campaignId, userId, item.mobile, JSON.stringify(item.variables), 'pending']);
+            console.log(`[Upload] Inserting batch of ${currentBatch.length} with variables for campaign ${campaignId} (User: ${userId})`);
+            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status) VALUES ?', [values]);
         };
 
         if (req.file) {
@@ -286,7 +286,7 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                         mobile = String(mobile).replace(/\D/g, ''); // Clean non-digits
                         // Valid mobile must be at least 10 digits (Standard for IN + country code)
                         if (mobile.length >= 10) {
-                            batch.push(mobile);
+                            batch.push({ mobile, variables: row });
                             contactCount++;
                             if (batch.length >= BATCH_SIZE) {
                                 const b = [...batch];

@@ -150,9 +150,10 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
   // Dynamically extract variables from template body
   const templateVariables = useMemo(() => {
     if (!selectedTemplate?.body) return [];
-    const matches = selectedTemplate.body.match(/\{\{([^}]+)\}\}/g);
+    // Matches both {{var}} and [var] patterns
+    const matches = selectedTemplate.body.match(/\{\{([^}]+)\}\}|\[([^\]]+)\]/g);
     if (!matches) return [];
-    return Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}/g, ''))));
+    return Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]/g, ''))));
   }, [selectedTemplate]);
 
   const channelConfig = channelOptions.find(c => c.value === campaignData.channel);
