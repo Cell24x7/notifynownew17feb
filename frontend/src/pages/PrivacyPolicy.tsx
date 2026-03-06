@@ -246,7 +246,7 @@ export default function PrivacyPolicy() {
                       Contact our Data Protection Officer for any concerns regarding your personal data.
                     </p>
                     <a 
-                      href="mailto:privacy@notifynow.in" 
+                      href="mailto:notify@notifynow.in" 
                       className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
                     >
                       Contact Privacy Team

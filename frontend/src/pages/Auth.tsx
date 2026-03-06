@@ -208,7 +208,7 @@ export default function Auth() {
         </p>
 
         {/* Stats / Trust Row */}
-        <div className="flex flex-wrap items-center gap-3 mb-7">
+        {/*<div className="flex flex-wrap items-center gap-3 mb-7">
           <div className="px-4 py-2 rounded-xl bg-card/70 backdrop-blur border border-border shadow-sm">
             <p className="text-sm text-muted-foreground">Channels</p>
             <p className="text-lg font-bold text-foreground">3-in-1</p>
@@ -242,11 +242,11 @@ export default function Auth() {
               Plug & play <span className="font-semibold text-foreground">APIs + Webhooks</span> for integrations
             </span>
           </li>
-        </ul>
+        </ul> */}
 
         <div className="flex flex-wrap items-center gap-3">
           <a
-            href="tel:+919892891772"
+            href="tel:+919892975484"
             className="px-5 py-2.5 text-sm rounded-xl bg-primary text-white font-bold shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5 flex items-center gap-2"
           >
             <Phone className="w-4 h-4" />
@@ -254,7 +254,7 @@ export default function Auth() {
           </a>
 
           <a
-            href="mailto:info@notifynow.in"
+            href="mailto:notify@notifynow.in"
             className="px-5 py-2.5 text-sm rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all hover:-translate-y-0.5 flex items-center gap-2"
           >
             <MessageSquare className="w-4 h-4" />

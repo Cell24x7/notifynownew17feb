@@ -255,7 +255,7 @@ export function RCSConfiguration() {
 
       const submitRes = await axios.post(`${API_URL}/submit`, formData, {
         headers: { 
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token || localStorage.getItem('authToken')}`,
           'Content-Type': 'multipart/form-data'
         }
       });
@@ -312,7 +312,7 @@ export function RCSConfiguration() {
 
       await axios.post(`${API_URL}/verify`, verifyFormData, {
         headers: { 
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token || localStorage.getItem('authToken')}`,
           'Content-Type': 'multipart/form-data'
         }
       });
