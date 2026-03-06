@@ -56,7 +56,13 @@ const processQueue = async () => {
         // Safety Deduct Campaign Credits
         const uniqueCampaigns = [...new Set(items.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
         for (const campId of uniqueCampaigns) {
-            await deductCampaignCredits(campId);
+            const deductionResult = await deductCampaignCredits(campId);
+            if (!deductionResult.success) {
+                console.error(`[QueueProcessor] Credit deduction failed for ${campId}: ${deductionResult.message}. Pausing campaign.`);
+                await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campId]);
+                // We'll skip this campaign's items in this run
+                continue;
+            }
         }
 
         const itemIds = items.map(i => i.id);

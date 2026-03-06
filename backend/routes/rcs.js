@@ -303,7 +303,17 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
       await query('UPDATE campaigns SET status = "running" WHERE id = ? AND user_id = ?', [campaignId, userId]);
 
       // Deduct credits upfront
-      await deductCampaignCredits(campaignId);
+      const deductionResult = await deductCampaignCredits(campaignId);
+
+      if (!deductionResult.success) {
+        console.error(`❌ Credit deduction failed for campaign ${campaignId}: ${deductionResult.message}`);
+        // Update campaign status to failed if deduction fails
+        await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
+        return res.status(402).json({
+          success: false,
+          message: deductionResult.message || 'Insufficient wallet balance'
+        });
+      }
 
       return res.json({
         success: true,

@@ -57,6 +57,7 @@ const deductCampaignCredits = async (campaignId) => {
         // 4. Check balance
         if (campaign.wallet_balance < totalCost) {
             console.warn(`[WalletService] User ${campaign.user_id} has insufficient balance (${campaign.wallet_balance}) for campaign ${campaignId} (cost: ${totalCost})`);
+            return { success: false, message: 'Insufficient wallet balance' };
         }
 
         // 5. Perform deduction in a transaction (conceptually, or serial queries)

@@ -365,13 +365,18 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
           return mapping && mapping.value && mapping.value.trim() !== '';
         });
       case 5:
+        if (campaignData.scheduleType === 'now') {
+          const cost = calculateCost();
+          const balance = user?.wallet_balance || 0;
+          return cost <= balance;
+        }
         if (campaignData.scheduleType === 'scheduled') {
           if (campaignData.schedulingMode === 'one-time') {
-            return campaignData.scheduledDate && campaignData.scheduledTime;
+            return campaignData.scheduledDate !== '' && campaignData.scheduledTime !== '';
           } else {
-             if (!campaignData.scheduledDate || !campaignData.scheduledTime || !campaignData.endDate || !campaignData.endTime) return false;
-             if (campaignData.frequency === 'weekly' && campaignData.repeatDays.length === 0) return false;
-             return true;
+            if (!campaignData.scheduledDate || !campaignData.scheduledTime || !campaignData.endDate || !campaignData.endTime) return false;
+            if (campaignData.frequency === 'weekly' && campaignData.repeatDays.length === 0) return false;
+            return true;
           }
         }
         return true;
@@ -873,17 +878,52 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                    </CardContent>
                                 </Card>
 
-                                <Card>
-                                   <CardContent className="p-4 flex flex-col items-center text-center">
-                                      <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Est. Cost</Label>
-                                      <div className="flex items-center gap-1 mb-1">
-                                         <span className="text-sm font-medium text-muted-foreground">₹</span>
-                                         <span className="font-semibold text-2xl text-primary">{calculateCost().toFixed(2)}</span>
-                                      </div>
-                                       <div className="text-xs text-muted-foreground">@ ₹{getCurrentRate().toFixed(2)}/msg</div>
-                                   </CardContent>
-                                </Card>
-                             </div>
+                                 <Card className={cn(
+                                    "relative overflow-hidden",
+                                    calculateCost() > (user?.wallet_balance || 0) && "border-destructive bg-destructive/5"
+                                 )}>
+                                    <CardContent className="p-4 flex flex-col items-center text-center">
+                                       <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Est. Cost</Label>
+                                       <div className="flex items-center gap-1 mb-1">
+                                          <span className="text-sm font-medium text-muted-foreground">₹</span>
+                                          <span className={cn(
+                                             "font-semibold text-2xl",
+                                             calculateCost() > (user?.wallet_balance || 0) ? "text-destructive" : "text-primary"
+                                          )}>
+                                             {calculateCost().toFixed(2)}
+                                          </span>
+                                       </div>
+                                        <div className="text-xs text-muted-foreground">@ ₹{getCurrentRate().toFixed(2)}/msg</div>
+                                        {calculateCost() > (user?.wallet_balance || 0) && (
+                                           <div className="mt-2 text-[10px] font-bold text-destructive flex items-center gap-1">
+                                              <AlertCircle className="h-3 w-3" />
+                                              INSUFFICIENT BALANCE
+                                           </div>
+                                        )}
+                                    </CardContent>
+                                 </Card>
+                              </div>
+
+                              {calculateCost() > (user?.wallet_balance || 0) && (
+                                 <div className="p-4 rounded-lg border border-destructive bg-destructive/10 flex items-start gap-3 animate-pulse">
+                                    <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                                    <div>
+                                       <p className="font-semibold text-destructive">Insufficient Wallet Balance</p>
+                                       <p className="text-sm text-destructive/80">
+                                          Estimated cost (₹{calculateCost().toFixed(2)}) exceeds your current balance (₹{(user?.wallet_balance || 0).toFixed(2)}). 
+                                          Please recharge your wallet to continue.
+                                       </p>
+                                       <Button 
+                                          variant="outline" 
+                                          size="sm" 
+                                          className="mt-2 border-destructive text-destructive hover:bg-destructive hover:text-white"
+                                          onClick={() => window.open('/wallet', '_blank')}
+                                       >
+                                          Recharge Wallet
+                                       </Button>
+                                    </div>
+                                 </div>
+                              )}
                              
                              <div className="border rounded-lg p-6 bg-muted/20">
                                 <Label className="text-base font-semibold mb-4 block">Scheduling Options</Label>
@@ -908,6 +948,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                       <p className="text-xs text-muted-foreground pl-6">Pick a future date and time for delivery.</p>
                                    </div>
                                 </RadioGroup>
+
 
                                 {campaignData.scheduleType === 'scheduled' && (
                                    <div className="space-y-6 animate-in fade-in pt-2 border-t mt-4">
@@ -1076,7 +1117,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
               {currentStep === 1 && campaignData.name.trim() && !campaignData.channel && "Select channel"}
               {currentStep === 2 && !campaignData.templateId && "Select a template"}
               {currentStep === 3 && campaignData.audienceCount === 0 && "Select contacts"}
-              {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
+               {currentStep === 5 && campaignData.scheduleType === 'now' && calculateCost() > (user?.wallet_balance || 0) && "Insufficient wallet balance"}
+               {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
             </p>
           )}
            <Button

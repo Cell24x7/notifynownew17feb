@@ -133,7 +133,13 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
 
         // If starting/resuming, deduct credits upfront
         if (status === 'running') {
-            await deductCampaignCredits(id);
+            const deductionResult = await deductCampaignCredits(id);
+            if (!deductionResult.success) {
+                return res.status(402).json({
+                    success: false,
+                    message: deductionResult.message || 'Insufficient wallet balance'
+                });
+            }
         }
 
         res.json({ success: true, message: `Campaign status updated to ${status}` });
