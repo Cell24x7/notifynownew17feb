@@ -124,6 +124,15 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
    If frontend/dist exists → serve it
 ================================== */
 
+// Serve documentation as static files
+app.use('/docs-data', express.static(path.join(__dirname, '../docs')));
+app.use('/changelog-data', express.static(path.join(__dirname, '../frontend/public')));
+app.use('/root-docs', express.static(path.join(__dirname, '../')));
+
+app.get('/docs', (req, res) => {
+  res.sendFile(path.join(__dirname, '../docs.html'));
+});
+
 const frontendPath = path.join(__dirname, '../frontend/dist');
 
 try {

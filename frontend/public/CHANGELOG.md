@@ -1,163 +1,51 @@
-# Daily Updates & Changelog
+# NotifyNow Changelog
 
-This document is automatically updated based on development activity.
+Detailed record of all technical changes, logic updates, and feature implementations.
 
-## [2026-03-06]
-- updated code by vikas (3a31f07)
-- updated code by vikas (759c814)
-- updated code by vikas (8a56aab)
+## [2026-03-06] - Major Platform Security & Personalization Update
 
----
+This update focused on financial security (Wallet Enforcement) and message personalization (Dynamic Parameters).
 
-## [2026-03-05]
-- updated code (14e00fd)
-- updated code (30da4c0)
+### 🚀 New Features
 
----
+#### **1. Individual Dynamic Parameters (Personalized Messaging)**
+- **Logic**: Enabled sending personalized messages like "Dear [Name]" using CSV data.
+- **Backend Changes**:
+  - `backend/routes/campaigns.js`: Updated contact upload to store entire CSV rows as JSON in `campaign_queue`.
+  - `backend/services/queueService.js`: Implemented a variable replacement engine supporting `[var]` and `{{var}}` formats.
+- **Frontend Changes**:
+  - `frontend/src/components/campaigns/CampaignCreationStepper.tsx`: Updated variable detection to support square brackets.
 
-## [2026-03-04]
-- updated code (ed0ca00)
-- updated code (f1f6db8)
-- sandeep update (abef612)
-- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (b6eccf0)
-- Resolve merge conflict in Reports.tsx (be9fff2)
-- updated code (2930f5c)
-- Updated Dotgo RCS template integration and frontend template UI (8f75979)
+#### **2. Robust Wallet Balance Enforcement**
+- **Logic**: Prevented campaigns from starting or resuming if the user's wallet balance is less than the estimated cost.
+- **Backend Changes**:
+  - `backend/services/walletService.js`: Added strict balance checks in `deductCampaignCredits`.
+  - `backend/routes/rcs.js` & `backend/routes/campaigns.js`: Added error handling for payment (402) during campaign initiation.
+  - `backend/services/queueService.js`: Added background check to stop failed campaigns from draining processing power.
+- **Frontend Changes**:
+  - `CampaignCreationStepper.tsx`: Added real-time balance validation, pulsing warnings, and a "Recharge Wallet" button.
 
----
-
-## [2026-03-02]
-- updated code (4ef6b56)
-
----
-
-## [2026-02-28]
-- updated code (790569a)
-- updated code (2ea5c27)
+### 🛠️ Improvements & Fixes
+- **Media Validation**: Added pre-upload checks for RCS templates (Dimensions: 1440x448 for rich cards, 1000x1000 for carousels).
+- **Environment Support**: Added `API_BASE_URL` support in `backend/routes/bots.js` to allow `ngrok` testing for Dotgo media assets.
+- **Git Cleanup**: Updated `.gitignore` to exclude large upload folders and sensitive `.env` files.
 
 ---
 
-## [2026-02-27]
-- updated code (c18f9e5)
-- sandeep update (8da9392)
-- updated code by vikas (43da1aa)
+## [Historical Logs]
+
+### [2026-03-05]
+- **Multi-Tenancy**: Audited database routes to ensure users can only see their own data.
+- **Bot Submission Fixes**: Resolved Dotgo API validation errors for bot logos.
+
+### [2026-03-04]
+- **UI Refinement**: Updated phone preview border with Hotstar-style gradient.
+- **Reporting**: Fixed mobile number display in detailed reports.
+
+### [2026-02-13]
+- **Initial Upload**: Fresh project structure initialized.
 
 ---
 
-## [2026-02-26]
-- RCS configs and campaign updates (6feb924)
-- updated code by vikas (14bac8e)
-
----
-
-## [2026-02-25]
-- updated code rs (2dc7841)
-- Resolve merge conflicts (a1dd726)
-- updated code rs (8ee51e2)
-- updated code rs (a5efb4b)
-- updated code rs (3498d9e)
-- updated code rs (46f670a)
-
----
-
-## [2026-02-24]
-- updated code rs (0f5268a)
-- updated code rs (67fabf9)
-- updated code rs (a060899)
-
----
-
-## [2026-02-21]
-- updated code (5a0930a)
-- updated code (dec6a5e)
-
----
-
-## [2026-02-20]
-- code (6f650c1)
-- code (f0a0b4e)
-- code (ccd9b05)
-- code (49bf72e)
-
----
-
-## [2026-02-19]
-- code (8428e45)
-- code (409f55d)
-- remove node_modules and add to gitignore (7b369ee)
-
----
-
-## [2026-02-18]
-- updated campaign (be5fbac)
-
----
-
-## [2026-02-17]
-- userlogin (01dfce9)
-- latest code (397597a)
-
----
-
-## [2026-02-16]
-- updated (a4fb5d6)
-- updated home page (b32502c)
-- updated auth file (1678f23)
-
----
-
-## [2026-02-14]
-- update (a43d027)
-- Update auth.js (282ba3f)
-
----
-
-## [2026-02-13]
-- New fresh project upload (7a526ba)
-
----
-
-## [2026-02-12]
-- index.js changes code (ce7ce5a)
-- updated url (754fbff)
-
----
-
-## [2026-02-11]
-- updated code for sms (0cf7b6c)
-- updated code for sms (359d12f)
-
----
-
-## [2026-02-10]
-- updated code for user and resseller role access (2fc7ea4)
-- updated code for user and resseller role access (ce2662a)
-- user base login permission (a784bec)
-
----
-
-## [2026-02-09]
-- updated code (aa4ffff)
-- updated logo and content (1baeaf7)
-- add new file (7d38e89)
-
----
-
-## [2026-02-07]
-- updated code (66929ed)
-
----
-
-## [2026-02-06]
-- updated code (3dad4d0)
-
----
-
-## [2026-02-05]
-- updated code (75ab5c4)
-
----
-
-
-> [!NOTE]
-> This log is auto-generated from git commits. To add manual notes, use git commit messages.
+> [!TIP]
+> This document is maintained manually for major updates to ensure clear communication of technical logic changes.

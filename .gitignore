@@ -1,20 +1,4 @@
 # Node modules
 node_modules/
 
-# Uploads
-backend/uploads/
-frontend/public/uploads/
 
-# Logs
-*.log
-backend/backend.log
-backend/output.log
-
-# Environment variables
-.env
-backend/.env
-frontend/.env
-
-# OS Files
-.DS_Store
-Thumbs.db
