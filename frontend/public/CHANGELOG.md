@@ -1,51 +1,55 @@
-# NotifyNow Changelog
+# NotifyNow Project History & Changelog
 
-Detailed record of all technical changes, logic updates, and feature implementations.
-
-## [2026-03-06] - Major Platform Security & Personalization Update
-
-This update focused on financial security (Wallet Enforcement) and message personalization (Dynamic Parameters).
-
-### 🚀 New Features
-
-#### **1. Individual Dynamic Parameters (Personalized Messaging)**
-- **Logic**: Enabled sending personalized messages like "Dear [Name]" using CSV data.
-- **Backend Changes**:
-  - `backend/routes/campaigns.js`: Updated contact upload to store entire CSV rows as JSON in `campaign_queue`.
-  - `backend/services/queueService.js`: Implemented a variable replacement engine supporting `[var]` and `{{var}}` formats.
-- **Frontend Changes**:
-  - `frontend/src/components/campaigns/CampaignCreationStepper.tsx`: Updated variable detection to support square brackets.
-
-#### **2. Robust Wallet Balance Enforcement**
-- **Logic**: Prevented campaigns from starting or resuming if the user's wallet balance is less than the estimated cost.
-- **Backend Changes**:
-  - `backend/services/walletService.js`: Added strict balance checks in `deductCampaignCredits`.
-  - `backend/routes/rcs.js` & `backend/routes/campaigns.js`: Added error handling for payment (402) during campaign initiation.
-  - `backend/services/queueService.js`: Added background check to stop failed campaigns from draining processing power.
-- **Frontend Changes**:
-  - `CampaignCreationStepper.tsx`: Added real-time balance validation, pulsing warnings, and a "Recharge Wallet" button.
-
-### 🛠️ Improvements & Fixes
-- **Media Validation**: Added pre-upload checks for RCS templates (Dimensions: 1440x448 for rich cards, 1000x1000 for carousels).
-- **Environment Support**: Added `API_BASE_URL` support in `backend/routes/bots.js` to allow `ngrok` testing for Dotgo media assets.
-- **Git Cleanup**: Updated `.gitignore` to exclude large upload folders and sensitive `.env` files.
+A detailed and transparent record of all technical updates, logic changes, and file modifications.
 
 ---
 
-## [Historical Logs]
+## [2026-03-06] - Platform Security, Personalization & Docs Consolidation
+**Focus**: Visual Overhaul, File Management, and Data Isolation.
 
-### [2026-03-05]
-- **Multi-Tenancy**: Audited database routes to ensure users can only see their own data.
-- **Bot Submission Fixes**: Resolved Dotgo API validation errors for bot logos.
+### 🚀 Major Logic Updates
+- **Documentation Refactoring**: Consolidated all documentation into `frontend/public/` to establish a single source of truth and fix 404 errors.
+- **Environment Detection**: Wrote custom logic in `docs.html` to auto-detect port 8080 (Vite) vs port 5000 (Node) for seamless file fetching.
+- **Dynamic Parameters**: Enhanced `queueService.js` to support `[var]` replacement for personalized campaigns.
 
-### [2026-03-04]
-- **UI Refinement**: Updated phone preview border with Hotstar-style gradient.
-- **Reporting**: Fixed mobile number display in detailed reports.
-
-### [2026-02-13]
-- **Initial Upload**: Fresh project structure initialized.
+### 📂 File Changes
+- **Modified**: `frontend/public/docs.html`, `backend/index.js`, `backend/services/queueService.js`
+- **New**: `frontend/public/API_REFERENCE.md`, `frontend/public/USER_GUIDE.md`
+- **Consolidated**: Moved all `.md` files from `docs/` subfolder to root `public/` folder.
 
 ---
 
-> [!TIP]
-> This document is maintained manually for major updates to ensure clear communication of technical logic changes.
+## [2026-03-05] - Bot Validation & Multi-Tenancy
+**Focus**: Strengthening backend security and carrier compliance.
+
+### 🚀 Major Logic Updates
+- **User Isolation**: Implemented `user_id` filtering in `backend/routes/reports.js` and `webhooks.js` to prevent data leaking between accounts.
+- **Carrier Compliance**: Fixed Dotgo logo submission logic in `backend/routes/bots.js` to handle strict Base64 requirements.
+
+### 📂 File Changes
+- **Modified**: `backend/routes/campaigns.js`, `backend/routes/bots.js`, `frontend/src/pages/Reports.tsx`
+
+---
+
+## [2026-03-04] - UI Refinement & Real-time Tracking
+**Focus**: Improving the User Experience (UX) and data visualization.
+
+### 🚀 Major Logic Updates
+- **Visual Polish**: Added Hotstar-style gradient borders to the phone preview components.
+- **Real-time Status**: Fixed webhook reception logic in `backend/index.js` to update existing database rows instead of creating duplicates.
+
+### 📂 File Changes
+- **Modified**: `frontend/src/components/PhonePreview.tsx`, `backend/models/webhookLogs.js`
+
+---
+
+## [2026-02-13] - Project Initialization
+**Focus**: Structural foundation.
+
+- Initialized NotifyNow multi-channel platform (SMS, RCS, Email).
+- Setup primary database schemas for Auth and Campaigns.
+
+---
+
+> [!NOTE]
+> This history is maintained for full visibility into the project's evolution. Logic and file details are verified against git commit records.

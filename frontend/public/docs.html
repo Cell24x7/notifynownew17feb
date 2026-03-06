@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotifyNow | Documentation Portal</title>
+    <!-- Google Fonts: Outfit for Headings, Inter for Body -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Highlight.js: One Dark Theme for better contrast -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/base16/one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <!-- Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --primary: #a78bfa;
+            --primary-dark: #7c3aed;
+            --primary-glow: rgba(167, 139, 250, 0.35);
+            --secondary: #ec4899;
+            --bg-deep: #020617;
+            --sidebar-bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.4);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --border: rgba(255, 255, 255, 0.08);
+            --accent-gradient: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+            --glass-bg: rgba(15, 23, 42, 0.8);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Modern Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-dim);
+        }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-deep);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        aside {
+            width: 300px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+        }
+
+        .sidebar-header {
+            padding: 2.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo-box {
+            width: 38px;
+            height: 38px;
+            background: var(--accent-gradient);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .nav-group-label {
+            padding: 1.5rem 1rem 0.5rem;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            font-weight: 700;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition);
+            margin-bottom: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.95rem;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active {
+            background: rgba(167, 139, 250, 0.1);
+            color: var(--primary);
+            border-color: rgba(167, 139, 250, 0.2);
+            box-shadow: inset 0 0 10px rgba(167, 139, 250, 0.05);
+        }
+
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+            background: radial-gradient(circle at 50% -20%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+        }
+
+        .content-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 5rem 3rem;
+        }
+
+        /* Markdown Styling - PREMIUM */
+        .markdown-content {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            color: var(--text-main);
+        }
+
+        .markdown-content h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            letter-spacing: -0.02em;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .markdown-content h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 600;
+            margin: 3.5rem 0 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .markdown-content h2::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .markdown-content h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            margin: 2rem 0 1rem;
+            color: var(--primary);
+        }
+
+        .markdown-content p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            font-weight: 400;
+        }
+
+        .markdown-content strong {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .markdown-content code {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: var(--primary);
+        }
+
+        .markdown-content pre {
+            background: #0d1117;
+            padding: 2rem;
+            border-radius: 16px;
+            margin: 2rem 0;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .markdown-content blockquote {
+            border-left: 4px solid var(--primary);
+            background: rgba(167, 139, 250, 0.05);
+            padding: 1.5rem 2rem;
+            border-radius: 0 12px 12px 0;
+            margin: 2rem 0;
+            font-style: italic;
+            color: var(--text-muted);
+        }
+
+        /* Alert Callouts */
+        .alert {
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            margin: 2.5rem 0;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            border: 1px solid transparent;
+        }
+
+        .alert-note {
+            background: rgba(30, 64, 175, 0.1);
+            border-color: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        .alert-note::before {
+            content: 'ℹ️';
+            font-size: 1.2rem;
+        }
+
+        /* Table Design */
+        .markdown-content table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 2rem 0;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+        }
+
+        .markdown-content th {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1rem 1.5rem;
+            text-align: left;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .markdown-content td {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .markdown-content tr:last-child td {
+            border-bottom: none;
+        }
+
+        @media (max-width: 1024px) {
+            aside {
+                width: 0;
+                position: fixed;
+                box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+            }
+
+            aside.open {
+                width: 300px;
+            }
+
+            .content-container {
+                padding: 4rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loader">
+        <div class="spinner"></div>
+        <p style="font-family: 'Outfit'; font-size: 1.2rem; letter-spacing: 2px;">NOTIFYNOW</p>
+    </div>
+
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-box"><i data-lucide="zap" color="white" size="20"></i></div>
+            <h2 style="font-family: 'Outfit'; font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em;">Knowledge
+                base</h2>
+        </div>
+        <div class="sidebar-nav">
+            <a onclick="loadDoc('CHANGELOG.md', this)" class="nav-item">
+                <i data-lucide="history" size="18"></i> Project History
+            </a>
+            <a onclick="loadDoc('README.md', this)" class="nav-item">
+                <i data-lucide="compass" size="18"></i> Getting Started
+            </a>
+
+            <div class="nav-group-label">Core Resources</div>
+            <a onclick="loadDoc('USER_GUIDE.md', this)" class="nav-item">
+                <i data-lucide="book-open" size="18"></i> User Guide
+            </a>
+            <a onclick="loadDoc('DEVELOPER.md', this)" class="nav-item">
+                <i data-lucide="code-2" size="18"></i> Backend Dev
+            </a>
+            <a onclick="loadDoc('API_REFERENCE.md', this)" class="nav-item">
+                <i data-lucide="terminal" size="18"></i> API Reference
+            </a>
+
+            <div class="nav-group-label">Architecture</div>
+            <a onclick="loadDoc('DEVELOPER.md', this, true)" class="nav-item">
+                <i data-lucide="cpu" size="18"></i> System Design
+            </a>
+        </div>
+        <div style="padding: 2rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim);">
+            &copy; 2026 Cell24x7. All rights reserved.
+        </div>
+    </aside>
+
+    <main>
+        <div class="content-container">
+            <article class="markdown-content" id="doc-container"></article>
+        </div>
+    </main>
+
+    <script>
+        // Dependencies health check
+        const deps = { marked: typeof marked, hljs: typeof hljs, lucide: typeof lucide };
+        console.log('Portal dependencies initialized:', deps);
+
+        // Marked Initialization
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                highlight: (code, lang) => {
+                    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+                        return hljs.highlight(code, { language: lang }).value;
+                    }
+                    return code;
+                },
+                breaks: true,
+                gfm: true
+            });
+        }
+
+        async function loadDoc(fileName, element) {
+            const container = document.getElementById('doc-container');
+            const loader = document.getElementById('loader');
+
+            // UI Feedback
+            if (element) {
+                document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+                element.classList.add('active');
+            }
+
+            loader.style.opacity = '1';
+            loader.style.display = 'flex';
+
+            try {
+                // Determine Environment and Strategy
+                // Strategy: Try local roots first, then fallback to backend data routes
+                const isBackend = window.location.port === '5000' || window.location.pathname === '/docs';
+
+                let urls = [];
+                if (isBackend) {
+                    const dataRoute = (fileName === 'CHANGELOG.md') ? '/changelog-data/' : '/docs-data/';
+                    urls.push(dataRoute + fileName);
+                    urls.push('/root-docs/' + fileName);
+                } else {
+                    urls.push(fileName);
+                    urls.push('./' + fileName);
+                }
+
+                console.log(`[Docs] Fetching ${fileName} via strategies:`, urls);
+
+                let response = null;
+                for (let url of urls) {
+                    try {
+                        const r = await fetch(url);
+                        if (r.ok) {
+                            response = r;
+                            console.log(`[Docs] Successfully resolved: ${url}`);
+                            break;
+                        }
+                    } catch (e) { }
+                }
+
+                if (!response) throw new Error(`Document "${fileName}" not found in current environment.`);
+
+                const markdown = await response.text();
+
+                // Clear and Render
+                container.style.opacity = '0';
+                container.innerHTML = marked.parse(markdown);
+
+                // Apply Lucide Icons to any rendered MD content
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+
+                // Entrance animation
+                setTimeout(() => {
+                    container.style.transition = 'opacity 0.5s ease';
+                    container.style.opacity = '1';
+                }, 100);
+
+                // Scroll to top
+                document.querySelector('main').scrollTo({ top: 0, behavior: 'smooth' });
+
+            } catch (err) {
+                container.innerHTML = `
+                    <div style="padding-top: 100px; text-align: center;">
+                        <h1 style="color: #ef4444; font-family: 'Outfit'; font-size: 3rem;">Error 404</h1>
+                        <p style="color: var(--text-dim); margin-bottom: 30px;">${err.message}</p>
+                        <button onclick="location.reload()" style="background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: 600;">Try Again</button>
+                    </div>`;
+            } finally {
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    setTimeout(() => { loader.style.display = 'none'; }, 600);
+                }, 400);
+            }
+        }
+
+        // Boot
+        window.onload = () => {
+            const historyItem = Array.from(document.querySelectorAll('.nav-item')).find(el => el.textContent.includes('History'));
+            loadDoc('CHANGELOG.md', historyItem);
+        };
+    </script>
+</body>
+
+</html>
