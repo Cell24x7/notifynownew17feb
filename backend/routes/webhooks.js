@@ -86,11 +86,30 @@ router.post('/rcs/callback', async (req, res) => {
 
             try {
                 // Save to webhook_logs
-                await query(
-                    'INSERT INTO webhook_logs (sender, recipient, message_content, raw_payload) VALUES (?, ?, ?, ?)',
-                    [sender, payload.recipient || 'System', text, JSON.stringify(payload)]
+                const [result] = await query(
+                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type) SELECT user_id, ?, ?, ?, ?, "received", "rcs" FROM message_logs WHERE message_id = ? LIMIT 1',
+                    [sender, payload.recipient || 'System', text, JSON.stringify(payload), payload.messageId]
                 );
-                console.log(`✅ Saved incoming message from ${sender} to DB.`);
+
+                // If message_logs didn't find a user_id (e.g. unsolicited message), we might need a fallback
+                // For now, let's assume we match it.
+
+                // Notify via Socket.io
+                if (req.io) {
+                    // We need to find the user_id for this sender/message
+                    const [msgOwner] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [payload.messageId]);
+                    if (msgOwner.length > 0) {
+                        const targetUserId = msgOwner[0].user_id;
+                        req.io.to(`user_${targetUserId}`).emit('new_message', {
+                            sender,
+                            message_content: text,
+                            created_at: new Date(),
+                            status: 'received',
+                            type: 'rcs'
+                        });
+                    }
+                }
+                console.log(`✅ Saved incoming message from ${sender} to DB and notified via Socket.`);
             } catch (dbErr) {
                 console.error('❌ Failed to save incoming message:', dbErr.message);
             }

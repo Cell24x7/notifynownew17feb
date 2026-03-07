@@ -5,8 +5,6 @@
 
 require('dotenv').config();
 
-
-
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -14,54 +12,21 @@ const path = require('path');
 
 const app = express();
 
-
-
-
-
 /* ==================================
    CORS CONFIG (SMART + SAFE)
 ================================== */
-
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:8080',
-  'http://localhost:8081',
-  'http://localhost:5000',
-  'https://notifynow.in',
-  'https://www.notifynow.in',
-  'http://192.168.1.47:8080'
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-
-    // Allow requests with no origin (Postman, mobile apps)
-    if (!origin) return callback(null, true);
-
-    // Development Mode: Allow everything
-    return callback(null, true);
-
-    /*
-    // Strict Production Mode (Enable later)
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
-    */
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Handle Preflight properly
 app.options('*', cors());
-
 
 /* ==================================
    MIDDLEWARE
 ================================== */
-
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
@@ -72,16 +37,43 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Serve static files from uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+/* ==================================
+   START SERVER & SOCKET.IO
+================================== */
+const PORT = process.env.PORT || 5000;
+const httpServer = app.listen(PORT, () => {
+  console.log('===================================');
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log('===================================');
+});
+
+const { Server } = require('socket.io');
+const io = new Server(httpServer, {
+  cors: { origin: "*", methods: ["GET", "POST"] }
+});
+
+// Attach io to req
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+io.on('connection', (socket) => {
+  console.log('🔌 Socket connected:', socket.id);
+  socket.on('join', (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`👤 User ${userId} joined room`);
+  });
+});
 
 /* ==================================
    API ROUTES
 ================================== */
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/chats', require('./routes/chats'));
 app.use('/api/rcs', require('./routes/rcs'));
 app.use('/api/rcs-configs', require('./routes/rcsConfigs'));
 app.use('/api/bots', require('./routes/bots'));
-
-
-app.use('/api/auth', require('./routes/auth'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/resellers', require('./routes/resellers'));
@@ -91,7 +83,6 @@ app.use('/api/vendors', require('./routes/vendors'));
 app.use('/api/numbers', require('./routes/numbers'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/sms', require('./routes/sms'));
-// app.use('/api/rcs-templates', require('./routes/rcs-templates')); (Removed)
 app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/templates', require('./routes/templates'));
@@ -101,116 +92,29 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/logs', require('./routes/logs'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 
-
 /* ==================================
-   HEALTH CHECK
+   HEALTH & FRONTEND
 ================================== */
-
 app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Server is running 🚀',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ success: true, timestamp: new Date().toISOString() });
 });
 
-// Serve uploads as static for sample files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-
-/* ==================================
-   SERVE FRONTEND (OPTIONAL)
-   If frontend/dist exists → serve it
-================================== */
-
-// Serve documentation as static files
-app.use('/docs-data', express.static(path.join(__dirname, '../frontend/public/docs')));
-app.use('/changelog-data', express.static(path.join(__dirname, '../frontend/public')));
-app.use('/root-docs', express.static(path.join(__dirname, '../')));
-
-app.get('/docs', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/public/docs.html'));
-});
-
-const frontendPath = path.join(__dirname, '../frontend/dist');
-
-try {
-  app.use(express.static(frontendPath));
-
-  app.get('*', (req, res, next) => {
-    if (req.originalUrl.startsWith('/api')) {
-      return next(); // skip API routes
-    }
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-
-} catch (err) {
-  console.log('No frontend build found. Running as API only.');
-}
-
-
-/* ==================================
-   GLOBAL ERROR HANDLER
-================================== */
-
-app.use((err, req, res, next) => {
-
-  console.error('ERROR:', err.message);
-
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({
-      success: false,
-      message: 'CORS blocked this request'
-    });
-  }
-
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
-
-
-/* ==================================
-   404 HANDLER
-================================== */
-
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route not found: ${req.method} ${req.originalUrl}`
-  });
-});
-
-
-/* ==================================
-   START SERVER
-================================== */
-
-
-// Initialize Queue Processor (Recursive to prevent overlap)
+// Queue Processor
 const { processQueue } = require('./services/queueService');
-
 const runQueue = async () => {
-  try {
-    await processQueue();
-  } catch (err) {
-    console.error('Queue error:', err);
-  }
-  // Schedule next run only after current one finishes
+  try { await processQueue(); } catch (err) { console.error('Queue error:', err); }
   setTimeout(runQueue, 1000);
 };
-
 runQueue();
 
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log('===================================');
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('===================================');
+// Serve frontend
+const frontendPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendPath));
+app.get('*', (req, res, next) => {
+  if (req.originalUrl.startsWith('/api')) return next();
+  res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
+    if (err) res.status(200).send("API Running. Frontend not built.");
+  });
 });
+
+module.exports = app;

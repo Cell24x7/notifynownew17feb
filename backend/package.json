@@ -30,6 +30,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-microsoft": "^2.1.0",
     "pdfkit": "^0.17.2",
+    "socket.io": "^4.8.3",
     "uuid": "^8.3.2",
     "zod": "^4.3.6"
   },

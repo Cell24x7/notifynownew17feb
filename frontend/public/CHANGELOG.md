@@ -1,55 +1,162 @@
-# NotifyNow Project History & Changelog
+# Daily Updates & Changelog
 
-A detailed and transparent record of all technical updates, logic changes, and file modifications.
+This document is automatically updated based on development activity.
 
----
-
-## [2026-03-06] - Platform Security, Personalization & Docs Consolidation
-**Focus**: Visual Overhaul, File Management, and Data Isolation.
-
-### 🚀 Major Logic Updates
-- **Documentation Refactoring**: Consolidated all documentation into `frontend/public/` to establish a single source of truth and fix 404 errors.
-- **Environment Detection**: Wrote custom logic in `docs.html` to auto-detect port 8080 (Vite) vs port 5000 (Node) for seamless file fetching.
-- **Dynamic Parameters**: Enhanced `queueService.js` to support `[var]` replacement for personalized campaigns.
-
-### 📂 File Changes
-- **Modified**: `frontend/public/docs.html`, `backend/index.js`, `backend/services/queueService.js`
-- **New**: `frontend/public/API_REFERENCE.md`, `frontend/public/USER_GUIDE.md`
-- **Consolidated**: Moved all `.md` files from `docs/` subfolder to root `public/` folder.
+## [2026-03-06]
+- updated code by vikas (51f10f4)
+- updated code by vikas (d642efe)
+- updated code by vikas (472ed05)
+- updated code by vikas (5df63bc)
+- updated code by vikas (3a31f07)
+- updated code by vikas (759c814)
+- updated code by vikas (8a56aab)
 
 ---
 
-## [2026-03-05] - Bot Validation & Multi-Tenancy
-**Focus**: Strengthening backend security and carrier compliance.
-
-### 🚀 Major Logic Updates
-- **User Isolation**: Implemented `user_id` filtering in `backend/routes/reports.js` and `webhooks.js` to prevent data leaking between accounts.
-- **Carrier Compliance**: Fixed Dotgo logo submission logic in `backend/routes/bots.js` to handle strict Base64 requirements.
-
-### 📂 File Changes
-- **Modified**: `backend/routes/campaigns.js`, `backend/routes/bots.js`, `frontend/src/pages/Reports.tsx`
+## [2026-03-05]
+- updated code (14e00fd)
+- updated code (30da4c0)
 
 ---
 
-## [2026-03-04] - UI Refinement & Real-time Tracking
-**Focus**: Improving the User Experience (UX) and data visualization.
+## [2026-03-04]
+- updated code (ed0ca00)
+- updated code (f1f6db8)
+- sandeep update (abef612)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (b6eccf0)
+- Resolve merge conflict in Reports.tsx (be9fff2)
+- updated code (2930f5c)
+- Updated Dotgo RCS template integration and frontend template UI (8f75979)
 
-### 🚀 Major Logic Updates
-- **Visual Polish**: Added Hotstar-style gradient borders to the phone preview components.
-- **Real-time Status**: Fixed webhook reception logic in `backend/index.js` to update existing database rows instead of creating duplicates.
+---
 
-### 📂 File Changes
-- **Modified**: `frontend/src/components/PhonePreview.tsx`, `backend/models/webhookLogs.js`
+## [2026-03-02]
+- updated code (4ef6b56)
 
 ---
 
-## [2026-02-13] - Project Initialization
-**Focus**: Structural foundation.
-
-- Initialized NotifyNow multi-channel platform (SMS, RCS, Email).
-- Setup primary database schemas for Auth and Campaigns.
+## [2026-02-28]
+- updated code (790569a)
+- updated code (2ea5c27)
 
 ---
+
+## [2026-02-27]
+- updated code (c18f9e5)
+- sandeep update (8da9392)
+- updated code by vikas (43da1aa)
+
+---
+
+## [2026-02-26]
+- RCS configs and campaign updates (6feb924)
+- updated code by vikas (14bac8e)
+
+---
+
+## [2026-02-25]
+- updated code rs (2dc7841)
+- Resolve merge conflicts (a1dd726)
+- updated code rs (8ee51e2)
+- updated code rs (a5efb4b)
+- updated code rs (3498d9e)
+- updated code rs (46f670a)
+
+---
+
+## [2026-02-24]
+- updated code rs (0f5268a)
+- updated code rs (67fabf9)
+- updated code rs (a060899)
+
+---
+
+## [2026-02-21]
+- updated code (5a0930a)
+- updated code (dec6a5e)
+
+---
+
+## [2026-02-20]
+- code (6f650c1)
+- code (f0a0b4e)
+- code (ccd9b05)
+- code (49bf72e)
+
+---
+
+## [2026-02-19]
+- code (8428e45)
+- code (409f55d)
+- remove node_modules and add to gitignore (7b369ee)
+
+---
+
+## [2026-02-18]
+- updated campaign (be5fbac)
+
+---
+
+## [2026-02-17]
+- userlogin (01dfce9)
+- latest code (397597a)
+
+---
+
+## [2026-02-16]
+- updated (a4fb5d6)
+- updated home page (b32502c)
+- updated auth file (1678f23)
+
+---
+
+## [2026-02-14]
+- update (a43d027)
+- Update auth.js (282ba3f)
+
+---
+
+## [2026-02-13]
+- New fresh project upload (7a526ba)
+
+---
+
+## [2026-02-12]
+- index.js changes code (ce7ce5a)
+- updated url (754fbff)
+
+---
+
+## [2026-02-11]
+- updated code for sms (0cf7b6c)
+- updated code for sms (359d12f)
+
+---
+
+## [2026-02-10]
+- updated code for user and resseller role access (2fc7ea4)
+- updated code for user and resseller role access (ce2662a)
+- user base login permission (a784bec)
+
+---
+
+## [2026-02-09]
+- updated code (aa4ffff)
+- updated logo and content (1baeaf7)
+- add new file (7d38e89)
+
+---
+
+## [2026-02-07]
+- updated code (66929ed)
+
+---
+
+## [2026-02-06]
+- updated code (3dad4d0)
+
+---
+
 
 > [!NOTE]
-> This history is maintained for full visibility into the project's evolution. Logic and file details are verified against git commit records.
+> This log is auto-generated from git commits. To add manual notes, use git commit messages.

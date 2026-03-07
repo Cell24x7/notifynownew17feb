@@ -1,0 +1,133 @@
+const express = require('express');
+const router = express.Router();
+const { query } = require('../config/db');
+const authenticateToken = require('../middleware/authMiddleware');
+
+/**
+ * @route GET /api/chats/conversations
+ * @desc Get list of unique conversations for the logged in user
+ */
+router.get('/conversations', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const sql = `
+            SELECT 
+                contact_phone,
+                last_message_time,
+                message_content as last_message,
+                status
+            FROM (
+                SELECT 
+                    CASE WHEN sender = 'System' THEN recipient ELSE sender END as contact_phone,
+                    created_at as last_message_time,
+                    message_content,
+                    status,
+                    ROW_NUMBER() OVER(PARTITION BY CASE WHEN sender = 'System' THEN recipient ELSE sender END ORDER BY created_at DESC) as rn
+                FROM webhook_logs
+                WHERE user_id = ?
+            ) as t
+            WHERE rn = 1
+            ORDER BY last_message_time DESC
+        `;
+
+        console.log(`🔍 Fetching conversations for user: ${userId}`);
+        const [conversations] = await query(sql, [userId]);
+        console.log(`✅ Found ${conversations.length} conversations`);
+        res.json({ success: true, data: conversations });
+    } catch (error) {
+        console.error('❌ Error fetching conversations:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route GET /api/chats/messages/:phone
+ * @desc Get chat history for a specific contact
+ */
+router.get('/messages/:phone', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const phone = req.params.phone;
+
+        const sql = `
+            SELECT * FROM webhook_logs 
+            WHERE user_id = ? AND (sender = ? OR recipient = ?)
+            ORDER BY created_at ASC
+        `;
+
+        const [messages] = await query(sql, [userId, phone, phone]);
+        res.json({ success: true, data: messages });
+    } catch (error) {
+        console.error('Error fetching messages:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+/**
+ * @route GET /api/chats/quick-replies
+ * @desc Get real quick replies for the user
+ */
+router.get('/quick-replies', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [replies] = await query('SELECT * FROM quick_replies WHERE user_id = ?', [userId]);
+        res.json({ success: true, data: replies });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch quick replies' });
+    }
+});
+
+/**
+ * @route GET /api/chats/templates
+ * @desc Get real message templates for the user
+ */
+router.get('/templates', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [templates] = await query('SELECT * FROM message_templates WHERE user_id = ?', [userId]);
+        res.json({ success: true, data: templates });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch templates' });
+    }
+});
+
+/**
+ * @route POST /api/chats/send
+ * @desc Send a message to a contact
+ */
+router.post('/send', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { recipient, message, channel } = req.body;
+
+        if (!recipient || !message || !channel) {
+            return res.status(400).json({ success: false, message: 'Missing fields' });
+        }
+
+        // Save to webhook_logs as an OUTGOING message
+        const [result] = await query(
+            'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
+            [userId, 'System', recipient, message, 'sent', channel.toLowerCase()]
+        );
+
+        if (req.io) {
+            req.io.to(`user_${userId}`).emit('new_message', {
+                id: result.insertId,
+                sender: 'System',
+                recipient,
+                message_content: message,
+                status: 'sent',
+                channel: channel.toLowerCase(),
+                created_at: new Date()
+            });
+        }
+
+        res.json({ success: true, message: 'Message sent successfully' });
+    } catch (error) {
+        console.error('Error sending message:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+module.exports = router;

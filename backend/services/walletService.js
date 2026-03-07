@@ -36,19 +36,33 @@ const deductCampaignCredits = async (campaignId) => {
         }
 
         let costPerMsg = 1.0; // Default
+        const channel = (campaign.channel || '').toLowerCase();
 
-        if (campaign.channel === 'RCS') {
-            const templateType = campaign.template_type || 'standard';
-            if (templateType === 'standard') {
+        if (channel === 'rcs') {
+            let templateType = campaign.template_type || 'standard';
+
+            // If template_type is missing in campaign, fetch it from message_templates
+            if (!campaign.template_type && (campaign.template_id || campaign.template_name)) {
+                const [tmpl] = await query(
+                    'SELECT type FROM message_templates WHERE id = ? OR name = ? LIMIT 1',
+                    [campaign.template_id, campaign.template_name]
+                );
+                if (tmpl.length > 0) {
+                    templateType = tmpl[0].type || 'standard';
+                    console.log(`[WalletService] Found template type: ${templateType} for campaign ${campaignId}`);
+                }
+            }
+
+            if (templateType === 'standard' || templateType === 'text' || templateType === 'text_message') {
                 costPerMsg = parseFloat(campaign.rcs_text_price || 0.10);
-            } else if (templateType === 'rich_card') {
+            } else if (templateType === 'rich_card' || templateType === 'rich-card') {
                 costPerMsg = parseFloat(campaign.rcs_rich_card_price || 0.15);
             } else if (templateType === 'carousel') {
                 costPerMsg = parseFloat(campaign.rcs_carousel_price || 0.20);
             }
-        } else if (campaign.channel === 'SMS') {
+        } else if (channel === 'sms') {
             costPerMsg = 0.25; // Example fixed price for SMS
-        } else if (campaign.channel === 'whatsapp') {
+        } else if (channel === 'whatsapp') {
             costPerMsg = 0.35; // Example fixed price for WhatsApp
         }
 
