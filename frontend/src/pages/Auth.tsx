@@ -16,7 +16,7 @@ import { PasswordCreation } from '@/components/auth/PasswordCreation';
 import { WelcomePopup } from '@/components/auth/WelcomePopup';
 
 export default function Auth() {
-  const [activeTab, setActiveTab] = useState('signup');
+  const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -36,6 +36,8 @@ export default function Auth() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loginEmailError, setLoginEmailError] = useState('');
   const [loginPasswordError, setLoginPasswordError] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
 
   if (isAuthenticated && !showWelcome) {
     if (user?.role === 'admin' || user?.role === 'reseller') {
@@ -346,11 +348,12 @@ export default function Auth() {
               <Button
                 type="submit"
                 className="w-full h-11 rounded-xl font-bold shadow-lg gradient-primary text-primary-foreground"
-                disabled={loading}
+                disabled={loading || !agreedToTerms}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Log In
               </Button>
+
 
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
                 <span className="w-2 h-2 rounded-full bg-primary" />
@@ -367,8 +370,9 @@ export default function Auth() {
           <TabsContent value="signup" className="animate-fade-in">
             <div className="space-y-4">
               {signupStep === 'email' && (
-                <EmailSignup onOtpSent={handleSignupOtpSent} isLoading={loading} />
+                <EmailSignup onOtpSent={handleSignupOtpSent} isLoading={loading} disabled={!agreedToTerms} />
               )}
+
 
               {signupStep === 'otp' && (
                 <OtpVerification
@@ -391,12 +395,21 @@ export default function Auth() {
           </TabsContent>
         </Tabs>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground leading-relaxed">
-          By continuing, you agree to our{" "}
-          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Terms of Service</a>{" "}
-          and{" "}
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Privacy Policy</a>.
-        </p>
+        <div className="mt-6 flex items-start gap-3">
+          <Checkbox 
+            id="terms" 
+            checked={agreedToTerms} 
+            onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+            className="mt-0.5"
+          />
+          <Label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer font-normal">
+            By continuing, you agree to our{" "}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Terms of Service</a>{" "}
+            and{" "}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">Privacy Policy</a>.
+          </Label>
+        </div>
+
       </div>
     </div>
   </div>
