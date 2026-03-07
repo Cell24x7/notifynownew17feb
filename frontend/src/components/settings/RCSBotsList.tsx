@@ -30,6 +30,8 @@ import { cn } from '@/lib/utils';
 
 interface Bot {
   id: string;
+  bot_id?: string;
+  brand_id?: string;
   bot_name: string;
   brand_name: string;
   short_description: string;
@@ -239,9 +241,10 @@ export function RCSBotsList({ onUpdate }: RCSBotsListProps) {
             <table className="w-full text-sm border-collapse min-w-[1100px]">
               <thead>
                 <tr className="bg-muted/30 border-b">
-                  <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">ID & Date</th>
+                  <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Date</th>
                   <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Bot Information</th>
-                  <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Brand</th>
+                  <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Bot ID & Brand ID</th>
+                  <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Brand Name</th>
                   <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Description</th>
                   <th className="px-6 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Message Type</th>
                   <th className="px-4 py-4 text-left font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Status</th>
@@ -252,7 +255,6 @@ export function RCSBotsList({ onUpdate }: RCSBotsListProps) {
                 {bots.map((bot) => (
                   <tr key={bot.id} className="group/row hover:bg-muted/20 transition-all duration-200">
                     <td className="px-6 py-5">
-                      <div className="font-mono text-[11px] font-bold text-primary">#{bot.id}</div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">{new Date(bot.created_at).toLocaleDateString()}</div>
                     </td>
                     <td className="px-6 py-5">
@@ -261,10 +263,22 @@ export function RCSBotsList({ onUpdate }: RCSBotsListProps) {
                           {bot.bot_logo_url ? (
                             <img src={bot.bot_logo_url} alt="logo" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-xs font-bold text-muted-foreground">{bot.bot_name.charAt(0)}</span>
+                            <span className="text-xs font-bold text-muted-foreground">{bot.bot_name?.charAt(0)}</span>
                           )}
                         </div>
                         <div className="font-bold text-foreground text-sm tracking-tight">{bot.bot_name}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Bot:</span>
+                          <span className="font-mono text-[11px] font-bold text-primary">{bot.bot_id || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Brand:</span>
+                          <span className="font-mono text-[11px] font-bold text-purple-600">{bot.brand_id || 'N/A'}</span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-5 font-semibold text-muted-foreground">{bot.brand_name}</td>
