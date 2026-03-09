@@ -280,15 +280,20 @@ export default function Campaigns() {
           // We need to pass campaignId so backend updates the row we just created
           // instead of creating a new one.
           if (contactsToSend.length > 0) {
-            // Call RCS API directly or via service
+            // Call API directly or via service depending on channel
             // We need to pass campaignId to reuse it.
-            const rcsPayload = {
+            const payload = {
               campaignId, // Backend should handle this
               campaignName: campaignData.name,
               templateName: templates.find(t => t.id === campaignData.templateId)?.name || campaignData.templateId,
               contacts: contactsToSend
             };
-            await rcsCampaignApi.sendCampaign(rcsPayload as any);
+
+            if (campaignData.channel === 'whatsapp') {
+              await whatsappService.sendCampaign(payload);
+            } else {
+              await rcsCampaignApi.sendCampaign(payload as any);
+            }
 
             toast({
               title: '🚀 Campaign Sent',

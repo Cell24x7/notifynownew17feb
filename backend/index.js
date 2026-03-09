@@ -93,6 +93,7 @@ app.use('/api/logs', require('./routes/logs'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/whatsapp-configs', require('./routes/whatsappConfigs'));
+app.use('/api/whatsapp-pinbot', require('./routes/whatsappPinbot'));
 
 
 /* ==================================

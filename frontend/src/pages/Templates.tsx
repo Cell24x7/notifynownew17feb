@@ -78,6 +78,9 @@ export default function Templates() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [templateSubTab, setTemplateSubTab] = useState<'all' | 'pending'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'rcs' | 'sms'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
+  const [refreshing, setRefreshing] = useState(false);
 
   // File states for RCS uploads
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -216,14 +219,34 @@ export default function Templates() {
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
 
   const filteredTemplates = useMemo(() => {
-    return (templates || []).filter((template) =>
-      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.channel.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [templates, searchQuery]);
+    return (templates || []).filter((template) => {
+      const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        template.channel.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesChannel = channelFilter === 'all' || template.channel === channelFilter;
+      const matchesStatus = statusFilter === 'all' || template.status === statusFilter;
+      return matchesSearch && matchesChannel && matchesStatus;
+    });
+  }, [templates, searchQuery, channelFilter, statusFilter]);
 
   const allCount = useMemo(() => templates.length, [templates]);
   const pendingCount = useMemo(() => templates.filter(t => t.status === 'pending').length, [templates]);
+  const channelCounts = useMemo(() => ({
+    whatsapp: templates.filter(t => t.channel === 'whatsapp').length,
+    rcs: templates.filter(t => t.channel === 'rcs').length,
+    sms: templates.filter(t => t.channel === 'sms').length,
+  }), [templates]);
+  const statusCounts = useMemo(() => ({
+    approved: templates.filter(t => t.status === 'approved').length,
+    pending: templates.filter(t => t.status === 'pending').length,
+    rejected: templates.filter(t => t.status === 'rejected').length,
+  }), [templates]);
+
+  const handleRefreshTemplates = async () => {
+    setRefreshing(true);
+    await fetchTemplates();
+    setRefreshing(false);
+    toast({ title: '🔄 Templates Refreshed', description: 'Latest template statuses fetched from providers.' });
+  };
 
   const handleApproveTemplate = async (templateId: string, status: 'approved' | 'rejected') => {
     try {
@@ -776,11 +799,62 @@ export default function Templates() {
           <p className="text-muted-foreground">Manage your cross-channel message templates</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={handleRefreshTemplates} disabled={refreshing} title="Refresh all templates & statuses">
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+          </Button>
           <Button onClick={() => { setEditingTemplate(null); resetTemplateForm(); setIsTemplateOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
             New Template
           </Button>
         </div>
+      </div>
+
+      {/* Channel Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { key: 'all' as const, label: 'All Channels', count: allCount, icon: '📋', color: 'bg-primary/10 text-primary border-primary/20' },
+          { key: 'whatsapp' as const, label: 'WhatsApp', count: channelCounts.whatsapp, icon: '💬', color: 'bg-green-50 text-green-700 border-green-200' },
+          { key: 'rcs' as const, label: 'RCS', count: channelCounts.rcs, icon: '📱', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+          { key: 'sms' as const, label: 'SMS', count: channelCounts.sms, icon: '✉️', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+        ].map(ch => (
+          <button
+            key={ch.key}
+            onClick={() => setChannelFilter(ch.key)}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
+              channelFilter === ch.key
+                ? cn(ch.color, "ring-2 ring-offset-1 ring-primary/30 shadow-sm")
+                : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+            )}
+          >
+            <span>{ch.icon}</span> {ch.label}
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[20px] justify-center">{ch.count}</Badge>
+          </button>
+        ))}
+
+        <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
+
+        {/* Status Filter */}
+        {[
+          { key: 'all' as const, label: 'All Status', count: allCount },
+          { key: 'approved' as const, label: '✅ Approved', count: statusCounts.approved },
+          { key: 'pending' as const, label: '⏳ Pending', count: statusCounts.pending },
+          { key: 'rejected' as const, label: '❌ Rejected', count: statusCounts.rejected },
+        ].map(st => (
+          <button
+            key={st.key}
+            onClick={() => setStatusFilter(st.key)}
+            className={cn(
+              "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all",
+              statusFilter === st.key
+                ? "bg-foreground text-background border-foreground shadow-sm"
+                : "bg-muted/30 text-muted-foreground border-transparent hover:bg-muted"
+            )}
+          >
+            {st.label}
+            {st.count > 0 && <span className="opacity-60">({st.count})</span>}
+          </button>
+        ))}
       </div>
 
       <Tabs value={templateSubTab} onValueChange={(v) => setTemplateSubTab(v as 'all' | 'pending')}>
@@ -789,7 +863,7 @@ export default function Templates() {
             <TabsTrigger value="all" className="flex items-center gap-2 flex-1 sm:flex-none">
               <FileText className="h-4 w-4" />
               All Templates
-              <Badge variant="secondary" className="ml-1">{allCount}</Badge>
+              <Badge variant="secondary" className="ml-1">{filteredTemplates.length}</Badge>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="pending" className="flex items-center gap-2 flex-1 sm:flex-none">
@@ -843,8 +917,11 @@ export default function Templates() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {template.channel === 'rcs' && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSyncTemplate(template)}>
+                        {(template.channel === 'rcs' || template.channel === 'whatsapp') && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Refresh status from provider" onClick={() => {
+                            if (template.channel === 'rcs') handleSyncTemplate(template);
+                            else handleRefreshTemplates();
+                          }}>
                             <RefreshCw className="h-4 w-4" />
                           </Button>
                         )}

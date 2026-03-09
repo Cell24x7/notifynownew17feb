@@ -1,5 +1,9 @@
 const { query } = require('../config/db');
 const { sendRcsTemplate, sendRcsMessage, getRcsToken } = require('./rcsService');
+const axios = require('axios');
+
+const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
+const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
 
 // Normalize RCS result (helper) for Dotgo
 const normalizeRcsResult = (result) => {
@@ -56,13 +60,16 @@ const processQueue = async () => {
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
             mt.body as template_body, mt.template_type,
             c.name as campaign_name, c.channel, c.user_id, c.credits_deducted,
-            u.rcs_config_id, q.variables,
+            u.rcs_config_id, u.whatsapp_config_id, q.variables,
             rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
-            rc.client_id, rc.client_secret, rc.bot_id
+            rc.client_id, rc.client_secret, rc.bot_id,
+            wc.provider as wa_provider, wc.wa_token, wc.api_key as wa_api_key,
+            wc.ph_no_id as wa_ph_no_id, wc.wa_biz_accnt_id
             FROM campaign_queue q
             JOIN campaigns c ON q.campaign_id = c.id
             JOIN users u ON c.user_id = u.id
             LEFT JOIN rcs_configs rc ON u.rcs_config_id = rc.id
+            LEFT JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id
             LEFT JOIN message_templates mt ON c.template_id = mt.id
             WHERE q.status = 'pending' AND c.status = 'running'
             LIMIT ?
@@ -129,8 +136,59 @@ const processQueue = async () => {
                         const rawText = await sendRcsMessage(item.mobile, item.campaign_name, userConfig);
                         result = normalizeRcsResult(rawText);
                     }
+                } else if (item.channel === 'whatsapp' || item.channel === 'WhatsApp') {
+                    // ──── WHATSAPP CHANNEL ────
+                    try {
+                        if (!item.whatsapp_config_id) {
+                            result = { success: false, error: 'No WhatsApp configuration assigned to user' };
+                        } else {
+                            const isPinbot = item.wa_provider === 'vendor2';
+                            let msgUrl, headers;
+
+                            if (isPinbot) {
+                                msgUrl = `${PINBOT_BASE}/${item.wa_ph_no_id}/messages`;
+                                headers = { apikey: item.wa_api_key, 'Content-Type': 'application/json' };
+                            } else {
+                                msgUrl = `${GRAPH_BASE}/${item.wa_ph_no_id}/messages`;
+                                headers = { Authorization: `Bearer ${item.wa_token}`, 'Content-Type': 'application/json' };
+                            }
+
+                            // Build WhatsApp message payload
+                            let mobile = item.mobile.replace(/\D/g, '');
+                            // Ensure country code
+                            if (mobile.length === 10) mobile = '91' + mobile;
+
+                            const payload = {
+                                messaging_product: 'whatsapp',
+                                recipient_type: 'individual',
+                                to: mobile,
+                                type: 'template',
+                                template: {
+                                    name: item.template_name,
+                                    language: { code: 'en_US' }
+                                }
+                            };
+
+                            const response = await axios.post(msgUrl, payload, { headers });
+                            const respData = response.data;
+
+                            if (respData.messages && respData.messages.length > 0) {
+                                result = { success: true, messageId: respData.messages[0].id };
+                            } else if (respData.message_id) {
+                                result = { success: true, messageId: respData.message_id };
+                            } else {
+                                result = { success: true, messageId: `wa_${Date.now()}_${mobile}` };
+                            }
+
+                            console.log(`✅ WhatsApp sent to ${mobile} via ${isPinbot ? 'Pinbot' : 'Graph'} [${result.messageId}]`);
+                        }
+                    } catch (waErr) {
+                        const errMsg = waErr.response?.data?.error?.message || waErr.response?.data?.message || waErr.message;
+                        console.error(`❌ WhatsApp send failed for ${item.mobile}:`, errMsg);
+                        result = { success: false, error: errMsg };
+                    }
                 } else {
-                    result = { success: false, error: 'Channel not supported' };
+                    result = { success: false, error: `Channel '${item.channel}' not supported` };
                 }
 
                 results.push({

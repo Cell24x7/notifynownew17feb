@@ -67,10 +67,24 @@ export const campaignService = {
         return response.data;
     },
 
-    async startCampaign(campaignId: string) {
-        // Use RCS endpoint for starting/sending for now, or add generic start endpoint
-        // Using generic logic from rcs route
-        const response = await axios.post(`${API_BASE_URL}/api/rcs/send-campaign`, { campaignId }, { headers: getAuthHeader() });
+    async startCampaign(campaignId: string, channel?: string) {
+        let activeChannel = channel;
+
+        // If channel is not provided, fetch campaign info first
+        if (!activeChannel) {
+            try {
+                const campaign = await this.getCampaign(campaignId);
+                activeChannel = campaign.channel?.toLowerCase();
+            } catch (err) {
+                console.error("Failed to fetch campaign for starting:", err);
+            }
+        }
+
+        const endpoint = (activeChannel === 'whatsapp')
+            ? `${API_BASE_URL}/api/whatsapp/send-campaign`
+            : `${API_BASE_URL}/api/rcs/send-campaign`;
+
+        const response = await axios.post(endpoint, { campaignId }, { headers: getAuthHeader() });
         return response.data;
     },
 
