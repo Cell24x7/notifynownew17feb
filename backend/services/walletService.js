@@ -39,16 +39,16 @@ const deductCampaignCredits = async (campaignId) => {
         const channel = (campaign.channel || '').toLowerCase();
 
         if (channel === 'rcs') {
-            let templateType = campaign.template_type || 'standard';
+            let templateType = (campaign.template_type || 'standard').toLowerCase();
 
             // If template_type is missing in campaign, fetch it from message_templates
             if (!campaign.template_type && (campaign.template_id || campaign.template_name)) {
                 const [tmpl] = await query(
-                    'SELECT type FROM message_templates WHERE id = ? OR name = ? LIMIT 1',
+                    'SELECT template_type FROM message_templates WHERE id = ? OR name = ? LIMIT 1',
                     [campaign.template_id, campaign.template_name]
                 );
-                if (tmpl.length > 0) {
-                    templateType = tmpl[0].type || 'standard';
+                if (tmpl && tmpl.length > 0) {
+                    templateType = (tmpl[0].template_type || 'standard').toLowerCase();
                     console.log(`[WalletService] Found template type: ${templateType} for campaign ${campaignId}`);
                 }
             }

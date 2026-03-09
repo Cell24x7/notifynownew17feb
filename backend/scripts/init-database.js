@@ -54,6 +54,7 @@ async function initializeDatabase() {
         banner_image_url varchar(255) DEFAULT NULL,
         terms_url varchar(255) DEFAULT NULL,
         privacy_url varchar(255) DEFAULT NULL,
+        rcs_api varchar(100) DEFAULT 'Google API',
         development_platform varchar(50) DEFAULT 'GSMA_API',
         webhook_url varchar(255) DEFAULT NULL,
         callback_url varchar(255) DEFAULT NULL,

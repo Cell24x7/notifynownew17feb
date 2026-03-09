@@ -11,9 +11,11 @@ import { CountryCodeSelector } from './CountryCodeSelector';
 interface EmailSignupProps {
   onOtpSent: (identifier: string, type: 'email' | 'mobile') => void;
   isLoading: boolean;
+  disabled?: boolean;
 }
 
-export function EmailSignup({ onOtpSent, isLoading }: EmailSignupProps) {
+export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps) {
+
   const [tab, setTab] = useState<'email' | 'mobile'>('email');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
@@ -166,8 +168,9 @@ export function EmailSignup({ onOtpSent, isLoading }: EmailSignupProps) {
       <Button
         type="submit"
         className="w-full gradient-primary text-primary-foreground py-6 text-base"
-        disabled={isLoading || (tab === 'email' ? !!emailError : !!mobileError)}
+        disabled={isLoading || disabled || (tab === 'email' ? !!emailError : !!mobileError)}
       >
+
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

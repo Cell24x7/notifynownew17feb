@@ -17,7 +17,7 @@ import { WelcomePopup } from '@/components/auth/WelcomePopup';
 import { useBranding } from '@/contexts/BrandingContext';
 
 export default function Auth() {
-  const [activeTab, setActiveTab] = useState('signup');
+  const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -38,6 +38,8 @@ export default function Auth() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loginEmailError, setLoginEmailError] = useState('');
   const [loginPasswordError, setLoginPasswordError] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
 
   if (isAuthenticated && !showWelcome) {
     if (user?.role === 'admin' || user?.role === 'reseller') {
