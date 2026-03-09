@@ -297,7 +297,7 @@ export default function SuperAdminPlans() {
             <Card
               key={plan.id}
               className={cn(
-                "relative overflow-hidden transition-all hover:shadow-lg",
+                "relative overflow-hidden transition-all hover:shadow-lg flex flex-col h-full",
                 plan.status === 'inactive' && "opacity-60"
               )}
             >
@@ -322,7 +322,7 @@ export default function SuperAdminPlans() {
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-4 text-sm">
+              <CardContent className="flex-1 flex flex-col space-y-4 text-sm">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-primary" />
                   <span>
@@ -371,7 +371,7 @@ export default function SuperAdminPlans() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-4">
+                <div className="mt-auto pt-4 flex flex-wrap gap-2">
                   <Button
                     variant="outline"
                     size="sm"

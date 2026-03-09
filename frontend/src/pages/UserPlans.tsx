@@ -123,7 +123,7 @@ export default function UserPlans() {
           {plans.map((plan) => (
             <Card
               key={plan.id}
-              className="relative overflow-hidden hover:shadow-lg transition-all duration-200"
+              className="relative overflow-hidden hover:shadow-lg transition-all duration-200 flex flex-col h-full"
             >
               {plan.name === 'Professional' && (
                 <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-bl-lg font-medium">
@@ -144,7 +144,7 @@ export default function UserPlans() {
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-4 text-sm">
+              <CardContent className="flex-1 flex flex-col space-y-4 text-sm">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-primary flex-shrink-0" />
                   <span>
@@ -197,12 +197,14 @@ export default function UserPlans() {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full gradient-primary mt-4"
-                  onClick={() => handleViewDetails(plan)}
-                >
-                  View Details & Buy
-                </Button>
+                <div className="mt-auto pt-4">
+                  <Button
+                    className="w-full gradient-primary"
+                    onClick={() => handleViewDetails(plan)}
+                  >
+                    View Details & Buy
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}

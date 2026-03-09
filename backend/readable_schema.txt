@@ -1,0 +1,68 @@
+--- Schema for table: users ---
+id | int | NO | PRI | null | auto_increment
+name | varchar(255) | NO |  | null | 
+company_name | varchar(255) | YES |  | null | 
+contact_phone | varchar(20) | YES |  | null | 
+email | varchar(255) | NO | UNI | null | 
+password | varchar(255) | YES |  | null | 
+company | varchar(255) | YES |  | null | 
+role | enum('user','admin','reseller') | YES |  | user | 
+plan_id | varchar(50) | YES |  | null | 
+reseller_id | int | YES |  | null | 
+credits_available | int | YES |  | 0 | 
+wallet_balance | decimal(15,2) | YES |  | 0.00 | 
+credits_used | int | YES |  | 0 | 
+channels_enabled | json | YES |  | null | 
+status | enum('active','suspended') | YES |  | active | 
+provider | varchar(50) | YES |  | null | 
+created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED
+updated_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+full_name | varchar(255) | YES |  | null | 
+otp | varchar(10) | YES |  | null | 
+otp_expiry | datetime | YES |  | null | 
+is_verified | tinyint(1) | YES |  | 0 | 
+permissions | text | YES |  | null | 
+parent_reseller_id | int | YES |  | null | 
+created_by | int | YES |  | null | 
+rcs_config_id | int | YES | MUL | null | 
+rcs_text_price | decimal(10,2) | YES |  | 0.10 | 
+rcs_rich_card_price | decimal(10,2) | YES |  | 0.15 | 
+rcs_carousel_price | decimal(10,2) | YES |  | 0.20 | 
+whatsapp_config_id | int | YES | MUL | null | 
+
+--- Schema for table: resellers ---
+id | int | NO | PRI | null | auto_increment
+name | varchar(255) | NO |  | null | 
+email | varchar(255) | NO | UNI | null | 
+phone | varchar(50) | YES |  | null | 
+domain | varchar(255) | YES |  | null | 
+api_base_url | varchar(255) | YES |  | null | 
+commission_percent | decimal(5,2) | YES |  | 10.00 | 
+status | enum('active','inactive','pending') | YES |  | active | 
+revenue_generated | decimal(15,2) | YES |  | 0.00 | 
+clients_managed | int | YES |  | 0 | 
+payout_pending | decimal(15,2) | YES |  | 0.00 | 
+created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED
+plan_id | varchar(255) | YES |  | null | 
+channels_enabled | json | YES |  | null | 
+permissions | text | YES |  | null | 
+brand_name | varchar(100) | YES |  | null | 
+logo_url | varchar(255) | YES |  | null | 
+favicon_url | varchar(255) | YES |  | null | 
+primary_color | varchar(20) | YES |  | null | 
+secondary_color | varchar(20) | YES |  | null | 
+support_email | varchar(255) | YES |  | null | 
+support_phone | varchar(20) | YES |  | null | 
+
+--- Schema for table: whatsapp_configs ---
+id | int | NO | PRI | null | auto_increment
+chatbot_name | varchar(100) | NO |  | null | 
+domain | varchar(255) | YES |  | null | 
+customer_id | varchar(100) | YES |  | null | 
+wa_token | text | NO |  | null | 
+ph_no_id | varchar(255) | NO |  | null | 
+wa_biz_accnt_id | varchar(255) | NO |  | null | 
+is_active | tinyint(1) | YES |  | 1 | 
+created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED
+updated_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+
