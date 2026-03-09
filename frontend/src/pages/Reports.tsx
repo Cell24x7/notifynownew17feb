@@ -41,6 +41,7 @@ interface WebhookLog {
     failure_reason: string | null;
     created_at: string;
     updated_at: string;
+    channel?: string;
 }
 
 
@@ -71,6 +72,7 @@ export default function Reports() {
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState('all');
+    const [channelFilter, setChannelFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('summary');
     const [autoRefresh] = useState(true); // Mandatory auto-refresh
@@ -78,7 +80,12 @@ export default function Reports() {
     useEffect(() => {
         setSummaryPage(1); // Reset page on filter change
         fetchReports(1);
-    }, [startDate, endDate, statusFilter]);
+    }, [startDate, endDate, statusFilter, channelFilter]);
+
+    useEffect(() => {
+        setDetailedPage(1);
+        fetchWebhookLogs(1);
+    }, [startDate, endDate, channelFilter]);
 
     useEffect(() => {
         fetchReports(summaryPage);
@@ -93,16 +100,17 @@ export default function Reports() {
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
-            
+
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
+            if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
             const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
@@ -122,6 +130,7 @@ export default function Reports() {
             let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
             const res = await fetch(url, {
@@ -311,15 +320,29 @@ export default function Reports() {
                             </PopoverContent>
                         </Popover>
                         {(startDate || endDate) && (
-                            <Button 
-                                variant="ghost" 
-                                size="sm" 
+                            <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
                                 className="text-xs h-8"
                             >
                                 Clear Dates
                             </Button>
                         )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Select value={channelFilter} onValueChange={setChannelFilter}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="All Channels" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Channels</SelectItem>
+                                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                                <SelectItem value="RCS">RCS</SelectItem>
+                                <SelectItem value="sms">SMS</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="flex-1 max-w-sm relative">
@@ -348,6 +371,7 @@ export default function Reports() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Campaign Name</TableHead>
+                                        <TableHead>Channel</TableHead>
                                         <TableHead>Template</TableHead>
                                         <TableHead>Date</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
@@ -359,16 +383,19 @@ export default function Reports() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow><TableCell colSpan={8} className="text-center py-10">Loading reports...</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={9} className="text-center py-10">Loading reports...</TableCell></TableRow>
                                     ) : filteredReports.length === 0 ? (
-                                        <TableRow><TableCell colSpan={8} className="text-center py-10">No reports found.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={9} className="text-center py-10">No reports found.</TableCell></TableRow>
                                     ) : (
-                                        filteredReports.map((report) => (
+                                        filteredReports.map((report: any) => (
                                             <TableRow key={report.id}>
                                                 <TableCell className="font-medium">{report.name}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="uppercase font-bold text-[10px] tracking-wider">{report.channel || 'RCS'}</Badge>
+                                                </TableCell>
                                                 <TableCell className="font-mono text-[10px]">{report.template_id}</TableCell>
                                                 <TableCell className="text-muted-foreground leading-tight">
-                                                    {format(new Date(report.created_at), 'dd MMM yy')}<br/>
+                                                    {format(new Date(report.created_at), 'dd MMM yy')}<br />
                                                     <span className="text-[10px]">{format(new Date(report.created_at), 'HH:mm')}</span>
                                                 </TableCell>
                                                 <TableCell className="text-right font-semibold">{report.recipient_count}</TableCell>
@@ -446,7 +473,10 @@ export default function Reports() {
                                                     {log.template_name || 'N/A'}
                                                 </TableCell>
                                                 <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.campaign_name}>
-                                                    {log.campaign_name || 'N/A'}
+                                                    <div className="flex flex-col items-center">
+                                                        <span>{log.campaign_name || 'N/A'}</span>
+                                                        <Badge variant="outline" className="uppercase font-bold text-[8px] tracking-wider mt-1">{log.channel || 'RCS'}</Badge>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-center border-r px-1">
                                                     <Badge variant="outline" className={cn("uppercase text-[8px] font-bold px-1 py-0", getStatusColor(log.status))}>

@@ -91,6 +91,9 @@ app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/logs', require('./routes/logs'));
 app.use('/api/webhooks', require('./routes/webhooks'));
+app.use('/api/whatsapp', require('./routes/whatsapp'));
+app.use('/api/whatsapp-configs', require('./routes/whatsappConfigs'));
+
 
 /* ==================================
    HEALTH & FRONTEND

@@ -125,9 +125,11 @@ router.post('/login', async (req, res) => {
   try {
     // Check email or phone with Plan Permissions and User Permissions
     const [rows] = await query(`
-      SELECT u.*, p.permissions as plan_permissions, p.name as plan_name
+      SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
+      LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
       WHERE u.email = ? OR u.contact_phone = ?
     `, [identifier, identifier]);
     if (!rows.length) return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -188,7 +190,8 @@ router.post('/login', async (req, res) => {
         credits_available: user.credits_available,
         rcs_text_price: user.rcs_text_price,
         rcs_rich_card_price: user.rcs_rich_card_price,
-        rcs_carousel_price: user.rcs_carousel_price
+        rcs_carousel_price: user.rcs_carousel_price,
+        actual_reseller_id: user.actual_reseller_id
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -211,7 +214,8 @@ router.post('/login', async (req, res) => {
         credits_available: user.credits_available,
         rcs_text_price: user.rcs_text_price,
         rcs_rich_card_price: user.rcs_rich_card_price,
-        rcs_carousel_price: user.rcs_carousel_price
+        rcs_carousel_price: user.rcs_carousel_price,
+        actual_reseller_id: user.actual_reseller_id
       }
     });
 
@@ -545,14 +549,24 @@ router.put('/channels', authenticate, async (req, res) => {
   }
 });
 
-// Get all users (admin only)
+// Get all users (admin or reseller filtered)
 router.get('/users', authenticate, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Unauthorized' });
   try {
-    const [rows] = await query('SELECT id, name, email, role, status FROM users');
+    let sql = 'SELECT id, name, email, role, status, created_at FROM users';
+    let params = [];
+
+    if (req.user.role === 'reseller') {
+      sql += ' WHERE reseller_id = ?';
+      params.push(req.user.actual_reseller_id);
+    } else if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const [rows] = await query(sql, params);
     res.json({ success: true, users: rows });
   } catch (err) {
-    res.status(500).json({ success: false });
+    console.error('FETCH USERS ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -614,6 +628,37 @@ router.post('/reset-password', async (req, res) => {
     res.json({ success: true, message: 'Password reset successful' });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// CREATE user (Admin or Reseller)
+router.post('/users', authenticate, async (req, res) => {
+  const { name, email, password, role = 'user', status = 'active' } = req.body;
+
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'reseller') {
+    return res.status(403).json({ success: false, message: 'Unauthorized' });
+  }
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Missing fields' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const resellerId = req.user.role === 'reseller' ? req.user.id : (req.body.reseller_id || null);
+
+    const [result] = await query(
+      'INSERT INTO users (name, email, password, role, status, reseller_id, is_verified) VALUES (?, ?, ?, ?, ?, ?, 1)',
+      [name, email, hashedPassword, role, status, resellerId]
+    );
+
+    res.status(201).json({ success: true, id: result.insertId, message: 'User created successfully' });
+  } catch (err) {
+    console.error('CREATE USER ERROR:', err.message);
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

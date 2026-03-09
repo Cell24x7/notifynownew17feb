@@ -38,6 +38,9 @@ import SuperAdminReports from "./pages/super-admin/Reports";
 import SuperAdminVendors from "./pages/super-admin/Vendors";
 import SuperAdminNumbers from "./pages/super-admin/Numbers";
 import SuperAdminRcsConfigs from "./pages/super-admin/RcsConfigs";
+import SuperAdminWhatsappConfigs from "./pages/super-admin/WhatsappConfigs";
+import ResellerBranding from "./pages/reseller/Branding";
+import ResellerUsers from "./pages/reseller/Users";
 
 import UserPlans from "./pages/UserPlans";
 import Marketplace from "./pages/Marketplace";
@@ -47,68 +50,78 @@ import DLTTemplates from "./pages/DLTTemplates";
 
 const queryClient = new QueryClient();
 
+import { BrandingProvider } from "@/contexts/BrandingContext";
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <RoleProvider>
-        <CustomThemeProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <BrandingProvider>
+        <RoleProvider>
+          <CustomThemeProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-                {/* Client App Routes */}
-                <Route element={<AppLayout />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/chats" element={<Chats />} />
-                  <Route path="/contacts" element={<Contacts />} />
-                  <Route path="/campaigns" element={<Campaigns />} />
-                  <Route path="/dlt-templates" element={<DLTTemplates />} />
-                  <Route path="/marketplace" element={<Marketplace />} />
-                  <Route path="/templates" element={<Templates />} />
-                  <Route path="/reports" element={<Reports />} />
+                  {/* Client App Routes */}
+                  <Route element={<AppLayout />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/chats" element={<Chats />} />
+                    <Route path="/contacts" element={<Contacts />} />
+                    <Route path="/campaigns" element={<Campaigns />} />
+                    <Route path="/dlt-templates" element={<DLTTemplates />} />
+                    <Route path="/marketplace" element={<Marketplace />} />
+                    <Route path="/templates" element={<Templates />} />
+                    <Route path="/reports" element={<Reports />} />
 
-                  <Route path="/automations" element={<Automations />} />
-                  <Route path="/integrations" element={<Integrations />} />
-                  <Route path="/wallet" element={<Wallet />} />
-                  <Route path="/user-plans" element={<UserPlans />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
+                    <Route path="/automations" element={<Automations />} />
+                    <Route path="/integrations" element={<Integrations />} />
+                    <Route path="/wallet" element={<Wallet />} />
+                    <Route path="/user-plans" element={<UserPlans />} />
+                    <Route path="/settings" element={<Settings />} />
 
-                {/* Super Admin Routes */}
-                <Route element={<SuperAdminLayout />}>
-                  <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
-                  <Route path="/super-admin/chats" element={<SuperAdminChats />} />
-                  <Route path="/super-admin/campaigns" element={<SuperAdminCampaigns />} />
-                  <Route path="/super-admin/clients" element={<SuperAdminClients />} />
-                  <Route path="/super-admin/plans" element={<SuperAdminPlans />} />
-                  <Route path="/super-admin/roles" element={<SuperAdminRoles />} />
-                  <Route path="/super-admin/resellers" element={<SuperAdminResellers />} />
-                  <Route path="/super-admin/affiliates" element={<SuperAdminAffiliates />} />
-                  <Route path="/super-admin/wallet" element={<SuperAdminWallet />} />
-                  <Route path="/super-admin/logs" element={<SuperAdminLogs />} />
-                  <Route path="/super-admin/reports" element={<SuperAdminReports />} />
-                  <Route path="/super-admin/vendors" element={<SuperAdminVendors />} />
-                  <Route path="/super-admin/numbers" element={<SuperAdminNumbers />} />
-                  <Route path="/super-admin/rcs-configs" element={<SuperAdminRcsConfigs />} />
+                    {/* Reseller Specific Routes */}
+                    <Route path="/reseller/branding" element={<ResellerBranding />} />
+                    <Route path="/reseller/users" element={<ResellerUsers />} />
+                  </Route>
+
+                  {/* Super Admin Routes */}
+                  <Route element={<SuperAdminLayout />}>
+                    <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
+                    <Route path="/super-admin/chats" element={<SuperAdminChats />} />
+                    <Route path="/super-admin/campaigns" element={<SuperAdminCampaigns />} />
+                    <Route path="/super-admin/clients" element={<SuperAdminClients />} />
+                    <Route path="/super-admin/plans" element={<SuperAdminPlans />} />
+                    <Route path="/super-admin/roles" element={<SuperAdminRoles />} />
+                    <Route path="/super-admin/resellers" element={<SuperAdminResellers />} />
+                    <Route path="/super-admin/affiliates" element={<SuperAdminAffiliates />} />
+                    <Route path="/super-admin/wallet" element={<SuperAdminWallet />} />
+                    <Route path="/super-admin/logs" element={<SuperAdminLogs />} />
+                    <Route path="/super-admin/reports" element={<SuperAdminReports />} />
+                    <Route path="/super-admin/vendors" element={<SuperAdminVendors />} />
+                    <Route path="/super-admin/numbers" element={<SuperAdminNumbers />} />
+                    <Route path="/super-admin/rcs-configs" element={<SuperAdminRcsConfigs />} />
+                    <Route path="/super-admin/whatsapp-configs" element={<SuperAdminWhatsappConfigs />} />
 
 
-                </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </CustomThemeProvider>
-      </RoleProvider>
+                  </Route>
+
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </CustomThemeProvider>
+        </RoleProvider>
+      </BrandingProvider>
     </AuthProvider>
-  </QueryClientProvider>
+  </QueryClientProvider >
 );
 
 export default App;

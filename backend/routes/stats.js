@@ -6,54 +6,82 @@ const authenticate = require('../middleware/authMiddleware');
 // --- Super Admin Stats ---
 router.get('/super-admin', authenticate, async (req, res) => {
     try {
-        // Multi-tenancy safeguard: Only admins see global stats
-        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-            return res.status(403).json({ success: false, message: 'Unauthorized: Admin access required' });
+        const isReseller = req.user.role === 'reseller';
+        const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+
+        if (!isAdmin && !isReseller) {
+            return res.status(403).json({ success: false, message: 'Unauthorized access' });
         }
 
+        const resellerId = isReseller ? req.user.actual_reseller_id : null;
+
         // 1. Basic Counters
-        // Count both 'client' and 'user' roles as clients for the dashboard
-        const [userCounts] = await query("SELECT COUNT(*) as total FROM users WHERE role IN ('client', 'user')");
-        const [activeClientCounts] = await query("SELECT COUNT(*) as total FROM users WHERE role IN ('client', 'user') AND status = 'active'");
+        let userSql = "SELECT COUNT(*) as total FROM users WHERE role IN ('client', 'user')";
+        let activeSql = "SELECT COUNT(*) as total FROM users WHERE role IN ('client', 'user') AND status = 'active'";
+        let params = [];
+
+        if (isReseller) {
+            userSql += " AND reseller_id = ?";
+            activeSql += " AND reseller_id = ?";
+            params.push(resellerId);
+        }
+
+        const [userCounts] = await query(userSql, params);
+        const [activeClientCounts] = await query(activeSql, params);
         const [planCounts] = await query("SELECT COUNT(*) as total FROM plans WHERE status = 'active'");
 
-        // 2. Message Stats (from campaigns)
-        const [msgStats] = await query(`
+        // 2. Message Stats
+        let msgSql = `
             SELECT 
                 COALESCE(SUM(audience_count), 0) as total,
                 COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN audience_count ELSE 0 END), 0) as today
             FROM campaigns 
             WHERE status IN ('completed', 'running')
-        `);
+        `;
+        if (isReseller) {
+            msgSql += " AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)";
+        }
+        const [msgStats] = await query(msgSql, isReseller ? [resellerId] : []);
 
-        // 3. Financial Stats (from transactions)
-        const [finStats] = await query(`
+        // 3. Financial Stats
+        let finSql = `
             SELECT 
                 COALESCE(SUM(amount), 0) as total_revenue,
                 COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN amount ELSE 0 END), 0) as revenue_today,
                 COALESCE(SUM(CASE WHEN MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE()) THEN amount ELSE 0 END), 0) as revenue_month
             FROM transactions 
             WHERE type = 'credit'
-        `);
+        `;
+        if (isReseller) {
+            finSql += " AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)";
+        }
+        const [finStats] = await query(finSql, isReseller ? [resellerId] : []);
 
-        // 4. Credit Consumption (Approximation from debits)
-        const [creditStats] = await query(`
+        // 4. Credit Consumption
+        let creditSql = `
             SELECT 
                 COALESCE(SUM(amount), 0) as total_consumed,
                 COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN amount ELSE 0 END), 0) as consumed_today,
                 COALESCE(SUM(CASE WHEN MONTH(created_at) = MONTH(CURDATE()) THEN amount ELSE 0 END), 0) as consumed_month
             FROM transactions 
             WHERE type = 'debit'
-        `);
+        `;
+        if (isReseller) {
+            creditSql += " AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)";
+        }
+        const [creditStats] = await query(creditSql, isReseller ? [resellerId] : []);
 
-        // 5. Weekly Messages Trend (Last 7 days)
-        const [weeklyStats] = await query(`
+        // 5. Weekly Messages Trend
+        let weeklySql = `
             SELECT DATE(created_at) as date, SUM(audience_count) as count
             FROM campaigns
             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            GROUP BY DATE(created_at)
-            ORDER BY DATE(created_at)
-        `);
+        `;
+        if (isReseller) {
+            weeklySql += " AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)";
+        }
+        weeklySql += " GROUP BY DATE(created_at) ORDER BY DATE(created_at)";
+        const [weeklyStats] = await query(weeklySql, isReseller ? [resellerId] : []);
 
         // Fill in missing days for the chart
         const weeklyMessages = [];
@@ -62,7 +90,6 @@ router.get('/super-admin', authenticate, async (req, res) => {
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
             const found = weeklyStats.find(r => {
-                // Handle various date formats returned by driver
                 const rDate = new Date(r.date).toISOString().split('T')[0];
                 return rDate === dateStr;
             });
@@ -73,25 +100,22 @@ router.get('/super-admin', authenticate, async (req, res) => {
         }
 
         // 6. Channel Usage
-        // 6. Channel Usage (By Volume)
-        const [channelStats] = await query(`
+        let channelSql = `
             SELECT channel, SUM(audience_count) as volume
             FROM campaigns 
             WHERE status IN ('completed', 'running')
-            GROUP BY channel
-        `);
+        `;
+        if (isReseller) {
+            channelSql += " AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)";
+        }
+        channelSql += " GROUP BY channel";
+        const [channelStats] = await query(channelSql, isReseller ? [resellerId] : []);
 
         const allChannels = ['whatsapp', 'sms', 'rcs'];
-
-        // Calculate total volume across ALL channels found in DB (even if not in our list)
-        // This ensures the percentage is accurate relative to total traffic
         const totalVolume = channelStats.reduce((acc, curr) => acc + Number(curr.volume || 0), 0) || 1;
-
         const channelUsage = allChannels.map(channelName => {
-            // Case-insensitive match
             const found = channelStats.find(c => c.channel.toLowerCase() === channelName.toLowerCase());
             const volume = found ? Number(found.volume || 0) : 0;
-
             return {
                 channel: channelName,
                 messages: volume,
@@ -99,43 +123,48 @@ router.get('/super-admin', authenticate, async (req, res) => {
             };
         });
 
-        // 7. Plan Distribution (Snapshot - Always shows data if users exist)
-        const [planStats] = await query(`
+        // 7. Plan Distribution
+        let planSql = `
             SELECT 
                 p.name as plan_name, 
                 COUNT(u.id) as count
             FROM users u
             LEFT JOIN plans p ON u.plan_id = p.id
             WHERE u.role IN ('client', 'user')
-            GROUP BY p.name
-        `);
+        `;
+        if (isReseller) {
+            planSql += " AND u.reseller_id = ?";
+        }
+        planSql += " GROUP BY p.name";
+        const [planStats] = await query(planSql, isReseller ? [resellerId] : []);
 
-        // Format for Pie Chart
         const planDistribution = planStats.map(p => ({
             name: p.plan_name || 'Free / Unassigned',
             value: Number(p.count)
         }));
 
-        // 8. Top Clients by Wallet Balance (Snapshot)
-        const [topUsers] = await query(`
+        // 8. Top Clients
+        let topSql = `
             SELECT name, company, wallet_balance as credits_available
             FROM users 
             WHERE role IN ('client', 'user')
-            ORDER BY wallet_balance DESC
-            LIMIT 5
-        `);
+        `;
+        if (isReseller) {
+            topSql += " AND reseller_id = ?";
+        }
+        topSql += " ORDER BY wallet_balance DESC LIMIT 5";
+        const [topUsers] = await query(topSql, isReseller ? [resellerId] : []);
 
         const topClients = topUsers.map(u => ({
             name: u.company || u.name || 'Unknown',
             balance: Number(u.credits_available)
         }));
 
-
         res.json({
             success: true,
             stats: {
                 totalClients: userCounts[0]?.total || 0,
-                activeClients: activeClientCounts[0]?.total || 0, // Fallback if query fails/returns empty
+                activeClients: activeClientCounts[0]?.total || 0,
                 activePlans: planCounts[0]?.total || 0,
                 totalMessagesProcessed: Number(msgStats[0]?.total || 0),
                 messagesToday: Number(msgStats[0]?.today || 0),
@@ -152,12 +181,8 @@ router.get('/super-admin', authenticate, async (req, res) => {
         });
 
     } catch (err) {
-        console.error('Super Admin Stats Error:', err);
-        // Fallback for missing columns (e.g., status column in users)
-        if (err.code === 'ER_BAD_FIELD_ERROR') {
-            return res.status(500).json({ success: false, message: 'Database schema mismatch. Please run migration scripts.' });
-        }
-        res.status(500).json({ success: false, message: 'Server error fetching stats' });
+        console.error('Dash Stats Error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 });
 

@@ -44,6 +44,13 @@ export default function SuperAdminResellers() {
     clients_managed: 0,
     revenue_generated: 0,
     payout_pending: 0,
+    brand_name: '',
+    logo_url: '',
+    favicon_url: '',
+    primary_color: '#3b82f6',
+    secondary_color: '#1d4ed8',
+    support_email: '',
+    support_phone: '',
   });
 
   // Fetch plans
@@ -128,7 +135,7 @@ export default function SuperAdminResellers() {
 
     // Plan
     if (!currentReseller.plan_id) {
-        errors.push('Plan is required.');
+      errors.push('Plan is required.');
     }
 
     // Phone: optional, but if given → valid format
@@ -207,15 +214,15 @@ export default function SuperAdminResellers() {
     // Convert to string for comparison to handle both number/string IDs
     const selectedPlan = plans.find(p => String(p.id) === String(planId));
     let newChannels: string[] = [];
-    
+
     if (selectedPlan && selectedPlan.channelsAllowed) {
-        newChannels = selectedPlan.channelsAllowed;
+      newChannels = selectedPlan.channelsAllowed;
     }
 
     setCurrentReseller(prev => ({
-        ...prev,
-        plan_id: planId,
-        channels_enabled: newChannels
+      ...prev,
+      plan_id: planId,
+      channels_enabled: newChannels
     }));
   };
 
@@ -229,23 +236,23 @@ export default function SuperAdminResellers() {
     // When editing, if reseller has channels, use them. 
     // If not, maybe auto-populate from plan? 
     // Using existing data is safer.
-    
+
     // Check if channels_enabled is a string or array
     let channels = [];
     try {
-        if (typeof reseller.channels_enabled === 'string') {
-            channels = JSON.parse(reseller.channels_enabled);
-        } else if (Array.isArray(reseller.channels_enabled)) {
-            channels = reseller.channels_enabled;
-        }
+      if (typeof reseller.channels_enabled === 'string') {
+        channels = JSON.parse(reseller.channels_enabled);
+      } else if (Array.isArray(reseller.channels_enabled)) {
+        channels = reseller.channels_enabled;
+      }
     } catch (e) {
-        channels = [];
+      channels = [];
     }
 
     setCurrentReseller({
-        ...reseller,
-        channels_enabled: channels,
-        password: '', // Fixed: Initialize password to avoid uncontrolled input warning
+      ...reseller,
+      channels_enabled: channels,
+      password: '', // Fixed: Initialize password to avoid uncontrolled input warning
     });
     setModalMode('edit');
     setIsModalOpen(true);
@@ -277,19 +284,26 @@ export default function SuperAdminResellers() {
       clients_managed: 0,
       revenue_generated: 0,
       payout_pending: 0,
+      brand_name: '',
+      logo_url: '',
+      favicon_url: '',
+      primary_color: '#3b82f6',
+      secondary_color: '#1d4ed8',
+      support_email: '',
+      support_phone: '',
     });
   };
 
   const parseChannels = (channels: any): string[] => {
-      if (Array.isArray(channels)) return channels;
-      if (typeof channels === 'string') {
-          try {
-              return JSON.parse(channels);
-          } catch (e) {
-              return [];
-          }
+    if (Array.isArray(channels)) return channels;
+    if (typeof channels === 'string') {
+      try {
+        return JSON.parse(channels);
+      } catch (e) {
+        return [];
       }
-      return [];
+    }
+    return [];
   };
 
   const totalRevenue = resellers.reduce((acc, r) => acc + (r.revenue_generated || 0), 0);
@@ -304,8 +318,8 @@ export default function SuperAdminResellers() {
           <h1 className="text-2xl sm:text-3xl font-bold">Resellers</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Manage reseller partners and commissions</p>
         </div>
-        <Button 
-          className="w-full sm:w-auto gradient-primary" 
+        <Button
+          className="w-full sm:w-auto gradient-primary"
           onClick={() => {
             resetForm();
             setModalMode('add');
@@ -426,26 +440,26 @@ export default function SuperAdminResellers() {
                   <TableCell className="font-medium">{reseller.name}</TableCell>
                   <TableCell className="text-muted-foreground">{reseller.email}</TableCell>
                   <TableCell>
-                      <Badge variant="outline" className="capitalize font-normal">
-                        {plans.find(p => String(p.id) === String(reseller.plan_id))?.name || reseller.plan_id || 'N/A'}
-                      </Badge>
+                    <Badge variant="outline" className="capitalize font-normal">
+                      {plans.find(p => String(p.id) === String(reseller.plan_id))?.name || reseller.plan_id || 'N/A'}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                      <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
-                        {(() => {
-                           // Source channels directly from the current plan definition to ensure accuracy
-                           const resellerPlan = plans.find(p => String(p.id) === String(reseller.plan_id));
-                           const channelsToShow = resellerPlan?.channelsAllowed || parseChannels(reseller.channels_enabled);
-                           
-                           return channelsToShow.slice(0, 6).map((ch: any) => (
-                              <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
-                                  <div className="bg-background rounded-full p-0.5 shadow-sm border">
-                                    <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
-                                  </div>
-                              </div>
-                           ));
-                        })()}
-                      </div>
+                    <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
+                      {(() => {
+                        // Source channels directly from the current plan definition to ensure accuracy
+                        const resellerPlan = plans.find(p => String(p.id) === String(reseller.plan_id));
+                        const channelsToShow = resellerPlan?.channelsAllowed || parseChannels(reseller.channels_enabled);
+
+                        return channelsToShow.slice(0, 6).map((ch: any) => (
+                          <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
+                            <div className="bg-background rounded-full p-0.5 shadow-sm border">
+                              <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">{reseller.clients_managed?.toLocaleString() || 0}</TableCell>
                   <TableCell className="text-right">
@@ -544,25 +558,25 @@ export default function SuperAdminResellers() {
             </div>
 
             <div className="h-px bg-border" />
-            
-             {/* Plan Selection */}
+
+            {/* Plan Selection */}
             <div className="space-y-2">
-                <Label className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Assign Plan <span className="text-destructive">*</span></Label>
-                <Select
-                    value={currentReseller.plan_id}
-                    onValueChange={handlePlanChange}
-                    disabled={modalMode === 'view'}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select Plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {plans.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} ({"\u20B9"}{p.price})</SelectItem>)}
-                    </SelectContent>
-                </Select>
+              <Label className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Assign Plan <span className="text-destructive">*</span></Label>
+              <Select
+                value={currentReseller.plan_id}
+                onValueChange={handlePlanChange}
+                disabled={modalMode === 'view'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} ({"\u20B9"}{p.price})</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
-             <div className="h-px bg-border" />
+            <div className="h-px bg-border" />
 
             {/* Domain & API */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -570,7 +584,7 @@ export default function SuperAdminResellers() {
                 <Label>Domain</Label>
                 <Input
                   placeholder="example.com"
-                  value={currentReseller.domain}
+                  value={currentReseller.domain || ''}
                   onChange={(e) => setCurrentReseller(prev => ({ ...prev, domain: e.target.value }))}
                   disabled={modalMode === 'view'}
                 />
@@ -579,8 +593,105 @@ export default function SuperAdminResellers() {
                 <Label>API Base URL</Label>
                 <Input
                   placeholder="https://api.example.com"
-                  value={currentReseller.api_base_url}
+                  value={currentReseller.api_base_url || ''}
                   onChange={(e) => setCurrentReseller(prev => ({ ...prev, api_base_url: e.target.value }))}
+                  disabled={modalMode === 'view'}
+                />
+              </div>
+            </div>
+
+            {/* White Labeling Settings */}
+            <div className="h-px bg-border" />
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <Pencil className="w-4 h-4" /> White Labeling Settings
+            </h3>
+
+            <div className="space-y-2">
+              <Label>Brand Name</Label>
+              <Input
+                placeholder="Reseller Brand Name"
+                value={currentReseller.brand_name || ''}
+                onChange={(e) => setCurrentReseller(prev => ({ ...prev, brand_name: e.target.value }))}
+                disabled={modalMode === 'view'}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Logo URL</Label>
+                <Input
+                  placeholder="https://example.com/logo.png"
+                  value={currentReseller.logo_url || ''}
+                  onChange={(e) => setCurrentReseller(prev => ({ ...prev, logo_url: e.target.value }))}
+                  disabled={modalMode === 'view'}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Favicon URL</Label>
+                <Input
+                  placeholder="https://example.com/favicon.ico"
+                  value={currentReseller.favicon_url || ''}
+                  onChange={(e) => setCurrentReseller(prev => ({ ...prev, favicon_url: e.target.value }))}
+                  disabled={modalMode === 'view'}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Primary Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    className="w-12 p-1 h-10"
+                    value={currentReseller.primary_color || '#3b82f6'}
+                    onChange={(e) => setCurrentReseller(prev => ({ ...prev, primary_color: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <Input
+                    placeholder="#3b82f6"
+                    value={currentReseller.primary_color || ''}
+                    onChange={(e) => setCurrentReseller(prev => ({ ...prev, primary_color: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Secondary Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    className="w-12 p-1 h-10"
+                    value={currentReseller.secondary_color || '#1d4ed8'}
+                    onChange={(e) => setCurrentReseller(prev => ({ ...prev, secondary_color: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <Input
+                    placeholder="#1d4ed8"
+                    value={currentReseller.secondary_color || ''}
+                    onChange={(e) => setCurrentReseller(prev => ({ ...prev, secondary_color: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Support Email</Label>
+                <Input
+                  placeholder="support@reseller.com"
+                  value={currentReseller.support_email || ''}
+                  onChange={(e) => setCurrentReseller(prev => ({ ...prev, support_email: e.target.value }))}
+                  disabled={modalMode === 'view'}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Support Phone</Label>
+                <Input
+                  placeholder="+91..."
+                  value={currentReseller.support_phone || ''}
+                  onChange={(e) => setCurrentReseller(prev => ({ ...prev, support_phone: e.target.value }))}
                   disabled={modalMode === 'view'}
                 />
               </div>
@@ -600,40 +711,40 @@ export default function SuperAdminResellers() {
                   disabled={modalMode === 'view'}
                 />
               </div>
-            {/* Password */}
-            <div className={`grid grid-cols-1 ${modalMode === 'add' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'} gap-4`}>
+              {/* Password */}
+              <div className={`grid grid-cols-1 ${modalMode === 'add' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'} gap-4`}>
                 {(modalMode === 'add' || modalMode === 'edit') && (
-                    <div className="space-y-2">
-                        <Label>
-                            Password {modalMode === 'add' && <span className="text-destructive">*</span>}
-                            {modalMode === 'edit' && <span className="text-xs text-muted-foreground ml-2">(Leave blank to keep current)</span>}
-                        </Label>
-                        <Input
-                            type="password"
-                            placeholder={modalMode === 'add' ? "Enter password" : "Enter new password"}
-                            value={currentReseller.password || ''}
-                            onChange={(e) => setCurrentReseller(prev => ({ ...prev, password: e.target.value }))}
-                        />
-                    </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Password {modalMode === 'add' && <span className="text-destructive">*</span>}
+                      {modalMode === 'edit' && <span className="text-xs text-muted-foreground ml-2">(Leave blank to keep current)</span>}
+                    </Label>
+                    <Input
+                      type="password"
+                      placeholder={modalMode === 'add' ? "Enter password" : "Enter new password"}
+                      value={currentReseller.password || ''}
+                      onChange={(e) => setCurrentReseller(prev => ({ ...prev, password: e.target.value }))}
+                    />
+                  </div>
                 )}
-                 <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={currentReseller.status}
-                  onValueChange={(v) => setCurrentReseller(prev => ({ ...prev, status: v as any }))}
-                  disabled={modalMode === 'view'}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={currentReseller.status}
+                    onValueChange={(v) => setCurrentReseller(prev => ({ ...prev, status: v as any }))}
+                    disabled={modalMode === 'view'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
             </div>
 
             {/* Credits */}
@@ -643,7 +754,7 @@ export default function SuperAdminResellers() {
                 type="number"
                 placeholder="0"
                 value={currentReseller.credits_available}
-                onChange={e => setCurrentReseller(prev => ({...prev, credits_available: parseInt(e.target.value) || 0 }))}
+                onChange={e => setCurrentReseller(prev => ({ ...prev, credits_available: parseInt(e.target.value) || 0 }))}
                 disabled={modalMode === 'view'}
               />
             </div>
@@ -678,8 +789,8 @@ export default function SuperAdminResellers() {
               {modalMode === 'view' ? 'Close' : 'Cancel'}
             </Button>
             {modalMode !== 'view' && (
-              <Button 
-                className="w-full sm:w-auto gradient-primary" 
+              <Button
+                className="w-full sm:w-auto gradient-primary"
                 onClick={handleSave}
                 disabled={loading}
               >

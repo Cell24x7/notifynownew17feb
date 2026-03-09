@@ -145,16 +145,21 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
  */
 router.get('/reports', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate, status } = req.query;
+    const { startDate, endDate, status, channel } = req.query;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
     let sql = `
       FROM campaigns c
-      WHERE c.channel = 'RCS'
+      WHERE 1=1
     `;
     const params = [];
+
+    if (channel && channel !== 'all') {
+      sql += ` AND c.channel = ?`;
+      params.push(channel);
+    }
 
     // Filter by userId. If provided and user is admin, use targetUserId.
     // Otherwise, use authenticated userId for non-admins.

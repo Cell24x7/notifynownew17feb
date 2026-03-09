@@ -40,9 +40,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
 import { SMSCampaignDialog } from '@/components/campaigns/SMSCampaignDialog';
+import { WhatsAppCampaignDialog } from '@/components/campaigns/WhatsAppCampaignDialog';
 import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
 import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesService';
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
+import { whatsappService } from '@/services/whatsappService';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Date range presets for analytics
@@ -87,7 +89,7 @@ export default function Campaigns() {
     try {
       // Refresh user to get latest wallet balance and custom pricing
       await refreshUser();
-      
+
       const [campaignsData, templatesData] = await Promise.all([
         campaignService.getCampaigns(),
         templateService.getTemplates()
@@ -96,31 +98,27 @@ export default function Campaigns() {
 
       // Fetch external RCS templates if channel enabled
       let mergedTemplates = [...templatesData];
-      
+
       // Use local user object if available, otherwise check if rcs is likely enabled
       const isRcsEnabled = enabledChannels.includes('rcs') || user?.channels_enabled?.includes('rcs');
-      
+
       if (isRcsEnabled) {
         try {
           const externalRcsData = await rcsCampaignApi.getExternalTemplates();
           const externalRcsList = externalRcsData?.templates || [];
-          
+
           if (Array.isArray(externalRcsList)) {
-            // Map external templates to MessageTemplate-like structure
             const mappedExternal = externalRcsList.map((t: any) => ({
               id: String(t.name || t.TemplateName || t.id),
               name: String(t.name || t.TemplateName || t.id),
               channel: 'rcs' as const,
-              status: (t.status?.toLowerCase() === 'approved' ? 'approved' : 'approved') as any, // Default to approved if status is fuzzy, but user says it is approved
+              status: 'approved' as any,
               template_type: (t.type || t.templateType || 'text_message') as any,
               body: t.textMessageContent || t.fallbackText || '',
               isExternal: true
             }));
-            
-            // Avoid duplicates by name
             const localNames = new Set(templatesData.filter(lt => lt.channel === 'rcs').map(lt => lt.name));
             const uniqueExternal = mappedExternal.filter(et => !localNames.has(et.name));
-            
             mergedTemplates = [...mergedTemplates, ...uniqueExternal as any];
           }
         } catch (rcsErr) {
@@ -128,7 +126,30 @@ export default function Campaigns() {
         }
       }
 
+      const isWhatsappEnabled = enabledChannels.includes('whatsapp') || user?.channels_enabled?.includes('whatsapp');
+      if (isWhatsappEnabled) {
+        try {
+          const waData = await whatsappService.getTemplates();
+          const waList = waData?.templates || [];
+          if (Array.isArray(waList)) {
+            const mappedWa = waList.map((t: any) => ({
+              id: t.name,
+              name: t.name,
+              channel: 'whatsapp' as const,
+              status: (t.status?.toLowerCase() === 'approved' ? 'approved' : 'pending') as any,
+              template_type: 'text_message' as any,
+              body: t.components.find((c: any) => c.type === 'BODY')?.text || '',
+              isExternal: true
+            }));
+            mergedTemplates = [...mergedTemplates, ...mappedWa as any];
+          }
+        } catch (waErr) {
+          console.error('Failed to fetch WhatsApp templates:', waErr);
+        }
+      }
+
       setTemplates(mergedTemplates);
+
 
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -166,6 +187,7 @@ export default function Campaigns() {
 
   // SMS Specific Dialog
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
+  const [isWhatsappDialogOpen, setIsWhatsappDialogOpen] = useState(false);
 
   const filteredCampaigns = (campaigns || []).filter((campaign) =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -411,6 +433,10 @@ export default function Campaigns() {
                   setIsCreateOpen(false);
                   setIsSmsDialogOpen(true);
                 }}
+                onWhatsappSelect={() => {
+                  setIsCreateOpen(false);
+                  setIsWhatsappDialogOpen(true);
+                }}
               />
             </DialogContent>
           </Dialog>
@@ -426,6 +452,18 @@ export default function Campaigns() {
           toast({
             title: "Success",
             description: "SMS Campaign created and started successfully."
+          });
+        }}
+      />
+
+      <WhatsAppCampaignDialog
+        open={isWhatsappDialogOpen}
+        onOpenChange={setIsWhatsappDialogOpen}
+        onSuccess={() => {
+          fetchData();
+          toast({
+            title: "Success",
+            description: "WhatsApp Campaign created and started successfully."
           });
         }}
       />
@@ -483,213 +521,213 @@ export default function Campaigns() {
       </div>
 
       <div className="mt-6">
-          {viewMode === 'cards' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCampaigns.map((campaign) => (
-                <Card key={campaign.id} className="card-elevated animate-slide-up group hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg">{campaign.name}</CardTitle>
-                        <ChannelBadge channel={campaign.channel as any} />
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openAnalytics(campaign)}>
-                            <BarChart3 className="h-4 w-4 mr-2" />
-                            View Analytics
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDuplicateCampaign(campaign)}>
-                            <Copy className="h-4 w-4 mr-2" />
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+        {viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCampaigns.map((campaign) => (
+              <Card key={campaign.id} className="card-elevated animate-slide-up group hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{campaign.name}</CardTitle>
+                      <ChannelBadge channel={campaign.channel as any} />
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <StatusBadge status={campaign.status as any} />
-                      {campaign.scheduled_at && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(campaign.scheduled_at), 'MMM d, yyyy')}
-                        </div>
-                      )}
-                    </div>
-
-                    {campaign.status !== 'draft' && (
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Delivery Rate</span>
-                          <span className="font-medium">{getDeliveryRate(campaign)}%</span>
-                        </div>
-                        <Progress value={getDeliveryRate(campaign)} className="h-2" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openAnalytics(campaign)}>
+                          <BarChart3 className="h-4 w-4 mr-2" />
+                          View Analytics
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicateCampaign(campaign)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <StatusBadge status={campaign.status as any} />
+                    {campaign.scheduled_at && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(campaign.scheduled_at), 'MMM d, yyyy')}
                       </div>
                     )}
+                  </div>
 
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      <div className="p-2 rounded-lg bg-muted">
-                        <p className="text-lg font-bold">{campaign.sent_count.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Sent</p>
+                  {campaign.status !== 'draft' && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Delivery Rate</span>
+                        <span className="font-medium">{getDeliveryRate(campaign)}%</span>
                       </div>
-                      <div className="p-2 rounded-lg bg-success/10">
-                        <p className="text-lg font-bold text-success">{campaign.delivered_count.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Delivered</p>
-                      </div>
-                      <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
-                        <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{campaign.read_count?.toLocaleString() || 0}</p>
-                        <p className="text-xs text-muted-foreground">Read</p>
-                      </div>
-                      <div className="p-2 rounded-lg bg-destructive/10">
-                        <p className="text-lg font-bold text-destructive">{campaign.failed_count.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Failed</p>
-                      </div>
+                      <Progress value={getDeliveryRate(campaign)} className="h-2" />
                     </div>
+                  )}
 
-                    <div className="flex items-center gap-2 pt-2">
-                      {campaign.status === 'draft' && (
-                        <Button
-                          className="flex-1 gradient-primary"
-                          size="sm"
-                          onClick={() => handleStatusChange(campaign.id, 'running')}
-                        >
-                          <Send className="h-4 w-4 mr-2" />
-                          Send Now
-                        </Button>
-                      )}
-                      {campaign.status === 'running' && (
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          size="sm"
-                          onClick={() => handleStatusChange(campaign.id, 'paused')}
-                        >
-                          <Pause className="h-4 w-4 mr-2" />
-                          Pause
-                        </Button>
-                      )}
-                      {campaign.status === 'paused' && (
-                        <Button
-                          className="flex-1 gradient-primary"
-                          size="sm"
-                          onClick={() => handleStatusChange(campaign.id, 'running')}
-                        >
-                          <Play className="h-4 w-4 mr-2" />
-                          Resume
-                        </Button>
-                      )}
-                      {(campaign.status === 'completed' || campaign.sent_count > 0) && (
-                        <Button variant="outline" size="sm" onClick={() => openAnalytics(campaign)}>
-                          <BarChart3 className="h-4 w-4 mr-2" />
-                          Analytics
-                        </Button>
-                      )}
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <p className="text-lg font-bold">{campaign.sent_count.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Sent</p>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead>Channel</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Sent</TableHead>
-                    <TableHead className="text-center">Delivered</TableHead>
-                    <TableHead className="text-center">Read</TableHead>
-                    <TableHead className="text-center">Failed</TableHead>
-                    <TableHead className="text-center">Delivery Rate</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCampaigns.map((campaign) => (
-                    <TableRow key={campaign.id}>
-                      <TableCell className="font-medium">{campaign.name}</TableCell>
-                      <TableCell><ChannelBadge channel={campaign.channel as any} /></TableCell>
-                      <TableCell><StatusBadge status={campaign.status as any} /></TableCell>
-                      <TableCell className="text-center">{campaign.sent_count.toLocaleString()}</TableCell>
-                      <TableCell className="text-center text-success">{campaign.delivered_count.toLocaleString()}</TableCell>
-                      <TableCell className="text-center text-purple-600">{campaign.read_count?.toLocaleString() || 0}</TableCell>
-                      <TableCell className="text-center text-destructive">{campaign.failed_count.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center gap-2">
-                          <Progress value={getDeliveryRate(campaign)} className="h-2 flex-1" />
-                          <span className="text-sm font-medium w-10">{getDeliveryRate(campaign)}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="flex items-center justify-end gap-1 text-muted-foreground">
-                          <IndianRupee className="h-3 w-3" />
-                          {Number(campaign.cost).toFixed(2)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{format(new Date(campaign.created_at), 'MMM d')}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {campaign.status === 'draft' && (
-                            <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'running')} className="gradient-primary">
-                              <Send className="h-3 w-3 mr-1" />
-                              Send
-                            </Button>
-                          )}
-                          {campaign.status === 'running' && (
-                            <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign.id, 'paused')}>
-                              <Pause className="h-3 w-3 mr-1" />
-                              Pause
-                            </Button>
-                          )}
-                          {campaign.status === 'paused' && (
-                            <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'running')} className="gradient-primary">
-                              <Play className="h-3 w-3 mr-1" />
-                              Resume
-                            </Button>
-                          )}
-                          <Button size="sm" variant="ghost" onClick={() => openAnalytics(campaign)}>
-                            <BarChart3 className="h-4 w-4" />
+                    <div className="p-2 rounded-lg bg-success/10">
+                      <p className="text-lg font-bold text-success">{campaign.delivered_count.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Delivered</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
+                      <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{campaign.read_count?.toLocaleString() || 0}</p>
+                      <p className="text-xs text-muted-foreground">Read</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-destructive/10">
+                      <p className="text-lg font-bold text-destructive">{campaign.failed_count.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Failed</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    {campaign.status === 'draft' && (
+                      <Button
+                        className="flex-1 gradient-primary"
+                        size="sm"
+                        onClick={() => handleStatusChange(campaign.id, 'running')}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Now
+                      </Button>
+                    )}
+                    {campaign.status === 'running' && (
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        size="sm"
+                        onClick={() => handleStatusChange(campaign.id, 'paused')}
+                      >
+                        <Pause className="h-4 w-4 mr-2" />
+                        Pause
+                      </Button>
+                    )}
+                    {campaign.status === 'paused' && (
+                      <Button
+                        className="flex-1 gradient-primary"
+                        size="sm"
+                        onClick={() => handleStatusChange(campaign.id, 'running')}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Resume
+                      </Button>
+                    )}
+                    {(campaign.status === 'completed' || campaign.sent_count > 0) && (
+                      <Button variant="outline" size="sm" onClick={() => openAnalytics(campaign)}>
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Analytics
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Sent</TableHead>
+                  <TableHead className="text-center">Delivered</TableHead>
+                  <TableHead className="text-center">Read</TableHead>
+                  <TableHead className="text-center">Failed</TableHead>
+                  <TableHead className="text-center">Delivery Rate</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCampaigns.map((campaign) => (
+                  <TableRow key={campaign.id}>
+                    <TableCell className="font-medium">{campaign.name}</TableCell>
+                    <TableCell><ChannelBadge channel={campaign.channel as any} /></TableCell>
+                    <TableCell><StatusBadge status={campaign.status as any} /></TableCell>
+                    <TableCell className="text-center">{campaign.sent_count.toLocaleString()}</TableCell>
+                    <TableCell className="text-center text-success">{campaign.delivered_count.toLocaleString()}</TableCell>
+                    <TableCell className="text-center text-purple-600">{campaign.read_count?.toLocaleString() || 0}</TableCell>
+                    <TableCell className="text-center text-destructive">{campaign.failed_count.toLocaleString()}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center gap-2">
+                        <Progress value={getDeliveryRate(campaign)} className="h-2 flex-1" />
+                        <span className="text-sm font-medium w-10">{getDeliveryRate(campaign)}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="flex items-center justify-end gap-1 text-muted-foreground">
+                        <IndianRupee className="h-3 w-3" />
+                        {Number(campaign.cost).toFixed(2)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{format(new Date(campaign.created_at), 'MMM d')}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {campaign.status === 'draft' && (
+                          <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'running')} className="gradient-primary">
+                            <Send className="h-3 w-3 mr-1" />
+                            Send
                           </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="sm" variant="ghost">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleDuplicateCampaign(campaign)}>
-                                <Copy className="h-4 w-4 mr-2" />
-                                Duplicate
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
-        </div>
+                        )}
+                        {campaign.status === 'running' && (
+                          <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign.id, 'paused')}>
+                            <Pause className="h-3 w-3 mr-1" />
+                            Pause
+                          </Button>
+                        )}
+                        {campaign.status === 'paused' && (
+                          <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'running')} className="gradient-primary">
+                            <Play className="h-3 w-3 mr-1" />
+                            Resume
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => openAnalytics(campaign)}>
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleDuplicateCampaign(campaign)}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
+      </div>
 
       {/* Campaign Analytics Modal */}
       <Dialog open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
@@ -703,7 +741,7 @@ export default function Campaigns() {
               Performance metrics for {selectedCampaign?.name}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedCampaign && (
             <div className="space-y-6 py-4">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

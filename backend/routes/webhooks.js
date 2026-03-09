@@ -323,33 +323,38 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
-        let baseSql = ' FROM message_logs WHERE 1=1';
+        let baseSql = ' FROM message_logs ml LEFT JOIN campaigns c ON ml.campaign_id = c.id WHERE 1=1';
         let params = [];
 
         // Filter by userId
         const targetUserId = req.query.userId || req.user.id;
         if (req.user.role === 'superadmin' || req.user.role === 'admin') {
             if (req.query.userId) {
-                baseSql += ' AND user_id = ?';
+                baseSql += ' AND ml.user_id = ?';
                 params.push(req.query.userId);
             }
         } else {
-            baseSql += ' AND user_id = ?';
+            baseSql += ' AND ml.user_id = ?';
             params.push(req.user.id);
         }
 
         if (campaignId) {
-            baseSql += ' AND campaign_id = ?';
+            baseSql += ' AND ml.campaign_id = ?';
             params.push(campaignId);
         }
 
+        if (req.query.channel && req.query.channel !== 'all') {
+            baseSql += ' AND c.channel = ?';
+            params.push(req.query.channel);
+        }
+
         if (req.query.startDate && req.query.endDate) {
-            baseSql += ' AND created_at BETWEEN ? AND ?';
+            baseSql += ' AND ml.created_at BETWEEN ? AND ?';
             params.push(req.query.startDate + ' 00:00:00', req.query.endDate + ' 23:59:59');
         }
 
         if (req.query.search) {
-            baseSql += ' AND (recipient LIKE ? OR campaign_name LIKE ? OR template_name LIKE ?)';
+            baseSql += ' AND (ml.recipient LIKE ? OR ml.campaign_name LIKE ? OR ml.template_name LIKE ?)';
             const searchVal = `%${req.query.search}%`;
             params.push(searchVal, searchVal, searchVal);
         }
@@ -360,7 +365,7 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const total = countResult[0].total;
 
         // Get paginated data
-        const selectSql = `SELECT * ${baseSql} ORDER BY updated_at DESC LIMIT ? OFFSET ?`;
+        const selectSql = `SELECT ml.*, c.channel ${baseSql} ORDER BY ml.updated_at DESC LIMIT ? OFFSET ?`;
         const [logs] = await query(selectSql, [...params, limit, offset]);
 
         res.json({
@@ -428,6 +433,169 @@ router.get('/logs', authenticateToken, async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Error fetching webhook logs:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+// ==========================================
+// WHATSAPP WEBHOOKS
+// ==========================================
+
+// GET /api/webhooks/whatsapp/callback
+// WhatsApp Webhook Verification
+router.get('/whatsapp/callback', (req, res) => {
+    try {
+        const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "notifynow_wa_token_123";
+
+        let mode = req.query["hub.mode"];
+        let token = req.query["hub.verify_token"];
+        let challenge = req.query["hub.challenge"];
+
+        if (mode && token) {
+            if (mode === "subscribe" && token === verify_token) {
+                console.log("✅ WHATSAPP WEBHOOK VERIFIED");
+                res.status(200).send(challenge);
+            } else {
+                console.log("❌ WHATSAPP WEBHOOK VERIFICATION FAILED. Token mismatch.");
+                res.sendStatus(403);
+            }
+        } else {
+            res.status(400).send("Missing parameters");
+        }
+    } catch (error) {
+        console.error('❌ WhatsApp Webhook GET Error:', error.message);
+        res.status(500).send("Error");
+    }
+});
+
+// POST /api/webhooks/whatsapp/callback
+// WhatsApp Incoming Messages and Delivery Reports
+router.post('/whatsapp/callback', async (req, res) => {
+    try {
+        const payload = req.body;
+
+        console.log('==============================================');
+        console.log('📨 RECEIVED WHATSAPP WEBHOOK');
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('Payload:', JSON.stringify(payload, null, 2));
+        console.log('==============================================');
+
+        if (payload.object === "whatsapp_business_account") {
+            for (let entry of payload.entry) {
+                for (let change of entry.changes) {
+                    let value = change.value;
+
+                    // 1. DELIVERY REPORTS (Statuses)
+                    if (value.statuses && value.statuses.length > 0) {
+                        for (let statusObj of value.statuses) {
+                            const messageId = statusObj.id;
+                            const status = statusObj.status; // sent, delivered, read, failed
+                            const recipientId = statusObj.recipient_id;
+
+                            let errorReason = null;
+                            if (status === 'failed' && statusObj.errors) {
+                                errorReason = statusObj.errors[0]?.title || statusObj.errors[0]?.message || 'Unknown error';
+                            }
+
+                            console.log(`📊 WA DLR Update: Msg ${messageId} is ${status} for ${recipientId}`);
+
+                            // Update logic based on messageId
+                            try {
+                                const [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                                if (logs.length > 0) {
+                                    const log = logs[0];
+                                    let finalStatus = status.toLowerCase();
+
+                                    await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
+
+                                    if (finalStatus === 'delivered') {
+                                        await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
+                                    } else if (finalStatus === 'read') {
+                                        await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
+                                    } else if (finalStatus === 'failed') {
+                                        await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [errorReason, messageId]);
+                                    }
+
+                                    // Update Campaign Counts
+                                    if (log.campaign_id) {
+                                        if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
+                                            await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                                        } else if (finalStatus === 'read' && log.status !== 'read') {
+                                            if (log.status !== 'delivered') {
+                                                await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                            } else {
+                                                await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                            }
+                                        } else if (finalStatus === 'failed') {
+                                            await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                                        }
+                                    }
+                                } else {
+                                    // Sometimes messageId doesn't exactly match if it's external, or they come back slightly differently.
+                                    // You could add logic here to match by recipient and time if needed.
+                                    console.warn(`⚠️ WA Message ID ${messageId} not found in logs.`);
+                                }
+                            } catch (error) {
+                                console.error('❌ Error handling WA DLR:', error.message);
+                            }
+                        }
+                    }
+
+                    // 2. INCOMING MESSAGES
+                    if (value.messages && value.messages.length > 0) {
+                        for (let msg of value.messages) {
+                            const sender = msg.from; // Sender phone number
+                            const msgId = msg.id;
+                            let text = '';
+
+                            if (msg.type === 'text') {
+                                text = msg.text.body;
+                            } else if (msg.type === 'button') {
+                                text = msg.button.text;
+                            } else {
+                                text = `[Received ${msg.type} message]`;
+                            }
+
+                            console.log(`💬 Incoming WA Reply from ${sender}: ${text}`);
+
+                            try {
+                                // Save to webhook_logs
+                                await query(
+                                    'INSERT INTO webhook_logs (sender, recipient, message_content, raw_payload, status, type, message_id_envelope) VALUES (?, ?, ?, ?, "received", "whatsapp", ?)',
+                                    [sender, value.metadata?.display_phone_number || 'System', text, JSON.stringify(payload), msgId]
+                                );
+
+                                console.log(`✅ Saved incoming WA message from ${sender} to DB.`);
+                            } catch (dbErr) {
+                                console.error('❌ Failed to save incoming WA message:', dbErr.message);
+                            }
+                        }
+                    }
+                }
+            }
+            res.sendStatus(200);
+        } else {
+            res.sendStatus(404);
+        }
+    } catch (error) {
+        console.error('❌ WA Webhook Error:', error.message);
+        res.status(500).send("Internal Error");
+    }
+});
+
+// GET /api/webhooks/whatsapp
+// Quick check to see if WhatsApp logs are storing correctly from browser
+router.get('/whatsapp', async (req, res) => {
+    console.log('🔍 GET /api/webhooks/whatsapp hit');
+    try {
+        const [logs] = await query("SELECT * FROM webhook_logs WHERE type = 'whatsapp' ORDER BY created_at DESC LIMIT 20");
+        res.json({
+            success: true,
+            message: 'Latest 20 WhatsApp Webhook Logs',
+            data: logs
+        });
+    } catch (error) {
+        console.error('❌ Error fetching whatsapp logs:', error.message);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });

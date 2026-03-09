@@ -29,6 +29,45 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET whitelabel settings by domain or ID (Public)
+router.get('/whitelabel', async (req, res) => {
+  const { domain, reseller_id } = req.query;
+  console.log(`WHITELABEL FETCH REQUEST - Domain: ${domain}, ID: ${reseller_id}`);
+
+  if (!domain && !reseller_id) {
+    return res.json({ success: true, settings: null });
+  }
+
+  try {
+    let sql = `
+      SELECT brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
+      FROM resellers
+      WHERE status = 'active'
+    `;
+    let params = [];
+
+    if (reseller_id) {
+      sql += " AND id = ?";
+      params.push(reseller_id);
+    } else {
+      sql += " AND domain = ?";
+      params.push(domain);
+    }
+
+    const [rows] = await query(sql + " LIMIT 1", params);
+
+    if (rows.length === 0) {
+      console.log(`No active reseller found for domain: ${domain}`);
+      return res.json({ success: true, settings: null });
+    }
+
+    res.json({ success: true, settings: rows[0] });
+  } catch (err) {
+    console.error('WHITELABEL FETCH ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // ADD reseller
 router.post('/', async (req, res) => {
   console.log('RESELLER POST BODY:', req.body);
@@ -36,7 +75,8 @@ router.post('/', async (req, res) => {
     name, email, phone = null, domain = null, api_base_url = null,
     commission_percent = 10, status = 'active',
     plan_id = null, channels_enabled = [],
-    password // New field
+    password,
+    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
   } = req.body;
 
   if (!name || !email) {
@@ -83,12 +123,14 @@ router.post('/', async (req, res) => {
         name, email, phone, domain, api_base_url, 
         commission_percent, status, 
         revenue_generated, clients_managed, payout_pending,
-        plan_id, channels_enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?)
+        plan_id, channels_enabled,
+        brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, email, phone, domain, api_base_url,
       commission_percent, status,
-      plan_id, channelsJson
+      plan_id, channelsJson,
+      brand_name || name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
     ]);
 
     res.status(201).json({
@@ -110,7 +152,8 @@ router.put('/:id', async (req, res) => {
     name, email, phone, domain, api_base_url,
     commission_percent, status,
     plan_id, channels_enabled, permissions,
-    password // New field
+    password,
+    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
   } = req.body;
 
   const fields = [];
@@ -137,6 +180,14 @@ router.put('/:id', async (req, res) => {
     fields.push('permissions = ?');
     values.push(JSON.stringify(permissions));
   }
+
+  if (brand_name !== undefined) { fields.push('brand_name = ?'); values.push(brand_name); }
+  if (logo_url !== undefined) { fields.push('logo_url = ?'); values.push(logo_url); }
+  if (favicon_url !== undefined) { fields.push('favicon_url = ?'); values.push(favicon_url); }
+  if (primary_color !== undefined) { fields.push('primary_color = ?'); values.push(primary_color); }
+  if (secondary_color !== undefined) { fields.push('secondary_color = ?'); values.push(secondary_color); }
+  if (support_email !== undefined) { fields.push('support_email = ?'); values.push(support_email); }
+  if (support_phone !== undefined) { fields.push('support_phone = ?'); values.push(support_phone); }
 
   if (!fields.length && !password) { // If no fields AND no password
     return res.status(400).json({ success: false, message: 'No fields to update' });
@@ -232,6 +283,69 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     console.error('UPDATE RESELLER ERROR:', err.message);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET logged-in reseller's own branding
+const authenticate = require('../middleware/authMiddleware');
+router.get('/my-branding', authenticate, async (req, res) => {
+  if (req.user.role !== 'reseller') {
+    return res.status(403).json({ success: false, message: 'Only resellers can access this' });
+  }
+
+  try {
+    const [rows] = await query(`
+      SELECT brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone, domain
+      FROM resellers
+      WHERE email = ?
+      LIMIT 1
+    `, [req.user.email]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Reseller profile not found' });
+    }
+
+    res.json({ success: true, branding: rows[0] });
+  } catch (err) {
+    console.error('MY BRANDING FETCH ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// UPDATE logged-in reseller's own branding
+router.put('/my-branding', authenticate, async (req, res) => {
+  if (req.user.role !== 'reseller') {
+    return res.status(403).json({ success: false, message: 'Only resellers can access this' });
+  }
+
+  const {
+    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
+  } = req.body;
+
+  const fields = [];
+  const values = [];
+
+  if (brand_name !== undefined) { fields.push('brand_name = ?'); values.push(brand_name); }
+  if (logo_url !== undefined) { fields.push('logo_url = ?'); values.push(logo_url); }
+  if (favicon_url !== undefined) { fields.push('favicon_url = ?'); values.push(favicon_url); }
+  if (primary_color !== undefined) { fields.push('primary_color = ?'); values.push(primary_color); }
+  if (secondary_color !== undefined) { fields.push('secondary_color = ?'); values.push(secondary_color); }
+  if (support_email !== undefined) { fields.push('support_email = ?'); values.push(support_email); }
+  if (support_phone !== undefined) { fields.push('support_phone = ?'); values.push(support_phone); }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ success: false, message: 'No fields to update' });
+  }
+
+  try {
+    const sql = `UPDATE resellers SET ${fields.join(', ')} WHERE email = ?`;
+    values.push(req.user.email);
+    await query(sql, values);
+
+    res.json({ success: true, message: 'Branding updated successfully' });
+  } catch (err) {
+    console.error('MY BRANDING UPDATE ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 

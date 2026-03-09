@@ -25,7 +25,10 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
+import { WhatsAppTemplateForm } from '@/components/campaigns/WhatsAppTemplateForm';
+import { WhatsAppPreview } from '@/components/campaigns/WhatsAppPreview';
 import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesService';
+import { whatsappService } from '@/services/whatsappService';
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -89,7 +92,7 @@ export default function Templates() {
     Object.entries(carouselFiles).forEach(([idx, file]) => {
       if (file) previews[`carousel_${idx}`] = URL.createObjectURL(file);
     });
-    
+
     setFilePreviews(previews);
 
     return () => {
@@ -138,6 +141,40 @@ export default function Templates() {
         }
       } catch (rcsErr) {
         console.error('Failed to load external RCS templates', rcsErr);
+      }
+
+      // Fetch external WhatsApp templates
+      try {
+        const externalWaData = await whatsappService.getTemplates();
+        if (externalWaData && externalWaData.success && Array.isArray(externalWaData.templates)) {
+          const waTemplates = externalWaData.templates.map((t: any) => {
+            const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
+            const bodyText = bodyComponent ? bodyComponent.text : 'WhatsApp Template';
+            return {
+              id: t.name || t.id,
+              name: t.name,
+              channel: 'whatsapp',
+              status: t.status === 'APPROVED' ? 'approved' : t.status === 'REJECTED' ? 'rejected' : 'pending',
+              language: t.language || 'en_US',
+              category: t.category || 'MARKETING',
+              body: bodyText,
+              template_type: t.category,
+              components: t.components, // Store components for rendering
+              header: { type: 'none' },
+              footer: '',
+              buttons: [],
+              variables: []
+            };
+          });
+
+          setTemplates(prev => {
+            const existingWaNames = new Set(prev.filter(p => p.channel === 'whatsapp').map(p => p.name));
+            const newWa = waTemplates.filter((t: any) => !existingWaNames.has(t.name));
+            return [...prev, ...newWa];
+          });
+        }
+      } catch (waErr) {
+        console.error('Failed to load WhatsApp templates', waErr);
       }
     } catch (err) {
       console.error('Error fetching templates:', err);
@@ -209,8 +246,8 @@ export default function Templates() {
     try {
       toast({ title: 'Syncing...', description: `Checking status for ${template.name}...` });
       const result = await syncTemplate(template.name);
-      setTemplates(prev => prev.map(t => 
-        (t.name === template.name || t.id === template.id) 
+      setTemplates(prev => prev.map(t =>
+        (t.name === template.name || t.id === template.id)
           ? { ...t, status: result.status } as MessageTemplate
           : t
       ));
@@ -221,13 +258,46 @@ export default function Templates() {
   };
 
   const handleSaveTemplate = async (isDraft: boolean = false) => {
+    if (newTemplate.channel === 'whatsapp') {
+      try {
+        setLoading(true);
+        // Transform our internal components format to Meta format if needed
+        // The WhatsAppTemplateForm already keeps it in a Meta-friendly format
+        await whatsappService.createTemplate({
+          name: newTemplate.name,
+          category: (newTemplate.category || 'UTILITY').toUpperCase() as any,
+          language: newTemplate.language || 'en_US',
+          components: newTemplate.components || []
+        });
+
+        toast({
+          title: '🎉 WhatsApp Template Created',
+          description: 'Your template has been submitted to Meta for approval.',
+        });
+
+        fetchTemplates();
+        setIsTemplateOpen(false);
+        resetTemplateForm();
+      } catch (err: any) {
+        console.error('WhatsApp template creation error:', err);
+        toast({
+          title: 'Error',
+          description: err.response?.data?.error?.message || err.message || 'Failed to create WhatsApp template',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       // Frontend Validation
       if (!newTemplate.name?.trim()) {
         toast({ title: "Validation Error", description: "Template name is required", variant: "destructive" });
         return;
       }
-      
+
       if (newTemplate.channel === 'rcs' && !isDraft) {
         if (newTemplate.template_type === 'text_message' && !newTemplate.body?.trim()) {
           toast({ title: "Validation Error", description: "Message body is required for text templates", variant: "destructive" });
@@ -240,20 +310,20 @@ export default function Templates() {
       }
 
       // Map buttons for local database format (label/value) instead of RCS format (displayText/uri)
-      const mappedButtons = newTemplate.channel === 'rcs' 
+      const mappedButtons = newTemplate.channel === 'rcs'
         ? newTemplate.buttons.map((btn: any, index: number) => {
-            // Map RCS frontend types to Database enum types
-            let dbType = 'quick_reply';
-            if (btn.type === 'url_action') dbType = 'url';
-            if (btn.type === 'dialer_action') dbType = 'phone';
-            
-            return {
-              type: dbType,
-              label: btn.displayText || 'Button',
-              value: btn.uri || btn.postback || btn.displayText || '',
-              position: index
-            };
-          })
+          // Map RCS frontend types to Database enum types
+          let dbType = 'quick_reply';
+          if (btn.type === 'url_action') dbType = 'url';
+          if (btn.type === 'dialer_action') dbType = 'phone';
+
+          return {
+            type: dbType,
+            label: btn.displayText || 'Button',
+            value: btn.uri || btn.postback || btn.displayText || '',
+            position: index
+          };
+        })
         : newTemplate.buttons;
 
       const templateData = {
@@ -278,9 +348,9 @@ export default function Templates() {
           if (btn.type === 'reply') return { suggestionType: 'reply', displayText: btn.displayText, postback: btn.displayText };
           if (btn.type === 'url_action') return { suggestionType: 'url_action', displayText: btn.displayText, url: btn.uri };
           if (btn.type === 'dialer_action') return { suggestionType: 'dialer_action', displayText: btn.displayText, phoneNumber: btn.uri };
-          if (btn.type === 'calendar_event') return { 
-            suggestionType: 'calendar_event', 
-            displayText: btn.displayText, 
+          if (btn.type === 'calendar_event') return {
+            suggestionType: 'calendar_event',
+            displayText: btn.displayText,
             calendarEvent: {
               startTime: btn.calendar?.startTime,
               endTime: btn.calendar?.endTime,
@@ -337,7 +407,7 @@ export default function Templates() {
 
         const rcsFormData = new FormData();
         rcsDotgoPayload.isUpdate = !!editingTemplate;
-        
+
         // Clean up mediaUrls if files are provided to prevent base64/conflicting errors
         if (selectedFile) {
           if (rcsDotgoPayload.standAlone) {
@@ -390,15 +460,15 @@ export default function Templates() {
         try {
           const parsed = JSON.parse(err);
           errorMessage = parsed.error?.message || parsed.message || err;
-        } catch(e) {}
+        } catch (e) { }
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       }
 
-      toast({ 
-        title: 'Error Saving Template', 
-        description: errorMessage, 
-        variant: 'destructive' 
+      toast({
+        title: 'Error Saving Template',
+        description: errorMessage,
+        variant: 'destructive'
       });
     }
   };
@@ -430,10 +500,10 @@ export default function Templates() {
 
   const handleEditTemplate = (template: MessageTemplate) => {
     setEditingTemplate(template);
-    
+
     // Reconstruct metadata if it exists as an object, otherwise use defaults
     const savedMetadata = (template as any).metadata || {};
-    
+
     setNewTemplate({
       name: template.name,
       language: template.language,
@@ -459,7 +529,7 @@ export default function Templates() {
   const handleDeleteTemplate = async (templateId: string) => {
     try {
       const template = templates.find(t => t.id === templateId);
-      
+
       if (template?.channel === 'rcs') {
         try {
           // Always try to delete from Dotgo if it's an RCS template
@@ -470,13 +540,21 @@ export default function Templates() {
         }
       }
 
+      if (template?.channel === 'whatsapp') {
+        try {
+          await whatsappService.deleteTemplate(template.name);
+        } catch (waErr: any) {
+          console.error('Failed to delete WhatsApp template:', waErr);
+        }
+      }
+
       // Check if it's a local template (ID starts with TPL or is numeric)
       const isLocal = templateId.startsWith('TPL') || !isNaN(Number(templateId));
-      
+
       if (isLocal) {
         await templateService.deleteTemplate(templateId);
       }
-      
+
       setTemplates(prev => prev.filter(t => t.id !== templateId));
       toast({ title: '🗑️ Template deleted', description: 'The template has been removed.' });
     } catch (err: any) {
@@ -508,17 +586,17 @@ export default function Templates() {
 
     if (newTemplate.channel === 'rcs') {
       const { template_type, metadata, body, buttons } = newTemplate;
-      
+
       const renderCard = (cardData: any, isCarousel = false, index?: number) => {
         const orientation = cardData?.orientation || metadata?.orientation || 'VERTICAL';
         const alignment = cardData?.alignment || metadata?.alignment || 'LEFT';
         const height = cardData?.height || metadata?.height || 'SHORT_HEIGHT';
-        
+
         // Use preview from local file if available
-        const previewUrl = isCarousel && index !== undefined 
-          ? filePreviews[`carousel_${index}`] 
+        const previewUrl = isCarousel && index !== undefined
+          ? filePreviews[`carousel_${index}`]
           : filePreviews['main'];
-        
+
         const mediaSource = cardData?.mediaUrl || previewUrl;
 
         return (
@@ -561,99 +639,99 @@ export default function Templates() {
 
       return (
         <div className="flex flex-col h-full items-center justify-start py-2 overflow-y-auto max-h-[750px] no-scrollbar">
-            <div 
-              className="w-[340px] h-[680px] bg-[#000a14] rounded-[3.5rem] p-3 shadow-2xl relative transition-all duration-500 flex flex-col shrink-0"
-              style={{ 
-                boxShadow: '0 0 40px rgba(0, 114, 255, 0.2), inset 0 0 20px rgba(0, 114, 255, 0.1)',
-                border: '4px solid transparent',
-                backgroundImage: 'linear-gradient(#000a14, #000a14), linear-gradient(to right, #0072FF, #00C6FF, #D81B60)',
-                backgroundOrigin: 'border-box',
-                backgroundClip: 'padding-box, border-box',
-              }}
-            >
-              {/* Phone Notch/Features */}
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 h-8 w-32 bg-black rounded-full z-20 shadow-inner flex items-center justify-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-blue-900/40" />
-                <div className="w-12 h-1.5 rounded-full bg-zinc-800/60" />
+          <div
+            className="w-[340px] h-[680px] bg-[#000a14] rounded-[3.5rem] p-3 shadow-2xl relative transition-all duration-500 flex flex-col shrink-0"
+            style={{
+              boxShadow: '0 0 40px rgba(0, 114, 255, 0.2), inset 0 0 20px rgba(0, 114, 255, 0.1)',
+              border: '4px solid transparent',
+              backgroundImage: 'linear-gradient(#000a14, #000a14), linear-gradient(to right, #0072FF, #00C6FF, #D81B60)',
+              backgroundOrigin: 'border-box',
+              backgroundClip: 'padding-box, border-box',
+            }}
+          >
+            {/* Phone Notch/Features */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 h-8 w-32 bg-black rounded-full z-20 shadow-inner flex items-center justify-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-blue-900/40" />
+              <div className="w-12 h-1.5 rounded-full bg-zinc-800/60" />
+            </div>
+
+            <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10 no-scrollbar">
+              {/* Header */}
+              <div className="px-4 pt-10 pb-3 bg-[#1A73E8] text-white flex items-center gap-3 shadow-md border-b border-white/5">
+                <ChevronLeft className="h-5 w-5" />
+                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-[11px] font-bold border border-blue-400/20">
+                  RCS
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold truncate tracking-tight">Business Profile</p>
+                  <p className="text-[9px] opacity-70 flex items-center gap-0.5">
+                    <Shield className="h-2.5 w-2.5" /> Verified Account
+                  </p>
+                </div>
+                <MoreVertical className="h-4 w-4 opacity-70" />
               </div>
 
-              <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10 no-scrollbar">
-                {/* Header */}
-                <div className="px-4 pt-10 pb-3 bg-[#1A73E8] text-white flex items-center gap-3 shadow-md border-b border-white/5">
-                  <ChevronLeft className="h-5 w-5" />
-                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-[11px] font-bold border border-blue-400/20">
-                    RCS
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold truncate tracking-tight">Business Profile</p>
-                    <p className="text-[9px] opacity-70 flex items-center gap-0.5">
-                      <Shield className="h-2.5 w-2.5" /> Verified Account
-                    </p>
-                  </div>
-                  <MoreVertical className="h-4 w-4 opacity-70" />
+              {/* Chat Area */}
+              <div className="flex-1 p-4 overflow-y-auto no-scrollbar space-y-4">
+                {/* Date Bubble */}
+                <div className="flex justify-center">
+                  <span className="bg-black/5 dark:bg-white/5 text-[9px] px-2.5 py-0.5 rounded-md text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest">
+                    Today
+                  </span>
                 </div>
 
-                {/* Chat Area */}
-                <div className="flex-1 p-4 overflow-y-auto no-scrollbar space-y-4">
-                  {/* Date Bubble */}
-                  <div className="flex justify-center">
-                    <span className="bg-black/5 dark:bg-white/5 text-[9px] px-2.5 py-0.5 rounded-md text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest">
-                      Today
-                    </span>
+                {template_type === 'text_message' && (
+                  <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-md border border-black/5 max-w-[90%]">
+                    <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap">{body || 'Type your message...'}</p>
+                    <div className="flex justify-end mt-1">
+                      <span className="text-[9px] text-[#667781] dark:text-[#8696a0]">10:45 AM</span>
+                    </div>
                   </div>
+                )}
 
-                  {template_type === 'text_message' && (
-                    <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-md border border-black/5 max-w-[90%]">
-                      <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap">{body || 'Type your message...'}</p>
-                      <div className="flex justify-end mt-1">
-                        <span className="text-[9px] text-[#667781] dark:text-[#8696a0]">10:45 AM</span>
+                {template_type === 'rich_card' && renderCard(metadata)}
+
+                {template_type === 'carousel' && (
+                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-2 px-2">
+                    {(metadata.carouselList || []).length > 0 ? (
+                      metadata.carouselList.map((card: any, i: number) => (
+                        <div key={i} className="flex-shrink-0">
+                          {renderCard(card, true, i)}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="w-[200px] h-32 bg-white dark:bg-[#1f2c33] rounded-2xl border-2 border-dashed border-[#f0f2f5] dark:border-white/5 flex items-center justify-center text-[11px] text-muted-foreground">
+                        Add Carousel Cards
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                )}
 
-                  {template_type === 'rich_card' && renderCard(metadata)}
+                {/* Global Chip Actions (suggestions) */}
+                {buttons?.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {buttons.map((btn: any, i: number) => (
+                      <div key={i} className="px-4 py-2 bg-white dark:bg-[#1f2c33] border border-[#f0f2f5] dark:border-white/10 text-[#00a884] dark:text-[#53bdeb] rounded-full text-[11px] font-bold shadow-sm flex items-center gap-1.5 cursor-pointer hover:bg-black/5">
+                        {btn.type === 'url_action' && <Link className="h-3 w-3" />}
+                        {btn.type === 'dialer_action' && <Phone className="h-3 w-3" />}
+                        {btn.displayText || btn.label || 'Reply'}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                  {template_type === 'carousel' && (
-                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-2 px-2">
-                      {(metadata.carouselList || []).length > 0 ? (
-                        metadata.carouselList.map((card: any, i: number) => (
-                          <div key={i} className="flex-shrink-0">
-                            {renderCard(card, true, i)}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="w-[200px] h-32 bg-white dark:bg-[#1f2c33] rounded-2xl border-2 border-dashed border-[#f0f2f5] dark:border-white/5 flex items-center justify-center text-[11px] text-muted-foreground">
-                          Add Carousel Cards
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Global Chip Actions (suggestions) */}
-                  {buttons?.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {buttons.map((btn: any, i: number) => (
-                        <div key={i} className="px-4 py-2 bg-white dark:bg-[#1f2c33] border border-[#f0f2f5] dark:border-white/10 text-[#00a884] dark:text-[#53bdeb] rounded-full text-[11px] font-bold shadow-sm flex items-center gap-1.5 cursor-pointer hover:bg-black/5">
-                          {btn.type === 'url_action' && <Link className="h-3 w-3" />}
-                          {btn.type === 'dialer_action' && <Phone className="h-3 w-3" />}
-                          {btn.displayText || btn.label || 'Reply'}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Bottom Bar */}
+              <div className="p-3 bg-white dark:bg-[#111b21] border-t dark:border-white/5 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#f0f2f5] dark:bg-[#1f2b33] flex items-center justify-center">
+                  <Plus className="h-4 w-4 text-[#8696a0]" />
                 </div>
-
-                {/* Bottom Bar */}
-                <div className="p-3 bg-white dark:bg-[#111b21] border-t dark:border-white/5 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-[#f0f2f5] dark:bg-[#1f2b33] flex items-center justify-center">
-                    <Plus className="h-4 w-4 text-[#8696a0]" />
-                  </div>
-                  <div className="flex-1 h-8 rounded-full bg-[#f0f2f5] dark:bg-[#2a3942] px-3 flex items-center text-[#8696a0] text-[11px]">
-                    Type a message
-                  </div>
+                <div className="flex-1 h-8 rounded-full bg-[#f0f2f5] dark:bg-[#2a3942] px-3 flex items-center text-[#8696a0] text-[11px]">
+                  Type a message
                 </div>
               </div>
             </div>
+          </div>
         </div>
       );
     }
@@ -698,10 +776,10 @@ export default function Templates() {
           <p className="text-muted-foreground">Manage your cross-channel message templates</p>
         </div>
         <div className="flex items-center gap-2">
-           <Button onClick={() => { setEditingTemplate(null); resetTemplateForm(); setIsTemplateOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Template
-            </Button>
+          <Button onClick={() => { setEditingTemplate(null); resetTemplateForm(); setIsTemplateOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Template
+          </Button>
         </div>
       </div>
 
@@ -738,7 +816,7 @@ export default function Templates() {
         <TabsContent value="all" className="mt-6">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1,2,3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted" />)}
+              {[1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted" />)}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -752,7 +830,7 @@ export default function Templates() {
                           <ChannelBadge channel={template.channel} />
                           <Badge variant="outline">{template.category}</Badge>
                           {template.status && (
-                            <Badge 
+                            <Badge
                               variant={template.status === 'approved' ? 'secondary' : template.status === 'rejected' ? 'destructive' : 'outline'}
                               className={cn(
                                 "capitalize",
@@ -820,8 +898,8 @@ export default function Templates() {
               {templateStep === 'channel' ? 'Select Channel' : (editingTemplate ? 'Edit Template' : 'Configure Template')}
             </DialogTitle>
             <DialogDescription className={cn(templateStep === 'channel' && "text-base")}>
-              {templateStep === 'channel' 
-                ? 'Choose a channel for your template to get started' 
+              {templateStep === 'channel'
+                ? 'Choose a channel for your template to get started'
                 : `Fill in the details for your ${newTemplate.channel.toUpperCase()} template`}
             </DialogDescription>
           </DialogHeader>
@@ -840,9 +918,9 @@ export default function Templates() {
                   <div className="space-y-6 pt-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {[
-                        { 
-                          id: 'whatsapp', 
-                          title: 'WhatsApp Business', 
+                        {
+                          id: 'whatsapp',
+                          title: 'WhatsApp Business',
                           description: 'Rich templates with headers, interactive buttons & high-engagement media.',
                           icon: <MessageSquare className="h-7 w-7 text-green-600" />,
                           bg: "bg-green-50",
@@ -851,9 +929,9 @@ export default function Templates() {
                           accent: "bg-green-600",
                           enabled: user?.channels_enabled?.includes('whatsapp')
                         },
-                        { 
-                          id: 'rcs', 
-                          title: 'RCS Messaging', 
+                        {
+                          id: 'rcs',
+                          title: 'RCS Messaging',
                           description: 'Next-gen rich messaging with carousels, rich cards & suggested actions.',
                           icon: <Sparkles className="h-7 w-7 text-blue-600" />,
                           bg: "bg-blue-50",
@@ -862,9 +940,9 @@ export default function Templates() {
                           accent: "bg-blue-600",
                           enabled: user?.channels_enabled?.includes('rcs')
                         },
-                        { 
-                          id: 'sms', 
-                          title: 'SMS Gateway', 
+                        {
+                          id: 'sms',
+                          title: 'SMS Gateway',
                           description: 'Reliable, text-only messages delivered instantly to any mobile device.',
                           icon: <Smartphone className="h-7 w-7 text-amber-600" />,
                           bg: "bg-amber-50",
@@ -874,19 +952,20 @@ export default function Templates() {
                           enabled: user?.channels_enabled?.includes('sms')
                         }
                       ].filter(c => c.enabled).map((channel) => (
-                        <Card 
+                        <Card
                           key={channel.id}
                           className={cn(
                             "group relative overflow-hidden h-full border-2 transition-all duration-300 cursor-pointer hover:shadow-xl active:scale-[0.98]",
                             "border-transparent hover:border-primary/20 bg-muted/30"
-                          )} 
-                          onClick={() => { 
-                            setNewTemplate({ 
-                              ...newTemplate, 
+                          )}
+                          onClick={() => {
+                            setNewTemplate({
+                              ...newTemplate,
                               channel: channel.id,
-                              template_type: channel.id === 'rcs' ? 'text_message' : 'standard'
-                            }); 
-                            setTemplateStep('form'); 
+                              template_type: channel.id === 'rcs' ? 'text_message' : 'standard',
+                              components: channel.id === 'whatsapp' ? [{ type: 'BODY', text: '' }] : undefined
+                            });
+                            setTemplateStep('form');
                           }}
                         >
                           <CardContent className="p-6 flex flex-col items-center text-center space-y-4 h-full animate-in fade-in zoom-in-95 duration-500">
@@ -903,9 +982,9 @@ export default function Templates() {
                               </p>
                             </div>
                             <div className="pt-2 mt-auto w-full">
-                               <div className="flex items-center justify-center gap-1.5 text-primary text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300">
-                                 Get Started <ChevronRight className="h-3 w-3" />
-                               </div>
+                              <div className="flex items-center justify-center gap-1.5 text-primary text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300">
+                                Get Started <ChevronRight className="h-3 w-3" />
+                              </div>
                             </div>
                           </CardContent>
                           <div className={cn("absolute top-0 right-0 w-16 h-16 opacity-10 -mr-8 -mt-8 rounded-full", channel.accent)} />
@@ -914,113 +993,118 @@ export default function Templates() {
                     </div>
                     {(['whatsapp', 'rcs', 'sms'].filter(id => (user?.channels_enabled || []).includes(id)).length === 0) && (
                       <div className="text-center py-12 space-y-4 bg-muted/20 rounded-3xl border border-dashed border-muted-foreground/20">
-                         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
-                            <Zap className="h-8 w-8 text-muted-foreground" />
-                         </div>
-                         <div className="space-y-1">
-                            <h3 className="font-bold text-lg">No Channels Enabled</h3>
-                            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                               Please enable channels in your settings page to start creating templates.
-                            </p>
-                         </div>
-                         <Button variant="outline" onClick={() => navigate('/settings?tab=channels')} className="rounded-xl">
-                            Go to Settings
-                         </Button>
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+                          <Zap className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-lg">No Channels Enabled</h3>
+                          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                            Please enable channels in your settings page to start creating templates.
+                          </p>
+                        </div>
+                        <Button variant="outline" onClick={() => navigate('/settings?tab=channels')} className="rounded-xl">
+                          Go to Settings
+                        </Button>
                       </div>
                     )}
                   </div>
                 ) : (
-                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                     <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
-                              {newTemplate.channel === 'whatsapp' ? <MessageSquare className="h-5 w-5 text-green-600" /> : <Sparkles className="h-5 w-5 text-blue-600" />}
-                           </div>
-                           <div>
-                              <p className="text-xs font-semibold text-primary uppercase tracking-wider">Channel</p>
-                              <h3 className="font-bold text-lg capitalize">{newTemplate.channel}</h3>
-                           </div>
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
+                          {newTemplate.channel === 'whatsapp' ? <MessageSquare className="h-5 w-5 text-green-600" /> : <Sparkles className="h-5 w-5 text-blue-600" />}
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => setTemplateStep('channel')} className="bg-white hover:bg-gray-50 rounded-xl">
-                          Change
-                        </Button>
-                     </div>
+                        <div>
+                          <p className="text-xs font-semibold text-primary uppercase tracking-wider">Channel</p>
+                          <h3 className="font-bold text-lg capitalize">{newTemplate.channel}</h3>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setTemplateStep('channel')} className="bg-white hover:bg-gray-50 rounded-xl">
+                        Change
+                      </Button>
+                    </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <div className="space-y-2">
-                         <Label className="text-sm font-bold text-gray-700 ml-1">Template Name</Label>
-                         <Input 
-                           placeholder="e.g. order_confirmation"
-                            value={newTemplate.name} 
-                            onChange={e => {
-                              const sanitizedValue = e.target.value
-                                .replace(/\s+/g, '_')   // Replace spaces with underscores
-                                .replace(/[^a-zA-Z0-9_]/g, '') // Remove special characters
-                                .substring(0, 20);      // Max 20 chars
-                              setNewTemplate({...newTemplate, name: sanitizedValue});
-                            }} 
-                           className="bg-white border-gray-200 focus:ring-primary h-11 px-4 rounded-xl"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label className="text-sm font-bold text-gray-700 ml-1">Category</Label>
-                         <Select value={newTemplate.category} onValueChange={v => setNewTemplate({...newTemplate, category: v})}>
-                            <SelectTrigger className="bg-white border-gray-200 focus:ring-primary h-11 px-4 rounded-xl">
-                               <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                               <SelectItem value="Marketing">Marketing</SelectItem>
-                               <SelectItem value="Utility">Utility</SelectItem>
-                               <SelectItem value="Authentication">Authentication</SelectItem>
-                            </SelectContent>
-                         </Select>
-                       </div>
-                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-bold text-gray-700 ml-1">Template Name</Label>
+                        <Input
+                          placeholder="e.g. order_confirmation"
+                          value={newTemplate.name}
+                          onChange={e => {
+                            const sanitizedValue = e.target.value
+                              .replace(/\s+/g, '_')   // Replace spaces with underscores
+                              .replace(/[^a-zA-Z0-9_]/g, '') // Remove special characters
+                              .substring(0, 20);      // Max 20 chars
+                            setNewTemplate({ ...newTemplate, name: sanitizedValue });
+                          }}
+                          className="bg-white border-gray-200 focus:ring-primary h-11 px-4 rounded-xl"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-bold text-gray-700 ml-1">Category</Label>
+                        <Select value={newTemplate.category} onValueChange={v => setNewTemplate({ ...newTemplate, category: v })}>
+                          <SelectTrigger className="bg-white border-gray-200 focus:ring-primary h-11 px-4 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="Marketing">Marketing</SelectItem>
+                            <SelectItem value="Utility">Utility</SelectItem>
+                            <SelectItem value="Authentication">Authentication</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-                     <Separator className="opacity-50" />
+                    <Separator className="opacity-50" />
 
-                     {newTemplate.channel === 'rcs' ? (
-                       <RCSTemplateForm 
-                         data={newTemplate} 
-                         onChange={(data) => setNewTemplate(data)} 
-                         onFileChange={(file) => {
-                           setSelectedFile(file);
-                           if (file) {
-                             setNewTemplate({
-                               ...newTemplate,
-                               metadata: { ...newTemplate.metadata, isUpload: true }
-                             });
-                           }
-                         }}
-                         onCarouselFileChange={(idx, file) => {
-                           setCarouselFiles(prev => ({ ...prev, [idx]: file }));
-                         }}
-                       />
-                     ) : (
-                       <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-bold text-gray-700 ml-1">Message Content</Label>
-                            <Textarea 
-                              value={newTemplate.body} 
-                              onChange={e => setNewTemplate({...newTemplate, body: e.target.value})} 
-                              rows={6} 
-                              placeholder="Type your message here... Use {{1}} for variables."
-                              className="bg-white border-gray-200 focus:ring-primary p-4 rounded-2xl resize-none text-sm"
-                            />
-                            <p className="text-[11px] text-muted-foreground ml-1">Tips: Use dynamic variables like {"{{1}}"}, {"{{2}}"} etc.</p>
-                          </div>
-                       </div>
-                     )}
+                    {newTemplate.channel === 'rcs' ? (
+                      <RCSTemplateForm
+                        data={newTemplate}
+                        onChange={(data) => setNewTemplate(data)}
+                        onFileChange={(file) => {
+                          setSelectedFile(file);
+                          if (file) {
+                            setNewTemplate({
+                              ...newTemplate,
+                              metadata: { ...newTemplate.metadata, isUpload: true }
+                            });
+                          }
+                        }}
+                        onCarouselFileChange={(idx, file) => {
+                          setCarouselFiles(prev => ({ ...prev, [idx]: file }));
+                        }}
+                      />
+                    ) : newTemplate.channel === 'whatsapp' ? (
+                      <WhatsAppTemplateForm
+                        data={newTemplate}
+                        onChange={(data) => setNewTemplate(data)}
+                      />
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-bold text-gray-700 ml-1">Message Content</Label>
+                          <Textarea
+                            value={newTemplate.body}
+                            onChange={e => setNewTemplate({ ...newTemplate, body: e.target.value })}
+                            rows={6}
+                            placeholder="Type your message here... Use {{1}} for variables."
+                            className="bg-white border-gray-200 focus:ring-primary p-4 rounded-2xl resize-none text-sm"
+                          />
+                          <p className="text-[11px] text-muted-foreground ml-1">Tips: Use dynamic variables like {"{{1}}"}, {"{{2}}"} etc.</p>
+                        </div>
+                      </div>
+                    )}
 
-                     <div className="flex justify-end items-center pt-6 gap-3">
-                         <Button variant="ghost" onClick={() => setIsTemplateOpen(false)} className="rounded-xl px-6">
-                           Discard
-                         </Button>
-                         <Button className="gradient-primary text-white border-none shadow-xl px-8 h-12 font-bold rounded-xl" onClick={() => handleSaveTemplate()}>
-                           {editingTemplate ? 'Update Changes' : 'Create Template'}
-                         </Button>
-                     </div>
-                   </div>
+                    <div className="flex justify-end items-center pt-6 gap-3">
+                      <Button variant="ghost" onClick={() => setIsTemplateOpen(false)} className="rounded-xl px-6">
+                        Discard
+                      </Button>
+                      <Button className="gradient-primary text-white border-none shadow-xl px-8 h-12 font-bold rounded-xl" onClick={() => handleSaveTemplate()}>
+                        {editingTemplate ? 'Update Changes' : 'Create Template'}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </ScrollArea>
@@ -1028,11 +1112,15 @@ export default function Templates() {
             {/* Preview Side - Sticky/Fixed */}
             {templateStep !== 'channel' && (
               <div className="hidden lg:flex flex-col bg-muted/20 p-4 h-full sticky top-0 overflow-hidden border-l border-border relative">
-                 <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-transparent pointer-events-none" />
-                 <h3 className="absolute top-4 left-0 right-0 text-center font-bold text-muted-foreground uppercase text-[10px] tracking-widest z-20">Live Preview</h3>
-                 <div className="relative z-10 flex-1 flex flex-col items-center justify-center overflow-y-auto no-scrollbar pt-8">
-                    {renderPhonePreview()}
-                 </div>
+                <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-transparent pointer-events-none" />
+                <h3 className="absolute top-4 left-0 right-0 text-center font-bold text-muted-foreground uppercase text-[10px] tracking-widest z-20">Live Preview</h3>
+                <div className="relative z-10 flex-1 flex flex-col items-center justify-center overflow-y-auto no-scrollbar pt-8">
+                  {newTemplate.channel === 'whatsapp' ? (
+                    <WhatsAppPreview data={newTemplate} />
+                  ) : (
+                    renderPhonePreview()
+                  )}
+                </div>
               </div>
             )}
           </div>

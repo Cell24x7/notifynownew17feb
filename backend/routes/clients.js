@@ -10,9 +10,9 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const authenticateToken = require('../middleware/authMiddleware');
 
-const isAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Unauthorized. Admin access required.' });
+const isResellerOrAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'reseller') {
+    return res.status(403).json({ success: false, message: 'Unauthorized. Admin or Reseller access required.' });
   }
   next();
 };
@@ -21,20 +21,29 @@ if (!JWT_SECRET) {
   console.error('CRITICAL: JWT_SECRET is missing in .env file! Impersonate will fail.');
 }
 
-// GET all clients (Admin only)
-router.get('/', authenticateToken, isAdmin, async (req, res) => {
+// GET all clients (Admin or Reseller filtered)
+router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
   try {
-    const [rows] = await query(`
+    let sql = `
       SELECT
         id, name, email, company AS company_name, contact_phone,
         plan_id, credits_available, wallet_balance, credits_used,
         IFNULL(channels_enabled, '[]') AS channels_enabled,
-        status, created_at, permissions, rcs_config_id,
-        rcs_text_price, rcs_rich_card_price, rcs_carousel_price
+        status, created_at, permissions, rcs_config_id, whatsapp_config_id,
+        rcs_text_price, rcs_rich_card_price, rcs_carousel_price, reseller_id
       FROM users
       WHERE role IN ('client', 'user')
-      ORDER BY id DESC
-    `);
+    `;
+    let params = [];
+
+    if (req.user.role === 'reseller') {
+      sql += ' AND reseller_id = ?';
+      params.push(req.user.actual_reseller_id);
+    }
+
+    sql += ' ORDER BY id DESC';
+
+    const [rows] = await query(sql, params);
 
     // Parse permissions if they are strings
     const clients = rows.map(client => ({
@@ -49,8 +58,8 @@ router.get('/', authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
-// ADD client (Admin only)
-router.post('/', authenticateToken, isAdmin, async (req, res) => {
+// ADD client (Admin or Reseller)
+router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
   const {
     name = '', company_name = '', contact_phone = '',
     email, password, plan_id = '', status = 'active',
@@ -71,13 +80,14 @@ router.post('/', authenticateToken, isAdmin, async (req, res) => {
     const [result] = await query(`
       INSERT INTO users (
         name, company, contact_phone, email, password, role,
-        status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled, rcs_config_id,
-        rcs_text_price, rcs_rich_card_price, rcs_carousel_price
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+        status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled, rcs_config_id, whatsapp_config_id,
+        rcs_text_price, rcs_rich_card_price, rcs_carousel_price, reseller_id
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, company_name, contact_phone, email, hash,
-      status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), req.body.rcs_config_id || null,
-      rcs_text_price, rcs_rich_card_price, rcs_carousel_price
+      status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), req.body.rcs_config_id || null, req.body.whatsapp_config_id || null,
+      rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
+      req.user.role === 'reseller' ? req.user.actual_reseller_id : (req.body.reseller_id || null)
     ]);
 
     // Log Initial Transaction
@@ -96,11 +106,11 @@ router.post('/', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // UPDATE client (Admin only)
-router.put('/:id', authenticateToken, isAdmin, async (req, res) => {
+router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   const clientId = req.params.id;
   const {
     name, company_name, contact_phone, email, password,
-    plan_id, status, credits_available, channels_enabled, permissions, rcs_config_id,
+    plan_id, status, credits_available, channels_enabled, permissions, rcs_config_id, whatsapp_config_id,
     rcs_text_price, rcs_rich_card_price, rcs_carousel_price
   } = req.body;
 
@@ -117,6 +127,7 @@ router.put('/:id', authenticateToken, isAdmin, async (req, res) => {
   if (channels_enabled !== undefined) { fields.push('channels_enabled = ?'); values.push(JSON.stringify(channels_enabled)); }
   if (permissions !== undefined) { fields.push('permissions = ?'); values.push(JSON.stringify(permissions)); }
   if (rcs_config_id !== undefined) { fields.push('rcs_config_id = ?'); values.push(rcs_config_id); }
+  if (whatsapp_config_id !== undefined) { fields.push('whatsapp_config_id = ?'); values.push(whatsapp_config_id); }
   if (rcs_text_price !== undefined) { fields.push('rcs_text_price = ?'); values.push(rcs_text_price); }
   if (rcs_rich_card_price !== undefined) { fields.push('rcs_rich_card_price = ?'); values.push(rcs_rich_card_price); }
   if (rcs_carousel_price !== undefined) { fields.push('rcs_carousel_price = ?'); values.push(rcs_carousel_price); }
@@ -150,8 +161,13 @@ router.put('/:id', authenticateToken, isAdmin, async (req, res) => {
       }
     }
 
-    const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role IN ('client', 'user')`;
+    let sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role IN ('client', 'user')`;
     values.push(clientId);
+
+    if (req.user.role === 'reseller') {
+      sql += ' AND reseller_id = ?';
+      values.push(req.user.actual_reseller_id);
+    }
 
     const [result] = await query(sql, values);
 
@@ -165,14 +181,19 @@ router.put('/:id', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // DELETE client (Admin only)
-router.delete('/:id', authenticateToken, isAdmin, async (req, res) => {
+router.delete('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   const clientId = req.params.id;
 
   try {
-    const [result] = await query(
-      'DELETE FROM users WHERE id = ? AND role IN ("client", "user")',
-      [clientId]
-    );
+    let sql = 'DELETE FROM users WHERE id = ? AND role IN ("client", "user")';
+    let params = [clientId];
+
+    if (req.user.role === 'reseller') {
+      sql += ' AND reseller_id = ?';
+      params.push(req.user.actual_reseller_id);
+    }
+
+    const [result] = await query(sql, params);
 
     if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Client not found' });
 
@@ -185,7 +206,7 @@ router.delete('/:id', authenticateToken, isAdmin, async (req, res) => {
 
 // IMPERSONATE client – Yeh final safe version hai
 // IMPERSONATE client – Yeh final safe version hai (Admin only)
-router.post('/:id/impersonate', authenticateToken, isAdmin, async (req, res) => {
+router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req, res) => {
   const clientId = req.params.id;
   console.log(`[IMPERSONATE START] Requested for client ID: ${clientId}`);
 
@@ -201,14 +222,22 @@ router.post('/:id/impersonate', authenticateToken, isAdmin, async (req, res) => 
 
     console.log('[IMPERSONATE] Querying database...');
     // Updated query to fetch permissions and plan permissions
-    const [rows] = await query(`
+    let sql = `
       SELECT u.id, u.name, u.email, u.company, u.role, u.channels_enabled, u.permissions,
              u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
-             p.permissions as plan_permissions
+             p.permissions as plan_permissions, u.reseller_id
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
       WHERE u.id = ? AND u.role IN ("client", "user")
-    `, [clientId]);
+    `;
+    let params = [clientId];
+
+    if (req.user.role === 'reseller') {
+      sql += ' AND u.reseller_id = ?';
+      params.push(req.user.actual_reseller_id);
+    }
+
+    const [rows] = await query(sql, params);
 
     console.log('[IMPERSONATE] Query returned rows count:', rows.length);
     if (rows.length === 0) {

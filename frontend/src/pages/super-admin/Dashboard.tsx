@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Users, 
-  MessageSquare, 
-  CreditCard, 
-  TrendingUp, 
+import {
+  Building2,
+  Users,
+  MessageSquare,
+  CreditCard,
+  TrendingUp,
   TrendingDown,
   Zap
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { superAdminApi, SuperAdminStats } from '@/services/superAdminApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 const channelColors: Record<string, string> = {
   whatsapp: '#22c55e', // Bright Green
@@ -24,6 +25,7 @@ const channelColors: Record<string, string> = {
 const COLORS_LIST = ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#1d4ed8', '#06b6d4', '#14b8a6'];
 
 export default function SuperAdminDashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<SuperAdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,7 +50,7 @@ export default function SuperAdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -79,8 +81,8 @@ export default function SuperAdminDashboard() {
     },
     {
       title: 'Messages Processed',
-      value: (stats.totalMessagesProcessed > 1000000) 
-        ? (stats.totalMessagesProcessed / 1000000).toFixed(2) + 'M' 
+      value: (stats.totalMessagesProcessed > 1000000)
+        ? (stats.totalMessagesProcessed / 1000000).toFixed(2) + 'M'
         : stats.totalMessagesProcessed.toLocaleString(),
       change: `+${stats.messagesToday.toLocaleString()} today`,
       trend: 'up',
@@ -107,8 +109,12 @@ export default function SuperAdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Platform Dashboard</h1>
-          <p className="text-muted-foreground">Global metrics across all clients</p>
+          <h1 className="text-2xl font-bold">
+            {user?.role === 'reseller' ? 'Reseller Dashboard' : 'Platform Dashboard'}
+          </h1>
+          <p className="text-muted-foreground">
+            {user?.role === 'reseller' ? 'Performance metrics for your clients' : 'Global metrics across all clients'}
+          </p>
         </div>
         <div className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg">
           <Users className="w-4 h-4" />
@@ -154,10 +160,10 @@ export default function SuperAdminDashboard() {
                 <BarChart data={stats.weeklyMessages}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="day" className="text-xs" />
-                  <YAxis className="text-xs" tickFormatter={(v) => v >= 1000 ? `${v/1000}K` : v} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
+                  <YAxis className="text-xs" tickFormatter={(v) => v >= 1000 ? `${v / 1000}K` : v} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px'
                     }}
@@ -191,16 +197,16 @@ export default function SuperAdminDashboard() {
                     paddingAngle={2}
                   >
                     {stats.channelUsage.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={channelColors[entry.channel.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length]} 
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={channelColors[entry.channel.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length]}
                         strokeWidth={0}
                       />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px'
                     }}
@@ -210,23 +216,23 @@ export default function SuperAdminDashboard() {
               </ResponsiveContainer>
               <div className="flex-1 space-y-3 max-h-[250px] overflow-y-auto px-4">
                 {stats.channelUsage.filter(i => i.percentage > 0).length === 0 ? (
-                    <div className="text-center text-muted-foreground text-sm">
-                      <p>No activity yet.</p>
-                      <p className="text-xs mt-1">Start sending campaigns to see stats.</p>
-                    </div>
-                ) : (
-                    stats.channelUsage.filter(i => i.percentage > 0).map((item, index) => (
-                  <div key={item.channel} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full ring-2 ring-background ring-offset-1" 
-                        style={{ backgroundColor: channelColors[item.channel.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length] }}
-                      />
-                      <span className="capitalize font-medium">{item.channel}</span>
-                    </div>
-                    <span className="font-bold">{item.percentage}%</span>
+                  <div className="text-center text-muted-foreground text-sm">
+                    <p>No activity yet.</p>
+                    <p className="text-xs mt-1">Start sending campaigns to see stats.</p>
                   </div>
-                )))}
+                ) : (
+                  stats.channelUsage.filter(i => i.percentage > 0).map((item, index) => (
+                    <div key={item.channel} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full ring-2 ring-background ring-offset-1"
+                          style={{ backgroundColor: channelColors[item.channel.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length] }}
+                        />
+                        <span className="capitalize font-medium">{item.channel}</span>
+                      </div>
+                      <span className="font-bold">{item.percentage}%</span>
+                    </div>
+                  )))}
               </div>
             </div>
           </CardContent>
@@ -259,22 +265,22 @@ export default function SuperAdminDashboard() {
                       <Cell key={`cell-${index}`} fill={channelColors[entry.name.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length]} strokeWidth={0} />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '8px' }}
                     formatter={(value: number) => [value, 'Clients']}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex-1 space-y-2">
-                 {stats.planDistribution.map((item, index) => (
-                    <div key={item.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channelColors[item.name.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length] }} />
-                        <span>{item.name}</span>
-                      </div>
-                      <span className="font-bold">{item.value}</span>
+                {stats.planDistribution.map((item, index) => (
+                  <div key={item.name} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channelColors[item.name.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length] }} />
+                      <span>{item.name}</span>
                     </div>
-                 ))}
+                    <span className="font-bold">{item.value}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -302,8 +308,8 @@ export default function SuperAdminDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                       <span className="font-bold text-sm">{client.balance.toLocaleString()}</span>
-                       <span className="text-xs text-muted-foreground ml-1">credits</span>
+                      <span className="font-bold text-sm">{client.balance.toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground ml-1">credits</span>
                     </div>
                   </div>
                 ))

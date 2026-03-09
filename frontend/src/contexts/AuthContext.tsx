@@ -24,6 +24,7 @@ interface User {
   rcs_text_price?: number;
   rcs_rich_card_price?: number;
   rcs_carousel_price?: number;
+  actual_reseller_id?: number;
 }
 
 interface AuthContextType {
@@ -70,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: decoded.rcs_text_price,
           rcs_rich_card_price: decoded.rcs_rich_card_price,
           rcs_carousel_price: decoded.rcs_carousel_price,
+          actual_reseller_id: decoded.actual_reseller_id,
         });
       } catch (err) {
         console.error('Invalid token on load:', err);
@@ -87,12 +89,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (success && token) {
         localStorage.setItem('authToken', token);
-        
+
         // Ensure complex fields are parsed if they come as strings (though backend sends objects usually)
-        const channels = typeof userData.channels_enabled === 'string' 
-          ? JSON.parse(userData.channels_enabled) 
+        const channels = typeof userData.channels_enabled === 'string'
+          ? JSON.parse(userData.channels_enabled)
           : (userData.channels_enabled || []);
-          
+
         const permissions = typeof userData.permissions === 'string'
           ? JSON.parse(userData.permissions)
           : (userData.permissions || []);
@@ -111,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: userData.rcs_text_price,
           rcs_rich_card_price: userData.rcs_rich_card_price,
           rcs_carousel_price: userData.rcs_carousel_price,
+          actual_reseller_id: userData.actual_reseller_id,
         });
         return true;
       }
@@ -152,6 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: userData.rcs_text_price,
           rcs_rich_card_price: userData.rcs_rich_card_price,
           rcs_carousel_price: userData.rcs_carousel_price,
+          actual_reseller_id: userData.actual_reseller_id,
         });
         return true;
       }
@@ -182,8 +186,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = response.data.user;
         setUser({
           ...userData,
-          channels_enabled: typeof userData.channels_enabled === 'string' 
-            ? JSON.parse(userData.channels_enabled) 
+          channels_enabled: typeof userData.channels_enabled === 'string'
+            ? JSON.parse(userData.channels_enabled)
             : (userData.channels_enabled || []),
           permissions: typeof userData.permissions === 'string'
             ? JSON.parse(userData.permissions)
@@ -193,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: userData.rcs_text_price,
           rcs_rich_card_price: userData.rcs_rich_card_price,
           rcs_carousel_price: userData.rcs_carousel_price,
+          actual_reseller_id: userData.actual_reseller_id,
         });
       }
     } catch (err) {

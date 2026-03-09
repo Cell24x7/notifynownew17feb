@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ShoppingCart,
   FileText,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -34,6 +35,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface AppSidebarProps {
   onClose?: () => void;
@@ -45,6 +47,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { settings } = useBranding();
 
   const isDark = theme === 'dark';
 
@@ -84,6 +87,8 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Puzzle, label: 'Marketplace', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: BarChart3, label: 'Reports', path: '/reports', show: hasPermission('Reports - View') || true }, // Default true for now as requested by user
+    { icon: Users, label: 'Manage Users', path: '/reseller/users', show: user?.role === 'reseller' },
+    { icon: Globe, label: 'White-labeling', path: '/reseller/branding', show: user?.role === 'reseller' },
     { icon: ShoppingCart, label: 'Old Marketplace', path: '/marketplace', show: false },
     { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: true },
@@ -118,11 +123,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
         <div className="flex items-center gap-2.5">
           <img
-            src="/logo.svg"
-            alt="NotifyNow"
+            src={settings?.logo_url || "/logo.svg"}
+            alt={settings?.brand_name || "NotifyNow"}
             className="w-8 h-8 rounded-lg object-contain"
           />
-          <span className="font-bold text-xl tracking-tight">NotifyNow</span>
+          <span className="font-bold text-xl tracking-tight">{settings?.brand_name || "NotifyNow"}</span>
         </div>
 
         {/* <Button

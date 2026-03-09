@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Megaphone, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Megaphone,
   Building2,
   CreditCard,
   Shield,
@@ -16,7 +16,8 @@ import {
   Crown,
   LogOut,
   FileText,
-  MessageSquareMore
+  MessageSquareMore,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,7 @@ const menuItems = [
   { icon: ScrollText, label: 'Reports', path: '/super-admin/reports', permission: 'Reports - View' },
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
   { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'Vendors - View' },
+  { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'Vendors - View' },
   { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
 ];
@@ -52,16 +54,16 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const { logout, user } = useAuth();
 
   const hasPermission = (feature: string) => {
-      // Super Admin always has full access
-      if (user?.role === 'admin') return true;
+    // Super Admin always has full access
+    if (user?.role === 'admin') return true;
 
-      // Safety check: ensure permissions is an array
-      if (!user?.permissions || !Array.isArray(user.permissions)) return false; 
+    // Safety check: ensure permissions is an array
+    if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
-      const perm = user.permissions.find((p: any) => p.feature === feature);
-      if (!perm) return false; // Strict: if feature not found, deny
-      
-      return perm.admin === true || perm.admin === 1;
+    const perm = user.permissions.find((p: any) => p.feature === feature);
+    if (!perm) return false; // Strict: if feature not found, deny
+
+    return perm.admin === true || perm.admin === 1;
   };
 
   return (
@@ -92,7 +94,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
         <ul className="space-y-1 px-2">
           {menuItems.map((item) => {
             if (!hasPermission(item.permission)) return null;
-            
+
             const isActive = location.pathname === item.path;
             return (
               <li key={item.path}>
@@ -123,27 +125,27 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
 
       {/* Footer */}
       <div className="p-4 border-t border-border">
-  {!collapsed && (
-    <div className="mb-3 px-2">
-      <div className="text-xs text-muted-foreground">Logged in as</div>
-      <div className="text-sm font-medium truncate">Platform Owner</div>
-    </div>
-  )}
+        {!collapsed && (
+          <div className="mb-3 px-2">
+            <div className="text-xs text-muted-foreground">Logged in as</div>
+            <div className="text-sm font-medium truncate">Platform Owner</div>
+          </div>
+        )}
 
-  <Button
-    variant="ghost"
-    size={collapsed ? "icon" : "sm"}
-    onClick={logout}
-    className={cn(
-      "w-full flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-50",
-      collapsed && "justify-center"
-    )}
-    title="Logout"
-  >
-    <LogOut className="w-4 h-4" />
-    {!collapsed && <span>Logout</span>}
-  </Button>
-</div>
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "sm"}
+          onClick={logout}
+          className={cn(
+            "w-full flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-50",
+            collapsed && "justify-center"
+          )}
+          title="Logout"
+        >
+          <LogOut className="w-4 h-4" />
+          {!collapsed && <span>Logout</span>}
+        </Button>
+      </div>
 
     </aside>
   );
