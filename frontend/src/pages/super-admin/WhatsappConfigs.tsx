@@ -38,9 +38,12 @@ export default function WhatsappConfigs() {
 
     const [formData, setFormData] = useState({
         chatbot_name: '',
+        provider: 'vendor1',
+        wanumber: '',
         domain: '',
         customer_id: '',
         wa_token: '',
+        api_key: '',
         ph_no_id: '',
         wa_biz_accnt_id: '',
         is_active: true
@@ -75,17 +78,23 @@ export default function WhatsappConfigs() {
         setSelectedConfig(config);
         setFormData(config ? {
             chatbot_name: config.chatbot_name || '',
+            provider: config.provider || 'vendor1',
+            wanumber: config.wanumber || '',
             domain: config.domain || '',
             customer_id: config.customer_id || '',
             wa_token: config.wa_token || '',
+            api_key: config.api_key || '',
             ph_no_id: config.ph_no_id || '',
             wa_biz_accnt_id: config.wa_biz_accnt_id || '',
             is_active: config.is_active !== undefined ? config.is_active : true
         } : {
             chatbot_name: '',
+            provider: 'vendor1',
+            wanumber: '',
             domain: '',
             customer_id: '',
             wa_token: '',
+            api_key: '',
             ph_no_id: '',
             wa_biz_accnt_id: '',
             is_active: true
@@ -98,8 +107,12 @@ export default function WhatsappConfigs() {
             toast({ variant: 'destructive', title: 'Chatbot Name is required' });
             return false;
         }
-        if (!formData.wa_token.trim()) {
+        if (formData.provider === 'vendor1' && !formData.wa_token.trim()) {
             toast({ variant: 'destructive', title: 'WhatsApp Token is required' });
+            return false;
+        }
+        if (formData.provider === 'vendor2' && !formData.api_key.trim()) {
+            toast({ variant: 'destructive', title: 'API Key is required' });
             return false;
         }
         if (!formData.ph_no_id.trim()) {
@@ -171,6 +184,8 @@ export default function WhatsappConfigs() {
 
     const filteredConfigs = configs.filter((c: any) =>
         c.chatbot_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.wanumber && c.wanumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (c.provider && c.provider.toLowerCase().includes(searchQuery.toLowerCase())) ||
         c.ph_no_id.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -213,6 +228,8 @@ export default function WhatsappConfigs() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Chatbot Name</TableHead>
+                                        <TableHead>Provider</TableHead>
+                                        <TableHead>WA Number</TableHead>
                                         <TableHead>Phone No ID</TableHead>
                                         <TableHead>Biz Account ID</TableHead>
                                         <TableHead>Customer</TableHead>
@@ -224,10 +241,26 @@ export default function WhatsappConfigs() {
                                     {filteredConfigs.map((config: any) => (
                                         <TableRow key={config.id}>
                                             <TableCell className="font-medium">
-                                                <div className="flex items-center gap-2">
-                                                    <MessageCircle className="w-4 h-4 text-green-500" />
-                                                    {config.chatbot_name}
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <MessageCircle className="w-4 h-4 text-green-500" />
+                                                        {config.chatbot_name}
+                                                    </div>
                                                 </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "capitalize",
+                                                        config.provider === 'vendor1' ? "border-blue-200 text-blue-700 bg-blue-50" : "border-orange-200 text-orange-700 bg-orange-50"
+                                                    )}
+                                                >
+                                                    {config.provider === 'vendor1' ? 'Vendor 1' : 'Vendor 2'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="font-mono text-sm">
+                                                {config.wanumber || '-'}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant="secondary" className="font-mono">{config.ph_no_id}</Badge>
@@ -274,7 +307,7 @@ export default function WhatsappConfigs() {
             </Card>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-xl">
+                <DialogContent className="sm:max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{selectedConfig ? 'Edit WhatsApp Config' : 'Add New WhatsApp Config'}</DialogTitle>
                         <DialogDescription>
@@ -283,8 +316,32 @@ export default function WhatsappConfigs() {
                     </DialogHeader>
 
                     <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="chatbot_name" className="text-right">Chatbot Name</Label>
+                        <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                            <Label htmlFor="provider" className="text-left sm:text-right font-semibold w-full">Provider</Label>
+                            <div className="flex items-center gap-2 col-span-3">
+                                <Button
+                                    type="button"
+                                    variant={formData.provider === 'vendor1' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFormData({ ...formData, provider: 'vendor1' })}
+                                    className={formData.provider === 'vendor1' ? 'bg-blue-600' : ''}
+                                >
+                                    Vendor 1
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={formData.provider === 'vendor2' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFormData({ ...formData, provider: 'vendor2' })}
+                                    className={formData.provider === 'vendor2' ? 'bg-orange-600' : ''}
+                                >
+                                    Vendor 2
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                            <Label htmlFor="chatbot_name" className="text-left sm:text-right w-full">Chatbot Name</Label>
                             <Input
                                 id="chatbot_name"
                                 className="col-span-3"
@@ -294,41 +351,69 @@ export default function WhatsappConfigs() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="domain" className="text-right">Domain</Label>
+                        <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                            <Label htmlFor="wanumber" className="text-left sm:text-right w-full">WA Number</Label>
                             <Input
-                                id="domain"
+                                id="wanumber"
                                 className="col-span-3"
-                                value={formData.domain}
-                                onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                                placeholder="e.g. example.com"
+                                value={formData.wanumber}
+                                onChange={(e) => setFormData({ ...formData, wanumber: e.target.value })}
+                                placeholder="e.g. +917208195276"
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="customer_id" className="text-right">Customer ID</Label>
-                            <Input
-                                id="customer_id"
-                                className="col-span-3"
-                                value={formData.customer_id}
-                                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                                placeholder="e.g. CPV001"
-                            />
-                        </div>
+                        {formData.provider === 'vendor1' && (
+                            <>
+                                <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="domain" className="text-left sm:text-right w-full">Domain</Label>
+                                    <Input
+                                        id="domain"
+                                        className="col-span-3"
+                                        value={formData.domain}
+                                        onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
+                                        placeholder="e.g. example.com"
+                                    />
+                                </div>
 
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="wa_token" className="text-right">WA Token</Label>
-                            <Input
-                                id="wa_token"
-                                className="col-span-3"
-                                value={formData.wa_token}
-                                onChange={(e) => setFormData({ ...formData, wa_token: e.target.value })}
-                                placeholder="Permanent Access Token"
-                            />
-                        </div>
+                                <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="customer_id" className="text-left sm:text-right w-full">Customer ID</Label>
+                                    <Input
+                                        id="customer_id"
+                                        className="col-span-3"
+                                        value={formData.customer_id}
+                                        onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                                        placeholder="e.g. CPV001"
+                                    />
+                                </div>
 
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="ph_no_id" className="text-right">Phone No ID</Label>
+                                <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                    <Label htmlFor="wa_token" className="text-left sm:text-right w-full">WA Token</Label>
+                                    <Input
+                                        id="wa_token"
+                                        className="col-span-3"
+                                        value={formData.wa_token}
+                                        onChange={(e) => setFormData({ ...formData, wa_token: e.target.value })}
+                                        placeholder="Permanent Access Token"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {formData.provider === 'vendor2' && (
+                            <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                <Label htmlFor="api_key" className="text-left sm:text-right w-full">API Key</Label>
+                                <Input
+                                    id="api_key"
+                                    className="col-span-3"
+                                    value={formData.api_key}
+                                    onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                                    placeholder="Enter your Vendor 2 API Key"
+                                />
+                            </div>
+                        )}
+
+                        <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                            <Label htmlFor="ph_no_id" className="text-left sm:text-right w-full">Phone No ID</Label>
                             <Input
                                 id="ph_no_id"
                                 className="col-span-3"
@@ -338,8 +423,8 @@ export default function WhatsappConfigs() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="wa_biz_accnt_id" className="text-right">Biz Account ID</Label>
+                        <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                            <Label htmlFor="wa_biz_accnt_id" className="text-left sm:text-right w-full">Biz Account ID</Label>
                             <Input
                                 id="wa_biz_accnt_id"
                                 className="col-span-3"
@@ -349,8 +434,8 @@ export default function WhatsappConfigs() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Status</Label>
+                        <div className="flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                            <Label className="text-left sm:text-right w-full">Status</Label>
                             <div className="flex items-center gap-2 col-span-3">
                                 <Button
                                     type="button"

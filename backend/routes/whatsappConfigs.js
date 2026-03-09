@@ -32,15 +32,15 @@ router.get('/', authenticate, isAdmin, async (req, res) => {
  */
 router.post('/', authenticate, isAdmin, async (req, res) => {
     try {
-        const { chatbot_name, domain, customer_id, wa_token, ph_no_id, wa_biz_accnt_id } = req.body;
+        const { chatbot_name, provider, wanumber, domain, customer_id, wa_token, api_key, ph_no_id, wa_biz_accnt_id } = req.body;
 
-        if (!chatbot_name || !wa_token || !ph_no_id || !wa_biz_accnt_id) {
+        if (!chatbot_name || (provider === 'vendor1' && (!wa_token || !ph_no_id || !wa_biz_accnt_id)) || (provider === 'vendor2' && (!api_key || !ph_no_id || !wa_biz_accnt_id))) {
             return res.status(400).json({ success: false, message: 'Required fields are missing' });
         }
 
         const [result] = await query(
-            'INSERT INTO whatsapp_configs (chatbot_name, domain, customer_id, wa_token, ph_no_id, wa_biz_accnt_id) VALUES (?, ?, ?, ?, ?, ?)',
-            [chatbot_name, domain, customer_id, wa_token, ph_no_id, wa_biz_accnt_id]
+            'INSERT INTO whatsapp_configs (chatbot_name, provider, wanumber, domain, customer_id, wa_token, api_key, ph_no_id, wa_biz_accnt_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [chatbot_name, provider || 'vendor1', wanumber, domain, customer_id, wa_token, api_key, ph_no_id, wa_biz_accnt_id]
         );
 
         res.status(201).json({
@@ -61,7 +61,7 @@ router.post('/', authenticate, isAdmin, async (req, res) => {
 router.put('/:id', authenticate, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { chatbot_name, domain, customer_id, wa_token, ph_no_id, wa_biz_accnt_id, is_active } = req.body;
+        const { chatbot_name, provider, wanumber, domain, customer_id, wa_token, api_key, ph_no_id, wa_biz_accnt_id, is_active } = req.body;
 
         const [existing] = await query('SELECT id FROM whatsapp_configs WHERE id = ?', [id]);
         if (existing.length === 0) {
@@ -70,11 +70,11 @@ router.put('/:id', authenticate, isAdmin, async (req, res) => {
 
         await query(
             `UPDATE whatsapp_configs SET 
-                chatbot_name = ?, domain = ?, customer_id = ?, 
-                wa_token = ?, ph_no_id = ?, wa_biz_accnt_id = ?, 
+                chatbot_name = ?, provider = ?, wanumber = ?, domain = ?, customer_id = ?, 
+                wa_token = ?, api_key = ?, ph_no_id = ?, wa_biz_accnt_id = ?, 
                 is_active = ? 
              WHERE id = ?`,
-            [chatbot_name, domain, customer_id, wa_token, ph_no_id, wa_biz_accnt_id, is_active === undefined ? true : is_active, id]
+            [chatbot_name, provider || 'vendor1', wanumber, domain, customer_id, wa_token, api_key, ph_no_id, wa_biz_accnt_id, is_active === undefined ? true : is_active, id]
         );
 
         res.json({ success: true, message: 'WhatsApp Configuration updated successfully' });
