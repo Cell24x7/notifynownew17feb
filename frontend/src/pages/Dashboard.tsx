@@ -6,20 +6,26 @@ import {
   Send,
   TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
-  Star,
+  TrendingDown,
   Clock,
   CheckCircle,
-  Bot,
-  UserCheck,
   Activity,
   BarChart3,
-  Phone,
-  Mail,
-  Headphones,
   Wallet,
+  Calendar,
+  Layers,
+  Search,
+  ChevronRight,
+  ShieldCheck,
+  AlertCircle,
+  ArrowRight,
+  LogOut,
+  Moon,
+  Sun,
+  UserCircle,
+  ChevronDown
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { API_BASE_URL } from '@/config/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { ChannelIcon, channelConfig } from '@/components/ui/channel-icon';
@@ -35,6 +41,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useTheme } from 'next-themes';
+import { Button } from '@/components/ui/button';
+import {
   BarChart,
   Bar,
   XAxis,
@@ -45,38 +61,33 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-  Legend,
   AreaChart,
   Area,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
-
-
-const pieColors = ['#4ADE80', '#6366F1', '#EC4899', '#3B82F6', '#8B5CF6', '#F59E0B', '#14B8A6'];
-const channelColors: Record<string, string> = {
+const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const CHANNEL_COLORS: Record<string, string> = {
   whatsapp: '#25D366',
   sms: '#3B82F6',
   rcs: '#8B5CF6',
 };
 
 export default function Dashboard() {
-  const { user, refreshUser } = useAuth();
-  const enabledChannels = Array.isArray(user?.channels_enabled) 
-    ? user.channels_enabled.map(ch => ch.toLowerCase())
-    : typeof user?.channels_enabled === 'string'
-      ? (user.channels_enabled as string).split(',').map(ch => ch.trim().toLowerCase())
-      : [];
+  const { user, logout, refreshUser } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const isDark = theme === 'dark';
+
+  const enabledChannels = Array.isArray(user?.channels_enabled)
+    ? user.channels_enabled.map(ch => ch.toLowerCase())
+    : typeof user?.channels_enabled === 'string'
+      ? (user.channels_enabled as string).split(',').map(ch => ch.trim().toLowerCase())
+      : ['whatsapp', 'sms', 'rcs'];
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -96,14 +107,18 @@ export default function Dashboard() {
       }
     };
     fetchStats();
-    refreshUser(); // Sync balance with DB
+    refreshUser();
   }, []);
 
   if (loading || !stats) {
-    return <div className="p-8 text-center">Loading dashboard...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-screen space-y-4 animate-pulse">
+        <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+        <p className="text-muted-foreground font-medium">Initializing Analytics...</p>
+      </div>
+    );
   }
 
-  // Use stats from backend
   const pieData = Object.entries(stats.channelDistribution)
     .filter(([channel]) => enabledChannels.includes(channel.toLowerCase()))
     .map(([channel, value]) => ({
@@ -112,367 +127,220 @@ export default function Dashboard() {
       channel: channel as keyof typeof channelConfig,
     }));
 
-  // Helper calculations based on stats
-  const totalConversations = stats.totalConversations;
-  const campaignsSent = stats.campaignsSent;
-  const weeklyChats = stats.weeklyChats;
-  
-  const channels = enabledChannels.map(id => ({ key: id, icon: id }));
-
-  // Process per-channel stats from backend
-  const channelStats = stats.channelStats || {};
-
-  // Map stat cards - Keeping only 100% real data points
-  const realStatCards = [
-    {
-      title: 'Total Conversations',
-      value: totalConversations.toLocaleString(),
-      change: '', // Removing mock changes
-      trend: 'up',
-      icon: MessageSquare,
-      color: 'text-primary',
-      bg: 'bg-primary/10',
-    },
-    {
-      title: 'Campaigns Sent',
-      value: campaignsSent.toLocaleString(),
-      change: '',
-      trend: 'up',
-      icon: Send,
-      color: 'text-secondary',
-      bg: 'bg-secondary/10',
-    },
-    {
-      title: 'Available Credits',
-      value: `\u20B9${(user?.wallet_balance || 0).toLocaleString()}`,
-      change: '',
-      trend: 'up',
-      icon: Wallet,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-500/10',
-    }
-  ];
+  const today = stats.today || { messages: 0, delivered: 0, failed: 0, campaigns: 0 };
+  const recentCampaigns = stats.recentCampaigns || [];
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in overflow-auto">
-      {/* Header */}
-      <div className="flex flex-col gap-1 md:gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold">Analytics Dashboard</h1>
-        <p className="text-muted-foreground text-sm md:text-base">Comprehensive insights across all your communication channels.</p>
+    <div className="p-4 md:p-8 space-y-8 bg-zinc-50/50 min-h-screen animate-fade-in overflow-auto">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-2">
+        <div className="space-y-1">
+          <Badge variant="outline" className="mb-2 px-3 py-0.5 rounded-full border-slate-200 bg-slate-100/50 text-slate-600 text-[10px] uppercase tracking-wider font-semibold">
+            Real-time Activity
+          </Badge>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 flex items-center gap-3">
+            Analytics Overview
+            <Activity className="h-5 w-5 text-primary animate-pulse" />
+          </h1>
+          <p className="text-slate-500 text-sm font-medium max-w-lg">
+            Monitor communication performance and credit consumption with live metrics.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100">
+            <div className="p-2 bg-emerald-50 rounded-lg">
+              <Wallet className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Balance</p>
+              <p className="text-lg font-bold text-slate-800 font-mono">₹{Number(user?.wallet_balance || 0).toFixed(2)}</p>
+            </div>
+            <button className="ml-2 p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-all border border-slate-200">
+              <Zap className="h-4 w-4 fill-amber-500 text-amber-500" />
+            </button>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-50 transition-all active:scale-95 group">
+                <div className="h-9 w-9 bg-primary/10 rounded-xl flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/20">
+                  {user?.profile_image ? (
+                    <img src={user.profile_image} className="w-full h-full object-cover" />
+                  ) : (
+                    user?.name?.charAt(0).toUpperCase() || <UserCircle className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="hidden sm:block pr-1">
+                  <p className="text-xs font-bold text-slate-800 leading-tight">{user?.name || 'User'}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">{user?.role || 'Client'}</p>
+                </div>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-data-[state=open]:rotate-180 transition-transform" />
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64 p-2 rounded-2xl" align="end" sideOffset={12}>
+              <DropdownMenuLabel className="font-normal p-3">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-sm font-bold text-slate-800">{user?.name}</p>
+                  <p className="text-xs text-slate-500">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-100" />
+              <DropdownMenuItem className="p-3 rounded-xl cursor-pointer" onClick={() => setTheme(isDark ? 'light' : 'dark')}>
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-slate-100 rounded-lg">
+                    {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-slate-600" />}
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-slate-100" />
+              <DropdownMenuItem className="p-3 rounded-xl cursor-pointer text-rose-600 focus:bg-rose-50 focus:text-rose-600" onClick={logout}>
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-rose-50 rounded-lg">
+                    <LogOut className="h-4 w-4 text-rose-600" />
+                  </div>
+                  <span className="text-sm font-bold uppercase tracking-wider">Logout Session</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {realStatCards.map((stat) => (
-          <Card key={stat.title} className="card-elevated animate-slide-up">
+      {/* Today's Pulse Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {[
+          { label: "Today's Volume", value: today.messages, icon: Send, color: "indigo", unit: "msgs" },
+          { label: "Successfully Delivered", value: today.delivered, icon: ShieldCheck, color: "emerald", unit: "msgs" },
+          { label: "Recently Failed", value: today.failed, icon: AlertCircle, color: "rose", unit: "msgs" },
+          { label: "Active Campaigns", value: today.campaigns, icon: Zap, color: "amber", unit: "live" },
+        ].map((item, i) => (
+          <Card key={i} className={cn(
+            "relative group overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-500",
+            `bg-${item.color}-600/5`
+          )}>
+            <div className={cn("absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 rounded-full opacity-10 transition-transform group-hover:scale-150 p-2", `bg-${item.color}-600`)} />
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className={`p-3 rounded-xl ${stat.bg}`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+              <div className="flex items-center justify-between mb-4">
+                <div className={cn("p-2.5 rounded-xl shadow-inner", `bg-${item.color}-100`)}>
+                  <item.icon className={cn("h-5 w-5", `text-${item.color}-600`)} />
                 </div>
-                <div className={`flex items-center gap-1 text-sm text-success`}>
-                  <Activity className="h-4 w-4" />
-                  Real Time
+                <div className="text-[10px] font-bold py-0.5 px-2 bg-white rounded-full border border-slate-100 text-slate-500 shadow-sm uppercase tracking-tighter">
+                  Today
                 </div>
               </div>
-              <div className="mt-4">
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.title}</p>
+              <div className="flex items-baseline gap-1">
+                <h3 className="text-3xl font-bold text-slate-800">{item.value.toLocaleString()}</h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.unit}</span>
               </div>
+              <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-tight">{item.label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Channel Selector Tabs */}
-      <Card className="card-elevated">
-        <CardHeader className="pb-3 px-4 md:px-6">
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-            <BarChart3 className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-            Channel Analytics
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 md:px-6">
-          <Tabs value={selectedChannel} onValueChange={setSelectedChannel} className="w-full">
-            <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0 pb-2">
-              <TabsList className="inline-flex w-auto min-w-full md:min-w-0 mb-4 md:mb-6 h-auto gap-1">
-                <TabsTrigger value="all" className="flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 text-xs md:text-sm">
-                  <Activity className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">All</span>
-                </TabsTrigger>
-                {channels.map((ch) => (
-                  <TabsTrigger key={ch.key} value={ch.key} className="flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 text-xs md:text-sm">
-                    {ch.key === 'email' ? (
-                      <Mail className="h-3 w-3 md:h-4 md:w-4" />
-                    ) : ch.key === 'voicebot' ? (
-                      <Headphones className="h-3 w-3 md:h-4 md:w-4" />
-                    ) : (
-                      <ChannelIcon channel={ch.icon as any} size="sm" />
-                    )}
-                    <span className="hidden sm:inline capitalize">{ch.key === 'facebook' ? 'Messenger' : ch.key === 'voicebot' ? 'Voice' : ch.key}</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
+        {/* Main Growth Chart */}
+        <Card className="xl:col-span-2 shadow-sm border-none bg-white rounded-3xl overflow-hidden">
+          <CardHeader className="p-8 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold text-slate-800">Communication Output</CardTitle>
+                <CardDescription className="text-slate-400 font-medium text-xs">Message volume trends over the last 7 days</CardDescription>
+              </div>
+              <Tabs defaultValue="weekly" className="w-[180px]">
+                <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1 rounded-xl">
+                  <TabsTrigger value="weekly" className="text-[10px] rounded-lg">Weekly</TabsTrigger>
+                  <TabsTrigger value="daily" className="text-[10px] rounded-lg">Daily</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
-
-            {/* All Channels Overview */}
-            <TabsContent value="all" className="space-y-4 md:space-y-6">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 text-primary mb-2">
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="text-sm font-medium">Total Conversations</span>
-                    </div>
-                    <p className="text-2xl font-bold">{totalConversations.toLocaleString()}</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 text-secondary mb-2">
-                      <Send className="h-4 w-4" />
-                      <span className="text-sm font-medium">Campaigns Sent</span>
-                    </div>
-                    <p className="text-2xl font-bold">{campaignsSent.toLocaleString()}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Charts Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                {/* Satisfaction Trends - Hiding as requested for "real" data */}
-                {/* 
-                <Card>
-                  ...
-                </Card> 
-                */}
-
-                {/* Bot vs Human Resolution - Hiding as requested for "real" data */}
-                {/* 
-                <Card>
-                  ...
-                </Card> 
-                */}
-              </div>
-
-              {/* Channel Performance Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
-                {enabledChannels.map((key) => {
-                  const data = channelStats[key] || {
-                    totalMessages: 0,
-                    delivered: 0,
-                    read: 0,
-                    failed: 0,
-                    deliveryRate: "0",
-                    readRate: "0"
-                  };
-                  return (
-                    <Card 
-                      key={key} 
-                      className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-                      onClick={() => setSelectedChannel(key)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <ChannelIcon channel={key as any} size="md" />
-                            <span className="font-semibold capitalize">{key}</span>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Volume</span>
-                            <span className="font-medium">{data.totalMessages.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Delivered</span>
-                            <span className="font-medium text-success">{data.delivered.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Failed</span>
-                            <span className="font-medium text-destructive">{data.failed.toLocaleString()}</span>
-                          </div>
-                          <div className="pt-2">
-                            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                              <span>Delivery Rate: {data.deliveryRate}%</span>
-                            </div>
-                            <Progress value={parseFloat(data.deliveryRate)} className="h-1.5" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </TabsContent>
-
-            {/* Individual Channel Views */}
-            {channels.map((ch) => (
-              <TabsContent key={ch.key} value={ch.key} className="space-y-6">
-                {channelStats[ch.key] && (
-                  <>
-                    {/* Channel Header Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
-                        <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground mb-1">Total Volume</p>
-                          <p className="text-xl font-bold">
-                            {channelStats[ch.key].totalMessages.toLocaleString()}
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-gradient-to-br from-success/10 to-success/5">
-                        <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground mb-1">Delivered</p>
-                          <p className="text-xl font-bold text-success">
-                            {channelStats[ch.key].delivered.toLocaleString()}
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
-                        <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground mb-1">Read Count</p>
-                          <p className="text-xl font-bold text-blue-600">
-                            {channelStats[ch.key].read.toLocaleString()}
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5">
-                        <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground mb-1">Failed</p>
-                          <p className="text-xl font-bold text-destructive">
-                            {channelStats[ch.key].failed.toLocaleString()}
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5">
-                        <CardContent className="p-4">
-                          <p className="text-xs text-muted-foreground mb-1">Delivery Rate</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xl font-bold">{channelStats[ch.key].deliveryRate}%</p>
-                            <Progress value={parseFloat(channelStats[ch.key].deliveryRate)} className="h-1.5 flex-1" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Chart - Real weekly trend for this channel is not available yet, but we have global weekly chats */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base font-medium flex items-center gap-2">
-                           <Activity className="h-4 w-4 text-primary" />
-                           Activity Trend
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-[280px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={weeklyChats}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                              <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
-                              <YAxis stroke="hsl(var(--muted-foreground))" />
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: 'hsl(var(--card))',
-                                  border: '1px solid hsl(var(--border))',
-                                  borderRadius: '8px',
-                                }}
-                              />
-                              <Area 
-                                type="monotone" 
-                                dataKey="count" 
-                                stroke={channelColors[ch.key] || '#6366F1'} 
-                                fill={`${channelColors[ch.key] || '#6366F1'}40`}
-                                name="Volume"
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-              </TabsContent>
-            ))}
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Weekly Chats Chart */}
-        <Card className="card-elevated lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Weekly Chat Activity
-            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
+          <CardContent className="px-4 md:px-8 pb-8">
+            <div className="h-[320px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.weeklyChats}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
+                <AreaChart data={stats.weeklyChats}>
+                  <defs>
+                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <XAxis
+                    dataKey="day"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                    dy={10}
                   />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#6366f1"
+                    strokeWidth={4}
+                    fillOpacity={1}
+                    fill="url(#colorCount)"
+                    animationDuration={2000}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Channel Distribution */}
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle>Channel Distribution</CardTitle>
+        {/* Channel Distribution Circle */}
+        <Card className="shadow-sm border border-slate-100 bg-white rounded-3xl overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-5 text-slate-900">
+            <Layers className="h-16 w-16" />
+          </div>
+          <CardHeader className="p-8">
+            <CardTitle className="text-xl font-bold text-slate-800">Channel Mix</CardTitle>
+            <CardDescription className="text-slate-400 font-medium text-xs italic">Most preferred ways to reach your audience</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
+          <CardContent className="p-8 pt-0 flex flex-col items-center text-slate-800">
+            <div className="h-[200px] w-full relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
+                    innerRadius={65}
+                    outerRadius={85}
+                    paddingAngle={8}
                     dataKey="value"
+                    strokeWidth={0}
                   >
                     {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    formatter={(value: number) => [`${value}%`, 'Share']}
-                  />
+                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px' }} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p className="text-3xl font-bold text-slate-800">{stats.campaignsSent}</p>
+                <p className="text-[8px] uppercase font-bold text-slate-400 tracking-[0.2em]">Total Flows</p>
+              </div>
             </div>
-            <div className="mt-4 space-y-2">
-              {pieData.map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ChannelIcon channel={item.channel} size="sm" />
-                    <span className="text-sm">{item.name}</span>
+            <div className="w-full mt-6 space-y-4">
+              {pieData.map((item, i) => (
+                <div key={item.name} className="flex items-center justify-between group">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 transition-colors">{item.name}</span>
                   </div>
-                  <span className="text-sm font-medium" style={{ color: pieColors[index] }}>
-                    {item.value}%
-                  </span>
+                  <span className="text-xs font-bold bg-slate-50 text-slate-700 px-2.5 py-1 rounded-lg tabular-nums border border-slate-100">{item.value}%</span>
                 </div>
               ))}
             </div>
@@ -480,55 +348,200 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="card-elevated">
-          <CardContent className="p-6">
+      {/* Grid of Micro Charts & Details */}
+      <Tabs value={selectedChannel} onValueChange={setSelectedChannel} className="w-full">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+          <h3 className="text-xl font-bold text-slate-800">Per-Channel Analytics</h3>
+          <TabsList className="bg-slate-200/50 p-1 rounded-2xl h-11 border border-slate-200">
+            <TabsTrigger value="all" className="px-4 py-2 rounded-xl text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-md">All Platforms</TabsTrigger>
+            {enabledChannels.map(ch => (
+              <TabsTrigger key={ch} value={ch} className="px-4 py-2 rounded-xl text-xs font-bold capitalize data-[state=active]:bg-white data-[state=active]:shadow-md tabular-nums">{ch}</TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
+        <TabsContent value="all" className="mt-0 space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {enabledChannels.map((key) => {
+              const data = stats.channelStats[key] || { totalMessages: 0, delivered: 0, read: 0, failed: 0, deliveryRate: "0", totalEngagement: 0 };
+              const color = CHANNEL_COLORS[key] || "#6366f1";
+
+              return (
+                <Card key={key} className="group border-none shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl overflow-hidden bg-white">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
+                          <ChannelIcon channel={key as any} size="md" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 capitalize text-lg">{key}</p>
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Live Statistics</p>
+                        </div>
+                      </div>
+                      <ArrowUpRight className="h-5 w-5 text-slate-300 group-hover:text-primary transition-colors" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-8 text-slate-800">
+                      <div>
+                        <p className="text-2xl font-bold tabular-nums">{data.totalMessages.toLocaleString()}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Volume</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-emerald-600 tabular-nums">{data.delivered.toLocaleString()}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Success</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase">Reach Integrity</span>
+                        <span className="text-sm font-bold text-slate-800 tabular-nums">{data.deliveryRate}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(0,0,0,0.1)]"
+                          style={{
+                            width: `${data.deliveryRate}%`,
+                            backgroundColor: color,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Miniature Trend Line Placeholder */}
+                  <div className="h-16 w-full opacity-30 mt-2 px-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={stats.weeklyChats}>
+                        <Area type="step" dataKey="count" stroke={color} fill={color} strokeWidth={1} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+        {/* Per-channel detailed view (optional, existing tabs content can be refined similarly) */}
+      </Tabs>
+
+      {/* Recent Campaign Ledger */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
+        <Card className="lg:col-span-2 shadow-sm border-none bg-white rounded-3xl overflow-hidden">
+          <CardHeader className="p-8 border-b border-slate-50">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Open Chats</p>
-                <p className="text-2xl font-bold text-primary">{stats.openChats}</p>
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                  <Clock className="h-5 w-5 text-slate-600" />
+                </div>
+                <CardTitle className="text-xl font-bold text-slate-800">Recent Campaigns</CardTitle>
               </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <MessageSquare className="h-6 w-6 text-primary" />
-              </div>
+              <button className="flex items-center gap-2 text-xs font-bold text-primary group">
+                View Logs <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
+              </button>
             </div>
-          </CardContent>
+          </CardHeader>
+          <Table>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow className="hover:bg-transparent border-none">
+                <TableHead className="px-8 h-12 text-[10px] uppercase font-bold tracking-widest text-slate-400">Campaign Name</TableHead>
+                <TableHead className="h-12 text-[10px] uppercase font-bold tracking-widest text-slate-400">Platform</TableHead>
+                <TableHead className="h-12 text-[10px] uppercase font-bold tracking-widest text-slate-400">Reach</TableHead>
+                <TableHead className="h-12 text-[10px] uppercase font-bold tracking-widest text-slate-400">Success Rate</TableHead>
+                <TableHead className="h-12 text-[10px] uppercase font-bold tracking-widest text-slate-400 text-right pr-8">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentCampaigns.map((camp: any) => (
+                <TableRow key={camp.id} className="group hover:bg-slate-50/50 transition-colors border-slate-50 cursor-pointer">
+                  <TableCell className="px-8 py-4">
+                    <p className="font-bold text-slate-900 group-hover:text-primary transition-colors">{camp.name}</p>
+                    <p className="text-[10px] text-slate-400 tabular-nums uppercase">{format(new Date(camp.created_at), 'dd MMM | hh:mm a')}</p>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <ChannelIcon channel={camp.channel} size="sm" />
+                      <span className="capitalize text-xs font-semibold text-slate-600">{camp.channel}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-bold text-slate-700 tabular-nums text-xs">
+                    {camp.audience_count}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${camp.deliveryRate}%` }} />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-900">{camp.deliveryRate}%</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right pr-8">
+                    <Badge className={cn(
+                      "px-3 py-1 rounded-lg text-[10px] font-bold border-none",
+                      camp.status === 'completed' ? "bg-emerald-100 text-emerald-700 shadow-sm shadow-emerald-100/50" :
+                        camp.status === 'running' ? "bg-blue-100 text-blue-700 animate-pulse" :
+                          "bg-slate-100 text-slate-500"
+                    )}>
+                      {camp.status.toUpperCase()}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {recentCampaigns.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-20 text-center text-slate-400 font-medium italic">
+                    No recent campaigns found. Start your first journey today!
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </Card>
-        <Card className="card-elevated">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Closed Chats</p>
-                <p className="text-2xl font-bold">{stats.closedChats.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                <MessageSquare className="h-6 w-6 text-muted-foreground" />
-              </div>
+
+        <Card className="shadow-sm border-none bg-white rounded-3xl overflow-hidden">
+          <CardHeader className="p-8 pb-4">
+            <CardTitle className="text-xl font-bold text-slate-800">Weekly Pulse</CardTitle>
+            <CardDescription className="text-slate-400 font-medium text-xs">Daily message volume (last 7 days)</CardDescription>
+          </CardHeader>
+          <CardContent className="px-8 pb-8 flex flex-col items-center">
+            <div className="w-full flex justify-between items-end gap-2 h-40 mt-4">
+              {stats.weeklyChats.map((d: any, i: number) => {
+                const max = Math.max(...stats.weeklyChats.map((w: any) => w.count)) || 1;
+                const height = (d.count / max) * 100;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
+                    <Tooltip content={d.count}>
+                      <div
+                        className="w-full bg-slate-100 group-hover:bg-primary transition-all duration-500 rounded-lg relative"
+                        style={{ height: `${Math.max(height, 5)}%` }}
+                      >
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                          {d.count}
+                        </div>
+                      </div>
+                    </Tooltip>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{d.day}</span>
+                  </div>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
-        <Card className="card-elevated">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Response Rate</p>
-                <p className="text-2xl font-bold text-success">94.2%</p>
+
+            <div className="mt-12 w-full p-6 bg-slate-50 rounded-2xl space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-emerald-50 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Performance Increase</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Your output is up 12% from last week.</p>
+                </div>
               </div>
-              <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-success" />
-              </div>
+              <Progress value={75} className="h-1.5 bg-white" />
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Agent Analytics Table - Hiding as requested for "real" data */}
-      {/* 
-      <Card className="card-elevated">
-        ...
-      </Card> 
-      */}
     </div>
   );
 }

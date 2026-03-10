@@ -176,7 +176,12 @@ router.get('/super-admin', authenticate, async (req, res) => {
                 weeklyMessages,
                 channelUsage,
                 planDistribution,
-                topClients
+                topClients,
+                today: {
+                    messages: Number(msgStats[0]?.today || 0),
+                    revenue: Number(finStats[0]?.revenue_today || 0),
+                    clientsAdded: 0 // Could add a query for this if needed
+                }
             }
         });
 
@@ -269,7 +274,27 @@ router.get('/stats', authenticate, async (req, res) => {
             });
         }
 
-        // 5. Construct Final Stats Object
+        // 5. Today's Specific Stats
+        const [todayStats] = await query(`
+            SELECT 
+                COALESCE(SUM(audience_count), 0) as messages,
+                COALESCE(SUM(delivered_count), 0) as delivered,
+                COALESCE(SUM(failed_count), 0) as failed,
+                COUNT(*) as campaigns
+            FROM campaigns 
+            WHERE user_id = ? AND DATE(created_at) = CURDATE()
+        `, [userId]);
+
+        // 6. Recent Campaigns
+        const [recentCampaigns] = await query(`
+            SELECT id, name, channel, audience_count, status, created_at, delivered_count, failed_count
+            FROM campaigns 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        `, [userId]);
+
+        // 7. Construct Final Stats Object
         const stats = {
             totalConversations: Number(totalStats[0]?.total_conversations || 0),
             activeChats: 0,
@@ -280,6 +305,16 @@ router.get('/stats', authenticate, async (req, res) => {
             weeklyChats,
             channelDistribution: channelDist,
             channelStats: channelStatsMap,
+            today: {
+                messages: Number(todayStats[0]?.messages || 0),
+                delivered: Number(todayStats[0]?.delivered || 0),
+                failed: Number(todayStats[0]?.failed || 0),
+                campaigns: Number(todayStats[0]?.campaigns || 0)
+            },
+            recentCampaigns: recentCampaigns.map(c => ({
+                ...c,
+                deliveryRate: c.audience_count > 0 ? ((c.delivered_count / c.audience_count) * 100).toFixed(1) : "0"
+            })),
             channelPercentages: Object.entries(channelDist).map(([key, value]) => ({
                 name: key.charAt(0).toUpperCase() + key.slice(1),
                 value: Number(value)

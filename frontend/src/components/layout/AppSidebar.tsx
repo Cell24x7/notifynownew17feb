@@ -193,53 +193,15 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         })}
       </nav>
 
-      {/* Profile Dropdown */}
-      <div className="p-4 border-t bg-background/80">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className={cn(
-                'w-full flex items-center gap-3 p-2 rounded-xl transition-all',
-                'hover:bg-accent/70 active:bg-accent/90'
-              )}
-            >
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary flex-shrink-0">
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </div>
-
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-semibold truncate">
-                  {user?.name || 'User'}
-                </p>
-                <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  {user?.email || '—'}
-                </p>
-              </div>
-
-              <ChevronDown className="h-4 w-4 opacity-70 flex-shrink-0" />
-            </button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent className="w-64" align="end" sideOffset={8}>
-            <DropdownMenuItem
-              className="gap-2 py-2.5 cursor-pointer"
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              {isDark ? 'Light Mode' : 'Dark Mode'}
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator className="my-1" />
-
-            <DropdownMenuItem
-              className="gap-2 py-2.5 text-destructive focus:bg-destructive/10 cursor-pointer"
-              onClick={logout}
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/* Sidebar Footer - Minimized */}
+      <div className="p-4 border-t bg-slate-50/50 flex items-center justify-between">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+          v1.2.0
+        </p>
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[10px] font-medium text-slate-500">System Live</span>
+        </div>
       </div>
     </aside>
   );
