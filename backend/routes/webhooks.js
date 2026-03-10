@@ -565,13 +565,56 @@ router.post('/whatsapp/callback', async (req, res) => {
                             console.log(`💬 Incoming WA Reply from ${sender}: ${text}`);
 
                             try {
-                                // Save to webhook_logs
-                                await query(
-                                    'INSERT INTO webhook_logs (sender, recipient, message_content, raw_payload, status, type, message_id_envelope) VALUES (?, ?, ?, ?, "received", "whatsapp", ?)',
-                                    [sender, value.metadata?.display_phone_number || 'System', text, JSON.stringify(payload), msgId]
+                                // 1. Identify User ID
+                                let userId = null;
+                                const phoneId = value.metadata?.phone_number_id;
+
+                                // Try to find who last chatted with this person on this phone ID
+                                if (phoneId) {
+                                    const [lastChat] = await query(
+                                        `SELECT user_id FROM message_logs 
+                                         WHERE recipient = ? 
+                                         AND user_id IN (SELECT id FROM users WHERE whatsapp_config_id = (SELECT id FROM whatsapp_configs WHERE ph_no_id = ? LIMIT 1))
+                                         ORDER BY created_at DESC LIMIT 1`,
+                                        [sender, phoneId]
+                                    );
+                                    if (lastChat.length > 0) {
+                                        userId = lastChat[0].user_id;
+                                    }
+                                }
+
+                                // Fallback: Just pick the first user assigned to this WhatsApp configuration
+                                if (!userId && phoneId) {
+                                    const [fallbackUser] = await query(
+                                        'SELECT id FROM users WHERE whatsapp_config_id = (SELECT id FROM whatsapp_configs WHERE ph_no_id = ? LIMIT 1) LIMIT 1',
+                                        [phoneId]
+                                    );
+                                    if (fallbackUser.length > 0) {
+                                        userId = fallbackUser[0].id;
+                                    }
+                                }
+
+                                // 2. Save to webhook_logs
+                                const [result] = await query(
+                                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type, message_id_envelope) VALUES (?, ?, ?, ?, ?, "received", "whatsapp", ?)',
+                                    [userId, sender, value.metadata?.display_phone_number || 'System', text, JSON.stringify(payload), msgId]
                                 );
 
-                                console.log(`✅ Saved incoming WA message from ${sender} to DB.`);
+                                // 3. Notify via Socket.io for real-time chat
+                                if (req.io && userId) {
+                                    req.io.to(`user_${userId}`).emit('new_message', {
+                                        id: result.insertId,
+                                        sender,
+                                        recipient: value.metadata?.display_phone_number || 'System',
+                                        message_content: text,
+                                        created_at: new Date(),
+                                        status: 'received',
+                                        type: 'whatsapp'
+                                    });
+                                    console.log(`📡 Emitted new_message to user_${userId}`);
+                                }
+
+                                console.log(`✅ Saved incoming WA message from ${sender} to DB (User: ${userId}).`);
                             } catch (dbErr) {
                                 console.error('❌ Failed to save incoming WA message:', dbErr.message);
                             }
