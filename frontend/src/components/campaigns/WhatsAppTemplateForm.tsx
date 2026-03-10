@@ -205,10 +205,21 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                 )}
 
                 {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(header?.format) && (
-                    <div className="p-4 bg-gray-50/50 rounded-xl border border-dashed border-gray-200 text-center animate-in fade-in duration-300">
-                        <p className="text-xs text-muted-foreground font-medium italic">
-                            Meta will require a sample media file if you use this to verify the template.
-                        </p>
+                    <div className="space-y-4 pt-2 animate-in fade-in duration-300">
+                        <div className="p-4 bg-green-50/30 rounded-xl border border-dashed border-green-200">
+                            <Label className="text-[11px] font-bold text-green-700 uppercase flex items-center gap-1.5 mb-2">
+                                <Plus className="h-3 w-3" /> Sample Media URL (Required for Meta Approval)
+                            </Label>
+                            <Input
+                                placeholder={header.format === 'IMAGE' ? "https://example.com/image.jpg" : header.format === 'VIDEO' ? "https://example.com/video.mp4" : "https://example.com/doc.pdf"}
+                                value={header.handle || ''}
+                                onChange={(e) => updateComponent('HEADER', { handle: e.target.value })}
+                                className="bg-white border-green-100 h-10 text-xs rounded-lg focus:ring-green-500"
+                            />
+                            <p className="text-[9px] text-green-600/70 mt-2 italic">
+                                Meta requires a sample {header.format.toLowerCase()} to verify and approve your template.
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

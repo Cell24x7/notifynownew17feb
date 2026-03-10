@@ -348,6 +348,12 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             params.push(req.query.channel);
         }
 
+        if (req.query.source === 'api') {
+            baseSql += " AND ml.campaign_id LIKE 'CAMP_API_%'";
+        } else if (req.query.source === 'manual') {
+            baseSql += " AND (ml.campaign_id NOT LIKE 'CAMP_API_%' OR ml.campaign_id IS NULL)";
+        }
+
         if (req.query.startDate && req.query.endDate) {
             baseSql += ' AND ml.created_at BETWEEN ? AND ?';
             params.push(req.query.startDate + ' 00:00:00', req.query.endDate + ' 23:59:59');

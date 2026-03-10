@@ -15,27 +15,35 @@ const API_URL = `${API_BASE_URL}/api`;
 export function SecuritySettings() {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
-  
+
   const [emailForm, setEmailForm] = useState({
     currentEmail: '',
     newEmail: '',
     confirmEmail: '',
   });
-  
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-  
+
+  const [apiPasswordForm, setApiPasswordForm] = useState({
+    newApiPassword: '',
+    confirmApiPassword: '',
+  });
+
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
     confirm: false,
+    newApi: false,
+    confirmApi: false,
   });
 
   const [emailLoading, setEmailLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [apiPasswordLoading, setApiPasswordLoading] = useState(false);
 
   // Update current email when user changes
   useEffect(() => {
@@ -46,7 +54,7 @@ export function SecuritySettings() {
 
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (emailForm.newEmail !== emailForm.confirmEmail) {
       toast({
         title: 'Error',
@@ -69,7 +77,7 @@ export function SecuritySettings() {
     try {
       const token = localStorage.getItem('authToken');
       console.log('Sending email change request:', { newEmail: emailForm.newEmail });
-      
+
       const response = await axios.put(
         `${API_URL}/profile/change-email`,
         { newEmail: emailForm.newEmail },
@@ -89,10 +97,10 @@ export function SecuritySettings() {
           title: 'Email Updated',
           description: 'Your email address has been changed successfully.',
         });
-        setEmailForm({ 
-          currentEmail: emailForm.newEmail, 
-          newEmail: '', 
-          confirmEmail: '' 
+        setEmailForm({
+          currentEmail: emailForm.newEmail,
+          newEmail: '',
+          confirmEmail: ''
         });
       }
     } catch (err: any) {
@@ -109,7 +117,7 @@ export function SecuritySettings() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast({
         title: 'Error',
@@ -118,7 +126,7 @@ export function SecuritySettings() {
       });
       return;
     }
-    
+
     if (passwordForm.newPassword.length < 8) {
       toast({
         title: 'Error',
@@ -155,6 +163,54 @@ export function SecuritySettings() {
       });
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleApiPasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (apiPasswordForm.newApiPassword !== apiPasswordForm.confirmApiPassword) {
+      toast({
+        title: 'Error',
+        description: 'Passwords do not match.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (apiPasswordForm.newApiPassword.length < 8) {
+      toast({
+        title: 'Error',
+        description: 'API Password must be at least 8 characters long.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setApiPasswordLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.put(
+        `${API_URL}/profile/api-password`,
+        { apiPassword: apiPasswordForm.newApiPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: 'API Password Updated',
+          description: 'Your API Password has been set successfully. You can now use it for API requests.',
+        });
+        setApiPasswordForm({ newApiPassword: '', confirmApiPassword: '' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to set API password',
+        variant: 'destructive',
+      });
+    } finally {
+      setApiPasswordLoading(false);
     }
   };
 
@@ -318,6 +374,82 @@ export function SecuritySettings() {
                 <>
                   <Shield className="h-4 w-4 mr-2" />
                   Update Password
+                </>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* API Password Change */}
+      <Card className="card-elevated">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>API Password</CardTitle>
+              <CardDescription>
+                Set a dedicated password to use with our external API endpoint (for Webhooks, cURL, etc.)
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleApiPasswordChange} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newApiPassword">New API Password</Label>
+              <div className="relative">
+                <Input
+                  id="newApiPassword"
+                  type={showPasswords.newApi ? 'text' : 'password'}
+                  placeholder="Enter API password (min 8 characters)"
+                  value={apiPasswordForm.newApiPassword}
+                  onChange={(e) => setApiPasswordForm({ ...apiPasswordForm, newApiPassword: e.target.value })}
+                  required
+                  disabled={apiPasswordLoading}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPasswords({ ...showPasswords, newApi: !showPasswords.newApi })}
+                >
+                  {showPasswords.newApi ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmApiPassword">Confirm API Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmApiPassword"
+                  type={showPasswords.confirmApi ? 'text' : 'password'}
+                  placeholder="Confirm API password"
+                  value={apiPasswordForm.confirmApiPassword}
+                  onChange={(e) => setApiPasswordForm({ ...apiPasswordForm, confirmApiPassword: e.target.value })}
+                  required
+                  disabled={apiPasswordLoading}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPasswords({ ...showPasswords, confirmApi: !showPasswords.confirmApi })}
+                >
+                  {showPasswords.confirmApi ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" className="gradient-primary" disabled={apiPasswordLoading}>
+              {apiPasswordLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Set API Password
                 </>
               )}
             </Button>

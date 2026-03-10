@@ -43,11 +43,31 @@ router.get('/admin', authenticateToken, async (req, res) => {
     }
 });
 
-// GET all templates for current user
+// GET all templates for current user (Filtered by active config)
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const [templates] = await query('SELECT * FROM message_templates WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+
+        // Fetch user's current configurations
+        const [users] = await query('SELECT whatsapp_config_id, rcs_config_id FROM users WHERE id = ?', [userId]);
+        const userConfig = users[0] || { whatsapp_config_id: null, rcs_config_id: null };
+
+        // Query templates that belong to the user AND strictly match their current active configs
+        // This hides templates from previous configurations/bots.
+        console.log(`📡 Fetching templates for User: ${userId}, WA_Config: ${userConfig.whatsapp_config_id}, RCS_Config: ${userConfig.rcs_config_id}`);
+
+        const [templates] = await query(`
+            SELECT * FROM message_templates 
+            WHERE user_id = ? 
+            AND (
+                (channel = 'whatsapp' AND (whatsapp_config_id = ? OR whatsapp_config_id IS NULL)) OR
+                (channel = 'rcs' AND (rcs_config_id = ? OR rcs_config_id IS NULL)) OR
+                (channel NOT IN ('whatsapp', 'rcs'))
+            )
+            ORDER BY created_at DESC
+        `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id]);
+
+        console.log(`✅ Found ${templates.length} local templates matching current configs.`);
 
         const templatesWithButtons = await Promise.all(templates.map(async (t) => {
             const [buttons] = await query('SELECT * FROM template_buttons WHERE template_id = ? ORDER BY position', [t.id]);
@@ -70,13 +90,24 @@ router.post('/', authenticateToken, async (req, res) => {
             header_type, header_content, body, footer, status, buttons
         } = req.body;
 
+        // Fetch user's current configs to link with template
+        const [users] = await query('SELECT whatsapp_config_id, rcs_config_id FROM users WHERE id = ?', [userId]);
+        const currentUser = users[0] || {};
+
         const templateId = `TPL${Date.now()}`;
 
         await query(
             `INSERT INTO message_templates 
-      (id, user_id, name, language, category, channel, template_type, header_type, header_content, body, footer, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [templateId, userId, name, language, category, channel, template_type, header_type, header_content || null, body, footer || null, status || 'pending']
+      (id, user_id, whatsapp_config_id, rcs_config_id, name, language, category, channel, template_type, header_type, header_content, body, footer, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                templateId,
+                userId,
+                channel === 'whatsapp' ? currentUser.whatsapp_config_id : null,
+                channel === 'rcs' ? currentUser.rcs_config_id : null,
+                name, language, category, channel, template_type,
+                header_type, header_content || null, body, footer || null, status || 'pending'
+            ]
         );
 
         if (buttons && Array.isArray(buttons)) {

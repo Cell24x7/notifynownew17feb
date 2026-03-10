@@ -21,40 +21,56 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
     const buttonsComp = getComponent('BUTTONS');
 
     return (
-        <div className="flex flex-col h-full items-center justify-start py-2 overflow-y-auto max-h-[750px] no-scrollbar">
+        <div className="flex flex-col h-full items-center justify-start py-6 overflow-y-auto max-h-[850px] no-scrollbar">
+            {/* iPhone 15 Pro Style Frame */}
             <div
-                className="w-[340px] h-[680px] bg-[#000a14] rounded-[3.5rem] p-3 shadow-2xl relative transition-all duration-500 flex flex-col shrink-0"
+                className="w-[325px] h-[660px] bg-zinc-900 rounded-[3rem] p-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative transition-all duration-500 flex flex-col shrink-0 border-[4px] border-zinc-800"
                 style={{
-                    boxShadow: '0 0 40px rgba(7, 94, 84, 0.2), inset 0 0 20px rgba(7, 94, 84, 0.1)',
-                    border: '4px solid transparent',
-                    backgroundImage: 'linear-gradient(#000a14, #000a14), linear-gradient(to right, #075E54, #128C7E, #25D366)',
-                    backgroundOrigin: 'border-box',
-                    backgroundClip: 'padding-box, border-box',
+                    boxShadow: '0 0 0 2px #222, 0 0 0 4px #444, 0 20px 50px rgba(0,0,0,0.4)',
                 }}
             >
-                {/* Phone Notch/Features */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 h-8 w-32 bg-black rounded-full z-20 shadow-inner flex items-center justify-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-green-900/40" />
-                    <div className="w-12 h-1.5 rounded-full bg-zinc-800/60" />
+                {/* Side Buttons - Left (Volume) */}
+                <div className="absolute left-[-6px] top-24 w-[3px] h-8 bg-zinc-700 rounded-l-md" />
+                <div className="absolute left-[-6px] top-36 w-[3px] h-12 bg-zinc-700 rounded-l-md" />
+                <div className="absolute left-[-6px] top-52 w-[3px] h-12 bg-zinc-700 rounded-l-md" />
+
+                {/* Side Button - Right (Power) */}
+                <div className="absolute right-[-6px] top-40 w-[3px] h-16 bg-zinc-700 rounded-r-md" />
+
+                {/* Dynamic Island */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 h-6 w-24 bg-black rounded-full z-30 shadow-inner flex items-center justify-center pointer-events-none">
+                    <div className="absolute right-4 w-2 h-2 rounded-full bg-zinc-900 border border-zinc-800" />
                 </div>
 
-                <div className="h-full w-full bg-[#E5DDD5] dark:bg-[#0b141a] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10 no-scrollbar">
-                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")' }}></div>
+                <div className="h-full w-full bg-[#efeae2] dark:bg-[#0b141a] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-inner">
+                    {/* WhatsApp Doodle Pattern */}
+                    <div className="absolute inset-0 opacity-[0.06] pointer-events-none dark:opacity-[0.03]" style={{
+                        backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
+                        backgroundSize: '400px'
+                    }}></div>
 
-                    {/* WhatsApp Header */}
-                    <div className="px-4 pt-10 pb-3 bg-[#075E54] text-white flex items-center gap-3 shadow-md border-b border-white/5 relative z-10">
-                        <ChevronLeft className="h-5 w-5" />
-                        <div className="h-8 w-8 rounded-full bg-gray-200 border-2 border-white/20 relative flex items-center justify-center overflow-hidden">
-                            <div className="w-full h-full bg-[#128C7E] flex items-center justify-center text-[10px] font-bold">WA</div>
+
+                    {/* WhatsApp Header - Modern iOS Style */}
+                    <div className="px-4 pt-12 pb-3 bg-[#f0f2f5] dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] flex items-center gap-3 shadow-sm relative z-20">
+                        <ChevronLeft className="h-6 w-6 text-[#008069] dark:text-[#00a884] -ml-1 cursor-pointer" />
+                        <div className="h-9 w-9 rounded-full bg-[#dfe5e7] dark:bg-[#6a7175] relative flex items-center justify-center overflow-hidden shadow-sm">
+                            <div className="w-full h-full bg-[#075E54] flex items-center justify-center text-[10px] font-bold text-white">WA</div>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold truncate tracking-tight">Official Account</p>
-                            <p className="text-[9px] opacity-70 flex items-center gap-0.5">
-                                <Shield className="h-2.5 w-2.5" /> Business Account
+                            <p className="text-[14px] font-semibold truncate leading-tight flex items-center gap-1">
+                                Official Account
+                                <svg viewBox="0 0 18 18" width="14" height="14" className="text-[#00a884] shrink-0">
+                                    <path fill="currentColor" d="M9,1.75L2.5,4.25V7.5C2.5,11.5 5.25,15.25 9,16.25C12.75,15.25 15.5,11.5 15.5,7.5V4.25L9,1.75M9,14.5C6.5,13.5 4.5,11 4.5,8V5.5L9,3.75L13.5,5.5V8C13.5,11 11.5,13.5 9,14.5M7,8.5L8.5,10L11.5,7L12.5,8L8.5,12L6,9.5L7,8.5Z"></path>
+                                </svg>
                             </p>
+                            <p className="text-[10px] text-[#667781] dark:text-[#8696a0] font-medium">Business Account</p>
                         </div>
-                        <MoreVertical className="h-4 w-4 opacity-70" />
+                        <div className="flex items-center gap-3 text-[#54656f] dark:text-[#aebac1]">
+                            <Phone className="h-4 w-4" />
+                            <MoreVertical className="h-4 w-4" />
+                        </div>
                     </div>
+
 
                     {/* Chat Context */}
                     <div className="flex-1 p-4 relative z-10 overflow-y-auto no-scrollbar pt-6">
@@ -67,21 +83,33 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                                         <div className="p-3 text-sm font-extrabold text-[#111b21] dark:text-[#e9edef] w-full">{header.text || 'Header Text'}</div>
                                     )}
                                     {header.format === 'IMAGE' && (
-                                        <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-200 dark:bg-zinc-800 text-zinc-400">
-                                            <ImageIcon className="h-10 w-10 mb-2 opacity-50" />
-                                            <span className="text-[10px] uppercase font-bold tracking-widest">Image Header</span>
+                                        <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-400 overflow-hidden">
+                                            {header.handle ? (
+                                                <img src={header.handle} alt="Header" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <>
+                                                    <ImageIcon className="h-10 w-10 mb-2 opacity-30" />
+                                                    <span className="text-[10px] uppercase font-bold tracking-widest opacity-50">Image Header</span>
+                                                </>
+                                            )}
                                         </div>
                                     )}
                                     {header.format === 'VIDEO' && (
-                                        <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-800 text-zinc-400">
-                                            <Video className="h-10 w-10 mb-2 opacity-50" />
-                                            <span className="text-[10px] uppercase font-bold tracking-widest">Video Header</span>
+                                        <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 overflow-hidden">
+                                            {header.handle ? (
+                                                <video src={header.handle} className="w-full h-full object-cover" controls={false} autoPlay muted loop />
+                                            ) : (
+                                                <>
+                                                    <Video className="h-10 w-10 mb-2 opacity-30" />
+                                                    <span className="text-[10px] uppercase font-bold tracking-widest opacity-50">Video Header</span>
+                                                </>
+                                            )}
                                         </div>
                                     )}
                                     {header.format === 'DOCUMENT' && (
                                         <div className="w-full h-20 flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/10 text-blue-400">
                                             <FileText className="h-8 w-8 mb-1 opacity-50" />
-                                            <span className="text-[10px] uppercase font-bold tracking-widest">Document</span>
+                                            <span className="text-[10px] uppercase font-bold tracking-widest">{header.handle ? 'Document Provided' : 'Document'}</span>
                                         </div>
                                     )}
                                 </div>
@@ -107,17 +135,18 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
 
                             {/* Template Buttons Preview - CTAs */}
                             {buttonsComp?.buttons?.filter((b: any) => b.type !== 'QUICK_REPLY').length > 0 && (
-                                <div className="border-t border-gray-50 dark:border-white/5 flex flex-col">
+                                <div className="border-t border-gray-100 dark:border-white/5 flex flex-col bg-gray-50/50 dark:bg-black/5">
                                     {buttonsComp.buttons.filter((b: any) => b.type !== 'QUICK_REPLY').map((btn: any, i: number) => (
-                                        <div key={i} className="py-2.5 px-3 border-b last:border-0 border-gray-50 dark:border-white/5 text-center flex items-center justify-center gap-2 text-[#00a884] dark:text-[#53bdeb] font-bold text-xs uppercase tracking-tight hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer">
-                                            {btn.type === 'URL' && <ExternalLink className="h-3 w-3" />}
-                                            {btn.type === 'PHONE_NUMBER' && <Phone className="h-3 w-3" />}
+                                        <div key={i} className="py-3 px-3 border-b last:border-0 border-gray-100 dark:border-white/5 text-center flex items-center justify-center gap-2 text-[#008069] dark:text-[#53bdeb] font-semibold text-[13px] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer active:bg-black/[0.1]">
+                                            {btn.type === 'URL' && <ExternalLink className="h-3.5 w-3.5" />}
+                                            {btn.type === 'PHONE_NUMBER' && <Phone className="h-3.5 w-3.5" />}
                                             {btn.text || 'Action Button'}
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
+
 
                         {/* Template Buttons Preview - Quick Replies */}
                         {buttonsComp?.buttons?.filter((b: any) => b.type === 'QUICK_REPLY').length > 0 && (

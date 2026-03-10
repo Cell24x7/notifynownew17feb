@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, MoreVertical, BarChart3, Edit, Trash2, Eye, Zap, FileText, Clock, X, Image, Video, File, Phone, Link, RefreshCw, Check, Sparkles, TrendingUp, Target, Smartphone, ChevronRight, ChevronLeft, Shield, ChevronsUpDown, Send, MessageSquare } from 'lucide-react';
+import { Plus, Search, MoreVertical, BarChart3, Edit, Trash2, Eye, Zap, FileText, Clock, X, Image, Video, File, Phone, Link, RefreshCw, Check, Sparkles, TrendingUp, Target, Smartphone, ChevronRight, ChevronLeft, Shield, ChevronsUpDown, Send, MessageSquare, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +81,7 @@ export default function Templates() {
   const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'rcs' | 'sms'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshingTemplateId, setRefreshingTemplateId] = useState<string | null>(null);
 
   // File states for RCS uploads
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -104,80 +105,160 @@ export default function Templates() {
   }, [selectedFile, carouselFiles]);
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    if (user) {
+      console.log('🔄 User detected, fetching templates for:', user.email);
+      fetchTemplates();
+    }
+  }, [user?.id, user?.rcs_config_id, user?.whatsapp_config_id]);
 
   const fetchTemplates = async () => {
     setLoading(true);
     try {
+      console.log('📡 Fetching local templates...');
       const templatesData = await templateService.getTemplates();
+      console.log(`✅ Loaded ${templatesData.length} local templates.`);
       setTemplates(templatesData);
 
       // Fetch external RCS templates
-      try {
-        const externalRcsData = await rcsCampaignApi.getExternalTemplates();
-        if (externalRcsData && Array.isArray(externalRcsData.templates)) {
-          const externalTemplates = externalRcsData.templates.map((t: any) => {
-            const tName = t.name || t.TemplateName || 'Unknown Template';
-            return {
-              id: tName,
-              name: tName,
-              channel: 'rcs',
-              status: t.status || 'approved',
-              language: t.language || 'en',
-              category: t.category || 'Marketing',
-              body: t.body || 'External Template',
-              template_type: t.type || t.TemplateType || 'text_message',
-              header: { type: 'none' },
-              footer: '',
-              buttons: [],
-              variables: []
-            };
-          });
+      const rcsConfigId = (user as any)?.rcs_config_id;
+      if (rcsConfigId) {
+        console.log('📡 Fetching external RCS templates for config:', rcsConfigId);
+        try {
+          const externalRcsData = await rcsCampaignApi.getExternalTemplates();
+          if (externalRcsData && Array.isArray(externalRcsData.templates)) {
+            const externalTemplates = externalRcsData.templates.map((t: any) => {
+              const tName = t.name || t.TemplateName || 'Unknown Template';
+              const type = (t.type || t.templateType || t.TemplateType || 'text_message') as any;
+              let body = t.body || t.textMessageContent || t.fallbackText || 'External Template';
+              const meta: any = {};
 
-          setTemplates(prev => {
-            const existingRcsNames = new Set(prev.filter(p => p.channel === 'rcs').map(p => p.name));
-            // Only add external templates that don't exist locally
-            const newExternal = externalTemplates.filter((t: any) => !existingRcsNames.has(t.name));
-            return [...prev, ...newExternal];
-          });
+              if (type === 'rich_card' && t.standAlone) {
+                body = t.standAlone.cardDescription || body;
+                meta.cardTitle = t.standAlone.cardTitle;
+                meta.mediaUrl = t.standAlone.mediaUrl;
+              } else if (type === 'carousel' && t.carouselList) {
+                body = t.carouselList[0]?.cardDescription || body;
+                meta.carouselList = t.carouselList.map((c: any) => ({
+                  title: c.cardTitle,
+                  description: c.cardDescription,
+                  mediaUrl: c.mediaUrl
+                }));
+              }
+
+              return {
+                id: tName,
+                name: tName,
+                channel: 'rcs',
+                status: (t.status || t.templateStatus || 'approved').toLowerCase(),
+                language: t.language || 'en',
+                category: t.category || 'Marketing',
+                body: body,
+                template_type: type,
+                metadata: meta,
+                header: { type: 'none' },
+                footer: '',
+                buttons: [],
+                variables: []
+              };
+            });
+
+            console.log(`📥 RCS: Reconciled ${externalTemplates.length} external templates with ${templatesData.filter(p => p.channel === 'rcs').length} local.`);
+            setTemplates(prev => {
+              // Ensure we use the most fresh data (either from templatesData or prev)
+              const baseTemplates = prev.length > 0 ? prev : templatesData;
+              const other = baseTemplates.filter(p => p.channel !== 'rcs');
+              const localRcs = baseTemplates.filter(p => p.channel === 'rcs');
+
+              const reconciled: MessageTemplate[] = [];
+
+              localRcs.forEach(local => {
+                const live = externalTemplates.find(t => t.name === local.name);
+                if (live) {
+                  // If we have local body and it's not "External Template", preserve it unless live has real content
+                  const useLocalBody = local.body && local.body !== 'External Template';
+                  const liveHasBody = live.body && live.body !== 'External Template';
+
+                  reconciled.push({
+                    ...local,
+                    ...live,
+                    id: local.id,
+                    body: (useLocalBody && !liveHasBody) ? local.body : live.body,
+                    metadata: (local.metadata && Object.keys(local.metadata).length > 0 && (!live.metadata || Object.keys(live.metadata).length === 0)) ? local.metadata : live.metadata
+                  });
+                } else {
+                  // Keep local template even if not found in live (could be newly created or restricted)
+                  reconciled.push(local);
+                }
+              });
+
+              externalTemplates.forEach(external => {
+                if (!localRcs.some(l => l.name === external.name)) {
+                  reconciled.push(external);
+                }
+              });
+
+              return [...other, ...reconciled];
+            });
+          }
+        } catch (rcsErr) {
+          console.warn('RCS template fetch skipped or failed:', rcsErr);
         }
-      } catch (rcsErr) {
-        console.error('Failed to load external RCS templates', rcsErr);
       }
 
       // Fetch external WhatsApp templates
-      try {
-        const externalWaData = await whatsappService.getTemplates();
-        if (externalWaData && externalWaData.success && Array.isArray(externalWaData.templates)) {
-          const waTemplates = externalWaData.templates.map((t: any) => {
-            const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
-            const bodyText = bodyComponent ? bodyComponent.text : 'WhatsApp Template';
-            return {
-              id: t.name || t.id,
-              name: t.name,
-              channel: 'whatsapp',
-              status: t.status === 'APPROVED' ? 'approved' : t.status === 'REJECTED' ? 'rejected' : 'pending',
-              language: t.language || 'en_US',
-              category: t.category || 'MARKETING',
-              body: bodyText,
-              template_type: t.category,
-              components: t.components, // Store components for rendering
-              header: { type: 'none' },
-              footer: '',
-              buttons: [],
-              variables: []
-            };
-          });
+      const waConfigId = (user as any)?.whatsapp_config_id;
+      if (waConfigId) {
+        try {
+          const externalWaData = await whatsappService.getTemplates();
+          if (externalWaData && externalWaData.success && Array.isArray(externalWaData.templates)) {
+            const externalWaTemplates = externalWaData.templates.map((t: any) => {
+              const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
+              const bodyText = bodyComponent ? bodyComponent.text : 'WhatsApp Template';
+              return {
+                id: t.name || t.id,
+                name: t.name,
+                channel: 'whatsapp',
+                status: t.status === 'APPROVED' ? 'approved' : t.status === 'REJECTED' ? 'rejected' : 'pending',
+                language: t.language || 'en_US',
+                category: t.category || 'MARKETING',
+                body: bodyText,
+                template_type: t.category,
+                components: t.components,
+                header: { type: 'none' },
+                footer: '',
+                buttons: [],
+                variables: []
+              };
+            });
 
-          setTemplates(prev => {
-            const existingWaNames = new Set(prev.filter(p => p.channel === 'whatsapp').map(p => p.name));
-            const newWa = waTemplates.filter((t: any) => !existingWaNames.has(t.name));
-            return [...prev, ...newWa];
-          });
+            console.log(`📥 WhatsApp: Reconciled ${externalWaTemplates.length} external templates with ${templatesData.filter(p => p.channel === 'whatsapp').length} local.`);
+            setTemplates(prev => {
+              const other = prev.filter(p => p.channel !== 'whatsapp');
+              const localWa = prev.filter(p => p.channel === 'whatsapp');
+
+              const reconciled: MessageTemplate[] = [];
+
+              localWa.forEach(local => {
+                const live = externalWaTemplates.find(t => t.name === local.name);
+                if (live) {
+                  reconciled.push({ ...local, ...live, id: local.id });
+                } else {
+                  reconciled.push(local);
+                }
+              });
+
+              externalWaTemplates.forEach(external => {
+                if (!localWa.some(l => l.name === external.name)) {
+                  reconciled.push(external);
+                }
+              });
+
+              return [...other, ...reconciled];
+            });
+          }
+        } catch (waErr) {
+          console.warn('WhatsApp template fetch skipped or failed:', waErr);
         }
-      } catch (waErr) {
-        console.error('Failed to load WhatsApp templates', waErr);
       }
     } catch (err) {
       console.error('Error fetching templates:', err);
@@ -280,6 +361,33 @@ export default function Templates() {
     }
   };
 
+  const handleSyncTemplateDetails = async (template: MessageTemplate) => {
+    try {
+      setRefreshingTemplateId(template.id);
+      toast({ title: 'Syncing Details...', description: `Fetching full content for ${template.name} from Dotgo...` });
+
+      const result = await rcsTemplatesService.syncTemplateDetails(template.name);
+
+      if (result.success) {
+        toast({
+          title: '✅ Sync Complete',
+          description: `Full details for "${template.name}" have been synced to your local database.`
+        });
+        // Full refresh to get the updated DB records
+        await fetchTemplates();
+      }
+    } catch (err: any) {
+      console.error('Manual sync details error:', err);
+      toast({
+        title: 'Sync Failed',
+        description: err.message || 'Failed to sync template details',
+        variant: 'destructive'
+      });
+    } finally {
+      setRefreshingTemplateId(null);
+    }
+  };
+
   const handleSaveTemplate = async (isDraft: boolean = false) => {
     if (newTemplate.channel === 'whatsapp') {
       try {
@@ -308,13 +416,15 @@ export default function Templates() {
           description: err.response?.data?.error?.message || err.message || 'Failed to create WhatsApp template',
           variant: 'destructive',
         });
+        return; // Stop if external creation fails
       } finally {
         setLoading(false);
       }
-      return;
+      // Continue to save locally
     }
 
     try {
+      setLoading(true);
       // Frontend Validation
       if (!newTemplate.name?.trim()) {
         toast({ title: "Validation Error", description: "Template name is required", variant: "destructive" });
@@ -349,22 +459,29 @@ export default function Templates() {
         })
         : newTemplate.buttons;
 
-      const templateData = {
+      const templateData: any = {
         name: newTemplate.name,
-        language: newTemplate.language,
-        category: newTemplate.category,
+        language: newTemplate.language || 'en_US',
+        category: newTemplate.category || 'MARKETING',
         channel: newTemplate.channel,
-        // Map frontend "text_message" to DB "standard"
-        template_type: newTemplate.template_type === 'text_message' ? 'standard' : newTemplate.template_type,
-        button_type: "quick_reply",
-        header_type: newTemplate.header?.type || 'none',
-        header_content: newTemplate.header?.content || null,
-        header_file_name: newTemplate.header?.fileName || null,
-        body: newTemplate.body,
-        footer: newTemplate.footer || undefined,
-        buttons: mappedButtons,
         status: (isDraft ? 'draft' : (newTemplate.channel === 'rcs' ? 'approved' : 'pending')) as any,
       };
+
+      if (newTemplate.channel === 'whatsapp') {
+        const bodyComp = newTemplate.components?.find((c: any) => c.type === 'BODY');
+        templateData.body = bodyComp?.text || '';
+        templateData.template_type = 'standard';
+        templateData.buttons = []; // Meta buttons are complex, maybe map later if needed
+      } else {
+        // RCS or SMS
+        templateData.template_type = newTemplate.template_type === 'text_message' ? 'standard' : newTemplate.template_type;
+        templateData.body = newTemplate.body;
+        templateData.buttons = mappedButtons;
+        templateData.header_type = newTemplate.header?.type || 'none';
+        templateData.header_content = newTemplate.header?.content || null;
+        templateData.header_file_name = newTemplate.header?.fileName || null;
+        templateData.footer = newTemplate.footer || undefined;
+      }
 
       if (newTemplate.channel === 'rcs' && !isDraft) {
         const mapAction = (btn: any) => {
@@ -940,10 +1057,36 @@ export default function Templates() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                      <p className="line-clamp-3">{template.body}</p>
+                      {template.body === 'External Template' ? (
+                        <div className="flex flex-col items-center gap-2 py-4 text-muted-foreground border border-dashed border-border rounded-md animate-in fade-in zoom-in-95 duration-500">
+                          <AlertCircle className="h-6 w-6 opacity-30" />
+                          <p className="text-[11px] font-medium tracking-tight uppercase">Placeholder Content</p>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-[10px] font-bold px-3 gap-1.5 shadow-sm transform transition-transform active:scale-95"
+                            onClick={() => handleSyncTemplateDetails(template)}
+                            disabled={refreshingTemplateId === template.id}
+                          >
+                            {refreshingTemplateId === template.id ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                            SYNC DETAILS
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="line-clamp-3">{template.body}</p>
+                      )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1 gradient-primary text-white border-none" onClick={() => handleCreateCampaignFromTemplate(template)}>
+                      <Button
+                        variant="outline"
+                        className="flex-1 gradient-primary text-white border-none shadow-md hover:shadow-lg transition-all"
+                        onClick={() => handleCreateCampaignFromTemplate(template)}
+                        disabled={template.body === 'External Template'}
+                      >
                         <Zap className="h-4 w-4 mr-2" />
                         Create Campaign
                       </Button>

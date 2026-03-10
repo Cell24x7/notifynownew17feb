@@ -24,6 +24,8 @@ interface User {
   rcs_text_price?: number;
   rcs_rich_card_price?: number;
   rcs_carousel_price?: number;
+  rcs_config_id?: number;
+  whatsapp_config_id?: number;
   actual_reseller_id?: number;
 }
 
@@ -71,6 +73,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: decoded.rcs_text_price,
           rcs_rich_card_price: decoded.rcs_rich_card_price,
           rcs_carousel_price: decoded.rcs_carousel_price,
+          rcs_config_id: decoded.rcs_config_id,
+          whatsapp_config_id: decoded.whatsapp_config_id,
           actual_reseller_id: decoded.actual_reseller_id,
         });
       } catch (err) {
@@ -113,6 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: userData.rcs_text_price,
           rcs_rich_card_price: userData.rcs_rich_card_price,
           rcs_carousel_price: userData.rcs_carousel_price,
+          rcs_config_id: userData.rcs_config_id,
+          whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
         });
         return true;
@@ -155,6 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: userData.rcs_text_price,
           rcs_rich_card_price: userData.rcs_rich_card_price,
           rcs_carousel_price: userData.rcs_carousel_price,
+          rcs_config_id: userData.rcs_config_id,
+          whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
         });
         return true;
@@ -197,6 +205,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_text_price: userData.rcs_text_price,
           rcs_rich_card_price: userData.rcs_rich_card_price,
           rcs_carousel_price: userData.rcs_carousel_price,
+          rcs_config_id: userData.rcs_config_id,
+          whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
         });
       }

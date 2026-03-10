@@ -23,7 +23,7 @@ router.get('/', authenticate, async (req, res) => {
     const [rows] = await query(
       `SELECT u.id, u.name, u.email, u.company, u.contact_phone, u.plan_id, 
               u.credits_available, u.wallet_balance, u.credits_used, u.status, u.created_at, u.role, u.channels_enabled,
-              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, p.permissions as plan_permissions
+              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, u.rcs_config_id, u.whatsapp_config_id, p.permissions as plan_permissions
        FROM users u
        LEFT JOIN plans p ON u.plan_id = p.id
        WHERE u.id = ?`,
@@ -193,6 +193,28 @@ router.put('/change-email', authenticate, async (req, res) => {
       token,
       user: updated[0]
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// PUT /api/profile/api-password
+router.put('/api-password', authenticate, async (req, res) => {
+  const { apiPassword } = req.body;
+
+  if (!apiPassword || !apiPassword.trim()) {
+    return res.status(400).json({ success: false, message: 'API Password cannot be empty' });
+  }
+
+  try {
+    // Generate hashed API password or save it plain. We are saving it plain here 
+    // for simple token-like validation, or we can hash it. 
+    // The user requested to use it for API, so hashing is standard.
+    const hash = await bcrypt.hash(apiPassword, 10);
+    await query('UPDATE users SET api_password = ? WHERE id = ?', [hash, req.user.id]);
+
+    res.json({ success: true, message: 'API Password updated successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });

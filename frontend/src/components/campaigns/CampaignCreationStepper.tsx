@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter, Smile, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,8 @@ import { campaignService } from '@/services/campaignService';
 import { CampaignPreview } from './CampaignPreview';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { rcsTemplatesService } from '@/services/rcsTemplatesService';
+import { Loader2 } from 'lucide-react';
 
 interface CampaignCreationStepperProps {
    templates: MessageTemplate[];
@@ -114,6 +116,36 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    const [testDestination, setTestDestination] = useState('');
    const [isSendingTest, setIsSendingTest] = useState(false);
 
+   // --- DERIVED STATE / HOOKS THAT MUST BE DEFINED EARLY ---
+   const selectedTemplate = useMemo(() =>
+      templates.find(t => t.id === campaignData.templateId),
+      [templates, campaignData.templateId]);
+
+   // Dynamically extract variables from template body and metadata
+   const templateVariables = useMemo(() => {
+      if (!selectedTemplate) return [];
+
+      const meta = (selectedTemplate as any).metadata || {};
+      const carouselList = meta.carouselList || [];
+
+      // Combine all text fields that might contain variables
+      const textToScan = [
+         selectedTemplate.body,
+         meta.cardTitle,
+         meta.cardDescription,
+         ...carouselList.map((c: any) => `${c.title || ''} ${c.description || ''}`)
+      ].filter(Boolean).join(" ");
+
+      if (!textToScan) return [];
+
+      // Matches both {{var}} and [var] patterns
+      const matches = textToScan.match(/\{\{([^}]+)\}\}|\[([^\]]+)\]/g);
+      if (!matches) return [];
+
+      // Clean up, remove delimiters, and trim whitespace
+      return Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]/g, '').trim())));
+   }, [selectedTemplate]);
+
    // Auto-fill campaign name on mount or when user changes
    useEffect(() => {
       if (user?.name && !campaignData.name) {
@@ -146,16 +178,39 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       }
    }, [currentStep, campaignData.contactSource]);
 
-   const selectedTemplate = templates.find(t => t.id === campaignData.templateId);
+   // Auto-mapping logic
+   useEffect(() => {
+      if (detectedColumns.length > 0 && templateVariables.length > 0) {
+         console.log('🤖 Attempting auto-mapping for columns:', detectedColumns);
+         setCampaignData(prev => {
+            const newMapping = { ...prev.fieldMapping };
+            let mappedCount = 0;
 
-   // Dynamically extract variables from template body
-   const templateVariables = useMemo(() => {
-      if (!selectedTemplate?.body) return [];
-      // Matches both {{var}} and [var] patterns
-      const matches = selectedTemplate.body.match(/\{\{([^}]+)\}\}|\[([^\]]+)\]/g);
-      if (!matches) return [];
-      return Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]/g, ''))));
-   }, [selectedTemplate]);
+            templateVariables.forEach(v => {
+               // Skip if already mapped manually
+               if (newMapping[v]?.value) return;
+
+               const matchedCol = detectedColumns.find(col =>
+                  col.toLowerCase().trim() === v.toLowerCase().trim() ||
+                  col.toLowerCase().trim().replace(/\s/g, '_') === v.toLowerCase().trim()
+               );
+
+               if (matchedCol) {
+                  newMapping[v] = { type: 'field', value: matchedCol };
+                  mappedCount++;
+               }
+            });
+
+            if (mappedCount > 0) {
+               toast({
+                  title: "Auto-mapping complete",
+                  description: `Automatically matched ${mappedCount} fields from your file.`
+               });
+            }
+            return { ...prev, fieldMapping: newMapping };
+         });
+      }
+   }, [detectedColumns, templateVariables]);
 
    const channelConfig = channelOptions.find(c => c.value === campaignData.channel);
 
@@ -199,6 +254,48 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          setCurrentStep(currentStep - 1);
       }
    };
+
+   // --- AUTO-SYNC EXTERNAL TEMPLATE DETAILS ---
+   const [isSyncingTemplate, setIsSyncingTemplate] = useState(false);
+   useEffect(() => {
+      const syncExternalDetails = async () => {
+         // Check if it's an RCS template with "External Template" placeholder
+         const isExternalPlaceholder = selectedTemplate?.body === 'External Template' || !selectedTemplate?.body;
+         const isRcs = selectedTemplate?.channel === 'rcs';
+
+         if (isRcs && isExternalPlaceholder && !isSyncingTemplate) {
+            try {
+               setIsSyncingTemplate(true);
+               console.log(`🔄 Auto-syncing details for external template: ${selectedTemplate.name}`);
+               const result = await rcsTemplatesService.syncTemplateDetails(selectedTemplate.name);
+
+               if (result.success) {
+                  // After successful sync, we need to refresh the template in our list
+                  // Usually parent's 'templates' stays the same until a full refresh
+                  // To avoid full refresh, we'll manually patch our local 'templates' reference if possible
+                  // or rely on user to proceed and CampaignCreationStepper will re-run the useMemo
+                  toast({
+                     title: "Template Synced",
+                     description: "Successfully fetched full template details from Dotgo.",
+                  });
+
+                  // Trigger a re-fetch of templates in the parent if possible or force update
+                  // But since 'templates' is a prop, we can't mutate it easily without a callback.
+                  // For now, we'll suggest proceeding or wait for the parent to re-render.
+                  // NOTE: The backend sync already updated the DB, so next time it's fetched it will be correct.
+               }
+            } catch (err) {
+               console.error("Failed to auto-sync template details:", err);
+            } finally {
+               setIsSyncingTemplate(false);
+            }
+         }
+      };
+
+      if (selectedTemplate && currentStep === 2) {
+         syncExternalDetails();
+      }
+   }, [selectedTemplate?.id, currentStep]);
 
    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -291,14 +388,27 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    };
 
    const downloadSampleFile = () => {
-      const sampleData = 'Name,Phone,Email,City,Order ID,Amount\nJohn Doe,+919876543210,john@email.com,Mumbai,ORD001,299\nJane Smith,+919876543211,jane@email.com,Delhi,ORD002,450';
-      const blob = new Blob([sampleData], { type: 'text/csv' });
+      // Create headers based on detected variables + basic fields
+      const headers = ['Name', 'Phone', ...templateVariables];
+      const sampleRow = ['John Doe', '+919876543210', ...templateVariables.map(v => `Value for ${v}`)];
+
+      const csvContent = [
+         headers.join(','),
+         sampleRow.join(',')
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'sample_contacts.csv';
+      a.download = `sample_${selectedTemplate?.name || 'campaign'}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+
+      toast({
+         title: "Sample Downloaded",
+         description: `Use this file structure for your ${selectedTemplate?.name} campaign.`
+      });
    };
 
    const handleSendTest = async () => {
@@ -519,13 +629,25 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                 campaignData.templateId === template.id && "border-primary bg-primary/5 ring-1 ring-primary"
                                              )}
                                           >
-                                             <div>
-                                                <p className="font-medium">{template.name}</p>
-                                                <p className="text-xs text-muted-foreground line-clamp-1">{template.body.substring(0, 60)}...</p>
+                                             <div className="flex items-center gap-3">
+                                                <div>
+                                                   <p className="font-medium text-sm">{template.name}</p>
+                                                   <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                                      {template.body === 'External Template' ? 'Fetch full details from Dotgo' : template.body.substring(0, 70)}
+                                                   </p>
+                                                </div>
                                              </div>
-                                             <Badge variant={template.status === 'approved' ? 'default' : 'secondary'}>
-                                                {template.status}
-                                             </Badge>
+                                             <div className="flex items-center gap-2">
+                                                {isSyncingTemplate && campaignData.templateId === template.id && (
+                                                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-bold animate-pulse">
+                                                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                                      <span>SYNCING</span>
+                                                   </div>
+                                                )}
+                                                <Badge variant={template.status === 'approved' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                                                   {template.status}
+                                                </Badge>
+                                             </div>
                                           </div>
                                        ))}
                                     </div>
@@ -780,56 +902,127 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                            {/* Reuse existing logic for Steps 4 and 5 */}
                            {currentStep === 4 && (
-                              <div>
-                                 <h2 className="text-xl font-semibold mb-1">Variable Mapping</h2>
-                                 <p className="text-muted-foreground">Map data fields to template variables</p>
+                              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                 <div className="flex items-center justify-between">
+                                    <div>
+                                       <h2 className="text-xl font-semibold mb-1">Variable Mapping</h2>
+                                       <p className="text-muted-foreground">Map template variables to your data source</p>
+                                    </div>
+                                    {campaignData.contactSource === 'upload' && (
+                                       <Button variant="outline" size="sm" onClick={downloadSampleFile}>
+                                          <Download className="mr-2 h-4 w-4" />
+                                          Sample CSV
+                                       </Button>
+                                    )}
+                                 </div>
 
-                                 <div className="mt-4 space-y-4">
+                                 {/* Helper Box */}
+                                 <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 flex items-start gap-3">
+                                    <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
+                                    <div className="text-sm">
+                                       <p className="font-semibold text-primary mb-1">Required Excel/CSV Structure</p>
+                                       <p className="text-muted-foreground mb-2">For this template, please ensure your file has columns for:</p>
+                                       <div className="flex flex-wrap gap-2">
+                                          {templateVariables.map(v => (
+                                             <Badge key={v} variant="secondary" className="font-mono text-[10px]">{v}</Badge>
+                                          ))}
+                                       </div>
+                                    </div>
+                                 </div>
+
+                                 <div className="space-y-4">
                                     {templateVariables.length > 0 ? (
                                        templateVariables.map(variable => (
-                                          <div key={variable} className="grid grid-cols-1 gap-2 p-4 border rounded-lg">
-                                             <Label className="font-mono text-primary">{`{{${variable}}}`}</Label>
-                                             <Select
-                                                value={campaignData.fieldMapping[variable]?.value || ''}
-                                                onValueChange={(val) => {
-                                                   setCampaignData(prev => ({
-                                                      ...prev,
-                                                      fieldMapping: {
-                                                         ...prev.fieldMapping,
-                                                         [variable]: { type: 'custom', value: val }
-                                                      }
-                                                   }));
-                                                }}
-                                             >
-                                                <SelectTrigger>
-                                                   <SelectValue placeholder="Map to field..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                   <SelectItem value="custom_input">Custom Value</SelectItem>
-                                                   <SelectItem value="name">Name</SelectItem>
-                                                   <SelectItem value="phone">Phone</SelectItem>
-                                                   <SelectItem value="email">Email</SelectItem>
-                                                </SelectContent>
-                                             </Select>
+                                          <div key={variable} className="p-5 border rounded-xl bg-card shadow-sm hover:shadow-md transition-all border-l-4 border-l-primary">
+                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <div className="flex-1">
+                                                   <div className="flex items-center gap-2 mb-1">
+                                                      <Badge variant="outline" className="text-primary font-mono">{`{{${variable}}}`}</Badge>
+                                                      <span className="text-sm font-medium text-muted-foreground">maps to</span>
+                                                   </div>
+                                                   <p className="text-xs text-muted-foreground">Select where to get data for this variable</p>
+                                                </div>
 
-                                             <Input
-                                                placeholder="Enter default/custom value"
-                                                value={campaignData.fieldMapping[variable]?.value || ''}
-                                                onChange={(e) => {
-                                                   setCampaignData(prev => ({
-                                                      ...prev,
-                                                      fieldMapping: {
-                                                         ...prev.fieldMapping,
-                                                         [variable]: { type: 'custom', value: e.target.value }
-                                                      }
-                                                   }));
-                                                }}
-                                             />
+                                                <div className="flex flex-col gap-2 min-w-[240px]">
+                                                   <div className="flex gap-2">
+                                                      <Select
+                                                         value={campaignData.fieldMapping[variable]?.type || 'custom'}
+                                                         onValueChange={(val: any) => {
+                                                            setCampaignData(prev => ({
+                                                               ...prev,
+                                                               fieldMapping: {
+                                                                  ...prev.fieldMapping,
+                                                                  [variable]: { ...prev.fieldMapping[variable], type: val, value: '' }
+                                                               }
+                                                            }));
+                                                         }}
+                                                      >
+                                                         <SelectTrigger className="w-32">
+                                                            <SelectValue />
+                                                         </SelectTrigger>
+                                                         <SelectContent>
+                                                            <SelectItem value="field">Field</SelectItem>
+                                                            <SelectItem value="custom">Custom</SelectItem>
+                                                         </SelectContent>
+                                                      </Select>
+
+                                                      {campaignData.fieldMapping[variable]?.type === 'field' ? (
+                                                         <Select
+                                                            value={campaignData.fieldMapping[variable]?.value || ''}
+                                                            onValueChange={(val) => {
+                                                               setCampaignData(prev => ({
+                                                                  ...prev,
+                                                                  fieldMapping: { ...prev.fieldMapping, [variable]: { type: 'field', value: val } }
+                                                               }));
+                                                            }}
+                                                         >
+                                                            <SelectTrigger className="flex-1">
+                                                               <SelectValue placeholder="Select Column..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                               {campaignData.contactSource === 'upload' ? (
+                                                                  detectedColumns.length > 0 ? (
+                                                                     detectedColumns.map(col => (
+                                                                        <SelectItem key={col} value={col}>{col}</SelectItem>
+                                                                     ))
+                                                                  ) : (
+                                                                     <SelectItem value="no_cols" disabled>Upload a file first</SelectItem>
+                                                                  )
+                                                               ) : (
+                                                                  <>
+                                                                     <SelectItem value="name">Name</SelectItem>
+                                                                     <SelectItem value="phone">Phone</SelectItem>
+                                                                     <SelectItem value="email">Email</SelectItem>
+                                                                     <SelectItem value="city">City</SelectItem>
+                                                                  </>
+                                                               )}
+                                                            </SelectContent>
+                                                         </Select>
+                                                      ) : (
+                                                         <Input
+                                                            placeholder="Enter static value..."
+                                                            className="flex-1"
+                                                            value={campaignData.fieldMapping[variable]?.value || ''}
+                                                            onChange={(e) => {
+                                                               setCampaignData(prev => ({
+                                                                  ...prev,
+                                                                  fieldMapping: { ...prev.fieldMapping, [variable]: { type: 'custom', value: e.target.value } }
+                                                               }));
+                                                            }}
+                                                         />
+                                                      )}
+                                                   </div>
+                                                </div>
+                                             </div>
                                           </div>
                                        ))
                                     ) : (
-                                       <div className="p-8 text-center bg-muted/20 rounded-lg">
-                                          <p>No variables found in this template.</p>
+                                       <div className="p-12 text-center border-2 border-dashed rounded-xl bg-muted/20">
+                                          <Smile className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-20" />
+                                          <h3 className="text-lg font-medium text-muted-foreground">Pure Content Template</h3>
+                                          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                                             This template doesn't contain any variables. All recipients will receive the exact same message.
+                                          </p>
                                        </div>
                                     )}
                                  </div>
@@ -1088,6 +1281,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                            campaignData={campaignData}
                            template={selectedTemplate}
                            variables={templateVariables}
+                           csvPreview={csvPreview}
+                           detectedColumns={detectedColumns}
                         />
                      </div>
                   </div>

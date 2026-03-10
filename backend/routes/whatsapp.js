@@ -69,6 +69,12 @@ const getMessagesUrl = (config) => {
 router.get('/templates', authenticate, async (req, res) => {
     try {
         const config = await getWhatsAppConfig(req.user.id);
+
+        // Safety: If no WABA ID is configured, return empty
+        if (!config.wa_biz_accnt_id) {
+            return res.json({ success: true, templates: [], message: 'WABA ID not configured' });
+        }
+
         const params = {};
         if (req.query.fields) params.fields = req.query.fields;
         if (req.query.limit) params.limit = req.query.limit;
@@ -474,6 +480,103 @@ router.post('/send-campaign', authenticate, async (req, res) => {
     } catch (error) {
         console.error('❌ WhatsApp campaign send error:', error.message);
         res.status(500).json({ success: false, message: 'Failed to send WhatsApp campaign' });
+    }
+});
+
+/**
+ * GET/POST /api/whatsapp/send-campaign-api
+ * Public External API for Clients to Send WhatsApp Campaigns
+ */
+router.all('/send-campaign-api', async (req, res) => {
+    try {
+        const payload = req.method === 'POST' ? req.body : req.query;
+        const { username, password, numbers, campaignName } = payload;
+        const templateName = payload.templateName || payload.template;
+
+        if (!username || !password) {
+            return res.status(401).json({ success: false, message: 'username and password are required' });
+        }
+        if (!templateName) {
+            return res.status(400).json({ success: false, message: 'template or templateName is required' });
+        }
+        if (!numbers) {
+            return res.status(400).json({ success: false, message: 'numbers are required (comma separated or array)' });
+        }
+
+        // Authenticate user via api_password
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ? OR contact_phone = ?', [username, username]);
+        if (!users.length) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        const user = users[0];
+        if (!user.api_password) {
+            return res.status(401).json({ success: false, message: 'API Password not set for this user' });
+        }
+
+        const match = await bcrypt.compare(password, user.api_password);
+        if (!match) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        }
+
+        const userId = user.id;
+
+        // Parse numbers
+        let contacts = [];
+        if (typeof numbers === 'string') {
+            contacts = numbers.split(',').map(n => n.trim()).filter(Boolean);
+        } else if (Array.isArray(numbers)) {
+            contacts = numbers;
+        }
+
+        if (contacts.length === 0) {
+            return res.status(400).json({ success: false, message: 'No valid numbers provided' });
+        }
+
+        const cName = campaignName || `API_WA_${Date.now()}`;
+        const campaignId = `CAMP_API_${Math.floor(Math.random() * 10000)}_${Date.now()}`;
+
+        // Create campaign
+        await query(
+            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
+            [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length]
+        );
+
+        const values = contacts.map(mobile => {
+            const cleanMobile = typeof mobile === 'string' ? mobile.replace(/\D/g, '') : String(mobile).replace(/\D/g, '');
+            if (!cleanMobile) return null;
+            return [campaignId, userId, cleanMobile, 'pending'];
+        }).filter(Boolean);
+
+        if (values.length > 0) {
+            const BATCH = 1000;
+            for (let i = 0; i < values.length; i += BATCH) {
+                await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
+            }
+        }
+
+        // Deduct credits
+        const { deductCampaignCredits } = require('../services/walletService');
+        const deductionResult = await deductCampaignCredits(campaignId);
+
+        if (!deductionResult.success) {
+            console.error(`❌ API Credit deduction failed for WA campaign ${campaignId}: ${deductionResult.message}`);
+            await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
+            return res.status(402).json({ success: false, message: deductionResult.message || 'Insufficient wallet balance' });
+        }
+
+        return res.json({
+            success: true,
+            message: 'Campaign accepted for processing',
+            campaignId,
+            queued: contacts.length
+        });
+
+    } catch (error) {
+        console.error('❌ External API WhatsApp campaign send error:', error.message);
+        res.status(500).json({ success: false, message: 'Internal server error while processing API request' });
     }
 });
 

@@ -225,6 +225,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
     let sql = `
       SELECT u.id, u.name, u.email, u.company, u.role, u.channels_enabled, u.permissions,
              u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
+             u.whatsapp_config_id, u.rcs_config_id,
              p.permissions as plan_permissions, u.reseller_id
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
@@ -272,6 +273,8 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       originalRole: 'user',
       permissions: finalPermissions, // Added
       channels_enabled: channelsEnabled, // Added
+      rcs_config_id: client.rcs_config_id,
+      whatsapp_config_id: client.whatsapp_config_id,
       rcs_text_price: client.rcs_text_price,
       rcs_rich_card_price: client.rcs_rich_card_price,
       rcs_carousel_price: client.rcs_carousel_price,

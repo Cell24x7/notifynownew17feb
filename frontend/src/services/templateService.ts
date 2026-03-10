@@ -36,6 +36,7 @@ export interface MessageTemplate {
     updated_at: string;
     buttons: TemplateButton[];
     variables?: any[];
+    metadata?: any;
     analytics?: {
         sent: number;
         deliveredRate: number;

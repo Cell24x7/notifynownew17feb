@@ -191,6 +191,8 @@ router.post('/login', async (req, res) => {
         rcs_text_price: user.rcs_text_price,
         rcs_rich_card_price: user.rcs_rich_card_price,
         rcs_carousel_price: user.rcs_carousel_price,
+        rcs_config_id: user.rcs_config_id,
+        whatsapp_config_id: user.whatsapp_config_id,
         actual_reseller_id: user.actual_reseller_id
       },
       JWT_SECRET,
@@ -215,6 +217,8 @@ router.post('/login', async (req, res) => {
         rcs_text_price: user.rcs_text_price,
         rcs_rich_card_price: user.rcs_rich_card_price,
         rcs_carousel_price: user.rcs_carousel_price,
+        rcs_config_id: user.rcs_config_id,
+        whatsapp_config_id: user.whatsapp_config_id,
         actual_reseller_id: user.actual_reseller_id
       }
     });

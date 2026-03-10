@@ -34,13 +34,54 @@ const replaceVariables = (text, variablesJson) => {
 
         Object.keys(vars).forEach(key => {
             const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`\\[${escapedKey}\\]|\\{\\{${escapedKey}\\}\\}`, 'gi');
+            // Support both {{var}} and {{ var }} as well as [var] and [ var ]
+            const regex = new RegExp(`\\[\\s*${escapedKey}\\s*\\]|\\{\\{\\s*${escapedKey}\\s*\\}\\}`, 'gi');
             result = result.replace(regex, vars[key]);
         });
 
         return result;
     } catch (err) {
         return text;
+    }
+};
+
+const getOrderedVariables = (text, variablesJson) => {
+    if (!text || !variablesJson) return [];
+    try {
+        const vars = typeof variablesJson === 'string' ? JSON.parse(variablesJson) : variablesJson;
+        // Regex to match {{var}} or [var] with optional internal whitespace
+        const regex = /\{\{\s*([^}\s]+)\s*\}\}|\[\s*([^\]\s]+)\s*\]/g;
+        const results = [];
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            const varName = (match[1] || match[2]).trim();
+            results.push(String(vars[varName] || ''));
+        }
+        return results;
+    } catch (err) {
+        return [];
+    }
+};
+
+const resolveMappedVariables = (mappingJson, variablesJson) => {
+    if (!mappingJson) return variablesJson;
+    try {
+        const mapping = typeof mappingJson === 'string' ? JSON.parse(mappingJson) : mappingJson;
+        const vars = typeof variablesJson === 'string' ? JSON.parse(variablesJson) : variablesJson;
+        if (!mapping || Object.keys(mapping).length === 0) return vars;
+
+        const resolved = {};
+        Object.keys(mapping).forEach(key => {
+            const m = mapping[key];
+            if (m.type === 'field') {
+                resolved[key] = vars[m.value] || '';
+            } else if (m.type === 'custom') {
+                resolved[key] = m.value || '';
+            }
+        });
+        return { ...vars, ...resolved };
+    } catch (e) {
+        return variablesJson;
     }
 };
 
@@ -58,8 +99,8 @@ const processQueue = async () => {
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
-            mt.body as template_body, mt.template_type,
-            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted,
+            mt.body as template_body, mt.template_type, mt.metadata as template_metadata,
+            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, c.variable_mapping,
             u.rcs_config_id, u.whatsapp_config_id, q.variables,
             rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
             rc.client_id, rc.client_secret, rc.bot_id,
@@ -70,7 +111,7 @@ const processQueue = async () => {
             JOIN users u ON c.user_id = u.id
             LEFT JOIN rcs_configs rc ON u.rcs_config_id = rc.id
             LEFT JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id
-            LEFT JOIN message_templates mt ON c.template_id = mt.id
+            LEFT JOIN message_templates mt ON (c.template_id = mt.id OR (c.template_id = mt.name AND c.user_id = mt.user_id))
             WHERE q.status = 'pending' AND c.status = 'running'
             LIMIT ?
         `;
@@ -107,6 +148,9 @@ const processQueue = async () => {
 
             let result = { success: false, error: 'Unknown' };
             try {
+                // Apply variable mapping!
+                const resolvedVars = resolveMappedVariables(item.variable_mapping, item.variables);
+
                 if (item.channel === 'RCS' || item.channel === 'rcs') {
                     const userConfig = item.rcs_config_id ? {
                         id: item.rcs_config_id,
@@ -119,21 +163,28 @@ const processQueue = async () => {
                     } : null;
 
                     try {
-                        // If it's a text message or we have a body with placeholders, prioritize sending as custom text
-                        // to ensure variable replacement works. 
-                        // Note: If template_name refers to a Dotgo template that handles its own variables,
-                        // this logic might need adjustment. For now, we favor the local body replacement.
-                        if (item.template_type === 'text_message' || (item.template_body && item.template_body.includes('['))) {
-                            const customMessage = replaceVariables(item.template_body || item.campaign_name, item.variables);
+                        const body = item.template_body || '';
+                        const meta = typeof item.template_metadata === 'string' ? item.template_metadata : JSON.stringify(item.template_metadata || {});
+                        const searchContext = `${body} ${meta}`;
+
+                        // We always try to use the template engine if we have a template name/code
+                        if (item.template_name && item.template_name.length > 5) {
+                            // Extract ordered variables for Dotgo customParams scanning BOTH body and meta
+                            const customParams = getOrderedVariables(searchContext, resolvedVars);
+
+                            console.log(`[QueueProcessor] Sending RCS Template [${item.template_name}] to ${item.mobile} with params:`, customParams);
+                            const raw = await sendRcsTemplate(item.mobile, item.template_name, userConfig, customParams);
+                            result = normalizeRcsResult(raw);
+                        } else {
+                            // Text fallback for non-template scenarios
+                            const customMessage = replaceVariables(body || item.campaign_name, resolvedVars);
                             const rawText = await sendRcsMessage(item.mobile, customMessage, userConfig);
                             result = normalizeRcsResult(rawText);
-                        } else {
-                            const raw = await sendRcsTemplate(item.mobile, item.template_name, userConfig);
-                            result = normalizeRcsResult(raw);
                         }
                     } catch (err) {
-                        console.warn(`[QueueProcessor] Template failed for ${item.mobile}, trying text`);
-                        const rawText = await sendRcsMessage(item.mobile, item.campaign_name, userConfig);
+                        console.warn(`[QueueProcessor] RCS Process Error for ${item.mobile}:`, err.message);
+                        const customBody = replaceVariables(item.template_body || item.campaign_name, resolvedVars);
+                        const rawText = await sendRcsMessage(item.mobile, customBody, userConfig);
                         result = normalizeRcsResult(rawText);
                     }
                 } else if (item.channel === 'whatsapp' || item.channel === 'WhatsApp') {
@@ -168,6 +219,18 @@ const processQueue = async () => {
                                     language: { code: 'en_US' }
                                 }
                             };
+
+                            // Add components if we have variables
+                            const waParams = getOrderedVariables(item.template_body || '', resolvedVars);
+                            if (waParams.length > 0) {
+                                console.log(`[QueueProcessor] WhatsApp resolved params for ${mobile}:`, waParams);
+                                payload.template.components = [
+                                    {
+                                        type: 'body',
+                                        parameters: waParams.map(v => ({ type: 'text', text: String(v) }))
+                                    }
+                                ];
+                            }
 
                             const response = await axios.post(msgUrl, payload, { headers });
                             const respData = response.data;

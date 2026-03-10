@@ -244,6 +244,7 @@ export interface MessageTemplate {
   buttons: TemplateButton[];
   variables: string[];
   status: 'approved' | 'pending' | 'rejected';
+  metadata?: any;
   createdAt: Date;
   usageCount: number;
   // Analytics

@@ -140,8 +140,31 @@ export const rcsTemplatesService = {
         throw new Error(result.message || 'Failed to sync status');
       }
       return await response.json();
-    } catch (error) {
-      console.error('Error syncing status:', error);
+    } catch (error: any) {
+      console.error('Error in syncTemplateStatus:', error);
+      throw error;
+    }
+  },
+
+  // NEW: Sync full template details (body, cards, etc) from Dotgo to our DB
+  async syncTemplateDetails(templateName: string) {
+    try {
+      const response = await fetch(`${API_BASE}/rcs/templates/external/${templateName}/sync`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({} as any));
+        throw new Error(result.message || 'Failed to sync template details');
+      }
+      return await response.json();
+    } catch (error: any) {
+      console.error('Error in syncTemplateDetails:', error);
       throw error;
     }
   },

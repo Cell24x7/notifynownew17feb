@@ -122,7 +122,7 @@ const getDotgoAdminToken = async () => {
  * @param {object} [config] - Optional configuration override
  * @returns {Promise<object>}
  */
-const sendRcsTemplate = async (mobile, templateName, config) => {
+const sendRcsTemplate = async (mobile, templateName, config, customParams = []) => {
   if (!config) return { success: false, error: "No RCS configuration assigned to this user" };
 
   try {
@@ -142,7 +142,8 @@ const sendRcsTemplate = async (mobile, templateName, config) => {
     const payload = {
       contentMessage: {
         templateMessage: {
-          templateCode: templateCode
+          templateCode: templateCode,
+          customParams: (Array.isArray(customParams) && customParams.length > 0) ? customParams : undefined
         }
       }
     };

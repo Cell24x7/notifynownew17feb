@@ -84,15 +84,21 @@ export default function Reports() {
 
     useEffect(() => {
         setDetailedPage(1);
-        fetchWebhookLogs(1);
+        if (activeTab === 'detailed' || activeTab === 'api') {
+            fetchWebhookLogs(1, activeTab);
+        }
     }, [startDate, endDate, channelFilter]);
 
     useEffect(() => {
-        fetchReports(summaryPage);
+        if (activeTab === 'summary') {
+            fetchReports(summaryPage);
+        }
     }, [summaryPage]);
 
     useEffect(() => {
-        fetchWebhookLogs(detailedPage);
+        if (activeTab === 'detailed' || activeTab === 'api') {
+            fetchWebhookLogs(detailedPage, activeTab);
+        }
     }, [detailedPage]);
 
     const fetchReports = async (page: number = 1) => {
@@ -105,6 +111,11 @@ export default function Reports() {
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+
+            // If in summary, only show manual campaigns. If in API tab, show API campaigns.
+            if (activeTab === 'summary' || activeTab === 'detailed') url += `source=manual&`;
+            if (activeTab === 'api') url += `source=api&`;
+
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
             const response = await fetch(url, {
@@ -123,7 +134,7 @@ export default function Reports() {
         }
     };
 
-    const fetchWebhookLogs = async (page: number = 1) => {
+    const fetchWebhookLogs = async (page: number = 1, currentTab: string = activeTab) => {
         setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
@@ -131,6 +142,13 @@ export default function Reports() {
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+
+            if (currentTab === 'api') {
+                url += `source=api&`;
+            } else {
+                url += `source=manual&`;
+            }
+
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
             const res = await fetch(url, {
@@ -151,7 +169,7 @@ export default function Reports() {
 
     useEffect(() => {
         if (activeTab === 'summary') fetchReports(summaryPage);
-        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
+        if (activeTab === 'detailed' || activeTab === 'api') fetchWebhookLogs(detailedPage, activeTab);
     }, [activeTab, startDate, endDate, searchQuery]);
 
     useEffect(() => {
@@ -184,7 +202,7 @@ export default function Reports() {
             ].join('\n');
 
             downloadCsv(csvContent, `rcs_summary_${format(new Date(), 'yyyyMMdd')}.csv`);
-        } else if (activeTab === 'detailed') {
+        } else if (activeTab === 'detailed' || activeTab === 'api') {
             const headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
             const csvContent = [
                 headers.join(','),
@@ -208,7 +226,7 @@ export default function Reports() {
 
     const handleRefresh = () => {
         if (activeTab === 'summary') fetchReports(summaryPage);
-        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
+        if (activeTab === 'detailed' || activeTab === 'api') fetchWebhookLogs(detailedPage, activeTab);
     };
 
     const filteredReports = reports;
@@ -343,6 +361,7 @@ export default function Reports() {
                                 <SelectItem value="sms">SMS</SelectItem>
                             </SelectContent>
                         </Select>
+
                     </div>
 
                     <div className="flex-1 max-w-sm relative">
@@ -358,9 +377,10 @@ export default function Reports() {
             </Card>
 
             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <TabsList className="grid w-[400px] grid-cols-2">
+                <TabsList className="grid w-[600px] grid-cols-3">
                     <TabsTrigger value="summary">Summary Report</TabsTrigger>
                     <TabsTrigger value="detailed">Detailed Reports</TabsTrigger>
+                    <TabsTrigger value="api">API Logs</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
@@ -389,9 +409,18 @@ export default function Reports() {
                                     ) : (
                                         filteredReports.map((report: any) => (
                                             <TableRow key={report.id}>
-                                                <TableCell className="font-medium">{report.name}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span>{report.name}</span>
+                                                        {report.id?.startsWith('CAMP_API_') ? (
+                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200">API Run</Badge>
+                                                        ) : (
+                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-slate-50 text-slate-600 border-slate-200">Manual Run</Badge>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="outline" className="uppercase font-bold text-[10px] tracking-wider">{report.channel || 'RCS'}</Badge>
+                                                    <Badge variant="outline" className={cn("uppercase font-bold text-[10px] tracking-wider", report.channel === 'whatsapp' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200')}>{report.channel || 'RCS'}</Badge>
                                                 </TableCell>
                                                 <TableCell className="font-mono text-[10px]">{report.template_id}</TableCell>
                                                 <TableCell className="text-muted-foreground leading-tight">
@@ -414,87 +443,92 @@ export default function Reports() {
                 </TabsContent>
 
 
-                <TabsContent value="detailed" className="flex-1 mt-4">
-                    <Card className="border-none shadow-sm h-full">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <div className="space-y-1">
-                                <CardTitle className="text-xl font-bold">Detailed Delivery Reports</CardTitle>
-                                <CardDescription>Consolidated status for every recipient</CardDescription>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
-                                    Total Messages: {webhookLogs.length}
-                                </Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0 overflow-auto">
-                            <Table>
-                                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
-                                    <TableRow className="bg-muted/30">
-                                        <TableHead className="w-[50px] font-bold text-black border-r px-2 text-[10px]">Id</TableHead>
-                                        <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Rtime</TableHead>
-                                        <TableHead className="w-[100px] font-bold text-black border-r text-center px-2 text-[10px]">Mobile</TableHead>
-                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">sendTime</TableHead>
-                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">DelTime</TableHead>
-                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">ReadTime</TableHead>
-                                        <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Template</TableHead>
-                                        <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Campaign</TableHead>
-                                        <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">Status</TableHead>
-                                        <TableHead className="font-bold text-black text-center px-2 text-[10px]">reason</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loadingLogs ? (
-                                        <TableRow><TableCell colSpan={10} className="text-center py-10">Fetching logs...</TableCell></TableRow>
-                                    ) : webhookLogs.length === 0 ? (
-                                        <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
-                                    ) : (
-                                        webhookLogs.map((log) => (
-                                            <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
-                                                <TableCell className="text-[10px] font-mono border-r px-2">
-                                                    {log.id}
-                                                </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center px-2">
-                                                    {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
-                                                </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center px-2">
-                                                    {log.recipient?.replace(/^\+/, '')}
-                                                </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center px-2">
-                                                    {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
-                                                </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center text-green-600 font-medium px-2">
-                                                    {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
-                                                </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center text-purple-600 font-medium px-2">
-                                                    {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
-                                                </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.template_name}>
-                                                    {log.template_name || 'N/A'}
-                                                </TableCell>
-                                                <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.campaign_name}>
-                                                    <div className="flex flex-col items-center">
-                                                        <span>{log.campaign_name || 'N/A'}</span>
-                                                        <Badge variant="outline" className="uppercase font-bold text-[8px] tracking-wider mt-1">{log.channel || 'RCS'}</Badge>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center border-r px-1">
-                                                    <Badge variant="outline" className={cn("uppercase text-[8px] font-bold px-1 py-0", getStatusColor(log.status))}>
-                                                        {log.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[120px] px-2" title={log.failure_reason || ''}>
-                                                    {log.failure_reason || '-'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                            {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                {(activeTab === 'detailed' || activeTab === 'api') && (
+                    <TabsContent value={activeTab} className="flex-1 mt-4">
+                        <Card className="border-none shadow-sm h-full">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <div className="space-y-1">
+                                    <CardTitle className="text-xl font-bold">{activeTab === 'api' ? 'API Delivery Logs' : 'Detailed Delivery Reports'}</CardTitle>
+                                    <CardDescription>{activeTab === 'api' ? 'Logs for campaigns triggered via API' : 'Consolidated status for every recipient'}</CardDescription>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
+                                        Total Messages: {webhookLogs.length}
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0 overflow-auto">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
+                                        <TableRow className="bg-muted/30">
+                                            <TableHead className="w-[50px] font-bold text-black border-r px-2 text-[10px]">Id</TableHead>
+                                            <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Rtime</TableHead>
+                                            <TableHead className="w-[100px] font-bold text-black border-r text-center px-2 text-[10px]">Mobile</TableHead>
+                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">sendTime</TableHead>
+                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">DelTime</TableHead>
+                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">ReadTime</TableHead>
+                                            <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Template</TableHead>
+                                            <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Campaign</TableHead>
+                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">Status</TableHead>
+                                            <TableHead className="font-bold text-black text-center px-2 text-[10px]">reason</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loadingLogs ? (
+                                            <TableRow><TableCell colSpan={10} className="text-center py-10">Fetching logs...</TableCell></TableRow>
+                                        ) : webhookLogs.length === 0 ? (
+                                            <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
+                                        ) : (
+                                            webhookLogs.map((log) => (
+                                                <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
+                                                    <TableCell className="text-[10px] font-mono border-r px-2">
+                                                        {log.id}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r text-center px-2">
+                                                        {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r text-center px-2">
+                                                        {log.recipient?.replace(/^\+/, '')}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r text-center px-2">
+                                                        {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r text-center text-green-600 font-medium px-2">
+                                                        {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r text-center text-purple-600 font-medium px-2">
+                                                        {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.template_name}>
+                                                        {log.template_name || 'N/A'}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.campaign_name}>
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <span>{log.campaign_name || 'N/A'}</span>
+                                                            <Badge variant="outline" className={cn("uppercase font-bold text-[8px] tracking-wider mt-1", log.channel === 'whatsapp' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200')}>{log.channel || 'RCS'}</Badge>
+                                                            {log.campaign_id?.startsWith('CAMP_API_') && (
+                                                                <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 leading-none py-0">API</Badge>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-center border-r px-1">
+                                                        <Badge variant="outline" className={cn("uppercase text-[8px] font-bold px-1 py-0", getStatusColor(log.status))}>
+                                                            {log.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[120px] px-2" title={log.failure_reason || ''}>
+                                                        {log.failure_reason || '-'}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                                {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     );

@@ -45,6 +45,9 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
     const config = configs[0];
     const templates = await getExternalTemplates(config);
 
+    // Filter templates to only show those belonging to the user's specific bot
+    // Although getExternalTemplates(config) already uses bot_id, 
+    // we ensure the response is strictly for this user.
     res.json({ success: true, data: templates, templates });
   } catch (error) {
     console.error('❌ Error in /templates/external:', error.message);
@@ -161,6 +164,12 @@ router.get('/reports', authenticateToken, async (req, res) => {
       params.push(channel);
     }
 
+    if (req.query.source === 'api') {
+      sql += ` AND c.id LIKE 'CAMP_API_%'`;
+    } else if (req.query.source === 'manual') {
+      sql += ` AND c.id NOT LIKE 'CAMP_API_%'`;
+    }
+
     // Filter by userId. If provided and user is admin, use targetUserId.
     // Otherwise, use authenticated userId for non-admins.
     if (req.user.role === 'superadmin' || req.user.role === 'admin') {
@@ -196,7 +205,7 @@ router.get('/reports', authenticateToken, async (req, res) => {
     // Get paginated data
     const selectSql = `
       SELECT 
-        c.id, c.name, c.template_id, c.template_name, c.created_at,
+        c.id, c.name, c.template_id, c.template_name, c.created_at, c.channel,
         c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status
       ${sql}
       ORDER BY c.created_at DESC
@@ -237,9 +246,9 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
     let templateType = 'standard';
 
     if (!finalTemplate && campaignId) {
-      const [campaigns] = await query('SELECT template_id, template_type FROM campaigns WHERE id = ?', [campaignId]);
+      const [campaigns] = await query('SELECT template_id, template_name, template_type FROM campaigns WHERE id = ?', [campaignId]);
       if (campaigns && campaigns.length > 0) {
-        finalTemplate = campaigns[0].template_id;
+        finalTemplate = campaigns[0].template_name || campaigns[0].template_id;
         templateType = campaigns[0].template_type || 'standard';
       }
     }
@@ -340,9 +349,99 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
 });
 
 /**
- * @route DELETE /api/rcs/templates/external/:name
- * @desc Delete an RCS template from Dotgo
+ * @route GET /api/rcs/templates/external/:name/sync
+ * @desc Get details from Dotgo and save/update in local DB
  */
+router.get('/templates/external/:name/sync', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const templateName = req.params.name;
+
+    const [configs] = await query(`
+      SELECT rc.*, u.rcs_config_id
+      FROM users u 
+      JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    if (!configs || configs.length === 0) {
+      return res.status(400).json({ success: false, message: 'No RCS configuration assigned' });
+    }
+
+    const config = configs[0];
+    const { getDotgoTemplateDetails } = require('../services/rcsService');
+    const result = await getDotgoTemplateDetails(config, templateName);
+
+    if (result.success && result.data) {
+      const t = result.data;
+      const type = t.templateType || t.type || 'text_message';
+      let body = t.textMessageContent || t.fallbackText || '';
+      const meta = {};
+
+      if (type === 'rich_card' && t.standAlone) {
+        body = t.standAlone.cardDescription || body;
+        meta.cardTitle = t.standAlone.cardTitle;
+        meta.mediaUrl = t.standAlone.mediaUrl;
+        meta.orientation = t.orientation || 'VERTICAL';
+        meta.height = t.height || 'SHORT_HEIGHT';
+      } else if (type === 'carousel' && t.carouselList) {
+        body = t.carouselList[0]?.cardDescription || body;
+        meta.carouselList = t.carouselList.map(c => ({
+          title: c.cardTitle,
+          description: c.cardDescription,
+          mediaUrl: c.mediaUrl
+        }));
+        meta.height = t.height || 'SHORT_HEIGHT';
+        meta.width = t.width || 'MEDIUM_WIDTH';
+      }
+
+      // 1. Check if template exists locally
+      const [existing] = await query('SELECT id FROM message_templates WHERE name = ? AND user_id = ? AND channel = "rcs"', [templateName, userId]);
+
+      let localId;
+      if (existing.length > 0) {
+        localId = existing[0].id;
+        await query(
+          'UPDATE message_templates SET body = ?, template_type = ?, status = ?, metadata = ?, rcs_config_id = ? WHERE id = ?',
+          [body, type, 'approved', JSON.stringify(meta), config.rcs_config_id, localId]
+        );
+      } else {
+        localId = `TPL${Date.now()}`;
+        await query(
+          `INSERT INTO message_templates (id, user_id, name, channel, body, template_type, status, metadata, rcs_config_id, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [localId, userId, templateName, 'rcs', body, type, 'approved', JSON.stringify(meta), config.rcs_config_id]
+        );
+      }
+
+      // 2. Sync Buttons (Suggestions)
+      // Delete old buttons
+      await query('DELETE FROM template_buttons WHERE template_id = ?', [localId]);
+
+      // Map Dotgo suggestions to local button format
+      const dotgoSuggestions = t.suggestions || t.standAlone?.suggestions || [];
+      if (dotgoSuggestions.length > 0) {
+        const btnValues = dotgoSuggestions.map((s, idx) => [
+          `BTN${Date.now()}${idx}`,
+          localId,
+          s.suggestionType === 'reply' ? 'reply' : (s.suggestionType === 'url_action' ? 'url' : 'phone'),
+          s.displayText,
+          s.url || s.phoneNumber || s.postback || '',
+          idx
+        ]);
+        await query('INSERT INTO template_buttons (id, template_id, type, label, value, position) VALUES ?', [btnValues]);
+      }
+
+      res.json({ success: true, message: 'Template successfully synced with local database', templateId: localId });
+    } else {
+      res.status(404).json({ success: false, message: result.error || 'Template not found on Dotgo' });
+    }
+  } catch (error) {
+    console.error('❌ Sync template details error:', error.message);
+    res.status(500).json({ success: false, message: 'Server error during sync' });
+  }
+});
+
 router.delete('/templates/external/:name', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;

@@ -108,18 +108,66 @@ export default function Campaigns() {
           const externalRcsList = externalRcsData?.templates || [];
 
           if (Array.isArray(externalRcsList)) {
-            const mappedExternal = externalRcsList.map((t: any) => ({
-              id: String(t.name || t.TemplateName || t.id),
-              name: String(t.name || t.TemplateName || t.id),
-              channel: 'rcs' as const,
-              status: 'approved' as any,
-              template_type: (t.type || t.templateType || 'text_message') as any,
-              body: t.textMessageContent || t.fallbackText || '',
-              isExternal: true
-            }));
-            const localNames = new Set(templatesData.filter(lt => lt.channel === 'rcs').map(lt => lt.name));
-            const uniqueExternal = mappedExternal.filter(et => !localNames.has(et.name));
-            mergedTemplates = [...mergedTemplates, ...uniqueExternal as any];
+            const mappedExternal = externalRcsList.map((t: any) => {
+              const type = (t.type || t.templateType || 'text_message') as any;
+              let body = t.textMessageContent || t.fallbackText || '';
+              const meta: any = {};
+
+              if (type === 'rich_card' && t.standAlone) {
+                body = t.standAlone.cardDescription || body;
+                meta.cardTitle = t.standAlone.cardTitle;
+                meta.mediaUrl = t.standAlone.mediaUrl;
+              } else if (type === 'carousel' && t.carouselList) {
+                body = t.carouselList[0]?.cardDescription || body;
+                meta.carouselList = t.carouselList.map((c: any) => ({
+                  title: c.cardTitle,
+                  description: c.cardDescription,
+                  mediaUrl: c.mediaUrl
+                }));
+              }
+
+              return {
+                id: String(t.name || t.TemplateName || t.id),
+                name: String(t.name || t.TemplateName || t.id),
+                channel: 'rcs' as const,
+                status: 'approved' as any,
+                template_type: type,
+                body: body,
+                metadata: meta,
+                isExternal: true
+              };
+            });
+
+            const other = mergedTemplates.filter(p => p.channel !== 'rcs');
+            const localRcs = mergedTemplates.filter(p => p.channel === 'rcs');
+            const reconciled: MessageTemplate[] = [];
+
+            localRcs.forEach(local => {
+              const live = mappedExternal.find(t => t.name === local.name);
+              if (live) {
+                // If we have local body and it's not "External Template", preserve it unless live has real content
+                const useLocalBody = local.body && local.body !== 'External Template';
+                const liveHasBody = live.body && live.body !== 'External Template';
+
+                reconciled.push({
+                  ...local,
+                  ...live,
+                  id: local.id,
+                  body: (useLocalBody && !liveHasBody) ? local.body : live.body,
+                  metadata: (local.metadata && Object.keys(local.metadata).length > 0 && (!live.metadata || Object.keys(live.metadata).length === 0)) ? local.metadata : live.metadata
+                });
+              } else {
+                reconciled.push(local);
+              }
+            });
+
+            mappedExternal.forEach(external => {
+              if (!localRcs.some(l => l.name === external.name)) {
+                reconciled.push(external as any);
+              }
+            });
+
+            mergedTemplates = [...other, ...reconciled];
           }
         } catch (rcsErr) {
           console.error('Failed to fetch external RCS templates:', rcsErr);
@@ -132,16 +180,40 @@ export default function Campaigns() {
           const waData = await whatsappService.getTemplates();
           const waList = waData?.templates || [];
           if (Array.isArray(waList)) {
-            const mappedWa = waList.map((t: any) => ({
-              id: t.name,
-              name: t.name,
-              channel: 'whatsapp' as const,
-              status: (t.status?.toLowerCase() === 'approved' ? 'approved' : 'pending') as any,
-              template_type: 'text_message' as any,
-              body: t.components.find((c: any) => c.type === 'BODY')?.text || '',
-              isExternal: true
-            }));
-            mergedTemplates = [...mergedTemplates, ...mappedWa as any];
+            const mappedWa = waList.map((t: any) => {
+              const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
+              return {
+                id: String(t.name || t.id),
+                name: String(t.name || t.id),
+                channel: 'whatsapp' as const,
+                status: (t.status?.toLowerCase() === 'approved' ? 'approved' : 'pending') as any,
+                template_type: (t.category || 'text_message') as any,
+                body: bodyComponent?.text || '',
+                isExternal: true
+              };
+            });
+
+            // Reconciliation logic similar to Templates.tsx
+            const other = mergedTemplates.filter(p => p.channel !== 'whatsapp');
+            const localWa = mergedTemplates.filter(p => p.channel === 'whatsapp');
+            const reconciled: MessageTemplate[] = [];
+
+            localWa.forEach(local => {
+              const live = mappedWa.find(t => t.name === local.name);
+              if (live) {
+                reconciled.push({ ...local, ...live, id: local.id });
+              } else {
+                reconciled.push(local);
+              }
+            });
+
+            mappedWa.forEach(external => {
+              if (!localWa.some(l => l.name === external.name)) {
+                reconciled.push(external as any);
+              }
+            });
+
+            mergedTemplates = [...other, ...reconciled];
           }
         } catch (waErr) {
           console.error('Failed to fetch WhatsApp templates:', waErr);
@@ -208,6 +280,7 @@ export default function Campaigns() {
         scheduled_at: campaignData.scheduleType === 'scheduled'
           ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
           : undefined,
+        variable_mapping: campaignData.fieldMapping // Map field mapping to backend
       };
 
       const createRes = await campaignService.createCampaign(campaignPayload);
@@ -422,8 +495,8 @@ export default function Campaigns() {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button className="gradient-primary w-full sm:w-auto shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-300 font-bold border-none">
+                <Plus className="h-5 w-5 mr-2" />
                 Create Campaign
               </Button>
             </DialogTrigger>
