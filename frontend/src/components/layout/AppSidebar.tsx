@@ -22,6 +22,7 @@ import {
   ShoppingCart,
   FileText,
   Globe,
+  Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -45,14 +46,12 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const { settings } = useBranding();
 
   const isDark = theme === 'dark';
 
-  // Real wallet balance from auth context
-  const walletBalance = user?.wallet_balance ?? 0;
 
   // Permissions check
   // Default to true if no permissions found to avoid locking out users during transition
@@ -85,6 +84,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: true },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
+    { icon: Bot, label: 'Chatflows', path: '/chatflows', show: true },
     { icon: Puzzle, label: 'Marketplace', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: BarChart3, label: 'Reports', path: '/reports', show: hasPermission('Reports - View') || true }, // Default true for now as requested by user
     { icon: Users, label: 'Manage Users', path: '/reseller/users', show: user?.role === 'reseller' },
@@ -138,34 +138,6 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </Button> */}
-      </div>
-
-      {/* Wallet – real balance */}
-      <div className="px-3 py-4 border-b">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-between border-dashed border-primary/40 hover:border-primary/70"
-            >
-              <div className="flex items-center gap-2.5">
-                <Wallet className="h-5 w-5 text-primary flex-shrink-0" />
-                <span className="font-medium">₹{walletBalance.toLocaleString()}</span>
-              </div>
-              <Plus className="h-4 w-4 opacity-80" />
-            </Button>
-          </PopoverTrigger>
-
-          <PopoverContent side="right" className="w-72 p-4">
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Available Credits</p>
-              <p className="text-2xl font-bold">₹{walletBalance.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">
-                Campaigns aur messages ke liye available
-              </p>
-            </div>
-          </PopoverContent>
-        </Popover>
       </div>
 
       {/* Navigation – text hamesha dikhega mobile pe */}

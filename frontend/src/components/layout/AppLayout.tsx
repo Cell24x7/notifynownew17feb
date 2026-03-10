@@ -1,10 +1,8 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
+import { Topbar } from './Topbar';
 import { useState } from 'react';
-import { Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import logo from '@/assets/logo.svg';
 
 export function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -47,24 +45,8 @@ export function AppLayout() {
 
       {/* Main Content – scrollable, with left margin on desktop */}
       <main className="flex-1 flex flex-col overflow-auto lg:ml-64">
-        {/* Mobile Header */}
-        <header className="sticky top-0 z-30 lg:hidden h-16 border-b bg-background">
-          <div className="flex h-full items-center justify-between px-4">
-            <div className="flex items-center gap-3">
-              <img src={logo} alt="NotifyNow" className="h-10 w-10 object-contain" />
-              <span className="font-bold text-lg tracking-wide">NotifyNow</span>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileSidebarOpen(true)}
-              className="h-11 w-11"
-            >
-              <Menu className="h-7 w-7" />
-            </Button>
-          </div>
-        </header>
+        {/* Global Topbar for Desktop & Mobile */}
+        <Topbar onMenuClick={() => setMobileSidebarOpen(true)} />
 
         {/* Page content – yeh scroll hoga */}
         <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">

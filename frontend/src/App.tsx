@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
 import Templates from "./pages/Templates";
+import Chatflows from "./pages/Chatflows";
 
 
 // Super Admin Pages
@@ -81,6 +82,7 @@ const App = () => (
                     <Route path="/reports" element={<Reports />} />
 
                     <Route path="/automations" element={<Automations />} />
+                    <Route path="/chatflows" element={<Chatflows />} />
                     <Route path="/integrations" element={<Integrations />} />
                     <Route path="/wallet" element={<Wallet />} />
                     <Route path="/user-plans" element={<UserPlans />} />
