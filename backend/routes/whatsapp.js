@@ -484,7 +484,7 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
         // If Pinbot user, use the Resumable Upload (Session) flow to get a proper Meta Handle (4::...)
         // This is strictly required for WhatsApp Message Templates.
         if (config && config.isPinbot) {
-            console.log(`[WA-UPLOAD] Pinbot user detected. Iniciating session-based upload for template handle.`);
+            console.log(`[WA-UPLOAD] Pinbot user detected. Initiating session-based upload for template handle.`);
             
             try {
                 // Step 1: Create Upload Session
@@ -505,28 +505,25 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                     const fileData = fs.readFileSync(req.file.path);
 
                     // Step 2: Binary Upload to Session
-                    // Meta Resumable Upload typically expects raw bytes with Content-Type and offset headers
-                    // Pinbot proxy likely expects the same.
-                    
-                    // Construct URL: handle cases where sessionId might already have '?'
                     let uploadUrl = `${PINBOT_BASE}/${sessionId}`;
                     if (sig) {
                         uploadUrl += (uploadUrl.includes('?') ? '&' : '?') + `sig=${sig}`;
                     }
 
-                    console.log(`[WA-UPLOAD] Binary Uploading to: ${uploadUrl}`);
+                    console.log(`[WA-UPLOAD] >>> BINARY UPLOAD START >>> to: ${uploadUrl}`);
 
                     const uploadRes = await axios.post(uploadUrl, fileData, {
                         headers: { 
                             apikey: config.api_key, 
                             'Content-Type': req.file.mimetype,
+                            'Content-Length': fileData.length,
                             'file_offset': 0
                         }
                     });
 
                     if (uploadRes.data && (uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id)) {
                         const handle = uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id;
-                        console.log('✅ [WA-UPLOAD] Handle obtained:', handle);
+                        console.log('✅ [WA-UPLOAD] SUCCESS! Handle obtained:', handle);
                         return res.json({ success: true, url: handle, isHandle: true });
                     }
                 }
