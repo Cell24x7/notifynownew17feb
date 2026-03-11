@@ -102,6 +102,26 @@ export default function Chatflows() {
         }
     };
 
+    const handleDuplicate = async (flowId: string) => {
+        try {
+            const response = await fetch(getEndpoint(`/api/chatflows/${flowId}/duplicate`), {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                }
+            });
+            if (response.ok) {
+                fetchFlows();
+                toast({ title: 'Flow duplicated', description: 'A copy has been created as Draft.' });
+            } else {
+                const err = await response.json();
+                throw new Error(err.message || 'Failed to duplicate');
+            }
+        } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
+    };
+
     const handleDelete = async (flowId: string) => {
         if (!confirm('Are you sure you want to delete this flow?')) return;
 
@@ -265,7 +285,7 @@ export default function Chatflows() {
                                                 <><Play className="mr-2 h-4 w-4" /> Activate</>
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => { }}>
+                                        <DropdownMenuItem onClick={() => handleDuplicate(flow.id)}>
                                             <Copy className="mr-2 h-4 w-4" /> Duplicate
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />

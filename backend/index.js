@@ -3,12 +3,18 @@
 // Works for: API Only + Fullstack
 // ===============================
 
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Smart env loading: production uses .env.production, dev uses .env
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: path.join(__dirname, envFile) });
+
+console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'} (using ${envFile})`);
 
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-const path = require('path');
 
 const app = express();
 
@@ -112,6 +118,10 @@ const runQueue = async () => {
   setTimeout(runQueue, 1000);
 };
 runQueue();
+
+// Auto-create chat_flows table if it doesn't exist
+const { ensureChatFlowsTable } = require('./services/chatflowService');
+ensureChatFlowsTable().catch(err => console.error('ChatFlow table init error:', err));
 
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');

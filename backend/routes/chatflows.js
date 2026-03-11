@@ -145,4 +145,43 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * POST /api/chatflows/:id/duplicate
+ * Duplicate an existing flow
+ */
+router.post('/:id/duplicate', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [rows] = await query('SELECT * FROM chat_flows WHERE id = ? AND user_id = ?', [req.params.id, userId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Flow not found' });
+        }
+
+        const original = rows[0];
+        const [result] = await query(
+            `INSERT INTO chat_flows (user_id, name, category, keywords, header_type, header_value, body, track_url, api_config, footer_config, logic_config, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
+            [
+                userId,
+                `${original.name} (Copy)`,
+                original.category,
+                original.keywords,
+                original.header_type,
+                original.header_value,
+                original.body,
+                original.track_url,
+                original.api_config,
+                original.footer_config,
+                original.logic_config
+            ]
+        );
+
+        res.json({ success: true, id: result.insertId, message: 'Flow duplicated' });
+    } catch (error) {
+        console.error('❌ Duplicate Chatflow Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;
+
