@@ -501,16 +501,27 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                     const sig = sessionRes.data.sig;
                     console.log(`[WA-UPLOAD] Session created: ${sessionId}`);
 
-                    const FormData = require('form-data');
-                    const form = new FormData();
                     const fs = require('fs');
-                    form.append('file', fs.createReadStream(req.file.path), {
-                        filename: req.file.originalname,
-                        contentType: req.file.mimetype
-                    });
+                    const fileData = fs.readFileSync(req.file.path);
 
-                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`, form, {
-                        headers: { apikey: config.api_key, ...form.getHeaders() }
+                    // Step 2: Binary Upload to Session
+                    // Meta Resumable Upload typically expects raw bytes with Content-Type and offset headers
+                    // Pinbot proxy likely expects the same.
+                    
+                    // Construct URL: handle cases where sessionId might already have '?'
+                    let uploadUrl = `${PINBOT_BASE}/${sessionId}`;
+                    if (sig) {
+                        uploadUrl += (uploadUrl.includes('?') ? '&' : '?') + `sig=${sig}`;
+                    }
+
+                    console.log(`[WA-UPLOAD] Binary Uploading to: ${uploadUrl}`);
+
+                    const uploadRes = await axios.post(uploadUrl, fileData, {
+                        headers: { 
+                            apikey: config.api_key, 
+                            'Content-Type': req.file.mimetype,
+                            'file_offset': 0
+                        }
                     });
 
                     if (uploadRes.data && (uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id)) {
