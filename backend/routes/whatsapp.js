@@ -536,13 +536,13 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
 
                     if (uploadRes.data && (uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id)) {
                         const handle = uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id;
-                        console.log('✅ [WA-UPLOAD] SUCCESS! Handle obtained:', handle);
                         
                         const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
                         const host = req.get('host');
-                        const fileUrl = `${protocol}://${host}/uploads/whatsapp_media/${req.file.filename}`;
+                        // Use the API proxy route to ensure Nginx/Express serve it correctly with MIME type
+                        const fileUrl = `${protocol}://${host}/api/whatsapp/media-file/${req.file.filename}`;
                         
-                        console.log('✅ [WA-UPLOAD] SUCCESS! Handle obtained:', handle);
+                        console.log('✅ [WA-UPLOAD] SUCCESS! Handle obtained and proxy URL generated:', handle);
                         return res.json({ success: true, url: fileUrl, handle: handle, isHandle: true });
                     }
                 }
@@ -561,9 +561,9 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
 
         const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
         const host = req.get('host');
-        const fileUrl = `${protocol}://${host}/uploads/whatsapp_media/${req.file.filename}`;
+        const fileUrl = `${protocol}://${host}/api/whatsapp/media-file/${req.file.filename}`;
         
-        console.log(`[WA-UPLOAD] Local upload (non-Pinbot): ${fileUrl}`);
+        console.log(`[WA-UPLOAD] Local upload (non-Pinbot) via proxy: ${fileUrl}`);
         res.json({ success: true, url: fileUrl });
     } catch (error) {
         console.error('[WA-UPLOAD] ❌ Fatal Error:', error);
@@ -608,6 +608,42 @@ router.delete('/media/:mediaId', authenticate, async (req, res) => {
     } catch (error) {
         console.error('❌ Pinbot DELETE media:', error.response?.data || error.message);
         res.status(500).json({ success: false, message: error.message, error: error.response?.data });
+    }
+});
+
+// ─────────────────────────────────────────────
+// MEDIA FILE PROXY
+// ─────────────────────────────────────────────
+
+/**
+ * GET /api/whatsapp/media-file/:filename
+ * Proxy route to serve local media files with correct Content-Type.
+ * This ensures Nginx/SPA fallback issues are bypassed.
+ */
+router.get('/media-file/:filename', async (req, res) => {
+    try {
+        const filename = path.basename(req.params.filename); // Sanitize
+        const filePath = path.join(__dirname, '..', 'uploads', 'whatsapp_media', filename);
+        
+        if (fs.existsSync(filePath)) {
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeMap = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.pdf': 'application/pdf',
+                '.mp4': 'video/mp4'
+            };
+            res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+            res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 hours
+            return fs.createReadStream(filePath).pipe(res);
+        }
+        
+        console.error(`[WA-MEDIA-PROXY] File not found: ${filePath}`);
+        res.status(404).json({ success: false, message: 'Media file not found' });
+    } catch (err) {
+        console.error(`[WA-MEDIA-PROXY] Fatal error:`, err);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
