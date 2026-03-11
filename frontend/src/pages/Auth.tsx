@@ -213,44 +213,43 @@ export default function Auth() {
               <span className="text-xl font-bold tracking-tight">{settings?.brand_name || "NotifyNow"}</span>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card shadow-xl p-6 lg:p-8">
-              {/* Give Feedback Button - Moved to Top Center of Card */}
-              <div className="flex justify-center mb-6">
+            <div className="rounded-2xl border border-border bg-card shadow-xl p-5 lg:p-6 relative">
+              {/* Give Feedback Button - Moved to Top Right to Save Space */}
+              <div className="absolute top-4 right-4">
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setIsFeedbackOpen(true)}
-                  className="text-[10px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary hover:bg-primary/5 transition-all gap-2"
+                  className="text-[10px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary hover:bg-primary/5 transition-all gap-1 h-8 px-2"
                 >
                   <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
                   Give Feedback
-                  <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
                 </Button>
               </div>
 
-              <div className="mb-6">
-                <h2 className="text-2xl font-extrabold tracking-tight text-blue-600">
+              <div className="mb-4 mt-2">
+                <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-blue-600">
                   Welcome back
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Login to continue or create a new account.
                 </p>
               </div>
 
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 mb-8">
-                  <TabsTrigger value="login" className="rounded-lg">
+                <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 mb-5">
+                  <TabsTrigger value="login" className="rounded-lg text-sm h-8">
                     Login
                   </TabsTrigger>
-                  <TabsTrigger value="signup" className="rounded-lg">
+                  <TabsTrigger value="signup" className="rounded-lg text-sm h-8">
                     Sign Up
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="login" className="animate-fade-in">
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email">Email or Mobile</Label>
+                <TabsContent value="login" className="animate-fade-in mt-0">
+                  <form onSubmit={handleLogin} className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="login-email" className="text-xs">Email or Mobile</Label>
                       <Input
                         id="login-email"
                         type="text"
@@ -258,13 +257,13 @@ export default function Auth() {
                         value={loginEmail}
                         onChange={handleLoginEmailChange}
                         required
-                        className={`h-11 rounded-xl ${loginEmailError ? 'border-red-500' : ''}`}
+                        className={`h-9 sm:h-10 text-sm rounded-xl ${loginEmailError ? 'border-red-500' : ''}`}
                       />
-                      {loginEmailError && <p className="text-sm text-red-500">{loginEmailError}</p>}
+                      {loginEmailError && <p className="text-xs text-red-500">{loginEmailError}</p>}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="login-password">Password</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="login-password" className="text-xs">Password</Label>
                       <Input
                         id="login-password"
                         type="password"
@@ -272,9 +271,9 @@ export default function Auth() {
                         value={loginPassword}
                         onChange={handleLoginPasswordChange}
                         required
-                        className={`h-11 rounded-xl ${loginPasswordError ? 'border-red-500' : ''}`}
+                        className={`h-9 sm:h-10 text-sm rounded-xl ${loginPasswordError ? 'border-red-500' : ''}`}
                       />
-                      {loginPasswordError && <p className="text-sm text-red-500">{loginPasswordError}</p>}
+                      {loginPasswordError && <p className="text-xs text-red-500">{loginPasswordError}</p>}
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
@@ -283,35 +282,36 @@ export default function Auth() {
                           id="remember"
                           checked={rememberMe}
                           onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                          className="w-3.5 h-3.5"
                         />
-                        <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
+                        <Label htmlFor="remember" className="text-xs font-normal cursor-pointer">
                           Remember me
                         </Label>
                       </div>
 
-                      <a href="/forgot-password" className="text-sm text-primary font-medium hover:underline">
+                      <a href="/forgot-password" className="text-xs text-primary font-medium hover:underline">
                         Forgot password?
                       </a>
                     </div>
 
                     <Button
                       type="submit"
-                      className="w-full h-11 rounded-xl font-bold shadow-lg gradient-primary text-primary-foreground"
+                      className="w-full h-10 mt-2 rounded-xl font-bold shadow-lg gradient-primary text-primary-foreground text-sm"
                       disabled={loading || !agreedToTerms}
                     >
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Log In
                     </Button>
 
-                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
-                      <span className="w-2 h-2 rounded-full bg-primary" />
+                    <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground pt-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                       Secure login • Encrypted session
                     </div>
                   </form>
                 </TabsContent>
 
-                <TabsContent value="signup" className="animate-fade-in">
-                  <div className="space-y-4">
+                <TabsContent value="signup" className="animate-fade-in mt-0">
+                  <div className="space-y-3">
                     {signupStep === 'email' && (
                       <EmailSignup onOtpSent={handleSignupOtpSent} isLoading={loading} />
                     )}
@@ -337,13 +337,13 @@ export default function Auth() {
                 </TabsContent>
               </Tabs>
 
-              <div className="mt-6 flex flex-col items-center gap-3">
+              <div className="mt-4 flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2">
                   <Checkbox 
                     id="terms-check" 
                     checked={agreedToTerms} 
                     onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                    className="h-4 w-4 rounded border-primary/30"
+                    className="h-3.5 w-3.5 rounded border-primary/30"
                   />
                   <Label 
                     htmlFor="terms-check" 
@@ -353,11 +353,8 @@ export default function Auth() {
                   </Label>
                 </div>
                 
-                <p className="text-center text-[10px] text-muted-foreground/60 leading-relaxed max-w-[250px]">
-                  By continuing, you agree to our{" "}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary/70 font-medium hover:underline">Terms of Service</a>{" "}
-                  and{" "}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary/70 font-medium hover:underline">Privacy Policy</a>.
+                <p className="text-center text-[10px] text-muted-foreground/60 leading-relaxed max-w-full sm:whitespace-nowrap">
+                  By continuing, you agree to our <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary/70 font-medium hover:underline">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary/70 font-medium hover:underline">Privacy Policy</a>.
                 </p>
               </div>
             </div>

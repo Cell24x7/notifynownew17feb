@@ -90,21 +90,21 @@ export function FeedbackDialog({ isOpen, onClose, onSuccess }: FeedbackDialogPro
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[500px] rounded-2xl">
+            <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold text-primary">Give Feedback</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-xl sm:text-2xl font-bold text-primary">Give Feedback</DialogTitle>
+                    <DialogDescription className="text-sm">
                         We value your opinion. Please share your experience with us.
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    <div className="flex flex-col items-center gap-2 mb-4">
+                <form onSubmit={handleSubmit} className="space-y-4 py-2 sm:py-4">
+                    <div className="flex flex-col items-center gap-2 mb-2 sm:mb-4">
                         <Label className="text-sm font-semibold">Your Rating</Label>
                         <div className="flex gap-1">
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                     key={star}
-                                    className={`w-8 h-8 cursor-pointer transition-colors ${
+                                    className={`w-7 h-7 sm:w-8 sm:h-8 cursor-pointer transition-colors ${
                                         star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'
                                     }`}
                                     onClick={() => setRating(star)}
@@ -115,39 +115,42 @@ export function FeedbackDialog({ isOpen, onClose, onSuccess }: FeedbackDialogPro
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="fb-name">Name *</Label>
+                            <Label htmlFor="fb-name" className="text-xs sm:text-sm">Name *</Label>
                             <Input
                                 id="fb-name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Your Name"
                                 required
+                                className="h-10 rounded-xl"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="fb-designation">Designation</Label>
+                            <Label htmlFor="fb-designation" className="text-xs sm:text-sm">Designation</Label>
                             <Input
                                 id="fb-designation"
                                 value={designation}
                                 onChange={(e) => setDesignation(e.target.value)}
                                 placeholder="e.g. CEO, Manager"
+                                className="h-10 rounded-xl"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="fb-company">Company Name</Label>
+                        <Label htmlFor="fb-company" className="text-xs sm:text-sm">Company Name</Label>
                         <Input
                             id="fb-company"
                             value={company}
                             onChange={(e) => setCompany(e.target.value)}
                             placeholder="Your Company"
+                            className="h-10 rounded-xl"
                         />
                     </div>
 
                     <div className="space-y-2">
                         <div className="flex justify-between">
-                            <Label htmlFor="fb-message">Description *</Label>
+                            <Label htmlFor="fb-message" className="text-xs sm:text-sm">Description *</Label>
                             <span className="text-[10px] text-muted-foreground">
                                 {message.trim() ? message.trim().split(/\s+/).length : 0} / 150 words
                             </span>
@@ -157,16 +160,16 @@ export function FeedbackDialog({ isOpen, onClose, onSuccess }: FeedbackDialogPro
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Share your experience (max 150 words)..."
-                            className="min-h-[100px]"
+                            className="min-h-[100px] rounded-xl text-sm"
                             required
                         />
                     </div>
 
-                    <DialogFooter className="pt-4">
-                        <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+                    <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+                        <Button type="button" variant="outline" onClick={onClose} disabled={loading} className="w-full sm:w-auto h-10 rounded-xl">
                             Cancel
                         </Button>
-                        <Button type="submit" className="gradient-primary" disabled={loading}>
+                        <Button type="submit" className="w-full sm:w-auto h-10 gradient-primary rounded-xl" disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Submit Feedback
                         </Button>
