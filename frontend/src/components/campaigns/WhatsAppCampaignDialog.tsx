@@ -4,7 +4,7 @@ import {
     MessageSquare, FileText,
     Users, Info, Layout,
     ChevronRight, Check,
-    Loader2, Smartphone
+    Loader2, Smartphone, Paperclip, AlertCircle
 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent } from '@/components/ui/card';
@@ -53,6 +53,8 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
     const [submitting, setSubmitting] = useState(false);
+    const [fieldMapping, setFieldMapping] = useState<Record<string, { type: 'field' | 'custom', value: string }>>({});
+    const [isUploadingMedia, setIsUploadingMedia] = useState<Record<string, boolean>>({});
     const [showPreview, setShowPreview] = useState(false);
 
     // Fetch templates when dialog opens
@@ -86,9 +88,51 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
         );
     }, [templates, searchQuery]);
 
+    const selectedTemplate = useMemo(() => templates.find(t => t.name === templateName), [templates, templateName]);
+
+    const templateVariables = useMemo(() => {
+        if (!selectedTemplate) return [];
+        const vars: string[] = [];
+        
+        // 1. Scan Components for {{n}} matches (Body, Header, etc.)
+        selectedTemplate.components?.forEach((c: any) => {
+            if ((c.type === 'BODY' || c.type === 'HEADER') && c.text) {
+                const matches = c.text.match(/{{(\d+)}}/g);
+                if (matches) {
+                    matches.forEach((m: string) => {
+                        const v = m.replace(/[{}]/g, '');
+                        if (!vars.includes(v)) vars.push(v);
+                    });
+                }
+            }
+        });
+
+        // 2. Special case: Media Headers
+        const headerComp = selectedTemplate.components?.find((c: any) => c.type === 'HEADER' || c.type === 'header');
+        if (headerComp && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase() || headerComp.type?.toUpperCase())) {
+            if (!vars.includes('header_url')) vars.unshift('header_url');
+        }
+
+        // 3. Special case: Dynamic URL Buttons
+        const buttonComp = selectedTemplate.components?.find((c: any) => c.type === 'BUTTONS');
+        if (buttonComp) {
+            buttonComp.buttons?.forEach((btn: any, idx: number) => {
+                if (btn.type === 'URL' && btn.url?.includes('{{1}}')) {
+                    // Meta dynamic URLs usually just use {{1}}
+                    const btnVar = `button_${idx + 1}_url`;
+                    if (!vars.includes(btnVar)) vars.push(btnVar);
+                }
+            });
+        }
+
+        return vars;
+    }, [selectedTemplate]);
+
     const handleSelectTemplate = (template: any) => {
         setTemplateName(template.name);
         setLanguageCode(template.language || 'en_US');
+        // Reset mapping when template changes
+        setFieldMapping({});
         toast({
             title: 'Template Selected',
             description: `Loaded WhatsApp template: ${template.name}`,
@@ -118,9 +162,17 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
             const payload = {
                 name: campaignName,
                 channel: 'whatsapp',
-                template_id: templateName, // Using name as ID for WhatsApp
+                template_id: templateName,
                 template_name: templateName,
+                template_metadata: {
+                    components: selectedTemplate.components,
+                    language: selectedTemplate.language || languageCode,
+                    category: selectedTemplate.category
+                },
+                template_body: selectedTemplate.components?.find((c: any) => c.type === 'BODY')?.text || '',
+                template_type: selectedTemplate.category,
                 status: 'draft' as const,
+                variable_mapping: fieldMapping
             };
 
             const createRes = await campaignService.createCampaign(payload);
@@ -157,8 +209,6 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
             setSubmitting(false);
         }
     };
-
-    const selectedTemplate = templates.find(t => t.name === templateName);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -265,6 +315,86 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                                         </div>
                                     </div>
                                 </Card>
+
+                                {/* Variable Mapping Section */}
+                                {templateVariables.length > 0 && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                        <div className="flex items-center justify-between px-1">
+                                            <Label className="text-sm font-bold text-gray-700">Variable Mapping</Label>
+                                            <Badge variant="outline" className="text-[10px] text-green-600 border-green-200">{templateVariables.length} Required</Badge>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {templateVariables.map((variable) => (
+                                                <Card key={variable} className="border-none shadow-sm overflow-hidden group">
+                                                    <div className="p-4 bg-white flex flex-col gap-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-[10px] font-bold">
+                                                                    {variable === 'header_url' ? 'H' : variable}
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-gray-600">
+                                                                    {variable === 'header_url' ? 'Header Media (Image/Video)' : `Variable {{${variable}}}`}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                placeholder={variable === 'header_url' ? "Enter URL or Upload..." : `Value for {{${variable}}}...`}
+                                                                className="h-10 border-gray-200 focus:border-green-600/30"
+                                                                value={fieldMapping[variable]?.value || ''}
+                                                                onChange={(e) => setFieldMapping(prev => ({
+                                                                    ...prev,
+                                                                    [variable]: { type: 'custom', value: e.target.value }
+                                                                }))}
+                                                            />
+                                                            {variable === 'header_url' && (
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="file"
+                                                                        id={`wa-media-upload-${variable}`}
+                                                                        className="hidden"
+                                                                        accept="image/*,video/*,application/pdf"
+                                                                        onChange={async (e) => {
+                                                                            const file = e.target.files?.[0];
+                                                                            if (!file) return;
+                                                                            setIsUploadingMedia(prev => ({ ...prev, [variable]: true }));
+                                                                            try {
+                                                                                const url = await whatsappService.uploadHeaderHandle(file);
+                                                                                setFieldMapping(prev => ({
+                                                                                    ...prev,
+                                                                                    [variable]: { type: 'custom', value: url }
+                                                                                }));
+                                                                                toast({ title: 'Media Uploaded', description: 'Header media uploaded successfully.' });
+                                                                            } catch (err: any) {
+                                                                                toast({ 
+                                                                                    title: 'Upload Failed', 
+                                                                                    description: err.message || 'Failed to upload media',
+                                                                                    variant: 'destructive' 
+                                                                                });
+                                                                            } finally {
+                                                                                setIsUploadingMedia(prev => ({ ...prev, [variable]: false }));
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        className="h-10 w-10 p-0 border-gray-200 hover:bg-green-50 hover:text-green-600"
+                                                                        disabled={isUploadingMedia[variable]}
+                                                                        onClick={() => document.getElementById(`wa-media-upload-${variable}`)?.click()}
+                                                                    >
+                                                                        {isUploadingMedia[variable] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Middle Column: Template Details */}

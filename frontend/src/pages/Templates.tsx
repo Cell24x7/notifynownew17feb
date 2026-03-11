@@ -213,7 +213,7 @@ export default function Templates() {
           if (externalWaData && externalWaData.success && Array.isArray(externalWaData.templates)) {
             const externalWaTemplates = externalWaData.templates.map((t: any) => {
               const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
-              const bodyText = bodyComponent ? bodyComponent.text : 'WhatsApp Template';
+              const bodyText = bodyComponent ? bodyComponent.text : (t.components?.length ? 'Media-only Template' : 'External Template');
               return {
                 id: t.name || t.id,
                 name: t.name,
@@ -392,18 +392,38 @@ export default function Templates() {
     if (newTemplate.channel === 'whatsapp') {
       try {
         setLoading(true);
-        // Transform our internal components format to Meta format if needed
-        // The WhatsAppTemplateForm already keeps it in a Meta-friendly format
-        await whatsappService.createTemplate({
+
+        const cleanComponents = (components: any[]) => {
+          return components.map(c => {
+            const { previewUrl, handle, ...rest } = c;
+            
+            // If it's a carousel, we also need to clean the cards inside it
+            if (rest.type === 'CAROUSEL' && Array.isArray(rest.cards)) {
+              rest.cards = rest.cards.map((card: any) => ({
+                ...card,
+                components: card.components ? cleanComponents(card.components) : []
+              }));
+            }
+            
+            return rest;
+          });
+        };
+
+        const templatePayload = {
           name: newTemplate.name,
           category: (newTemplate.category || 'UTILITY').toUpperCase() as any,
           language: newTemplate.language || 'en_US',
-          components: newTemplate.components || []
-        });
+          components: cleanComponents(newTemplate.components || []),
+          allow_category_change: true  // Required for Pinbot, safe for Meta too
+        };
+
+        console.log('📤 Submitting WhatsApp Template:', JSON.stringify(templatePayload, null, 2));
+
+        await whatsappService.createTemplate(templatePayload);
 
         toast({
-          title: '🎉 WhatsApp Template Created',
-          description: 'Your template has been submitted to Meta for approval.',
+          title: '🎉 WhatsApp Template Submitted',
+          description: 'Template has been submitted to Meta/Pinbot for approval.',
         });
 
         fetchTemplates();
@@ -411,16 +431,16 @@ export default function Templates() {
         resetTemplateForm();
       } catch (err: any) {
         console.error('WhatsApp template creation error:', err);
+        const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to create WhatsApp template';
         toast({
-          title: 'Error',
-          description: err.response?.data?.error?.message || err.message || 'Failed to create WhatsApp template',
+          title: '❌ Template Creation Failed',
+          description: typeof errMsg === 'object' ? JSON.stringify(errMsg) : errMsg,
           variant: 'destructive',
         });
-        return; // Stop if external creation fails
+        return;
       } finally {
         setLoading(false);
       }
-      // Continue to save locally
     }
 
     try {
@@ -472,6 +492,7 @@ export default function Templates() {
         templateData.body = bodyComp?.text || '';
         templateData.template_type = 'standard';
         templateData.buttons = []; // Meta buttons are complex, maybe map later if needed
+        templateData.metadata = { components: newTemplate.components };
       } else {
         // RCS or SMS
         templateData.template_type = newTemplate.template_type === 'text_message' ? 'standard' : newTemplate.template_type;
@@ -1061,23 +1082,25 @@ export default function Templates() {
                         <div className="flex flex-col items-center gap-2 py-4 text-muted-foreground border border-dashed border-border rounded-md animate-in fade-in zoom-in-95 duration-500">
                           <AlertCircle className="h-6 w-6 opacity-30" />
                           <p className="text-[11px] font-medium tracking-tight uppercase">Placeholder Content</p>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 text-[10px] font-bold px-3 gap-1.5 shadow-sm transform transition-transform active:scale-95"
-                            onClick={() => handleSyncTemplateDetails(template)}
-                            disabled={refreshingTemplateId === template.id}
-                          >
-                            {refreshingTemplateId === template.id ? (
-                              <RefreshCw className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3" />
-                            )}
-                            SYNC DETAILS
-                          </Button>
+                          {template.channel === 'rcs' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-7 text-[10px] font-bold px-3 gap-1.5 shadow-sm transform transition-transform active:scale-95"
+                              onClick={() => handleSyncTemplateDetails(template)}
+                              disabled={refreshingTemplateId === template.id}
+                            >
+                              {refreshingTemplateId === template.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                              SYNC DETAILS
+                            </Button>
+                          )}
                         </div>
                       ) : (
-                        <p className="line-clamp-3">{template.body}</p>
+                        <p className="line-clamp-3">{template.body || 'Media-only Template'}</p>
                       )}
                     </div>
                     <div className="flex gap-2">

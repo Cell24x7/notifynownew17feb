@@ -12,6 +12,22 @@ const router = express.Router();
 
 const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
 const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = 'uploads/whatsapp_media';
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `wa_${Date.now()}_${file.originalname}`);
+    }
+});
+const uploadDisk = multer({ storage });
+const uploadMemory = multer({ storage: multer.memoryStorage() });
 
 /**
  * Helper: Get WhatsApp config + detect provider
@@ -305,27 +321,264 @@ router.post('/mark-read', authenticate, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// MEDIA & UPLOADS (Pinbot only)
+// ─────────────────────────────────────────────
+
+/**
+ * POST /api/whatsapp/header-handle/session
+ * Step 1: Create an upload session
+ * Params: file_length (bytes), file_type (e.g. image/png)
+ * Returns: { id: 'upload:XXX', sig: 'YYYY' }
+ */
+router.post('/header-handle/session', authenticate, async (req, res) => {
+    try {
+        const config = await getWhatsAppConfig(req.user.id);
+        if (!config || !config.isPinbot) {
+            return res.status(400).json({ success: false, message: 'Header handle proxy is only for Pinbot.' });
+        }
+
+        const { file_length, file_type } = req.body;
+        if (!file_length || !file_type) {
+            return res.status(400).json({ success: false, message: 'file_length and file_type are required' });
+        }
+
+        console.log(`📤 Creating Pinbot upload session: length=${file_length}, type=${file_type}`);
+
+        const response = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
+            headers: { apikey: config.api_key },
+            params: { file_length, file_type }
+        });
+
+        console.log('✅ Upload session created:', response.data);
+        res.json({ success: true, message: 'Upload session created', data: response.data });
+    } catch (error) {
+        console.error('❌ Error creating upload session:', error.response?.data || error.message);
+        res.status(500).json({ success: false, message: error.message, error: error.response?.data });
+    }
+});
+
+// POST /api/whatsapp/header-handle/upload
+// Step 2: Upload file as raw binary to Pinbot
+router.post('/header-handle/upload', authenticate, uploadMemory.single('file'), async (req, res) => {
+    try {
+        const config = await getWhatsAppConfig(req.user.id);
+        if (!config || !config.isPinbot) {
+            return res.status(400).json({ success: false, message: 'Header handle proxy is only for Pinbot.' });
+        }
+
+        const { session_id, sig } = req.body;
+        if (!session_id || !req.file) {
+            return res.status(400).json({ success: false, message: 'session_id and file are required' });
+        }
+
+        // Build the Pinbot upload URL
+        // session_id from Step 1 looks like: "upload:MTphdHR..."
+        // URL format: https://partnersv1.pinbot.ai/v3/upload:XXXXX?sig=YYYY
+        const uploadPath = session_id.startsWith('upload:') ? session_id : `upload:${session_id}`;
+        const url = `${PINBOT_BASE}/${uploadPath}${sig ? `?sig=${sig}` : ''}`;
+
+        console.log(`📤 Uploading to Pinbot (raw binary): ${url}`);
+        console.log(`   File: ${req.file.originalname}, Size: ${req.file.size}, MIME: ${req.file.mimetype}`);
+
+        // CRITICAL: Send raw binary body with the actual file MIME type
+        // Pinbot Step 2 requires raw binary (no multipart), with the file's mimetype as Content-Type
+        const fileMimeType = req.file.mimetype || 'application/octet-stream';
+        console.log(`   Sending Content-Type: ${fileMimeType} to Pinbot`);
+
+        const response = await axios.post(url, req.file.buffer, {
+            headers: {
+                'apikey': config.api_key,
+                'Content-Type': fileMimeType
+            },
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
+        });
+
+        console.log('✅ Pinbot upload response:', response.data);
+
+        // Response contains { h: 'header_handle_value' }
+        res.json({
+            success: true,
+            message: 'File uploaded successfully',
+            data: response.data,
+            header_handle: response.data?.h  // Make it easy to access
+        });
+    } catch (error) {
+        console.error('❌ Error uploading file for handle:', error.response?.data || error.message);
+        res.status(500).json({
+            success: false,
+            message: error.response?.data?.message || error.message,
+            error: error.response?.data
+        });
+    }
+});
+
+/**
+ * POST /api/whatsapp/media
+ * Upload media directly
+ */
+router.post('/media', authenticate, uploadMemory.single('file'), async (req, res) => {
+    try {
+        const config = await getWhatsAppConfig(req.user.id);
+        if (!req.file) return res.status(400).json({ success: false, message: 'File is required' });
+
+        const FormData = require('form-data');
+        const form = new FormData();
+        form.append('sheet', req.file.buffer, {
+            filename: req.file.originalname,
+            contentType: req.file.mimetype
+        });
+
+        const response = await axios.post(
+            `${PINBOT_BASE}/${config.ph_no_id}/media`,
+            form,
+            { headers: { apikey: config.api_key, ...form.getHeaders() } }
+        );
+        res.json({ success: true, message: 'Media uploaded', data: response.data });
+    } catch (error) {
+        console.error('❌ Pinbot UPLOAD media:', error.response?.data || error.message);
+        res.status(500).json({ success: false, message: error.message, error: error.response?.data });
+    }
+});
+
+router.post('/media/upload-local', authenticate, uploadDisk.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+        
+        console.log(`[WA-UPLOAD] Received file for user ${req.user.id}: ${req.file.originalname}`);
+        const config = await getWhatsAppConfig(req.user.id);
+        
+        if (!config) {
+            console.log(`[WA-UPLOAD] WARN: No WhatsApp config found for user ${req.user.id}`);
+        }
+
+        // If Pinbot user, upload to Pinbot to get a global ID instead of using localhost URL
+        if (config && config.isPinbot) {
+            const uploadId = config.ph_no_id || config.wa_phone_number_id; 
+            console.log(`[WA-UPLOAD] Detected Pinbot user. WABA ID: ${config.wa_biz_accnt_id}, Upload ID: ${uploadId}`);
+            
+            if (uploadId) {
+                try {
+                    const FormData = require('form-data');
+                    const form = new FormData();
+                    const fs = require('fs');
+                    form.append('file', fs.createReadStream(req.file.path));
+
+                    const uploadUrl = `${PINBOT_BASE}/${uploadId}/media`;
+                    console.log(`[WA-UPLOAD] Proxying to Pinbot: POST ${uploadUrl}`);
+
+                    const response = await axios.post(
+                        uploadUrl,
+                        form,
+                        { 
+                            headers: { 
+                                apikey: config.api_key, 
+                                ...form.getHeaders() 
+                            } 
+                        }
+                    );
+                    
+                    if (response.data && response.data.id) {
+                        console.log('✅ [WA-UPLOAD] Pinbot Media ID obtained:', response.data.id);
+                        return res.json({ success: true, url: response.data.id, isHandle: true });
+                    } else {
+                        console.log('[WA-UPLOAD] Pinbot upload succeeded but no ID in response:', JSON.stringify(response.data));
+                    }
+                } catch (pinErr) {
+                    console.error('[WA-UPLOAD] ❌ Pinbot Proxy Failed:', pinErr.response?.data || pinErr.message);
+                }
+            } else {
+                console.log('[WA-UPLOAD] WARN: Cannot proxy to Pinbot - no ph_no_id or wa_phone_number_id available');
+            }
+        }
+
+        const protocol = req.protocol;
+        const host = req.get('host');
+        const fileUrl = `${protocol}://${host}/uploads/whatsapp_media/${req.file.filename}`;
+        
+        console.log(`[WA-UPLOAD] Returning local URL (fallback): ${fileUrl}`);
+        res.json({ success: true, url: fileUrl });
+    } catch (error) {
+        console.error('[WA-UPLOAD] ❌ Fatal Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * GET /api/whatsapp/media/:mediaId
+ * Get media details/URL
+ */
+router.get('/media/:mediaId', authenticate, async (req, res) => {
+    try {
+        const config = await getWhatsAppConfig(req.user.id);
+        if (!config.isPinbot) return res.status(400).json({ success: false, message: 'Media management proxy is for Pinbot.' });
+
+        const response = await axios.get(`${PINBOT_BASE}/${req.params.mediaId}`, {
+            headers: { apikey: config.api_key },
+            params: { phone_number_id: config.ph_no_id }
+        });
+        res.json({ success: true, data: response.data });
+    } catch (error) {
+        console.error('❌ Pinbot GET media:', error.response?.data || error.message);
+        res.status(500).json({ success: false, message: error.message, error: error.response?.data });
+    }
+});
+
+/**
+ * DELETE /api/whatsapp/media/:mediaId
+ * Delete media
+ */
+router.delete('/media/:mediaId', authenticate, async (req, res) => {
+    try {
+        const config = await getWhatsAppConfig(req.user.id);
+        if (!config.isPinbot) return res.status(400).json({ success: false, message: 'Media management proxy is for Pinbot.' });
+
+        const response = await axios.delete(`${PINBOT_BASE}/${req.params.mediaId}`, {
+            headers: { apikey: config.api_key },
+            params: { phone_number_id: config.ph_no_id }
+        });
+        res.json({ success: true, message: 'Media deleted', data: response.data });
+    } catch (error) {
+        console.error('❌ Pinbot DELETE media:', error.response?.data || error.message);
+        res.status(500).json({ success: false, message: error.message, error: error.response?.data });
+    }
+});
+
+// ─────────────────────────────────────────────
 // WEBHOOK MANAGEMENT (Pinbot only)
 // ─────────────────────────────────────────────
 
 /**
  * POST /api/whatsapp/set-webhook
+ * Supports optional config_id for admin override
  */
 router.post('/set-webhook', authenticate, async (req, res) => {
     try {
-        const config = await getWhatsAppConfig(req.user.id);
-        if (!config.isPinbot) {
+        const { webhook_url, headers: customHeaders, config_id } = req.body;
+        if (!webhook_url) return res.status(400).json({ success: false, message: 'webhook_url is required' });
+
+        let config;
+        const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
+
+        if (config_id && isAdminRole) {
+            // Admin: fetch config directly by ID
+            const [configs] = await query('SELECT * FROM whatsapp_configs WHERE id = ? AND is_active = 1', [config_id]);
+            if (!configs.length) return res.status(404).json({ success: false, message: 'Config not found' });
+            config = configs[0];
+            config.isPinbot = config.provider === 'vendor2';
+        } else {
+            config = await getWhatsAppConfig(req.user.id);
+        }
+
+        if (!config || !config.isPinbot) {
             return res.status(400).json({ success: false, message: 'Webhook management is only for Pinbot provider. Meta webhooks are configured in Facebook Developer Console.' });
         }
 
-        const { webhook_url, headers: customHeaders } = req.body;
-        if (!webhook_url) return res.status(400).json({ success: false, message: 'webhook_url is required' });
-
         const payload = { webhook_url };
-        if (customHeaders) payload.headers = customHeaders;
+        if (customHeaders && Object.keys(customHeaders).length > 0) payload.headers = customHeaders;
 
         const response = await axios.post(`${PINBOT_BASE}/${config.ph_no_id}/setwebhook`, payload, {
-            headers: getHeaders(config)
+            headers: { apikey: config.api_key, 'Content-Type': 'application/json' }
         });
         res.json({ success: true, message: 'Webhook set', data: response.data });
     } catch (error) {
@@ -336,16 +589,29 @@ router.post('/set-webhook', authenticate, async (req, res) => {
 
 /**
  * GET /api/whatsapp/get-webhook
+ * Supports optional config_id query param for admin override
  */
 router.get('/get-webhook', authenticate, async (req, res) => {
     try {
-        const config = await getWhatsAppConfig(req.user.id);
-        if (!config.isPinbot) {
+        let config;
+        const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
+        const config_id = req.query.config_id;
+
+        if (config_id && isAdminRole) {
+            const [configs] = await query('SELECT * FROM whatsapp_configs WHERE id = ? AND is_active = 1', [config_id]);
+            if (!configs.length) return res.status(404).json({ success: false, message: 'Config not found' });
+            config = configs[0];
+            config.isPinbot = config.provider === 'vendor2';
+        } else {
+            config = await getWhatsAppConfig(req.user.id);
+        }
+
+        if (!config || !config.isPinbot) {
             return res.status(400).json({ success: false, message: 'Webhook view is only for Pinbot. Check Facebook Developer Console for Meta.' });
         }
 
         const response = await axios.get(`${PINBOT_BASE}/${config.ph_no_id}/getwebhook`, {
-            headers: getHeaders(config)
+            headers: { apikey: config.api_key }
         });
         res.json({ success: true, data: response.data });
     } catch (error) {
@@ -408,7 +674,7 @@ router.get('/user-details', authenticate, async (req, res) => {
  */
 router.post('/send-campaign', authenticate, async (req, res) => {
     try {
-        const { campaignName, contacts, templateName } = req.body;
+        const { campaignName, contacts, templateName, template_metadata, template_body } = req.body;
         const userId = req.user.id;
         let campaignId = req.body.campaignId;
 
@@ -429,9 +695,13 @@ router.post('/send-campaign', authenticate, async (req, res) => {
             if (!campaignId) {
                 campaignId = `CAMP_${Date.now()}`;
                 await query(
-                    `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
-                    [campaignId, userId, campaignName, 'whatsapp', finalTemplate, finalTemplate, contacts.length]
+                    `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at, template_metadata, template_body)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW(), ?, ?)`,
+                    [
+                        campaignId, userId, campaignName, 'whatsapp', finalTemplate, finalTemplate, contacts.length,
+                        template_metadata ? JSON.stringify(template_metadata) : null,
+                        template_body || null
+                    ]
                 );
                 console.log(`✅ Created WhatsApp campaign ${campaignId} for ${contacts.length} contacts`);
             } else {

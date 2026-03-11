@@ -22,8 +22,8 @@ import { CampaignPreview } from './CampaignPreview';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { rcsTemplatesService } from '@/services/rcsTemplatesService';
-import { Loader2 } from 'lucide-react';
-
+import { Loader2, Paperclip } from 'lucide-react';
+import { whatsappService } from '@/services/whatsappService';
 interface CampaignCreationStepperProps {
    templates: MessageTemplate[];
    onComplete: (campaignData: CampaignData) => void;
@@ -116,6 +116,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    const [testDestination, setTestDestination] = useState('');
    const [isSendingTest, setIsSendingTest] = useState(false);
 
+   // File upload state for mapping variables
+   const [isUploadingMedia, setIsUploadingMedia] = useState<Record<string, boolean>>({});
+
    // --- DERIVED STATE / HOOKS THAT MUST BE DEFINED EARLY ---
    const selectedTemplate = useMemo(() =>
       templates.find(t => t.id === campaignData.templateId),
@@ -140,10 +143,15 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
       // Matches both {{var}} and [var] patterns
       const matches = textToScan.match(/\{\{([^}]+)\}\}|\[([^\]]+)\]/g);
-      if (!matches) return [];
+      const vars = matches ? Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]/g, '').trim()))) : [];
 
-      // Clean up, remove delimiters, and trim whitespace
-      return Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]/g, '').trim())));
+      // Check if WhatsApp template has a media header
+      const headerComp = meta.components?.find((c: any) => typeof c.type === 'string' && c.type.toUpperCase() === 'HEADER');
+      if (headerComp && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
+         vars.unshift('header_url');
+      }
+
+      return vars;
    }, [selectedTemplate]);
 
    // Auto-fill campaign name on mount or when user changes
@@ -999,17 +1007,58 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                             </SelectContent>
                                                          </Select>
                                                       ) : (
-                                                         <Input
-                                                            placeholder="Enter static value..."
-                                                            className="flex-1"
-                                                            value={campaignData.fieldMapping[variable]?.value || ''}
-                                                            onChange={(e) => {
-                                                               setCampaignData(prev => ({
-                                                                  ...prev,
-                                                                  fieldMapping: { ...prev.fieldMapping, [variable]: { type: 'custom', value: e.target.value } }
-                                                               }));
-                                                            }}
-                                                         />
+                                                         <div className="flex flex-1 gap-2 items-center">
+                                                            <Input
+                                                               placeholder={variable === 'header_url' ? "Enter URL or Handle..." : "Enter static value..."}
+                                                               className="flex-1"
+                                                               value={campaignData.fieldMapping[variable]?.value || ''}
+                                                               onChange={(e) => {
+                                                                  setCampaignData(prev => ({
+                                                                     ...prev,
+                                                                     fieldMapping: { ...prev.fieldMapping, [variable]: { type: 'custom', value: e.target.value } }
+                                                                  }));
+                                                               }}
+                                                            />
+                                                            {variable === 'header_url' && campaignData.channel === 'whatsapp' && (
+                                                               <div className="relative">
+                                                                  <input
+                                                                     type="file"
+                                                                     id={`file-upload-${variable}`}
+                                                                     className="hidden"
+                                                                     accept="image/*,video/*,application/pdf"
+                                                                     disabled={isUploadingMedia[variable]}
+                                                                     onChange={async (e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (!file) return;
+                                                                        setIsUploadingMedia(prev => ({ ...prev, [variable]: true }));
+                                                                        try {
+                                                                           const handle = await whatsappService.uploadHeaderHandle(file);
+                                                                           setCampaignData(prev => ({
+                                                                              ...prev,
+                                                                              fieldMapping: { ...prev.fieldMapping, [variable]: { type: 'custom', value: handle } }
+                                                                           }));
+                                                                           toast({ title: 'Media Uploaded', description: 'Header media uploaded successfully.' });
+                                                                        } catch (err: any) {
+                                                                           const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to upload header media';
+                                                                           toast({ title: 'Upload Failed', description: errMsg, variant: 'destructive' });
+                                                                        } finally {
+                                                                           setIsUploadingMedia(prev => ({ ...prev, [variable]: false }));
+                                                                        }
+                                                                     }}
+                                                                  />
+                                                                  <Button
+                                                                     type="button"
+                                                                     variant="outline"
+                                                                     size="icon"
+                                                                     title="Upload Media"
+                                                                     disabled={isUploadingMedia[variable]}
+                                                                     onClick={() => { document.getElementById(`file-upload-${variable}`)?.click(); }}
+                                                                  >
+                                                                     {isUploadingMedia[variable] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                                                                  </Button>
+                                                               </div>
+                                                            )}
+                                                         </div>
                                                       )}
                                                    </div>
                                                 </div>

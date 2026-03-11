@@ -10,8 +10,11 @@ import {
     Plus, Trash2, Image as ImageIcon,
     Video, FileText, Smartphone,
     Type, Globe, Tag, Info,
-    MessageSquare, MousePointer2, Phone, ExternalLink
+    MessageSquare, MousePointer2, Phone, ExternalLink,
+    Layout, CreditCard, ShoppingBag, List, MapPin, Upload, Loader2, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
+import { whatsappService } from '@/services/whatsappService';
+import { useToast } from '@/hooks/use-toast';
 
 interface WhatsAppTemplateFormProps {
     data: any;
@@ -19,6 +22,9 @@ interface WhatsAppTemplateFormProps {
 }
 
 export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data, onChange }) => {
+    const { toast } = useToast();
+    const [isUploading, setIsUploading] = useState<string | null>(null);
+    const [activeCard, setActiveCard] = useState(0);
 
     // Initialize components if they don't exist
     useEffect(() => {
@@ -91,6 +97,76 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
     const body = getComponent('BODY');
     const footer = getComponent('FOOTER');
     const buttonsComp = getComponent('BUTTONS');
+    const carousel = getComponent('CAROUSEL');
+
+    const handleFileUpload = async (indexOrType: string | number, file: File) => {
+        setIsUploading(String(indexOrType));
+        try {
+            const headerHandle = await whatsappService.uploadHeaderHandle(file);
+            const previewUrl = URL.createObjectURL(file);
+
+            if (typeof indexOrType === 'string') {
+                // Main template header
+                updateComponent('HEADER', { example: { header_handle: [headerHandle] }, previewUrl });
+            } else {
+                // Carousel card header
+                const newCards = [...(carousel?.cards || [])];
+                const cardComp = [...(newCards[indexOrType as number].components || [])];
+                const hIdx = cardComp.findIndex((c: any) => c.type === 'HEADER');
+                if (hIdx > -1) {
+                    cardComp[hIdx] = { ...cardComp[hIdx], example: { header_handle: [headerHandle] }, previewUrl };
+                } else {
+                    cardComp.push({ type: 'HEADER', format: 'IMAGE', example: { header_handle: [headerHandle] }, previewUrl });
+                }
+                newCards[indexOrType as number] = { ...newCards[indexOrType as number], components: cardComp };
+                updateComponent('CAROUSEL', { cards: newCards });
+            }
+
+            toast({ title: '✅ Upload successful', description: `Handle: ${headerHandle.substring(0, 20)}...` });
+        } catch (err: any) {
+            console.error('File upload failed:', err);
+            toast({ title: '❌ Upload failed', description: err.message, variant: 'destructive' });
+        } finally {
+            setIsUploading(null);
+        }
+    };
+
+    const addCarouselCard = () => {
+        const currentCards = carousel?.cards || [];
+        if (currentCards.length >= 10) return;
+        const newCards = [...currentCards, {
+            components: [
+                { type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } },
+                { type: 'BODY', text: '' },
+                { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: 'Button 1' }] }
+            ]
+        }];
+        updateComponent('CAROUSEL', { cards: newCards });
+        setActiveCard(newCards.length - 1);
+    };
+
+    const removeCarouselCard = (idx: number) => {
+        const newCards = carousel.cards.filter((_: any, i: number) => i !== idx);
+        if (newCards.length === 0) {
+            removeComponent('CAROUSEL');
+        } else {
+            updateComponent('CAROUSEL', { cards: newCards });
+            if (activeCard >= newCards.length) setActiveCard(newCards.length - 1);
+        }
+    };
+
+    const updateCardComponent = (cardIdx: number, type: string, updates: any) => {
+        const newCards = [...carousel.cards];
+        const cardComponents = [...(newCards[cardIdx].components || [])];
+        const idx = cardComponents.findIndex((c: any) => c.type === type);
+        if (idx > -1) {
+            cardComponents[idx] = { ...cardComponents[idx], ...updates };
+        } else {
+            cardComponents.push({ type, ...updates });
+        }
+        newCards[cardIdx] = { ...newCards[cardIdx], components: cardComponents };
+        updateComponent('CAROUSEL', { cards: newCards });
+    };
 
     return (
         <div className="space-y-8 pb-10">
@@ -169,7 +245,8 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                         { id: 'TEXT', label: 'Text', icon: <Type className="h-4 w-4" /> },
                         { id: 'IMAGE', label: 'Image', icon: <ImageIcon className="h-4 w-4" /> },
                         { id: 'VIDEO', label: 'Video', icon: <Video className="h-4 w-4" /> },
-                        { id: 'DOCUMENT', label: 'Document', icon: <FileText className="h-4 w-4" /> }
+                        { id: 'DOCUMENT', label: 'Document', icon: <FileText className="h-4 w-4" /> },
+                        { id: 'LOCATION', label: 'Location', icon: <MapPin className="h-4 w-4" /> }
                     ].map((format) => (
                         <div
                             key={format.id}
@@ -208,16 +285,34 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                     <div className="space-y-4 pt-2 animate-in fade-in duration-300">
                         <div className="p-4 bg-green-50/30 rounded-xl border border-dashed border-green-200">
                             <Label className="text-[11px] font-bold text-green-700 uppercase flex items-center gap-1.5 mb-2">
-                                <Plus className="h-3 w-3" /> Sample Media URL (Required for Meta Approval)
+                                <Plus className="h-3 w-3" /> Media Handle or URL
                             </Label>
-                            <Input
-                                placeholder={header.format === 'IMAGE' ? "https://example.com/image.jpg" : header.format === 'VIDEO' ? "https://example.com/video.mp4" : "https://example.com/doc.pdf"}
-                                value={header.handle || ''}
-                                onChange={(e) => updateComponent('HEADER', { handle: e.target.value })}
-                                className="bg-white border-green-100 h-10 text-xs rounded-lg focus:ring-green-500"
-                            />
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder={header.format === 'IMAGE' ? "https://example.com/image.jpg" : header.format === 'VIDEO' ? "https://example.com/video.mp4" : "https://example.com/doc.pdf"}
+                                    value={header.example?.header_handle?.[0] || ''}
+                                    readOnly={true}
+                                    className="bg-white border-green-100 h-10 text-xs rounded-lg flex-1 text-gray-500"
+                                    title="Pinbot generates this handle automatically when you upload."
+                                />
+                                <Label className="cursor-pointer">
+                                    <div className={cn(
+                                        "h-10 px-3 bg-green-600 text-white rounded-lg flex items-center gap-1 text-[10px] font-bold hover:bg-green-700 transition-colors",
+                                        isUploading === 'header' && "opacity-50 pointer-events-none"
+                                    )}>
+                                        {isUploading === 'header' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} 
+                                        {isUploading === 'header' ? '...' : 'Upload'}
+                                    </div>
+                                    <input 
+                                        type="file" 
+                                        className="hidden" 
+                                        accept={header.format === 'IMAGE' ? 'image/*' : header.format === 'VIDEO' ? 'video/*' : '*'} 
+                                        onChange={(e) => e.target.files?.[0] && handleFileUpload('header', e.target.files[0])}
+                                    />
+                                </Label>
+                            </div>
                             <p className="text-[9px] text-green-600/70 mt-2 italic">
-                                Meta requires a sample {header.format.toLowerCase()} to verify and approve your template.
+                                For Pinbot, please upload a file to get a valid header handle.
                             </p>
                         </div>
                     </div>
@@ -251,6 +346,138 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                         {body?.text?.length || 0}/1024
                     </span>
                 </div>
+            </div>
+
+            {/* Carousel Section */}
+            <div className="space-y-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 bg-pink-50 rounded-lg">
+                            <Layout className="h-5 w-5 text-pink-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">Carousel Cards <span className="text-[10px] font-normal text-muted-foreground">(Optional)</span></h3>
+                    </div>
+                    {!carousel && (
+                        <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold border-pink-200 text-pink-600 hover:bg-pink-50" onClick={addCarouselCard}>
+                            <Plus className="h-3 w-3 mr-1" /> Enable Carousel
+                        </Button>
+                    )}
+                </div>
+
+                {carousel && (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="flex items-center gap-2 border-b border-gray-100 pb-4 overflow-x-auto no-scrollbar">
+                            {carousel.cards.map((_: any, idx: number) => (
+                                <Button
+                                    key={idx}
+                                    variant="ghost"
+                                    onClick={() => setActiveCard(idx)}
+                                    className={cn(
+                                        "h-9 px-4 rounded-xl text-xs font-bold shrink-0",
+                                        activeCard === idx ? "bg-pink-600 text-white hover:bg-pink-700 hover:text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+                                    )}
+                                >
+                                    Card {idx + 1}
+                                </Button>
+                            ))}
+                            {carousel.cards.length < 10 && (
+                                <Button variant="ghost" className="h-9 w-9 p-0 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100" onClick={addCarouselCard}>
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
+
+                        {carousel.cards[activeCard] && (
+                            <div className="space-y-4 bg-gray-50/30 p-4 rounded-2xl border border-gray-100">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-bold text-gray-700">Editing Card {activeCard + 1}</h4>
+                                    <Button variant="ghost" size="sm" className="h-7 text-red-500 hover:bg-red-50 text-[10px] font-bold" onClick={() => removeCarouselCard(activeCard)}>
+                                        <Trash2 className="h-3 w-3 mr-1" /> Delete Card
+                                    </Button>
+                                </div>
+
+                                {/* Card Header */}
+                                <div className="space-y-2">
+                                    <Label className="text-[11px] font-bold text-gray-500 uppercase">Card Image Handle</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="Example: 4::aW1h..."
+                                            value={carousel.cards[activeCard].components.find((c: any) => c.type === 'HEADER')?.example?.header_handle?.[0] || ''}
+                                            onChange={(e) => updateCardComponent(activeCard, 'HEADER', { example: { header_handle: [e.target.value] } })}
+                                            className="bg-white border-gray-100 h-9 text-[10px] rounded-lg"
+                                        />
+                                        <Label className="cursor-pointer">
+                                            <div className={cn(
+                                                "h-9 px-3 bg-pink-600 text-white rounded-lg flex items-center gap-1 text-[10px] font-bold hover:bg-pink-700 transition-colors",
+                                                isUploading === String(activeCard) && "opacity-50 pointer-events-none"
+                                            )}>
+                                                {isUploading === String(activeCard) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                                            </div>
+                                            <input 
+                                                type="file" 
+                                                className="hidden" 
+                                                accept="image/*" 
+                                                onChange={(e) => e.target.files?.[0] && handleFileUpload(activeCard, e.target.files[0])}
+                                            />
+                                        </Label>
+                                    </div>
+                                </div>
+
+                                {/* Card Body */}
+                                <div className="space-y-2">
+                                    <Label className="text-[11px] font-bold text-gray-500 uppercase">Card Body</Label>
+                                    <Textarea
+                                        placeholder="Enter card description..."
+                                        rows={3}
+                                        value={carousel.cards[activeCard].components.find((c: any) => c.type === 'BODY')?.text || ''}
+                                        onChange={(e) => updateCardComponent(activeCard, 'BODY', { text: e.target.value })}
+                                        className="bg-white border-gray-100 focus:ring-pink-500 rounded-xl text-xs"
+                                    />
+                                </div>
+
+                                {/* Card Buttons (Simple implementation for card level) */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-[11px] font-bold text-gray-500 uppercase">Card Buttons</Label>
+                                    </div>
+                                    {(carousel.cards[activeCard].components.find((c: any) => c.type === 'BUTTONS')?.buttons || []).map((btn: any, bidx: number) => (
+                                        <div key={bidx} className="flex gap-2 mb-2">
+                                            <Input
+                                                placeholder="Button Text"
+                                                value={btn.text}
+                                                onChange={(e) => {
+                                                    const cardComp = carousel.cards[activeCard].components;
+                                                    const bIdx = cardComp.findIndex((c: any) => c.type === 'BUTTONS');
+                                                    const btns = [...cardComp[bIdx].buttons];
+                                                    btns[bidx] = { ...btns[bidx], text: e.target.value };
+                                                    updateCardComponent(activeCard, 'BUTTONS', { buttons: btns });
+                                                }}
+                                                className="bg-white h-8 text-[10px] rounded-lg flex-1"
+                                            />
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => {
+                                                const cardComp = carousel.cards[activeCard].components;
+                                                const bIdx = cardComp.findIndex((c: any) => c.type === 'BUTTONS');
+                                                const btns = cardComp[bIdx].buttons.filter((_: any, i: number) => i !== bidx);
+                                                updateCardComponent(activeCard, 'BUTTONS', { buttons: btns });
+                                            }}>
+                                                <X className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {(carousel.cards[activeCard].components.find((c: any) => c.type === 'BUTTONS')?.buttons || []).length < 2 && (
+                                        <Button size="sm" variant="outline" className="h-7 text-[10px] border-dashed" onClick={() => {
+                                            const bIdx = carousel.cards[activeCard].components.findIndex((c: any) => c.type === 'BUTTONS');
+                                            const btns = bIdx > -1 ? [...carousel.cards[activeCard].components[bIdx].buttons, { type: 'QUICK_REPLY', text: 'New Button' }] : [{ type: 'QUICK_REPLY', text: 'New Button' }];
+                                            updateCardComponent(activeCard, 'BUTTONS', { buttons: btns });
+                                        }}>
+                                            + Add Button
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Footer Section */}
@@ -305,6 +532,9 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                                                 <SelectItem value="QUICK_REPLY">Quick Reply</SelectItem>
                                                 <SelectItem value="URL">Visit Website</SelectItem>
                                                 <SelectItem value="PHONE_NUMBER">Call Phone</SelectItem>
+                                                <SelectItem value="COPY_CODE">Copy Code</SelectItem>
+                                                <SelectItem value="CATALOG">View Catalog</SelectItem>
+                                                <SelectItem value="MPM">Multi-Product Message</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -350,6 +580,49 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                                                 onChange={(e) => updateButton(idx, { phone_number: e.target.value })}
                                                 className="bg-white border-gray-100 h-9 text-xs rounded-lg"
                                             />
+                                        </div>
+                                    )}
+
+                                    {btn.type === 'COPY_CODE' && (
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[11px] font-bold text-gray-500 uppercase px-1 underline decoration-purple-500 flex items-center gap-1">
+                                                Coupon Code <CreditCard className="h-2.5 w-2.5" />
+                                            </Label>
+                                            <Input
+                                                placeholder="e.g. SAVE50"
+                                                value={btn.example || ''}
+                                                onChange={(e) => updateButton(idx, { example: e.target.value })}
+                                                className="bg-white border-gray-100 h-9 text-xs rounded-lg"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {btn.type === 'CATALOG' && (
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[11px] font-bold text-gray-500 uppercase px-1 underline decoration-orange-500 flex items-center gap-1">
+                                                Thumbnail Product ID <ShoppingBag className="h-2.5 w-2.5" />
+                                            </Label>
+                                            <Input
+                                                placeholder="Retailer ID (e.g. 2)"
+                                                value={btn.action?.thumbnail_product_retailer_id || ''}
+                                                onChange={(e) => updateButton(idx, { action: { ...btn.action, thumbnail_product_retailer_id: e.target.value } })}
+                                                className="bg-white border-gray-100 h-9 text-xs rounded-lg"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {btn.type === 'MPM' && (
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[11px] font-bold text-gray-500 uppercase px-1 underline decoration-blue-500 flex items-center gap-1">
+                                                Thumbnail Product ID <List className="h-2.5 w-2.5" />
+                                            </Label>
+                                            <Input
+                                                placeholder="Retailer ID (e.g. 2)"
+                                                value={btn.action?.thumbnail_product_retailer_id || ''}
+                                                onChange={(e) => updateButton(idx, { action: { ...btn.action, thumbnail_product_retailer_id: e.target.value } })}
+                                                className="bg-white border-gray-100 h-9 text-xs rounded-lg"
+                                            />
+                                            <p className="text-[9px] text-muted-foreground italic px-1">Note: MPM requires catalog sections configuration.</p>
                                         </div>
                                     )}
                                 </div>

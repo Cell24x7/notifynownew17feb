@@ -48,7 +48,8 @@ router.post('/', authenticateToken, async (req, res) => {
         const userId = req.user.id;
         const {
             name, channel, template_id, audience_id, audience_count,
-            status, scheduled_at, variable_mapping
+            status, scheduled_at, variable_mapping,
+            template_metadata, template_body, template_type
         } = req.body;
 
         // Validate channel against user profile
@@ -101,9 +102,16 @@ router.post('/', authenticateToken, async (req, res) => {
 
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, template_name, audience_id, audience_count, status, scheduled_at, variable_mapping)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [campaignId, userId, name, channel, template_id, templateName, audience_id || null, audience_count || 0, status || 'draft', scheduled_at || null, JSON.stringify(variable_mapping || {})]
+      (id, user_id, name, channel, template_id, template_name, audience_id, audience_count, status, scheduled_at, variable_mapping, template_metadata, template_body, template_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                campaignId, userId, name, channel, template_id, templateName,
+                audience_id || null, audience_count || 0, status || 'draft',
+                scheduled_at || null, JSON.stringify(variable_mapping || {}),
+                template_metadata ? JSON.stringify(template_metadata) : null,
+                template_body || null,
+                template_type || null
+            ]
         );
 
         console.log(`✅ Campaign ${campaignId} created for user ${userId}. Template: ${templateName}`);

@@ -99,7 +99,9 @@ const processQueue = async () => {
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(c.template_name, mt.name, c.template_id) as template_name,
-            mt.body as template_body, mt.template_type, mt.metadata as template_metadata,
+            COALESCE(c.template_body, mt.body) as template_body,
+            COALESCE(c.template_type, mt.template_type) as template_type, 
+            COALESCE(c.template_metadata, mt.metadata) as template_metadata,
             c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, c.variable_mapping,
             u.rcs_config_id, u.whatsapp_config_id, q.variables,
             rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
@@ -209,6 +211,13 @@ const processQueue = async () => {
                             // Ensure country code
                             if (mobile.length === 10) mobile = '91' + mobile;
 
+                            let langCode = 'en_US';
+                            try {
+                                const metaStr = item.template_metadata;
+                                const meta = typeof metaStr === 'string' ? JSON.parse(metaStr) : (metaStr || {});
+                                if (meta.language) langCode = meta.language;
+                            } catch(e) {}
+
                             const payload = {
                                 messaging_product: 'whatsapp',
                                 recipient_type: 'individual',
@@ -216,21 +225,84 @@ const processQueue = async () => {
                                 type: 'template',
                                 template: {
                                     name: item.template_name,
-                                    language: { code: 'en_US' }
+                                    language: { code: langCode }
                                 }
                             };
 
-                            // Add components if we have variables
+                            const payloadComponents = [];
+
+                            // 1. Process Header from Metadata
+                            try {
+                                const metaStr = item.template_metadata;
+                                const meta = typeof metaStr === 'string' ? JSON.parse(metaStr) : (metaStr || {});
+                                const mtComponents = meta.components || [];
+
+                                const headerComp = mtComponents.find(c => c.type === 'HEADER' || c.type === 'header');
+                                if (headerComp && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
+                                    const mediaType = headerComp.format.toLowerCase();
+                                    const mediaHandleOrUrl = headerComp.example?.header_handle?.[0] || '';
+                                    
+                                    // Normally headers should map to a dynamic variable. If missing, fallback to example handle
+                                    const dynamicHeader = resolvedVars['header_url'] || mediaHandleOrUrl;
+
+                                    if (dynamicHeader) {
+                                        const isUrl = dynamicHeader.startsWith('http');
+                                        console.log(`[QueueProcessor] Header: ${isUrl ? 'LINK' : 'ID'} = ${dynamicHeader}`);
+                                        payloadComponents.push({
+                                            type: 'header',
+                                            parameters: [
+                                                {
+                                                    type: mediaType,
+                                                    [mediaType]: isUrl ? { link: dynamicHeader } : { id: dynamicHeader }
+                                                }
+                                            ]
+                                        });
+                                    }
+                                }
+                            } catch (metaErr) {
+                                console.error('[QueueProcessor] Error parsing WhatsApp template metadata for header:', metaErr.message);
+                            }
+
+                            // 2. Process Body Variables
                             const waParams = getOrderedVariables(item.template_body || '', resolvedVars);
                             if (waParams.length > 0) {
-                                console.log(`[QueueProcessor] WhatsApp resolved params for ${mobile}:`, waParams);
-                                payload.template.components = [
-                                    {
-                                        type: 'body',
-                                        parameters: waParams.map(v => ({ type: 'text', text: String(v) }))
-                                    }
-                                ];
+                                payloadComponents.push({
+                                    type: 'body',
+                                    parameters: waParams.map(v => ({ type: 'text', text: String(v) }))
+                                });
                             }
+
+                            // 3. Process Dynamic URL Buttons
+                            try {
+                                const metaStr = item.template_metadata;
+                                const meta = typeof metaStr === 'string' ? JSON.parse(metaStr) : (metaStr || {});
+                                const mtComponents = meta.components || [];
+                                const buttonComp = mtComponents.find(c => c.type === 'BUTTONS' || c.type === 'buttons');
+                                if (buttonComp) {
+                                    buttonComp.buttons?.forEach((btn, idx) => {
+                                        if (btn.type === 'URL' && btn.url?.includes('{{1}}')) {
+                                            const btnVar = `button_${idx + 1}_url`;
+                                            const val = resolvedVars[btnVar] || '';
+                                            if (val) {
+                                                payloadComponents.push({
+                                                    type: 'button',
+                                                    sub_type: 'url',
+                                                    index: String(idx),
+                                                    parameters: [{ type: 'text', text: String(val) }]
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+                            } catch (btnErr) {
+                                console.error('[QueueProcessor] Error parsing buttons for WhatsApp:', btnErr.message);
+                            }
+
+                            if (payloadComponents.length > 0) {
+                                payload.template.components = payloadComponents;
+                            }
+                            
+                            console.log(`[QueueProcessor] Full WhatsApp Payload for ${mobile}:`, JSON.stringify(payload, null, 2));
 
                             const response = await axios.post(msgUrl, payload, { headers });
                             const respData = response.data;

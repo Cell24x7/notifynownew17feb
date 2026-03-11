@@ -84,8 +84,8 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                                     )}
                                     {header.format === 'IMAGE' && (
                                         <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-400 overflow-hidden">
-                                            {header.handle ? (
-                                                <img src={header.handle} alt="Header" className="w-full h-full object-cover" />
+                                            {header.previewUrl || (header.handle && header.handle.startsWith('http')) ? (
+                                                <img src={header.previewUrl || header.handle} alt="Header" className="w-full h-full object-cover" />
                                             ) : (
                                                 <>
                                                     <ImageIcon className="h-10 w-10 mb-2 opacity-30" />
@@ -96,8 +96,8 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                                     )}
                                     {header.format === 'VIDEO' && (
                                         <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 overflow-hidden">
-                                            {header.handle ? (
-                                                <video src={header.handle} className="w-full h-full object-cover" controls={false} autoPlay muted loop />
+                                            {header.previewUrl || (header.handle && header.handle.startsWith('http')) ? (
+                                                <video src={header.previewUrl || header.handle} className="w-full h-full object-cover" controls={false} autoPlay muted loop />
                                             ) : (
                                                 <>
                                                     <Video className="h-10 w-10 mb-2 opacity-30" />
@@ -109,7 +109,7 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                                     {header.format === 'DOCUMENT' && (
                                         <div className="w-full h-20 flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/10 text-blue-400">
                                             <FileText className="h-8 w-8 mb-1 opacity-50" />
-                                            <span className="text-[10px] uppercase font-bold tracking-widest">{header.handle ? 'Document Provided' : 'Document'}</span>
+                                            <span className="text-[10px] uppercase font-bold tracking-widest">{(header.example?.header_handle?.[0] || header.handle) ? 'Document Provided' : 'Document'}</span>
                                         </div>
                                     )}
                                 </div>

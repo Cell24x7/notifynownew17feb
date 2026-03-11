@@ -105,4 +105,64 @@ export const whatsappService = {
         const res = await axios.get(`${API_URL}/user-details`, { headers: getAuth() });
         return res.data;
     },
+
+    // ─── MEDIA UPLOADS (Pinbot only) ──────────────────
+
+    /**
+     * Step 1: Create upload session on Pinbot
+     * Returns { id: 'upload:XXXX', sig: 'YYYY', ... }
+     */
+    createUploadSession: async (fileLength: number, fileType: string) => {
+        const res = await axios.post(`${API_URL}/header-handle/session`, {
+            file_length: fileLength,
+            file_type: fileType
+        }, { headers: getAuth() });
+        return res.data;
+    },
+
+    /**
+     * Step 2: Upload raw binary file to Pinbot
+     * session_id = the 'id' from Step 1 (e.g. 'upload:MTphdHR...')
+     * sig = the 'sig' from Step 1
+     * Backend converts multipart → raw binary for Pinbot
+     */
+    uploadFile: async (sessionId: string, sig: string, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('session_id', sessionId);
+        if (sig) formData.append('sig', sig);
+
+        const res = await axios.post(`${API_URL}/header-handle/upload`, formData, {
+            headers: {
+                ...getAuth()
+                // Don't set Content-Type, let browser set multipart boundary
+            }
+        });
+        return res.data;
+    },
+
+    /**
+     * Combined Helper: Upload file and get header_handle in one call
+     * Returns header_handle string (e.g. '4::aW1h...')
+     */
+    uploadHeaderHandle: async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await axios.post(`${API_URL}/media/upload-local`, formData, {
+            headers: { ...getAuth() }
+        });
+        
+        if (!res.data.success) throw new Error(res.data.message || 'Local upload failed');
+        return res.data.url;
+    },
+
+    uploadMedia: async (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await axios.post(`${API_URL}/media`, formData, {
+            headers: { ...getAuth() }
+        });
+        return res.data;
+    }
 };

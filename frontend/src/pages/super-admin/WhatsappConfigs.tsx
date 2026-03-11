@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, MoreVertical, Loader2, MessageCircle, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, MoreVertical, Loader2, MessageCircle, CheckCircle2, XCircle, Info, Webhook, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -78,6 +78,9 @@ export default function WhatsappConfigs() {
     const [formLoading, setFormLoading] = useState(false);
     const [testLoading, setTestLoading] = useState(false);
     const [formData, setFormData] = useState({ ...emptyForm });
+    const [webhookDialogOpen, setWebhookDialogOpen] = useState(false);
+    const [webhookData, setWebhookData] = useState({ url: '', headers: '' });
+    const [webhookLoading, setWebhookLoading] = useState(false);
 
     const fetchConfigs = async () => {
         setLoading(true);
@@ -185,6 +188,62 @@ export default function WhatsappConfigs() {
             }
         } catch (err: any) {
             toast({ variant: 'destructive', title: 'Delete Failed', description: err.response?.data?.message || 'Could not delete. It might be in use.' });
+        }
+    };
+
+    const handleOpenWebhookDialog = async (config: any) => {
+        setSelectedConfig(config);
+        setWebhookDialogOpen(true);
+        setWebhookLoading(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await axios.get(`${API_BASE_URL}/api/whatsapp/get-webhook`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params: { config_id: config.id }
+            });
+            if (res.data.success) {
+                setWebhookData({
+                    url: res.data.data?.webhook_url || '',
+                    headers: res.data.data?.headers ? JSON.stringify(res.data.data.headers, null, 2) : ''
+                });
+            }
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: 'Fetch Failed', description: err.response?.data?.message || 'Could not fetch current webhook' });
+        } finally {
+            setWebhookLoading(false);
+        }
+    };
+
+    const handleSaveWebhook = async () => {
+        if (!webhookData.url) return toast({ variant: 'destructive', title: 'URL required' });
+        setWebhookLoading(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            let headersObj = {};
+            if (webhookData.headers) {
+                try {
+                    headersObj = JSON.parse(webhookData.headers);
+                } catch (e) {
+                    return toast({ variant: 'destructive', title: 'Invalid JSON', description: 'Headers must be valid JSON' });
+                }
+            }
+
+            const res = await axios.post(`${API_BASE_URL}/api/whatsapp/set-webhook`, {
+                config_id: selectedConfig.id,
+                webhook_url: webhookData.url,
+                headers: headersObj
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.data.success) {
+                toast({ title: '✅ Webhook Updated', description: 'Webhook has been successfully updated on Pinbot.' });
+                setWebhookDialogOpen(false);
+            }
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: 'Update Failed', description: err.response?.data?.message || 'Could not update webhook on Pinbot' });
+        } finally {
+            setWebhookLoading(false);
         }
     };
 
@@ -304,6 +363,11 @@ export default function WhatsappConfigs() {
                                                                 <DropdownMenuItem onClick={() => handleOpenDialog(config)}>
                                                                     <Edit className="w-4 h-4 mr-2" /> Edit
                                                                 </DropdownMenuItem>
+                                                                {prov?.id === 'vendor2' && (
+                                                                    <DropdownMenuItem onClick={() => handleOpenWebhookDialog(config)}>
+                                                                        <Webhook className="w-4 h-4 mr-2" /> Manage Webhook
+                                                                    </DropdownMenuItem>
+                                                                )}
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem className="text-destructive font-medium" onClick={() => handleDeleteConfig(config.id)}>
                                                                     <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -489,6 +553,65 @@ export default function WhatsappConfigs() {
                             <Button onClick={handleSaveConfig} disabled={formLoading} className="bg-green-600 hover:bg-green-700">
                                 {formLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {selectedConfig ? 'Update' : 'Save Configuration'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Webhook Management Dialog */}
+                <Dialog open={webhookDialogOpen} onOpenChange={setWebhookDialogOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <Webhook className="w-5 h-5 text-orange-600" />
+                                Pinbot Webhook Management
+                            </DialogTitle>
+                            <DialogDescription>
+                                View or update the callback URL for <strong>{selectedConfig?.chatbot_name}</strong>
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {webhookLoading && !webhookData.url ? (
+                            <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>
+                        ) : (
+                            <div className="space-y-4 py-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="webhook_url" className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Webhook URL</Label>
+                                    <div className="relative">
+                                        <Input 
+                                            id="webhook_url" 
+                                            value={webhookData.url} 
+                                            onChange={(e) => setWebhookData({ ...webhookData, url: e.target.value })}
+                                            placeholder="https://your-domain.com/webhook/whatsapp"
+                                            className="pr-10"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground italic">
+                                        Incoming messages and delivery reports will be sent to this URL.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="webhook_headers" className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Custom Headers (JSON)</Label>
+                                    <Textarea 
+                                        id="webhook_headers" 
+                                        value={webhookData.headers} 
+                                        onChange={(e) => setWebhookData({ ...webhookData, headers: e.target.value })}
+                                        placeholder='{ "Authorization": "Bearer token" }'
+                                        className="font-mono text-xs min-h-[100px]"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Optional JSON object. Pinbot will include these in each webhook request.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        <DialogFooter className="gap-2">
+                            <Button variant="outline" onClick={() => setWebhookDialogOpen(false)}>Close</Button>
+                            <Button className="bg-orange-600 hover:bg-orange-700" onClick={handleSaveWebhook} disabled={webhookLoading}>
+                                {webhookLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                                Update Webhook
                             </Button>
                         </DialogFooter>
                     </DialogContent>

@@ -182,15 +182,20 @@ export default function Campaigns() {
           if (Array.isArray(waList)) {
             const mappedWa = waList.map((t: any) => {
               const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
-              return {
-                id: String(t.name || t.id),
-                name: String(t.name || t.id),
-                channel: 'whatsapp' as const,
-                status: (t.status?.toLowerCase() === 'approved' ? 'approved' : 'pending') as any,
-                template_type: (t.category || 'text_message') as any,
-                body: bodyComponent?.text || '',
-                isExternal: true
-              };
+                return {
+                  id: String(t.name || t.id),
+                  name: String(t.name || t.id),
+                  channel: 'whatsapp' as const,
+                  status: (t.status?.toLowerCase() === 'approved' ? 'approved' : 'pending') as any,
+                  template_type: (t.category || 'text_message') as any,
+                  body: bodyComponent?.text || '',
+                  metadata: {
+                    components: t.components,
+                    language: t.language,
+                    category: t.category
+                  },
+                  isExternal: true
+                };
             });
 
             // Reconciliation logic similar to Templates.tsx
@@ -269,11 +274,16 @@ export default function Campaigns() {
     try {
       // 1. Create Base Campaign (Draft)
       // We create the campaign first to get an ID for uploading contacts
+      const selectedTpl = templates.find(t => t.id === campaignData.templateId);
+      
       const campaignPayload = {
         name: campaignData.name,
         channel: campaignData.channel,
         template_id: campaignData.templateId,
-        template_name: templates.find(t => t.id === campaignData.templateId)?.name, // Send the name!
+        template_name: selectedTpl?.name, // Send the name!
+        template_metadata: selectedTpl?.metadata, // New snapshot
+        template_body: selectedTpl?.body, // New snapshot
+        template_type: selectedTpl?.template_type, // New snapshot
         audience_id: campaignData.audienceId || undefined,
         audience_count: campaignData.audienceCount,
         status: 'draft' as any, // Start as draft, update later if 'now'
