@@ -462,7 +462,12 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                     const FormData = require('form-data');
                     const form = new FormData();
                     const fs = require('fs');
-                    form.append('file', fs.createReadStream(req.file.path));
+                    
+                    // Pinbot specifically expects 'sheet' as the field name for media uploads
+                    form.append('sheet', fs.createReadStream(req.file.path), {
+                        filename: req.file.originalname,
+                        contentType: req.file.mimetype
+                    });
 
                     const uploadUrl = `${PINBOT_BASE}/${uploadId}/media`;
                     console.log(`[WA-UPLOAD] Proxying to Pinbot: POST ${uploadUrl}`);
