@@ -488,7 +488,6 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
             
             try {
                 // Step 1: Create Upload Session
-                // Endpoint: https://partnersv1.pinbot.ai/v3/app/uploads
                 const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
                     headers: { apikey: config.api_key },
                     params: {
@@ -510,19 +509,26 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                         contentType: req.file.mimetype
                     });
 
-                    const uploadUrl = `${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`;
-                    const uploadRes = await axios.post(uploadUrl, form, {
+                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`, form, {
                         headers: { apikey: config.api_key, ...form.getHeaders() }
                     });
 
                     if (uploadRes.data && (uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id)) {
                         const handle = uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id;
-                        console.log('✅ [WA-UPLOAD] Pinbot Header Handle obtained:', handle);
+                        console.log('✅ [WA-UPLOAD] Handle obtained:', handle);
                         return res.json({ success: true, url: handle, isHandle: true });
                     }
                 }
+                
+                throw new Error('Pinbot session upload succeeded but no handle was returned.');
             } catch (proxyErr) {
-                console.error('[WA-UPLOAD] ❌ Pinbot Session Upload Failed:', proxyErr.response?.data || proxyErr.message);
+                const pinError = proxyErr.response?.data || proxyErr.message;
+                console.error('[WA-UPLOAD] ❌ Pinbot Upload Failed:', JSON.stringify(pinError, null, 2));
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to upload media to WhatsApp. Please check your Pinbot/WABA configuration.',
+                    error: pinError
+                });
             }
         }
 
@@ -530,7 +536,7 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
         const host = req.get('host');
         const fileUrl = `${protocol}://${host}/uploads/whatsapp_media/${req.file.filename}`;
         
-        console.log(`[WA-UPLOAD] Returning local URL (fallback): ${fileUrl}`);
+        console.log(`[WA-UPLOAD] Local upload (non-Pinbot): ${fileUrl}`);
         res.json({ success: true, url: fileUrl });
     } catch (error) {
         console.error('[WA-UPLOAD] ❌ Fatal Error:', error);
