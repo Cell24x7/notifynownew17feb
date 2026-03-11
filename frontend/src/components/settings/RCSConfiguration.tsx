@@ -438,15 +438,15 @@ export function RCSConfiguration() {
 
                         <div className="space-y-2">
                           <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Billing Category</Label>
-                          <Select value={config.billingCategory} onValueChange={(val) => setConfig({...config, billingCategory: val})}>
-                            <SelectTrigger className="h-12 rounded-xl bg-white border-slate-200 focus:ring-primary/20 font-bold text-slate-700">
-                              <SelectValue placeholder="Category" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-slate-200 bg-white shadow-2xl">
-                              <SelectItem value="Conversational">Conversational</SelectItem>
-                              <SelectItem value="Non-Conversational">Non-Conversational</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="relative">
+                            <Input 
+                              value="Conversational" 
+                              readOnly 
+                              className="h-12 rounded-xl bg-slate-100 border-slate-200 font-bold text-slate-500 cursor-not-allowed pr-10"
+                            />
+                            <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-medium">This category is pre-selected for your account.</p>
                         </div>
 
                         <div className="space-y-2">

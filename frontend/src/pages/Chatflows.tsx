@@ -44,7 +44,7 @@ export default function Chatflows() {
                 }
             });
             const data = await response.json();
-            setFlows(data);
+            setFlows(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Fetch flows error:', error);
             toast({
@@ -61,10 +61,10 @@ export default function Chatflows() {
         fetchFlows();
     }, []);
 
-    const filteredFlows = flows.filter((flow) =>
-        flow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        flow.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const filteredFlows = Array.isArray(flows) ? flows.filter((flow) =>
+        flow.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        flow.keywords?.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()))
+    ) : [];
 
     const handleCreateFlow = () => {
         setSelectedFlow(null);
@@ -203,7 +203,7 @@ export default function Chatflows() {
                 <Card className="bg-primary/5 border-primary/20">
                     <CardContent className="p-3 flex items-center justify-between">
                         <div className="text-sm font-medium text-primary">Active Flows</div>
-                        <div className="text-2xl font-bold text-primary">{flows.filter(f => f.status === 'active').length}</div>
+                        <div className="text-2xl font-bold text-primary">{Array.isArray(flows) ? flows.filter(f => f.status === 'active').length : 0}</div>
                     </CardContent>
                 </Card>
             </div>

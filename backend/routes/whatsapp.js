@@ -19,12 +19,12 @@ const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
 const getWhatsAppConfig = async (userId) => {
     const [users] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [userId]);
     if (!users.length || !users[0].whatsapp_config_id) {
-        throw new Error('WhatsApp not configured for this account');
+        return null; // Return null instead of throwing
     }
 
     const [configs] = await query('SELECT * FROM whatsapp_configs WHERE id = ? AND is_active = 1', [users[0].whatsapp_config_id]);
     if (!configs.length) {
-        throw new Error('WhatsApp configuration not found or inactive');
+        return null;
     }
 
     const config = configs[0];
@@ -70,9 +70,9 @@ router.get('/templates', authenticate, async (req, res) => {
     try {
         const config = await getWhatsAppConfig(req.user.id);
 
-        // Safety: If no WABA ID is configured, return empty
-        if (!config.wa_biz_accnt_id) {
-            return res.json({ success: true, templates: [], message: 'WABA ID not configured' });
+        // Safety: If no config found, return empty list gracefully
+        if (!config || !config.wa_biz_accnt_id) {
+            return res.json({ success: true, templates: [], message: 'WhatsApp not configured for this account' });
         }
 
         const params = {};
