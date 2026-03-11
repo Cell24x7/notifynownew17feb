@@ -18,7 +18,7 @@ const fs = require('fs');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = 'uploads/whatsapp_media';
+        const dir = path.join(__dirname, '..', 'uploads', 'whatsapp_media');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
@@ -490,14 +490,19 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                         console.log('[WA-UPLOAD] Pinbot upload succeeded but no ID in response:', JSON.stringify(response.data));
                     }
                 } catch (pinErr) {
-                    console.error('[WA-UPLOAD] ❌ Pinbot Proxy Failed:', pinErr.response?.data || pinErr.message);
+                    const errData = pinErr.response?.data;
+                    console.error('[WA-UPLOAD] ❌ Pinbot Proxy Failed:', JSON.stringify(errData || pinErr.message, null, 2));
+                    // If error is specific about parameters, log it clearly
+                    if (errData?.message?.includes('Unexpected field')) {
+                        console.log('[WA-UPLOAD] TIP: The field name might be incorrect. Current: "sheet"');
+                    }
                 }
             } else {
                 console.log('[WA-UPLOAD] WARN: Cannot proxy to Pinbot - no ph_no_id or wa_phone_number_id available');
             }
         }
 
-        const protocol = req.protocol;
+        const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
         const host = req.get('host');
         const fileUrl = `${protocol}://${host}/uploads/whatsapp_media/${req.file.filename}`;
         
