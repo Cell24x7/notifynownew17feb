@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
+const { triggerChatflow } = require('../services/chatflowService');
 
 // POST /api/webhooks/rcs/callback
 // Standard endpoint for RCS Delivery Reports & Incoming Messages
@@ -107,6 +108,11 @@ router.post('/rcs/callback', async (req, res) => {
                             status: 'received',
                             type: 'rcs'
                         });
+
+                        // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
+                        triggerChatflow(targetUserId, sender, text, 'rcs', req.io).catch(e =>
+                            console.error('[ChatFlow] RCS trigger error:', e.message)
+                        );
                     }
                 }
                 console.log(`✅ Saved incoming message from ${sender} to DB and notified via Socket.`);
@@ -612,6 +618,13 @@ router.post('/whatsapp/callback', async (req, res) => {
                                         type: 'whatsapp'
                                     });
                                     console.log(`📡 Emitted new_message to user_${userId}`);
+                                }
+
+                                // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
+                                if (userId) {
+                                    triggerChatflow(userId, sender, text, 'whatsapp', req.io, {
+                                        phoneId: value.metadata?.phone_number_id
+                                    }).catch(e => console.error('[ChatFlow] WA trigger error:', e.message));
                                 }
 
                                 console.log(`✅ Saved incoming WA message from ${sender} to DB (User: ${userId}).`);
