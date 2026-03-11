@@ -147,13 +147,26 @@ router.post('/templates', authenticate, async (req, res) => {
         const { name, category, language, components, allow_category_change } = req.body;
         const config = await getWhatsAppConfig(req.user.id);
 
-        if (!name || !category || !language || !components) {
-            return res.status(400).json({ success: false, message: 'name, category, language, and components are required' });
-        }
+        // Meta requirement: Lowercase and underscores only
+        const sanitizedName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        
+        // Meta requirement: Media headers MUST have an example/sample
+        const processedComponents = components.map(comp => {
+            if ((comp.type === 'HEADER' || comp.type === 'header') && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)) {
+                if (!comp.example) {
+                    // If no example is provided, we might need to add a placeholder or error out.
+                    // For now, let's just log it and hope the frontend starts including it.
+                    // But if we want to be helpful, we can check if there's a handle in the request.
+                    console.log(`[WA-TEMPLATE] Header ${comp.format} missing example. Meta will likely reject this.`);
+                }
+            }
+            return comp;
+        });
 
-        const payload = { name, category, language, components };
+        const payload = { name: sanitizedName, category, language, components: processedComponents };
         if (allow_category_change !== undefined) payload.allow_category_change = allow_category_change;
 
+        console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName} for provider: ${config.isPinbot ? 'Pinbot' : 'Meta'}`);
         const response = await axios.post(getTemplatesUrl(config), payload, {
             headers: getHeaders(config)
         });

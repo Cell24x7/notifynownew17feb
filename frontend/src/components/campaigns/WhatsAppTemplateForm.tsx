@@ -187,10 +187,10 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                         <Input
                             placeholder="e.g. order_confirmation"
                             value={data.name || ''}
-                            onChange={(e) => onChange({ ...data, name: e.target.value.toLowerCase().replace(/\s/g, '_') })}
+                            onChange={(e) => onChange({ ...data, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
                             className="bg-gray-50 border-none h-11 focus:ring-green-500 rounded-xl"
                         />
-                        <p className="text-[10px] text-muted-foreground ml-1 italic">Only lowercase letters and underscores.</p>
+                        <p className="text-[10px] text-muted-foreground ml-1 italic">Only lowercase letters, numbers and underscores.</p>
                     </div>
 
                     <div className="space-y-2">

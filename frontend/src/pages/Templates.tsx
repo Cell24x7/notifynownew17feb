@@ -409,8 +409,19 @@ export default function Templates() {
           });
         };
 
+        // Validation: Media headers MUST have an example handle
+        const mediaHeader = newTemplate.components?.find((c: any) => (c.type === 'HEADER' || c.type === 'header') && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format));
+        if (mediaHeader && (!mediaHeader.example?.header_handle?.length || !mediaHeader.example.header_handle[0])) {
+            toast({
+                title: 'Media Sample Required',
+                description: `Please upload a sample ${mediaHeader.format.toLowerCase()} for the header. Meta requires an example to approve media templates.`,
+                variant: 'destructive',
+            });
+            return;
+        }
+
         const templatePayload = {
-          name: newTemplate.name,
+          name: newTemplate.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
           category: (newTemplate.category || 'UTILITY').toUpperCase() as any,
           language: newTemplate.language || 'en_US',
           components: cleanComponents(newTemplate.components || []),
