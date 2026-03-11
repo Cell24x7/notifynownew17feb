@@ -297,7 +297,7 @@ export default function Auth() {
                     <Button
                       type="submit"
                       className="w-full h-10 mt-2 rounded-xl font-bold shadow-lg gradient-primary text-primary-foreground text-sm"
-                      disabled={loading || !agreedToTerms}
+                      disabled={loading}
                     >
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Log In
