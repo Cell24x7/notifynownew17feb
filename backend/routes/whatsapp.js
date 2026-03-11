@@ -481,57 +481,48 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
             console.log(`[WA-UPLOAD] WARN: No WhatsApp config found for user ${req.user.id}`);
         }
 
-        // If Pinbot user, upload to Pinbot to get a global ID instead of using localhost URL
+        // If Pinbot user, use the Resumable Upload (Session) flow to get a proper Meta Handle (4::...)
+        // This is strictly required for WhatsApp Message Templates.
         if (config && config.isPinbot) {
-            const uploadId = config.ph_no_id || config.wa_phone_number_id; 
-            console.log(`[WA-UPLOAD] Detected Pinbot user. WABA ID: ${config.wa_biz_accnt_id}, Upload ID: ${uploadId}`);
+            console.log(`[WA-UPLOAD] Pinbot user detected. Iniciating session-based upload for template handle.`);
             
-            if (uploadId) {
-                try {
+            try {
+                // Step 1: Create Upload Session
+                // Endpoint: https://partnersv1.pinbot.ai/v3/app/uploads
+                const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
+                    headers: { apikey: config.api_key },
+                    params: {
+                        file_length: req.file.size,
+                        file_type: req.file.mimetype
+                    }
+                });
+
+                if (sessionRes.data && sessionRes.data.id) {
+                    const sessionId = sessionRes.data.id;
+                    const sig = sessionRes.data.sig;
+                    console.log(`[WA-UPLOAD] Session created: ${sessionId}`);
+
                     const FormData = require('form-data');
                     const form = new FormData();
                     const fs = require('fs');
-                    
-                    // Pinbot/Meta standard field name is 'file'
                     form.append('file', fs.createReadStream(req.file.path), {
                         filename: req.file.originalname,
                         contentType: req.file.mimetype
                     });
 
-                    // For template header handles, some Pinbot setups use WABA ID, others use Phone ID
-                    // We try Phone ID first as it's most common for messages
-                    const uploadId = config.ph_no_id || config.wa_phone_number_id || config.wa_biz_accnt_id;
-                    const uploadUrl = `${PINBOT_BASE}/${uploadId}/media`;
-                    console.log(`[WA-UPLOAD] Proxying to Pinbot: POST ${uploadUrl}`);
+                    const uploadUrl = `${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`;
+                    const uploadRes = await axios.post(uploadUrl, form, {
+                        headers: { apikey: config.api_key, ...form.getHeaders() }
+                    });
 
-                    const response = await axios.post(
-                        uploadUrl,
-                        form,
-                        { 
-                            headers: { 
-                                apikey: config.api_key, 
-                                ...form.getHeaders() 
-                            } 
-                        }
-                    );
-                    
-                    if (response.data && (response.data.id || response.data.handle)) {
-                        const mediaId = response.data.id || response.data.handle;
-                        console.log('✅ [WA-UPLOAD] Pinbot Media ID/Handle obtained:', mediaId);
-                        return res.json({ success: true, url: mediaId, isHandle: true });
-                    } else {
-                        console.log('[WA-UPLOAD] Pinbot upload succeeded but no ID in response:', JSON.stringify(response.data));
-                    }
-                } catch (pinErr) {
-                    const errData = pinErr.response?.data;
-                    console.error('[WA-UPLOAD] ❌ Pinbot Proxy Failed:', JSON.stringify(errData || pinErr.message, null, 2));
-                    // If error is specific about parameters, log it clearly
-                    if (errData?.message?.includes('Unexpected field')) {
-                        console.log('[WA-UPLOAD] TIP: The field name might be incorrect. Current: "sheet"');
+                    if (uploadRes.data && (uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id)) {
+                        const handle = uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id;
+                        console.log('✅ [WA-UPLOAD] Pinbot Header Handle obtained:', handle);
+                        return res.json({ success: true, url: handle, isHandle: true });
                     }
                 }
-            } else {
-                console.log('[WA-UPLOAD] WARN: Cannot proxy to Pinbot - no ph_no_id or wa_phone_number_id available');
+            } catch (proxyErr) {
+                console.error('[WA-UPLOAD] ❌ Pinbot Session Upload Failed:', proxyErr.response?.data || proxyErr.message);
             }
         }
 
