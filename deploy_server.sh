@@ -26,7 +26,15 @@ echo "📥 Fetching and Pulling latest code..."
 git fetch origin main
 git reset --hard origin/main
 
-# 4. Restarting Backend (PM2)
+# 4. Running Database Migrations (Fix for template_type error)
+echo "🗄️ Running Database Migrations..."
+if [ -f "backend/migration_fix_template_type.js" ]; then
+    node backend/migration_fix_template_type.js
+else
+    echo "⚠️ Migration script not found."
+fi
+
+# 5. Restarting Backend (PM2)
 echo "♻️ Restarting Services..."
 if command -v pm2 &> /dev/null; then
     pm2 restart all
