@@ -95,6 +95,7 @@ app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/whatsapp-configs', require('./routes/whatsappConfigs'));
 app.use('/api/whatsapp-pinbot', require('./routes/whatsappPinbot'));
 app.use('/api/chatflows', require('./routes/chatflows'));
+app.use('/api/feedbacks', require('./routes/feedbacks'));
 
 
 /* ==================================

@@ -28,6 +28,10 @@ router.get('/', authenticate, async (req, res) => {
         res.json(flows);
     } catch (error) {
         console.error('❌ Get Chatflows Error:', error);
+        // Safety: If table doesn't exist, return empty array instead of 500
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            return res.json([]);
+        }
         res.status(500).json({ success: false, message: error.message });
     }
 });

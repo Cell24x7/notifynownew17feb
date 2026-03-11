@@ -10,11 +10,3 @@ frontend/public/uploads/
 backend/backend.log
 backend/output.log
 
-# Environment variables
-.env
-backend/.env
-frontend/.env
-
-# OS Files
-.DS_Store
-Thumbs.db

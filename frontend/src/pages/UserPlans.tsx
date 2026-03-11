@@ -170,7 +170,7 @@ export default function UserPlans() {
                       plan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs'].includes(c)).map((channel) => (
                         <div
                           key={channel}
-                          className="flex items-center gap-1 bg-secondary/40 border border-secondary/60 px-2 py-1 rounded text-xs font-medium text-secondary-foreground"
+                          className="flex items-center gap-1 bg-secondary/40 border border-secondary/60 px-2 py-1 rounded text-xs font-medium text-slate-800 dark:text-slate-200"
                         >
                           <ChannelIcon channel={channel as any} className="w-3 h-3" />
                           <span className="capitalize">{channel}</span>
