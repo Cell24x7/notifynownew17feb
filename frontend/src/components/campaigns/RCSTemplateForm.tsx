@@ -108,27 +108,69 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
         newList.splice(index, 1);
         handleMetadataChange('carouselList', newList);
     };
-    const validateImage = (file: File, orientation: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-            const maxSize = 2 * 1024 * 1024; // 2MB
-            // GSMA/Dotgo specs for templates:
-            // Vertical/Carousel usually 1000x1000 or similar square
-            // Horizontal usually 1440x448
-            const expectedWidth = orientation === 'HORIZONTAL' ? 1440 : 1000;
-            const expectedHeight = orientation === 'HORIZONTAL' ? 448 : 1000;
+    const getOptimalDimensions = (isCarousel: boolean, cardIdx?: number) => {
+        if (!isCarousel) {
+            const orientation = data.metadata?.orientation || 'VERTICAL';
+            const height = data.metadata?.height || 'SHORT_HEIGHT';
+            
+            if (orientation === 'HORIZONTAL') return { width: 768, height: 1024, ratio: '3:4', label: 'Horizontal (3:4)', maxSize: 2 };
+            if (height === 'MEDIUM_HEIGHT') return { width: 1440, height: 720, ratio: '2:1', label: 'Vertical Medium (2:1)', maxSize: 2 };
+            return { width: 1440, height: 480, ratio: '3:1', label: 'Vertical Short (3:1)', maxSize: 2 };
+        } else {
+            const height = data.metadata?.height || 'SHORT_HEIGHT';
+            const width = data.metadata?.width || 'MEDIUM_WIDTH';
+            
+            if (height === 'SHORT_HEIGHT' && width === 'SMALL_WIDTH') return { width: 960, height: 720, ratio: '5:4', label: 'Short + Small (5:4)', maxSize: 1 };
+            if (height === 'SHORT_HEIGHT' && width === 'MEDIUM_WIDTH') return { width: 1440, height: 720, ratio: '2:1', label: 'Short + Medium (2:1)', maxSize: 1 };
+            if (height === 'MEDIUM_HEIGHT' && width === 'SMALL_WIDTH') return { width: 576, height: 720, ratio: '4:5', label: 'Medium + Small (4:5)', maxSize: 1 };
+            return { width: 1440, height: 1080, ratio: '4:3', label: 'Medium + Medium (4:3)', maxSize: 1 };
+        }
+    };
 
-            if (file.size > maxSize) {
-                alert(`File Too Large. Max size is 2MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
-                resolve(false);
-                return;
+    const validateImage = (file: File, isCarousel: boolean, isThumbnail: boolean = false): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const specs = getOptimalDimensions(isCarousel);
+            const isVideo = file.type.startsWith('video/');
+            const videoMaxSize = isCarousel ? 5 : 10;
+
+            if (isThumbnail) {
+                const minThumbSize = 40 * 1024; // 40KB
+                const maxThumbSize = 100 * 1024; // 100KB
+                if (file.size < minThumbSize || file.size > maxThumbSize) {
+                    alert(`Invalid Thumbnail Size. Thumbnails must be between 40KB and 100KB. Your file: ${(file.size / 1024).toFixed(1)}KB`);
+                    resolve(false);
+                    return;
+                }
+                if (isVideo) {
+                    alert("Thumbnails must be images (JPEG, PNG).");
+                    resolve(false);
+                    return;
+                }
+            } else {
+                const maxByteSize = specs.maxSize * 1024 * 1024;
+                if (isVideo) {
+                    if (file.size > videoMaxSize * 1024 * 1024) {
+                        alert(`Video Too Large. Max size for ${isCarousel ? 'Carousel' : 'Standalone'} is ${videoMaxSize}MB.`);
+                        resolve(false);
+                    } else {
+                        resolve(true);
+                    }
+                    return;
+                }
+
+                if (file.size > maxByteSize) {
+                    alert(`File Too Large. Max size for ${specs.label} is ${specs.maxSize}MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+                    resolve(false);
+                    return;
+                }
             }
 
             const img = new Image();
             img.src = URL.createObjectURL(file);
             img.onload = () => {
                 URL.revokeObjectURL(img.src);
-                if (img.width !== expectedWidth || img.height !== expectedHeight) {
-                    alert(`Invalid Dimensions. For ${orientation.toLowerCase()} orientation, image must be exactly ${expectedWidth}x${expectedHeight} px.\nDetected: ${img.width}x${img.height} px`);
+                if (img.width !== specs.width || img.height !== specs.height) {
+                    alert(`Invalid Dimensions. For ${isThumbnail ? 'Thumbnail' : specs.label}, image must be exactly ${specs.width}x${specs.height} px.\nDetected: ${img.width}x${img.height} px`);
                     resolve(false);
                 } else {
                     resolve(true);
@@ -145,8 +187,9 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const orientation = isCarousel ? 'VERTICAL' : (data.metadata?.orientation || 'VERTICAL');
-        const isValid = await validateImage(file, orientation);
+        // index -2 means standalone thumbnail, index < -2 could mean carousel thumbnail
+        const isThumbnail = index === -2 || (isCarousel && index !== undefined && index < 0);
+        const isValid = await validateImage(file, isCarousel, isThumbnail);
         
         if (!isValid) {
             e.target.value = ''; // Reset input
@@ -154,7 +197,15 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
         }
 
         if (isCarousel && typeof index === 'number') {
-            onCarouselFileChange?.(index, file);
+            if (index < 0) {
+                // Handle carousel thumbnail - adding a prefix or similar
+                // For now, let's just use a special index mapping or a separate prop
+                // But the parent only has onCarouselFileChange(index, file)
+                // We might need to adjust how carousel thumbnails are stored
+                onCarouselFileChange?.(index, file); 
+            } else {
+                onCarouselFileChange?.(index, file);
+            }
         } else {
             onFileChange?.(file);
         }
@@ -264,12 +315,43 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                                             {data.metadata?.isUpload && <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Selected</Badge>}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-100">
-                                        <Zap className="h-3 w-3 text-amber-600" />
-                                        <p className="text-[10px] text-amber-700 font-medium">
-                                            Important: {data.metadata?.orientation === 'HORIZONTAL' ? '1440x448 px (Horizontal)' : '1000x1000 px (Vertical)'} | Max 2MB. Use direct links (no base64).
-                                        </p>
-                                    </div>
+                                    {(() => {
+                                        const specs = getOptimalDimensions(false);
+                                        return (
+                                            <div className="flex flex-col gap-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                                                <div className="flex items-center gap-2">
+                                                    <Zap className="h-3 w-3 text-blue-600" />
+                                                    <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Optimal Requirements</p>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                                    <p className="text-[10px] text-slate-600">Resolution: <span className="font-bold text-slate-900">{specs.width}x{specs.height} px</span></p>
+                                                    <p className="text-[10px] text-slate-600">Aspect Ratio: <span className="font-bold text-slate-900">{specs.ratio}</span></p>
+                                                    <p className="text-[10px] text-slate-600">Max Image: <span className="font-bold text-slate-900">{specs.maxSize} MB</span></p>
+                                                    <p className="text-[10px] text-slate-600">Max Video: <span className="font-bold text-slate-900">10 MB</span></p>
+                                                </div>
+                                                <div className="pt-2 mt-1 border-t border-blue-100/50">
+                                                    <p className="text-[10px] text-blue-800 font-bold">Thumbnail (Required for Video):</p>
+                                                    <p className="text-[9px] text-slate-600">Ratio: <span className="font-bold">{specs.ratio}</span> | Size: 40KB - 100KB</p>
+                                                </div>
+                                                <div className="pt-1 mt-1 border-t border-blue-100/50">
+                                                    <p className="text-[9px] text-blue-600/70 italic">Allowed: JPEG, JPG, PNG, GIF</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                <div className="space-y-1.5 p-3 bg-indigo-50/20 rounded-xl border border-indigo-100/30">
+                                    <Label className="text-[11px] font-bold text-indigo-700 flex items-center gap-1">
+                                        <ImageIcon className="h-3 w-3" /> Optional Thumbnail (for Video)
+                                    </Label>
+                                    <Input 
+                                        type="file" 
+                                        accept="image/jpeg,image/png" 
+                                        onChange={(e) => handleFileSelect(e, false, -2)} // -2 for thumbnail
+                                        className="h-9 text-[10px] bg-white"
+                                    />
+                                    <p className="text-[8px] text-muted-foreground italic">Use for videos only. Recommended size 40KB-100KB.</p>
                                 </div>
                                 
                                 <div className="space-y-1.5">
@@ -380,7 +462,15 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                                                         onChange={(e) => handleFileSelect(e, true, idx)}
                                                         className="h-9 text-xs bg-white"
                                                     />
-                                                    <p className="text-[9px] text-muted-foreground px-1">Req: 1000x1000 px | Max 2MB</p>
+                                                    {(() => {
+                                                        const specs = getOptimalDimensions(true);
+                                                        return (
+                                                            <div className="mt-2 p-2 bg-indigo-50/30 rounded-lg border border-indigo-100/50 space-y-1">
+                                                                <p className="text-[9px] font-bold text-indigo-700 uppercase">Specs: {specs.width}x{specs.height} ({specs.ratio})</p>
+                                                                <p className="text-[9px] text-indigo-600">Max: {specs.maxSize}MB Image | 5MB Video</p>
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                             <div className="space-y-1.5">
