@@ -243,7 +243,14 @@ const processQueue = async () => {
                                     const mediaHandleOrUrl = headerComp.example?.header_handle?.[0] || '';
                                     
                                     // Normally headers should map to a dynamic variable. If missing, fallback to example handle
-                                    const dynamicHeader = resolvedVars['header_url'] || mediaHandleOrUrl;
+                                    let dynamicHeader = resolvedVars['header_url'] || mediaHandleOrUrl;
+
+                                    // CRITICAL FIX: Handles (4::...) are for creation only. 
+                                    // If we find one and have a persistent file_url, use the file_url for sending.
+                                    if (dynamicHeader.startsWith('4::') && headerComp.file_url) {
+                                        console.log(`[QueueProcessor] Handle detected (${dynamicHeader.substring(0,10)}...), switching to fallback file_url: ${headerComp.file_url}`);
+                                        dynamicHeader = headerComp.file_url;
+                                    }
 
                                     if (dynamicHeader) {
                                         const isUrl = dynamicHeader.startsWith('http');

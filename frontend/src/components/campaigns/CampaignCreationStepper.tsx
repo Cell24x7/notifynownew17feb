@@ -1032,10 +1032,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                                         if (!file) return;
                                                                         setIsUploadingMedia(prev => ({ ...prev, [variable]: true }));
                                                                         try {
-                                                                           const handle = await whatsappService.uploadHeaderHandle(file);
+                                                                           const uploadRes = await whatsappService.uploadHeaderHandle(file);
+                                                                           const link = uploadRes.url; // Use the local URL for campaigns
                                                                            setCampaignData(prev => ({
                                                                               ...prev,
-                                                                              fieldMapping: { ...prev.fieldMapping, [variable]: { type: 'custom', value: handle } }
+                                                                              fieldMapping: { ...prev.fieldMapping, [variable]: { type: 'custom', value: link } }
                                                                            }));
                                                                            toast({ title: 'Media Uploaded', description: 'Header media uploaded successfully.' });
                                                                         } catch (err: any) {

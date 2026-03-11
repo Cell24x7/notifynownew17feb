@@ -360,10 +360,11 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                                                                             if (!file) return;
                                                                             setIsUploadingMedia(prev => ({ ...prev, [variable]: true }));
                                                                             try {
-                                                                                const url = await whatsappService.uploadHeaderHandle(file);
+                                                                                const uploadRes = await whatsappService.uploadHeaderHandle(file);
+                                                                                const link = uploadRes.url; // Use local link for campaign
                                                                                 setFieldMapping(prev => ({
                                                                                     ...prev,
-                                                                                    [variable]: { type: 'custom', value: url }
+                                                                                    [variable]: { type: 'custom', value: link }
                                                                                 }));
                                                                                 toast({ title: 'Media Uploaded', description: 'Header media uploaded successfully.' });
                                                                             } catch (err: any) {

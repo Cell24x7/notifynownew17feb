@@ -102,12 +102,18 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
     const handleFileUpload = async (indexOrType: string | number, file: File) => {
         setIsUploading(String(indexOrType));
         try {
-            const headerHandle = await whatsappService.uploadHeaderHandle(file);
-            const previewUrl = URL.createObjectURL(file);
+            const uploadData = await whatsappService.uploadHeaderHandle(file);
+            const headerHandle = uploadData.handle; // Meta handle (4::)
+            const fileUrl = uploadData.url;         // Local URL fallback
+            const previewUrl = fileUrl;             // Use local for preview
 
             if (typeof indexOrType === 'string') {
                 // Main template header
-                updateComponent('HEADER', { example: { header_handle: [headerHandle] }, previewUrl });
+                updateComponent('HEADER', { 
+                    example: { header_handle: [headerHandle] }, 
+                    file_url: fileUrl, // Store for QueueProcessor fallback
+                    previewUrl 
+                });
             } else {
                 // Carousel card header
                 const newCards = [...(carousel?.cards || [])];

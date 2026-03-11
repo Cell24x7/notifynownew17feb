@@ -176,14 +176,27 @@ router.post('/templates', authenticate, async (req, res) => {
             return normalizedComp;
         });
 
-        const payload = { name: sanitizedName, category, language, components: processedComponents };
-        if (allow_category_change !== undefined) payload.allow_category_change = allow_category_change;
+        const payload = { 
+            name: sanitizedName, 
+            category, 
+            language, 
+            components: processedComponents,
+            allow_category_change: allow_category_change !== undefined ? allow_category_change : true 
+        };
 
-        console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName} for provider: ${config.isPinbot ? 'Pinbot' : 'Meta'}`);
-        // Log a summary instead of full string if it's too large, but keep it readable for debugging
-        console.log(`[WA-TEMPLATE] Payload: ${JSON.stringify(payload, null, 2)}`);
+        // Meta/Pinbot are strict about component fields. Strip our internal helper fields.
+        const metaPayload = {
+            ...payload,
+            components: payload.components.map(c => {
+                const { file_url, previewUrl, ...rest } = c;
+                return rest;
+            })
+        };
+
+        console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName}`);
+        console.log(`[WA-TEMPLATE] Payload Sent to Provider: ${JSON.stringify(metaPayload, null, 2)}`);
         
-        const response = await axios.post(getTemplatesUrl(config), payload, {
+        const response = await axios.post(getTemplatesUrl(config), metaPayload, {
             headers: getHeaders(config)
         });
 
@@ -524,7 +537,13 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                     if (uploadRes.data && (uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id)) {
                         const handle = uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id;
                         console.log('✅ [WA-UPLOAD] SUCCESS! Handle obtained:', handle);
-                        return res.json({ success: true, url: handle, isHandle: true });
+                        
+                        const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
+                        const host = req.get('host');
+                        const fileUrl = `${protocol}://${host}/uploads/whatsapp_media/${req.file.filename}`;
+                        
+                        console.log('✅ [WA-UPLOAD] SUCCESS! Handle obtained:', handle);
+                        return res.json({ success: true, url: fileUrl, handle: handle, isHandle: true });
                     }
                 }
                 

@@ -145,7 +145,7 @@ export const whatsappService = {
      * Combined Helper: Upload file and get header_handle in one call
      * Returns header_handle string (e.g. '4::aW1h...')
      */
-    uploadHeaderHandle: async (file: File): Promise<string> => {
+    uploadHeaderHandle: async (file: File): Promise<any> => {
         const formData = new FormData();
         formData.append('file', file);
         
@@ -154,7 +154,7 @@ export const whatsappService = {
         });
         
         if (!res.data.success) throw new Error(res.data.message || 'Local upload failed');
-        return res.data.url;
+        return res.data;
     },
 
     uploadMedia: async (file: File) => {
