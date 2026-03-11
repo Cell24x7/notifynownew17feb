@@ -150,14 +150,27 @@ router.post('/templates', authenticate, async (req, res) => {
         // Meta requirement: Lowercase and underscores only
         const sanitizedName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
         
-        // Meta requirement: Media headers MUST have an example/sample
+        // Meta/Pinbot requirement: Media headers MUST have an example/sample
         const processedComponents = components.map(comp => {
             const normalizedComp = { ...comp };
-            if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toUpperCase();
             
-            if (normalizedComp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(normalizedComp.format)) {
+            // Normalize for our internal check
+            const typeUC = (normalizedComp.type || '').toUpperCase();
+            const formatUC = (normalizedComp.format || '').toUpperCase();
+
+            // Pinbot V3 manual shows lowercase for these fields. 
+            // Meta usually accepts both, but let's follow the provider's V3 manual exactly.
+            if (config.isPinbot) {
+                if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toLowerCase();
+                if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toLowerCase();
+            } else {
+                if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toUpperCase();
+                if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toUpperCase();
+            }
+            
+            if (typeUC === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formatUC)) {
                 if (!normalizedComp.example || !normalizedComp.example.header_handle) {
-                    console.log(`[WA-TEMPLATE] ⚠️ HEADER ${normalizedComp.format} missing example in components.`);
+                    console.warn(`[WA-TEMPLATE] ⚠️ HEADER ${formatUC} might be missing required example handle.`);
                 }
             }
             return normalizedComp;
@@ -167,7 +180,8 @@ router.post('/templates', authenticate, async (req, res) => {
         if (allow_category_change !== undefined) payload.allow_category_change = allow_category_change;
 
         console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName} for provider: ${config.isPinbot ? 'Pinbot' : 'Meta'}`);
-        console.log(`[WA-TEMPLATE] Full components payload: ${JSON.stringify(processedComponents, null, 2)}`);
+        // Log a summary instead of full string if it's too large, but keep it readable for debugging
+        console.log(`[WA-TEMPLATE] Payload: ${JSON.stringify(payload, null, 2)}`);
         
         const response = await axios.post(getTemplatesUrl(config), payload, {
             headers: getHeaders(config)
