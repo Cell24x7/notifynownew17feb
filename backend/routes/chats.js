@@ -11,18 +11,20 @@ router.get('/conversations', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        const sql = `
+    const sql = `
             SELECT 
                 contact_phone,
                 last_message_time,
                 message_content as last_message,
-                status
+                status,
+                type as channel
             FROM (
                 SELECT 
                     CASE WHEN sender = 'System' THEN recipient ELSE sender END as contact_phone,
                     created_at as last_message_time,
                     message_content,
                     status,
+                    type,
                     ROW_NUMBER() OVER(PARTITION BY CASE WHEN sender = 'System' THEN recipient ELSE sender END ORDER BY created_at DESC) as rn
                 FROM webhook_logs
                 WHERE user_id = ?
@@ -100,15 +102,72 @@ router.post('/send', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
         const { recipient, message, channel } = req.body;
+        const authHeader = req.headers.authorization;
 
         if (!recipient || !message || !channel) {
             return res.status(400).json({ success: false, message: 'Missing fields' });
         }
 
+        const channelType = channel.toLowerCase();
+        let apiDispatchSuccess = false;
+        let errorMessage = '';
+
+        try {
+            if (channelType === 'whatsapp') {
+                const axios = require('axios');
+                const port = process.env.PORT || 5000;
+                
+                const response = await axios.post(`http://localhost:${port}/api/whatsapp/send`, {
+                    to: recipient,
+                    type: 'text',
+                    text: { body: message }
+                }, {
+                    headers: { 'Authorization': authHeader }
+                });
+
+                if (response.data && response.data.success) {
+                    apiDispatchSuccess = true;
+                } else {
+                    errorMessage = response.data?.message || 'WhatsApp sending failed';
+                }
+            } else if (channelType === 'rcs') {
+                const { sendRcsMessage } = require('../services/rcsService');
+                
+                const [configs] = await query(`
+                  SELECT rc.* 
+                  FROM users u 
+                  JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+                  WHERE u.id = ?
+                `, [userId]);
+
+                if (!configs || configs.length === 0) {
+                    errorMessage = 'No RCS configuration assigned';
+                } else {
+                    const rcsConfig = configs[0];
+                    const rcsResult = await sendRcsMessage(recipient, message, rcsConfig);
+                    
+                    if (rcsResult.success) {
+                        apiDispatchSuccess = true;
+                    } else {
+                        errorMessage = rcsResult.error || 'RCS sending failed';
+                    }
+                }
+            } else if (channelType === 'sms') {
+                errorMessage = 'Live SMS sending is currently under construction';
+            } else {
+                errorMessage = 'Unsupported channel';
+            }
+        } catch (apiError) {
+            console.error(`Dispatch error for ${channelType}:`, apiError.message);
+            errorMessage = apiError.response?.data?.message || apiError.message || 'Dispatch failed';
+        }
+
+        const finalStatus = apiDispatchSuccess ? 'sent' : 'failed';
+
         // Save to webhook_logs as an OUTGOING message
         const [result] = await query(
             'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
-            [userId, 'System', recipient, message, 'sent', channel.toLowerCase()]
+            [userId, 'System', recipient, message, finalStatus, channelType]
         );
 
         if (req.io) {
@@ -117,13 +176,17 @@ router.post('/send', authenticateToken, async (req, res) => {
                 sender: 'System',
                 recipient,
                 message_content: message,
-                status: 'sent',
-                channel: channel.toLowerCase(),
+                status: finalStatus,
+                channel: channelType,
                 created_at: new Date()
             });
         }
 
-        res.json({ success: true, message: 'Message sent successfully' });
+        if (apiDispatchSuccess) {
+            res.json({ success: true, message: 'Message sent successfully' });
+        } else {
+            res.status(500).json({ success: false, message: `Failed to send via provider: ${errorMessage}` });
+        }
     } catch (error) {
         console.error('Error sending message:', error.message);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
