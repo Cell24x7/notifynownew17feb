@@ -152,21 +152,23 @@ router.post('/templates', authenticate, async (req, res) => {
         
         // Meta requirement: Media headers MUST have an example/sample
         const processedComponents = components.map(comp => {
-            if ((comp.type === 'HEADER' || comp.type === 'header') && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)) {
-                if (!comp.example) {
-                    // If no example is provided, we might need to add a placeholder or error out.
-                    // For now, let's just log it and hope the frontend starts including it.
-                    // But if we want to be helpful, we can check if there's a handle in the request.
-                    console.log(`[WA-TEMPLATE] Header ${comp.format} missing example. Meta will likely reject this.`);
+            const normalizedComp = { ...comp };
+            if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toUpperCase();
+            
+            if (normalizedComp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(normalizedComp.format)) {
+                if (!normalizedComp.example || !normalizedComp.example.header_handle) {
+                    console.log(`[WA-TEMPLATE] ⚠️ HEADER ${normalizedComp.format} missing example in components.`);
                 }
             }
-            return comp;
+            return normalizedComp;
         });
 
         const payload = { name: sanitizedName, category, language, components: processedComponents };
         if (allow_category_change !== undefined) payload.allow_category_change = allow_category_change;
 
         console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName} for provider: ${config.isPinbot ? 'Pinbot' : 'Meta'}`);
+        console.log(`[WA-TEMPLATE] Full components payload: ${JSON.stringify(processedComponents, null, 2)}`);
+        
         const response = await axios.post(getTemplatesUrl(config), payload, {
             headers: getHeaders(config)
         });
