@@ -67,7 +67,7 @@ async function triggerChatflow(userId, senderPhone, messageText, channel, io, ch
         let sendError = '';
 
         if (channel === 'whatsapp') {
-            sendSuccess = await sendWhatsAppAutoReply(userId, senderPhone, replyText, channelMeta);
+            sendSuccess = await sendWhatsAppAutoReply(userId, senderPhone, matchedFlow, channelMeta);
         } else if (channel === 'rcs') {
             sendSuccess = await sendRcsAutoReply(userId, senderPhone, replyText);
         }
@@ -110,8 +110,11 @@ async function triggerChatflow(userId, senderPhone, messageText, channel, io, ch
 /**
  * Send auto-reply via WhatsApp
  */
-async function sendWhatsAppAutoReply(userId, to, text, meta = {}) {
+async function sendWhatsAppAutoReply(userId, to, flow, meta = {}) {
     try {
+        const text = flow.body;
+        const footerConfig = typeof flow.footer_config === 'string' ? JSON.parse(flow.footer_config) : (flow.footer_config || {});
+        
         // Get user's WhatsApp config
         const [configs] = await query(
             'SELECT wc.* FROM users u JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id WHERE u.id = ?',
@@ -137,6 +140,7 @@ async function sendWhatsAppAutoReply(userId, to, text, meta = {}) {
             headers = { Authorization: `Bearer ${cfg.wa_token}`, 'Content-Type': 'application/json' };
         }
 
+        // DEFAULT: Plain text
         payload = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
@@ -145,8 +149,48 @@ async function sendWhatsAppAutoReply(userId, to, text, meta = {}) {
             text: { body: text }
         };
 
+        // INTERACTIVE: Buttons or List
+        if (footerConfig && (footerConfig.customButtons?.length > 0 || (footerConfig.customList?.sections?.length > 0))) {
+            const buttons = footerConfig.customButtons || [];
+            
+            if (footerConfig.interactiveType === 'Button' && buttons.length > 0) {
+                // WhatsApp only supports up to 3 buttons in an interactive message
+                payload.type = 'interactive';
+                payload.interactive = {
+                    type: 'button',
+                    body: { text: text },
+                    action: {
+                        buttons: buttons.slice(0, 3).map((btn, idx) => ({
+                            type: 'reply',
+                            reply: {
+                                id: btn.keyword || `btn_${idx}`,
+                                title: btn.label.substring(0, 20) // Limit 20 chars
+                            }
+                        }))
+                    }
+                };
+            } else if (footerConfig.interactiveType === 'List' && footerConfig.customList) {
+                payload.type = 'interactive';
+                payload.interactive = {
+                    type: 'list',
+                    body: { text: text },
+                    action: {
+                        button: footerConfig.customList.title || 'Select Option',
+                        sections: footerConfig.customList.sections.map(sec => ({
+                            title: sec.title || 'Options',
+                            rows: sec.rows?.map((row, rIdx) => ({
+                                id: row.keyword || `row_${rIdx}`,
+                                title: row.label.substring(0, 24), // Limit 24
+                                description: row.description?.substring(0, 72)
+                            }))
+                        }))
+                    }
+                };
+            }
+        }
+
         const response = await axios.post(msgUrl, payload, { headers });
-        console.log(`✅ [ChatFlow] WA auto-reply sent to ${mobile}`);
+        console.log(`✅ [ChatFlow] WA auto-reply sent to ${mobile} (Type: ${payload.type})`);
         return true;
     } catch (err) {
         console.error('[ChatFlow] WA send error:', err.response?.data?.error?.message || err.message);
