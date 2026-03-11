@@ -453,7 +453,7 @@ router.post('/media', authenticate, uploadMemory.single('file'), async (req, res
 
         const FormData = require('form-data');
         const form = new FormData();
-        form.append('sheet', req.file.buffer, {
+        form.append('file', req.file.buffer, {
             filename: req.file.originalname,
             contentType: req.file.mimetype
         });
@@ -492,12 +492,15 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                     const form = new FormData();
                     const fs = require('fs');
                     
-                    // Pinbot specifically expects 'sheet' as the field name for media uploads
-                    form.append('sheet', fs.createReadStream(req.file.path), {
+                    // Pinbot/Meta standard field name is 'file'
+                    form.append('file', fs.createReadStream(req.file.path), {
                         filename: req.file.originalname,
                         contentType: req.file.mimetype
                     });
 
+                    // For template header handles, some Pinbot setups use WABA ID, others use Phone ID
+                    // We try Phone ID first as it's most common for messages
+                    const uploadId = config.ph_no_id || config.wa_phone_number_id || config.wa_biz_accnt_id;
                     const uploadUrl = `${PINBOT_BASE}/${uploadId}/media`;
                     console.log(`[WA-UPLOAD] Proxying to Pinbot: POST ${uploadUrl}`);
 
@@ -512,9 +515,10 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                         }
                     );
                     
-                    if (response.data && response.data.id) {
-                        console.log('✅ [WA-UPLOAD] Pinbot Media ID obtained:', response.data.id);
-                        return res.json({ success: true, url: response.data.id, isHandle: true });
+                    if (response.data && (response.data.id || response.data.handle)) {
+                        const mediaId = response.data.id || response.data.handle;
+                        console.log('✅ [WA-UPLOAD] Pinbot Media ID/Handle obtained:', mediaId);
+                        return res.json({ success: true, url: mediaId, isHandle: true });
                     } else {
                         console.log('[WA-UPLOAD] Pinbot upload succeeded but no ID in response:', JSON.stringify(response.data));
                     }
