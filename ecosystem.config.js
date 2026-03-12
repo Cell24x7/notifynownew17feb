@@ -15,8 +15,9 @@ module.exports = {
 
       // ✅ PRODUCTION ENV — auto .env.production use hoga
       env_production: {
-        NODE_ENV: 'production'
-        // PORT is picked up from .env.production
+        NODE_ENV: 'production',
+        // Explicitly load port from env file for PM2
+        PORT: require('dotenv').config({ path: path.join(__dirname, 'backend/.env.production') }).parsed?.PORT || 5000
       },
 
       // ✅ LOCAL DEV — auto .env use hoga
