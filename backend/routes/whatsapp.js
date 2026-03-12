@@ -1012,7 +1012,7 @@ router.get('/api/status/:id', async (req, res) => {
 
 /**
  * GET /api/whatsapp/docs
- * Professional Developer Portal for WhatsApp API
+ * Modern Pro Developer Hub for WhatsApp API
  */
 router.get('/docs', (req, res) => {
     const html = `
@@ -1021,255 +1021,271 @@ router.get('/docs', (req, res) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>API Documentation | NotifyNow</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+        <title>Developer Portal | WhatsApp API</title>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
             :root {
                 --primary: #2563eb;
+                --primary-soft: #eff6ff;
                 --emerald: #10b981;
-                --bg: #f8fafc;
-                --text: #0f172a;
-                --muted: #64748b;
-                --border: #e2e8f0;
-                --code: #0f172a;
+                --bg: #ffffff;
+                --sidebar-bg: #f8fafc;
+                --text-main: #0f172a;
+                --text-muted: #64748b;
+                --border: #f1f5f9;
+                --code-bg: #0f172a;
+                --card-shadow: 0 10px 30px -10px rgba(0,0,0,0.08);
             }
 
-            * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-            body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; font-size: 14px; }
-            
-            /* Responsive Container */
-            .wrapper { display: flex; flex-direction: column; min-height: 100vh; }
-            @min-width: 1024px { .wrapper { flex-direction: row; } }
+            * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+            body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text-main); font-size: 14px; overflow-x: hidden; }
 
-            /* Desktop Sidebar */
-            aside { width: 100%; border-bottom: 1px solid var(--border); background: #1e293b; color: white; padding: 20px; position: sticky; top: 0; z-index: 100; }
-            @media (min-width: 1024px) { 
-                aside { width: 280px; height: 100vh; border-bottom: none; border-right: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; padding: 40px 25px; } 
+            /* Grid Layout */
+            .app-container { display: flex; min-height: 100vh; }
+
+            /* Sticky Sidebar */
+            aside { 
+                width: 280px; 
+                background: var(--sidebar-bg); 
+                border-right: 1px solid var(--border); 
+                position: fixed; 
+                height: 100vh; 
+                padding: 40px 24px; 
+                display: flex; 
+                flex-direction: column;
+                z-index: 1000;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .logo { font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 10px; color: white; text-decoration: none; margin-bottom: 0; }
-            @media (min-width: 1024px) { .logo { margin-bottom: 50px; } }
-            .logo i { color: #22c55e; }
+            .logo-area { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 1.25rem; color: #1e293b; margin-bottom: 48px; text-decoration: none; }
+            .logo-area i { font-size: 1.5rem; color: var(--emerald); }
 
-            .nav-menu { display: none; }
-            @media (min-width: 1024px) { 
-                .nav-menu { display: block; }
-                .nav-item { display: block; padding: 10px 15px; color: #94a3b8; text-decoration: none; border-radius: 8px; margin-bottom: 4px; transition: 0.2s; font-size: 0.9rem; font-weight: 500; }
-                .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
-                .nav-item.active { background: var(--primary); color: white; }
+            .nav-section { margin-bottom: 32px; }
+            .nav-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.1em; margin-bottom: 12px; display: block; }
+            .nav-link { 
+                display: flex; align-items: center; gap: 10px; padding: 12px 16px; 
+                color: var(--text-muted); text-decoration: none; border-radius: 12px; 
+                font-weight: 600; transition: 0.2s; margin-bottom: 4px;
             }
+            .nav-link:hover { background: var(--primary-soft); color: var(--primary); }
+            .nav-link.active { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
-            /* Main Content Area */
-            main { flex: 1; padding: 30px 20px; max-width: 1000px; margin: 0 auto; width: 100%; }
-            @media (min-width: 768px) { main { padding: 60px 40px; } }
+            /* Main Area */
+            main { flex: 1; margin-left: 280px; padding: 60px 80px; max-width: 1200px; width: 100%; }
 
-            /* Header Section */
-            header { margin-bottom: 40px; }
-            .badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 99px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-            h1 { font-size: 2.2rem; letter-spacing: -0.02em; font-weight: 800; color: #1e293b; margin-bottom: 12px; line-height: 1.1; }
-            .subtitle { font-size: 1rem; color: var(--muted); line-height: 1.5; font-weight: 400; max-width: 600px; }
+            /* Header UI */
+            header { margin-bottom: 64px; }
+            .badge { background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 99px; font-weight: 700; font-size: 0.7rem; margin-bottom: 16px; display: inline-block; text-transform: uppercase; }
+            h1 { font-size: 2.75rem; font-weight: 800; letter-spacing: -0.03em; color: #1e293b; margin-bottom: 16px; }
+            .hero-desc { font-size: 1.15rem; color: var(--text-muted); max-width: 700px; line-height: 1.7; }
 
-            /* Steps Implementation */
-            .steps-container { display: grid; grid-template-columns: 1fr; gap: 15px; margin: 40px 0; }
-            @media (min-width: 640px) { .steps-container { grid-template-columns: repeat(2, 1fr); } }
-            @media (min-width: 900px) { .steps-container { grid-template-columns: repeat(4, 1fr); } }
+            /* Implementation Workflow Steps */
+            .workflow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 80px; }
+            .workflow-step { background: #fdfdfe; border: 1px solid var(--border); padding: 32px 24px; border-radius: 20px; transition: 0.3s ease; box-shadow: var(--card-shadow); border-bottom: 3px solid transparent; }
+            .workflow-step:hover { transform: translateY(-5px); border-bottom-color: var(--primary); }
+            .step-idx { width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; margin-bottom: 20px; }
+            .workflow-step h4 { font-size: 1rem; font-weight: 700; margin-bottom: 10px; color: #1e293b; }
+            .workflow-step p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
 
-            .step { background: white; border: 1px solid var(--border); padding: 20px; border-radius: 12px; position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; }
-            .step-icon { width: 40px; height: 40px; background: #eff6ff; color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; margin-bottom: 15px; }
-            .step-arrow { display: none; position: absolute; top: 35px; right: -10px; color: #cbd5e1; z-index: 2; }
-            @media (min-width: 900px) { .step-arrow { display: block; } .step:last-child .step-arrow { display: none; } }
-            .step b { display: block; font-size: 0.85rem; margin-bottom: 4px; color: var(--text); }
-            .step p { font-size: 0.75rem; color: var(--muted); }
-
-            /* Modern Cards */
-            .card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 25px; margin-bottom: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-            @media (min-width: 768px) { .card { padding: 35px; } }
-            
-            h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: #1e293b; }
-            h2 i { font-size: 1rem; color: var(--primary); }
+            /* API Cards */
+            .card { background: white; border: 1px solid var(--border); border-radius: 24px; padding: 48px; margin-bottom: 48px; box-shadow: var(--card-shadow); }
+            .card-title { font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 14px; margin-bottom: 24px; color: #1e293b; }
+            .card-title i { color: var(--primary); }
 
             /* Endpoint Logic */
-            .api-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
-            .method-pill { display: inline-block; background: #059669; color: white; padding: 3px 10px; border-radius: 6px; font-weight: 800; font-size: 0.75rem; font-family: 'JetBrains Mono'; margin-right: 12px; }
-            .url { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #334155; word-break: break-all; }
+            .endpoint-bar { display: flex; align-items: center; gap: 16px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px 24px; border-radius: 14px; margin-bottom: 32px; }
+            .method { background: var(--emerald); color: white; padding: 5px 14px; border-radius: 10px; font-weight: 800; font-size: 0.8rem; font-family: 'JetBrains Mono'; }
+            .method.get { background: var(--primary); }
+            .url-text { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: #475569; }
 
-            /* Code Snippet Area */
-            .editor { background: var(--code); border-radius: 12px; overflow: hidden; margin-top: 15px; }
-            .editor-header { background: #1e293b; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
-            .editor-label { font-size: 0.7rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-            .copy-btn { background: rgba(255,255,255,0.05); border: 1px solid #334155; color: #cbd5e1; padding: 5px 12px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; transition: 0.2s; font-weight: 600; }
-            .copy-btn:hover { background: white; color: black; }
-            pre { padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: #94a3b8; overflow-x: auto; line-height: 1.7; }
-            .val-str { color: #a5f3fc; }
-            .val-num { color: #fdba74; }
+            /* Code Component */
+            .code-box { background: var(--code-bg); border-radius: 18px; overflow: hidden; }
+            .code-header { background: rgba(255,255,255,0.03); padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; }
+            .code-lang { font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
+            .copy-btn { background: rgba(255,255,255,0.03); border: 1px solid #334155; color: #94a3b8; padding: 7px 16px; border-radius: 10px; cursor: pointer; font-size: 0.75rem; font-weight: 700; transition: 0.2s; }
+            .copy-btn:hover { background: white; color: black; border-color: white; }
+            pre { padding: 32px; font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; line-height: 1.8; color: #cbd5e1; overflow-x: auto; }
 
-            /* Download Bar */
-            .download-wrapper { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-            .btn-action { text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
-            .btn-primary { background: var(--primary); color: white; }
-            .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
-            .btn-outline { border: 1px solid var(--border); color: var(--text); background: white; }
-            .btn-outline:hover { background: #f8fafc; border-color: var(--primary); }
+            /* Responsive Hamburger Menu */
+            .mobile-header { display: none; padding: 20px 24px; background: white; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1100; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+            .menu-toggle { font-size: 1.75rem; color: var(--text-main); cursor: pointer; }
 
-            /* Table responsive */
-            .table-scroll { overflow-x: auto; margin: 15px 0; }
-            table { width: 100%; border-collapse: collapse; min-width: 500px; }
-            th { text-align: left; background: #f8fafc; padding: 12px 15px; font-size: 0.75rem; color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase; font-weight: 600; }
-            td { padding: 14px 15px; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
-            .p-name { font-weight: 600; font-family: 'JetBrains Mono'; color: #e11d48; font-size: 0.8rem; }
+            @media (max-width: 1024px) {
+                aside { transform: translateX(-100%); width: 280px; }
+                aside.open { transform: translateX(0); box-shadow: 20px 0 60px rgba(0,0,0,0.15); }
+                main { margin-left: 0; padding: 48px 24px; }
+                .mobile-header { display: flex; }
+                .workflow { grid-template-columns: 1fr; gap: 20px; }
+                header { margin-bottom: 40px; }
+                h1 { font-size: 2.25rem; }
+                .card { padding: 32px 24px; }
+            }
 
-            /* Footer */
-            footer { text-align: center; padding: 50px 0; border-top: 1px solid var(--border); margin-top: 40px; color: var(--muted); font-size: 0.8rem; }
+            .btn-cta { display: inline-flex; align-items: center; gap: 12px; background: var(--primary); color: white; padding: 16px 32px; border-radius: 14px; font-weight: 700; text-decoration: none; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: none; cursor: pointer; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4); font-size: 0.95rem; }
+            .btn-cta:hover { transform: scale(1.02) translateY(-2px); box-shadow: 0 15px 35px -5px rgba(37, 99, 235, 0.5); }
+
+            footer { border-top: 1px solid var(--border); margin-top: 100px; padding: 60px 0; text-align: center; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; }
         </style>
     </head>
     <body>
-        <div class="wrapper">
-            <aside>
-                <a href="#" class="logo"><i class="fab fa-whatsapp"></i> NotifyNow</a>
-                <nav class="nav-menu">
-                    <a href="#welcome" class="nav-item active">Overview</a>
-                    <a href="#quickstart" class="nav-item">Quick Start</a>
-                    <a href="#endpoints" class="nav-item">API Endpoints</a>
-                    <a href="#mapping" class="nav-item">Variables Guide</a>
-                </nav>
+        <div class="mobile-header">
+            <a href="#" class="logo-area" style="margin-bottom:0;"><i class="fab fa-whatsapp"></i> NotifyNow</a>
+            <div class="menu-toggle" id="menuBtn"><i class="fas fa-bars"></i></div>
+        </div>
+
+        <div class="app-container">
+            <aside id="sidebar">
+                <a href="#" class="logo-area" style="color:var(--primary);"><i class="fab fa-whatsapp"></i> NotifyNow Hub</a>
+                <div class="nav-section">
+                    <span class="nav-label">Resources</span>
+                    <a href="#intro" class="nav-link active"><i class="fas fa-book-open"></i> API Overview</a>
+                    <a href="#steps" class="nav-link"><i class="fas fa-layer-group"></i> Implementation</a>
+                </div>
+                <div class="nav-section">
+                    <span class="nav-label">Endpoints</span>
+                    <a href="#bulk" class="nav-link"><i class="fas fa-mail-bulk"></i> Bulk Campaigns</a>
+                    <a href="#single" class="nav-link"><i class="fas fa-bolt"></i> Instant Alerts</a>
+                    <a href="#mapping" class="nav-link"><i class="fas fa-sliders-h"></i> Param Mapping</a>
+                </div>
+                <div style="margin-top:auto; padding-top:20px;">
+                    <button class="btn-cta" style="width:100%; justify-content:center;" onclick="downloadPostman()">
+                        <i class="fas fa-file-download"></i> Postman Docs
+                    </button>
+                </div>
             </aside>
 
             <main>
-                <header id="welcome">
-                    <span class="badge">Stable v3.4</span>
-                    <h1>Developer Service Hub</h1>
-                    <p class="subtitle">A lightweight, high-speed API for sending WhatsApp messages globally. Integrated with <b>Direct Meta Routing</b> for sub-second delivery.</p>
+                <header id="intro">
+                    <span class="badge">Enterprise Ready v3.0</span>
+                    <h1>WhatsApp Developer Dashboard</h1>
+                    <p class="hero-desc">Integrate world-class messaging into your application in minutes. Our high-concurrency API handles everything from marketing bursts to critical OTP delivery.</p>
                 </header>
 
-                <div class="card" id="quickstart">
-                    <h2><i class="fas fa-rocket"></i> 4-Step Implementation</h2>
-                    <div class="steps-container">
-                        <div class="step">
-                            <div class="step-icon"><i class="fas fa-user-shield"></i></div>
-                            <b>1. Auth Credentials</b>
-                            <p>Get your API Password from Profile Settings.</p>
-                            <i class="fas fa-chevron-right step-arrow"></i>
-                        </div>
-                        <div class="step">
-                            <div class="step-icon"><i class="fas fa-file-code"></i></div>
-                            <b>2. Choose API</b>
-                            <p>Use Bulk for Ads, Single for OTP / Alerts.</p>
-                            <i class="fas fa-chevron-right step-arrow"></i>
-                        </div>
-                        <div class="step">
-                            <div class="step-icon"><i class="fas fa-terminal"></i></div>
-                            <b>3. Load Payload</b>
-                            <p>Map your dynamic {{1}} variables in JSON.</p>
-                            <i class="fas fa-chevron-right step-arrow"></i>
-                        </div>
-                        <div class="step">
-                            <div class="step-icon"><i class="fas fa-check-double"></i></div>
-                            <b>4. Deploy & Fly</b>
-                            <p>Scale to millions of users instantly.</p>
-                        </div>
+                <h3 style="font-size:1.5rem; font-weight:800; margin-bottom:32px; color:#1e293b;" id="steps">How to Integrate</h3>
+                <div class="workflow">
+                    <div class="workflow-step">
+                        <div class="step-idx">1</div>
+                        <h4>Authentication</h4>
+                        <p>Retrieve your secret <b>API Password</b> from the Profile settings panel.</p>
                     </div>
-                    
-                    <div class="download-wrapper">
-                        <a href="/api/whatsapp/download-postman" class="btn-action btn-primary"><i class="fas fa-cloud-download-alt"></i> Download Postman Collection</a>
-                        <a href="#endpoints" class="btn-action btn-outline">Explore Endpoints <i class="fas fa-arrow-down" style="font-size: 10px;"></i></a>
+                    <div class="workflow-step">
+                        <div class="step-idx">2</div>
+                        <h4>Design Template</h4>
+                        <p>Create your WhatsApp template in Meta Manager and get its ID.</p>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-idx">3</div>
+                        <h4>Submit Payload</h4>
+                        <p>Post the recipient numbers and dynamic variables to our secure endpoints.</p>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-idx">4</div>
+                        <h4>Track Success</h4>
+                        <p>Monitor real-time delivery status and logs via the tracking API.</p>
                     </div>
                 </div>
 
-                <div id="endpoints">
-                    <h2><i class="fas fa-database"></i> Core API Endpoints</h2>
-                    
-                    <!-- Bulk API -->
-                    <div class="card">
-                        <h3 style="font-size: 1rem; margin-bottom: 12px;">Dynamic Campaigns</h3>
-                        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 15px;">Ideal for marketing with unique names/links per contact.</p>
-                        <div class="api-info">
-                            <span class="method-pill">POST</span>
-                            <span class="url">https://developer.notifynow.in/api/whatsapp/api/send-bulk</span>
-                        </div>
-                        <div class="editor">
-                            <div class="editor-header"><span class="editor-label">JSON Payload</span> <button class="copy-btn" onclick="copyCode('bulkArea')">COPY</button></div>
-                            <pre id="bulkArea">{
-  <span class="val-str">"username"</span>: <span class="val-str">"demo@gmail.com"</span>,
-  <span class="val-str">"password"</span>: <span class="val-str">"api_pass_123"</span>,
-  <span class="val-str">"templateName"</span>: <span class="val-str">"marketing_v3"</span>,
-  <span class="val-str">"numbers"</span>: [
+                <!-- Bulk API -->
+                <div class="card" id="bulk">
+                    <div class="card-title"><i class="fas fa-users"></i> Bulk Dynamic Campaign API</div>
+                    <p style="color:var(--text-muted); margin-bottom:32px; line-height:1.7;">Perfect for high-volume broadcasts where each user receives personalized content (e.g. customized names, unique coupon codes, or dynamic document links).</p>
+                    <div class="endpoint-bar">
+                        <span class="method">POST</span>
+                        <span class="url-text">https://developer.notifynow.in/api/whatsapp/api/send-bulk</span>
+                    </div>
+                    <div class="code-box">
+                        <div class="code-header"><span class="code-lang">JavaScript / JSON</span> <button class="copy-btn" onclick="copyCode('bulkCode')">COPY CODE</button></div>
+                        <pre id="bulkCode">{
+  "username": "demo@gmail.com",
+  "password": "your_api_password",
+  "templateName": "promo_campaign_2024",
+  "campaignName": "Spring Sale Burst",
+  "numbers": [
     {
-      <span class="val-str">"to"</span>: <span class="val-str">"919004207813"</span>,
-      <span class="val-str">"variables"</span>: { <span class="val-str">"1"</span>: <span class="val-str">"Sandeep"</span>, <span class="val-str">"2"</span>: <span class="val-str">"Flat 30% OFF"</span> },
-      <span class="val-str">"mediaUrl"</span>: <span class="val-str">"https://cdn.link/img.jpg"</span>
+      "to": "919004207813",
+      "variables": { "1": "Sandeep", "2": "SALE50" },
+      "mediaUrl": "https://assets.yoursite.com/coupon.png"
     }
   ]
 }</pre>
-                        </div>
-                    </div>
-
-                    <!-- Single API -->
-                    <div class="card">
-                        <h3 style="font-size: 1rem; margin-bottom: 12px;">Instant Transactional</h3>
-                        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 15px;">Low-latency service for OTPs, 2FA, and live alerts.</p>
-                        <div class="api-info">
-                            <span class="method-pill">POST</span>
-                            <span class="url">https://developer.notifynow.in/api/whatsapp/api/send-single</span>
-                        </div>
-                        <div class="editor">
-                            <div class="editor-header"><span class="editor-label">JSON Payload</span> <button class="copy-btn" onclick="copyCode('singleArea')">COPY</button></div>
-                            <pre id="singleArea">{
-  <span class="val-str">"username"</span>: <span class="val-str">"demo@gmail.com"</span>,
-  <span class="val-str">"password"</span>: <span class="val-str">"api_pass_123"</span>,
-  <span class="val-str">"to"</span>: <span class="val-str">"919004207813"</span>,
-  <span class="val-str">"templateName"</span>: <span class="val-str">"otp_notify"</span>,
-  <span class="val-str">"variables"</span>: { <span class="val-str">"1"</span>: <span class="val-str">"452091"</span> }
-}</pre>
-                        </div>
                     </div>
                 </div>
 
-                <div class="card" id="mapping">
-                    <h2><i class="fas fa-link"></i> Variable Mapping Guide</h2>
-                    <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Use the <b>Body Variables</b> defined in your Meta Template Manager.</p>
-                    <div class="table-scroll">
-                        <table>
-                            <thead>
-                                <tr><th>Placeholder</th><th>Direction</th><th>JSON Key</th></tr>
-                            </thead>
-                            <tbody>
-                                <tr><td><code>{{1}}</code></td><td><i class="fas fa-arrow-right" style="font-size: 10px; color: #94a3b8;"></i></td><td><code class="p-name">"1"</code></td></tr>
-                                <tr><td><code>{{2}}</code></td><td><i class="fas fa-arrow-right" style="font-size: 10px; color: #94a3b8;"></i></td><td><code class="p-name">"2"</code></td></tr>
-                                <tr><td>Header Image</td><td><i class="fas fa-arrow-right" style="font-size: 10px; color: #94a3b8;"></i></td><td><code class="p-name">"mediaUrl"</code></td></tr>
-                            </tbody>
-                        </table>
+                <!-- Single API -->
+                <div class="card" id="single">
+                    <div class="card-title"><i class="fas fa-bolt"></i> Instant Dispatch API</div>
+                    <p style="color:var(--text-muted); margin-bottom:32px; line-height:1.7;">Optimized for millisecond delivery. Use this for time-critical notifications like Login OTPs, Payment confirmations, and Order updates.</p>
+                    <div class="endpoint-bar">
+                        <span class="method">POST</span>
+                        <span class="url-text">https://developer.notifynow.in/api/whatsapp/api/send-single</span>
+                    </div>
+                    <div class="code-box">
+                        <div class="code-header"><span class="code-lang">JavaScript / JSON</span> <button class="copy-btn" onclick="copyCode('singleCode')">COPY CODE</button></div>
+                        <pre id="singleCode">{
+  "username": "demo@gmail.com",
+  "password": "your_api_password",
+  "to": "919004207813",
+  "templateName": "transaction_otp",
+  "variables": { "1": "992105" }
+}</pre>
                     </div>
                 </div>
 
                 <footer>
-                    <p>&copy; 2026 NotifyNow Solutions &bull; Developer Network</p>
-                    <p style="margin-top: 5px;">Enterprise Messaging Powered by Cell24x7</p>
+                    <p>&copy; 2026 NotifyNow Platform. All rights reserved.</p>
+                    <p style="margin-top: 8px; color:#cbd5e1;">Infrastructure managed by Cell24x7 Enterprise Services</p>
                 </footer>
             </main>
         </div>
 
         <script>
+            // Improved Mobile Menu handling
+            const menuBtn = document.getElementById('menuBtn');
+            const sidebar = document.getElementById('sidebar');
+            menuBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                menuBtn.querySelector('i').classList.toggle('fa-bars');
+                menuBtn.querySelector('i').classList.toggle('fa-times');
+            });
+
+            // Close sidebar when link is clicked on mobile
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 1024) {
+                        sidebar.classList.remove('open');
+                        menuBtn.querySelector('i').classList.add('fa-bars');
+                        menuBtn.querySelector('i').classList.remove('fa-times');
+                    }
+                });
+            });
+
             function copyCode(id) {
                 const text = document.getElementById(id).innerText;
                 navigator.clipboard.writeText(text);
                 const btn = event.target;
-                const oldText = btn.innerText;
-                btn.innerText = 'COPIED';
-                btn.style.color = '#10b981';
-                setTimeout(() => { btn.innerText = oldText; btn.style.color = ''; }, 2000);
+                btn.innerText = 'COPIED!';
+                setTimeout(() => btn.innerText = 'COPY CODE', 2000);
             }
 
-            // Simple Nav Tracking
+            function downloadPostman() {
+                window.location.href = '/api/whatsapp/download-postman';
+            }
+
+            // High-performance scroll tracking
             window.addEventListener('scroll', () => {
-                let fromTop = window.scrollY + 100;
-                document.querySelectorAll('.nav-item').forEach(link => {
-                    let section = document.querySelector(link.hash);
-                    if (section.offsetTop <= fromTop && section.offsetTop + section.offsetHeight > fromTop) {
-                        link.classList.add('active');
-                    } else {
-                        link.classList.remove('active');
-                    }
+                const sections = document.querySelectorAll('main > div[id], main > header[id], main > h3[id]');
+                const navLinks = document.querySelectorAll('.nav-link');
+                let cur = '';
+
+                sections.forEach(section => {
+                    const top = section.offsetTop;
+                    if (pageYOffset >= top - 120) cur = section.getAttribute('id');
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').substring(1) === cur) link.classList.add('active');
                 });
             });
         </script>
