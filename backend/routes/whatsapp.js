@@ -857,140 +857,130 @@ router.post('/send-campaign', authenticate, async (req, res) => {
 });
 
 /**
- * GET/POST /api/whatsapp/send-campaign-api
- * Public External API for Clients to Send WhatsApp Campaigns (Supports Dynamic Params & Media)
+ * POST /api/whatsapp/api/send-bulk
+ * Dynamic Bulk API: Best for large campaigns with variables/media
  */
-router.all('/send-campaign-api', async (req, res) => {
+router.post('/api/send-bulk', async (req, res) => {
     try {
-        const payload = req.method === 'POST' ? req.body : req.query;
-        const { username, password, numbers, campaignName, language, mediaUrl, templateMetadata, templateBody } = payload;
-        const templateName = payload.templateName || payload.template;
+        const { username, password, numbers, campaignName, templateName, mediaUrl, variables } = req.body;
 
-        if (!username || !password) {
-            return res.status(401).json({ success: false, message: 'username and password are required' });
-        }
-        if (!templateName) {
-            return res.status(400).json({ success: false, message: 'template or templateName is required' });
-        }
-        if (!numbers) {
-            return res.status(400).json({ success: false, message: 'numbers are required (comma separated, array of strings, or array of objects)' });
+        if (!username || !password || !templateName || !numbers) {
+            return res.status(400).json({ success: false, message: 'Missing required fields: username, password, templateName, numbers' });
         }
 
-        // Authenticate user via api_password
+        // Auth
         const bcrypt = require('bcryptjs');
-        const [users] = await query('SELECT * FROM users WHERE email = ? OR contact_phone = ?', [username, username]);
-        if (!users.length) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials' });
-        }
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !users[0].api_password) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
 
         const user = users[0];
-        if (!user.api_password) {
-            return res.status(401).json({ success: false, message: 'API Password not set for this user' });
-        }
-
-        const match = await bcrypt.compare(password, user.api_password);
-        if (!match) {
-            return res.status(401).json({ success: false, message: 'Invalid API credentials' });
-        }
-
         const userId = user.id;
 
-        // Fetch template to get metadata/body if not provided
+        // Fetch Template
         const [temps] = await query('SELECT * FROM message_templates WHERE name = ? AND user_id = ?', [templateName, userId]);
         const template = temps[0];
-        
-        let finalMetadata = templateMetadata || (template ? template.metadata : null);
-        let finalBody = templateBody || (template ? template.body : null);
-        
-        // Ensure metadata is a proper object if it's a string
-        if (typeof finalMetadata === 'string') {
-            try { finalMetadata = JSON.parse(finalMetadata); } catch(e) {}
-        }
 
-        // If language passed in API, override metadata language
-        if (language && finalMetadata) {
-            if (typeof finalMetadata === 'object') {
-                finalMetadata.language = language;
-            } else {
-                finalMetadata = { language };
-            }
-        } else if (language && !finalMetadata) {
-            finalMetadata = { language };
-        }
-
-        // Parse numbers and their specific variables
+        // Parse numbers
         let contacts = [];
-        if (typeof numbers === 'string') {
-            contacts = numbers.split(',').map(n => ({ to: n.trim() })).filter(c => c.to);
-        } else if (Array.isArray(numbers)) {
-            contacts = numbers.map(item => {
-                if (typeof item === 'string') return { to: item.trim() };
-                if (typeof item === 'object' && item.to) return item;
-                return null;
-            }).filter(Boolean);
-        }
+        if (typeof numbers === 'string') contacts = numbers.split(',').map(n => ({ to: n.trim() }));
+        else if (Array.isArray(numbers)) contacts = numbers.map(n => typeof n === 'string' ? { to: n } : n);
+        contacts = contacts.filter(c => c.to);
 
-        if (contacts.length === 0) {
-            return res.status(400).json({ success: false, message: 'No valid numbers provided' });
-        }
+        const cName = campaignName || `BULK_API_${Date.now()}`;
+        const campaignId = `CAMP_API_${Date.now()}`;
 
-        const cName = campaignName || `API_WA_${Date.now()}`;
-        const campaignId = `CAMP_API_${Math.floor(Math.random() * 10000)}_${Date.now()}`;
-
-        // Create campaign record
+        // Create Campaign
         await query(
-            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at, template_metadata, template_body)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW(), ?, ?)`,
-            [
-                campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length,
-                finalMetadata ? JSON.stringify(finalMetadata) : null,
-                finalBody || null
-            ]
+            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, status, template_metadata, template_body)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, ?)`,
+            [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length, template?.metadata, template?.body]
         );
 
-        // Prepare queue values
+        // Queue
         const queueValues = contacts.map(c => {
-            const cleanMobile = c.to.replace(/\D/g, '');
-            if (!cleanMobile) return null;
-            
-            // Merge global mediaUrl/variables with per-contact ones
-            const vars = { ...(c.variables || {}) };
-            if (c.mediaUrl || mediaUrl) {
-                vars['header_url'] = c.mediaUrl || mediaUrl;
-            }
-            
-            return [campaignId, userId, cleanMobile, 'pending', JSON.stringify(vars)];
-        }).filter(Boolean);
-
-        if (queueValues.length > 0) {
-            const BATCH = 1000;
-            for (let i = 0; i < queueValues.length; i += BATCH) {
-                await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
-            }
-        }
-
-        // Deduct credits
-        const { deductCampaignCredits } = require('../services/walletService');
-        const deductionResult = await deductCampaignCredits(campaignId);
-
-        if (!deductionResult.success) {
-            console.error(`❌ API Credit deduction failed for WA campaign ${campaignId}: ${deductionResult.message}`);
-            await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
-            return res.status(402).json({ success: false, message: deductionResult.message || 'Insufficient wallet balance' });
-        }
-
-        return res.json({
-            success: true,
-            message: 'WhatsApp Campaign accepted for processing',
-            campaignId,
-            queued: contacts.length,
-            template: templateName
+            const vars = { ...(variables || {}), ...(c.variables || {}) };
+            if (c.mediaUrl || mediaUrl) vars['header_url'] = c.mediaUrl || mediaUrl;
+            return [campaignId, userId, c.to.replace(/\D/g, ''), 'pending', JSON.stringify(vars)];
         });
 
+        const BATCH = 1000;
+        for (let i = 0; i < queueValues.length; i += BATCH) {
+            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
+        }
+
+        const { deductCampaignCredits } = require('../services/walletService');
+        await deductCampaignCredits(campaignId);
+
+        res.json({ success: true, campaignId, queued: contacts.length });
     } catch (error) {
-        console.error('❌ External API WhatsApp campaign send error:', error.message);
-        res.status(500).json({ success: false, message: 'Internal server error while processing API request', error: error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
+});
+
+/**
+ * POST /api/whatsapp/api/send-single
+ * Simple Message API: Best for instant OTPs, Alerts, or Single Notifications
+ */
+router.post('/api/send-single', async (req, res) => {
+    try {
+        const { username, password, to, templateName, variables, mediaUrl } = req.body;
+
+        if (!username || !password || !templateName || !to) {
+            return res.status(400).json({ success: false, message: 'Missing required fields: username, password, templateName, to' });
+        }
+
+        // Auth
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !users[0].api_password) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+
+        const user = users[0];
+        const config = await getWhatsAppConfig(user.id);
+        if (!config) return res.status(400).json({ success: false, message: 'WhatsApp not configured for this user' });
+
+        // Build Payload
+        const payload = {
+            messaging_product: 'whatsapp',
+            to: to.replace(/\D/g, ''),
+            type: 'template',
+            template: {
+                name: templateName,
+                language: { code: 'en_US' }
+            }
+        };
+
+        // Add variables if any
+        if (variables || mediaUrl) {
+            const components = [];
+            if (mediaUrl) {
+                components.push({
+                    type: 'header',
+                    parameters: [{ type: 'image', image: { link: mediaUrl } }]
+                });
+            }
+            if (variables) {
+                const params = Object.keys(variables).sort((a,b) => a-b).map(key => ({ type: 'text', text: String(variables[key]) }));
+                components.push({ type: 'body', parameters: params });
+            }
+            payload.template.components = components;
+        }
+
+        const response = await axios.post(getMessagesUrl(config), payload, { headers: getHeaders(config) });
+        res.json({ success: true, messageId: response.data.messages?.[0]?.id || response.data.message_id });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.response?.data || error.message });
+    }
+});
+
+/**
+ * Legacy support for the previous endpoint name
+ */
+router.all('/send-campaign-api', async (req, res) => {
+    // Redirect to bulk for now
+    req.url = '/api/send-bulk';
+    return router.handle(req, res);
 });
 
 module.exports = router;
