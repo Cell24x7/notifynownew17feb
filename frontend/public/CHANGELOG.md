@@ -2,7 +2,43 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-12]
+- Enhance WhatsApp Campaign API: Add dynamic variables and media header support (7c255b8)
+- Refactor RCS Configuration: Soften UI aesthetics and fix structural JSX errors (b302812)
+- Refactor RCS Configuration: remove preview sidebar and implement full-width layout (86642a9)
+- style: fixed over-stretched layout for RCS Configuration, added max-width and balanced grid (02cb5f6)
+- fix: added missing Zap icon import (52e9cf7)
+- style: full professional layout for RCS onboarding - larger inputs, balanced grid, premium aesthetics (1ed9fca)
+- style: updated RCS onboarding layout to 8/4 grid split for better desktop view (76782ad)
+- fix: RCS preview scaling and visibility in different zoom levels (cb328d3)
+- fix: full auto deploy - permissions, npm install, frontend build, dist verify, pm2 production restart all in one (751cef0)
+- feat: auto env switching - production uses .env.production, dev uses .env (ecosystem.config.js + deploy_server.sh updated) (de22590)
+- feat: improved deploy_server.sh - added frontend build step, error handling, pm2 status (4a4892a)
+- merge: keep RCS onboarding responsive layout fix (local changes kept) (41ecfab)
+- fix: RCS Bot Onboarding form - full width responsive layout, all sections visible, preview fixed, countryCode type fix (edd54e1)
+- fix: layout responsiveness and remove root constraints (7fcd36a)
+- feat: upgrade chatflow with interactive buttons/lists and populate TGE flows (14ae5a6)
+- Fix Media MIME type: Proxy WhatsApp media through /api to avoid Nginx/React HTML fallback (584a11a)
+- Comprehensive fix for WhatsApp templates: Correct handle for creation, Link for sending (d506f28)
+- Fix Pinbot media upload (raw binary with Content-Length and offset) (22497bb)
+- Fix Pinbot media upload (use binary POST for resumable session) (1dbe662)
+- Force error on failed Pinbot upload to prevent URL fallback for templates (3e0aabe)
+- Implement Resumable Upload Session for Pinbot to get template handles (a6a9514)
+- Fix Pinbot media upload field name (sheet -> file) and handle detection (f4290b9)
+- Fix WhatsApp template creation for Pinbot (lowercase fields and better validation) (d7a5d1d)
+- Add detailed logging for WhatsApp template creation payload (be586b2)
+- Fix WhatsApp template creation errors (sanitized names and required media samples) (dfd92cc)
+- Fix static file path and improve WA media upload logging (c7989e7)
+- Ensure migration script loads .env variables (ebc6b1d)
+- Fix template_type truncation by expanding DB column to VARCHAR(50) (5236631)
+- Add deploy_server.sh automation script (3bb7673)
+- Fix Pinbot media upload field name (sheet instead of file) (126aedb)
+
+---
+
 ## [2026-03-11]
+- Resolve merge conflict in queueService.js and CHANGELOG.md (7aa992f)
+- sandy updated (5aa0074)
 - updated code by vikas (81a4c80)
 - updated code (5c927ae)
 - Esc :wq Enterupdated code (dbd02fb)
@@ -177,7 +213,6 @@ This document is automatically updated based on development activity.
 ## [2026-02-10]
 - updated code for user and resseller role access (2fc7ea4)
 - updated code for user and resseller role access (ce2662a)
-- user base login permission (a784bec)
 
 ---
 

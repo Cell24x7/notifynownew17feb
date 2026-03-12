@@ -271,7 +271,7 @@ export default function SuperAdminPlans() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 space-y-10 max-w-7xl mx-auto">
       {/* Header - Responsive */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -292,17 +292,17 @@ export default function SuperAdminPlans() {
           No plans found. Create your first plan!
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {plans.map((plan) => (
             <Card
               key={plan.id}
               className={cn(
-                "relative overflow-hidden transition-all hover:shadow-lg flex flex-col h-full",
+                "group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col h-full border-muted/20 rounded-2xl",
                 plan.status === 'inactive' && "opacity-60"
               )}
             >
-              {plan.name === 'Professional' && (
-                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-bl-lg">
+              {plan.name.toLowerCase() === 'professional' && (
+                <div className="absolute top-0 right-0 bg-primary/10 text-primary font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-bl-xl border-b border-l border-primary/20">
                   Popular
                 </div>
               )}
@@ -315,14 +315,14 @@ export default function SuperAdminPlans() {
                   </Badge>
                 </div>
                 <CardDescription className="mt-1">
-                  <span className="text-2xl sm:text-3xl font-bold text-foreground">
-                    {"\u20B9"}{Number(plan.price).toFixed(2)}
+                  <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+                    {"\u20B9"}{Number(plan.price).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                   </span>
                   <span className="text-muted-foreground">/month</span>
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="flex-1 flex flex-col space-y-4 text-sm">
+              <CardContent className="flex-1 flex flex-col space-y-6 text-sm p-6">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-primary" />
                   <span>
@@ -337,13 +337,13 @@ export default function SuperAdminPlans() {
 
                 <div className="pt-2 border-t">
                   <div className="text-xs text-muted-foreground mb-2">Channels</div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2.5">
                     {plan.channelsAllowed.filter(c => ['whatsapp', 'sms', 'rcs'].includes(c)).map((channel) => (
                       <div
                         key={channel}
-                        className="flex items-center gap-1 bg-muted px-2 py-1 rounded-full text-xs"
+                        className="flex items-center gap-1.5 bg-primary/5 border border-primary/10 px-2.5 py-1 rounded-lg text-[11px] font-medium text-primary/80"
                       >
-                        <ChannelIcon channel={channel as any} className="w-4 h-4" />
+                        <ChannelIcon channel={channel as any} className="w-3.5 h-3.5" />
                         <span className="capitalize">{channel}</span>
                       </div>
                     ))}
