@@ -191,12 +191,6 @@ export default function Templates() {
                 }
               });
 
-              externalTemplates.forEach(external => {
-                if (!localRcs.some(l => l.name === external.name)) {
-                  reconciled.push(external);
-                }
-              });
-
               return [...other, ...reconciled];
             });
           }
@@ -244,12 +238,6 @@ export default function Templates() {
                   reconciled.push({ ...local, ...live, id: local.id });
                 } else {
                   reconciled.push(local);
-                }
-              });
-
-              externalWaTemplates.forEach(external => {
-                if (!localWa.some(l => l.name === external.name)) {
-                  reconciled.push(external);
                 }
               });
 
@@ -1044,19 +1032,29 @@ export default function Templates() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredTemplates.map((template) => (
-                <Card key={template.id} className="card-elevated group hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
+                <Card key={template.id} className="group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col h-full border-muted/20 rounded-2xl">
+                  {template.channel === 'whatsapp' && (
+                    <div className="absolute top-0 right-0 bg-green-500/10 text-green-600 font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-bl-xl border-b border-l border-green-500/20 z-10">
+                      WhatsApp
+                    </div>
+                  )}
+                  {template.channel === 'rcs' && (
+                    <div className="absolute top-0 right-0 bg-blue-500/10 text-blue-600 font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-bl-xl border-b border-l border-blue-500/20 z-10">
+                      RCS
+                    </div>
+                  )}
+
+                  <CardHeader className="pb-3 pt-6 px-6">
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg font-mono">{template.name}</CardTitle>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <ChannelBadge channel={template.channel} />
-                          <Badge variant="outline">{template.category}</Badge>
+                      <div className="space-y-1.5">
+                        <CardTitle className="text-lg font-bold tracking-tight text-primary leading-none">{template.name}</CardTitle>
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                          <Badge variant="outline" className="bg-muted/50 border-none text-[10px] px-2 py-0.5">{template.category}</Badge>
                           {template.status && (
                             <Badge
                               variant={template.status === 'approved' ? 'secondary' : template.status === 'rejected' ? 'destructive' : 'outline'}
                               className={cn(
-                                "capitalize",
+                                "capitalize text-[10px] px-2 py-0.5",
                                 template.status === 'approved' && "bg-green-100 text-green-700 hover:bg-green-100 border-green-200"
                               )}
                             >
@@ -1065,66 +1063,42 @@ export default function Templates() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         {(template.channel === 'rcs' || template.channel === 'whatsapp') && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Refresh status from provider" onClick={() => {
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" title="Sync Status" onClick={() => {
                             if (template.channel === 'rcs') handleSyncTemplate(template);
                             else handleRefreshTemplates();
                           }}>
-                            <RefreshCw className="h-4 w-4" />
+                            <RefreshCw className="h-3.5 w-3.5" />
                           </Button>
                         )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditTemplate(template)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                          <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuItem onClick={() => handleEditTemplate(template)} className="gap-2"><Edit className="h-4 w-4" />Edit</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTemplate(template.id)}><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive gap-2 focus:text-destructive" onClick={() => handleDeleteTemplate(template.id)}><Trash2 className="h-4 w-4" />Delete</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                      {template.body === 'External Template' ? (
-                        <div className="flex flex-col items-center gap-2 py-4 text-muted-foreground border border-dashed border-border rounded-md animate-in fade-in zoom-in-95 duration-500">
-                          <AlertCircle className="h-6 w-6 opacity-30" />
-                          <p className="text-[11px] font-medium tracking-tight uppercase">Placeholder Content</p>
-                          {template.channel === 'rcs' && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="h-7 text-[10px] font-bold px-3 gap-1.5 shadow-sm transform transition-transform active:scale-95"
-                              onClick={() => handleSyncTemplateDetails(template)}
-                              disabled={refreshingTemplateId === template.id}
-                            >
-                              {refreshingTemplateId === template.id ? (
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3 w-3" />
-                              )}
-                              SYNC DETAILS
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="line-clamp-3">{template.body || 'Media-only Template'}</p>
-                      )}
+                  <CardContent className="flex-1 flex flex-col space-y-4 p-6 pt-0">
+                    <div className="p-4 rounded-xl bg-muted/30 text-sm border border-muted/20 min-h-[80px] flex items-center">
+                       <p className="line-clamp-3 text-muted-foreground leading-relaxed">
+                          {template.body || 'Media-only Template Content'}
+                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="flex-1 gradient-primary text-white border-none shadow-md hover:shadow-lg transition-all"
+                    
+                    <Button
+                        className="w-full mt-auto gradient-primary text-white border-none shadow-lg hover:shadow-xl transition-all duration-300 font-bold h-11 rounded-xl"
                         onClick={() => handleCreateCampaignFromTemplate(template)}
-                        disabled={template.body === 'External Template'}
-                      >
-                        <Zap className="h-4 w-4 mr-2" />
+                    >
+                        <Zap className="h-4 w-4 mr-2 fill-current" />
                         Create Campaign
-                      </Button>
-                    </div>
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
