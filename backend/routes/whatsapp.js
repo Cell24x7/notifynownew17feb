@@ -1010,5 +1010,108 @@ router.get('/api/status/:id', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/whatsapp/docs
+ * Public Browser-Accessible Documentation for WhatsApp API
+ */
+router.get('/docs', (req, res) => {
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>WhatsApp API Documentation | NotifyNow</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body { font-family: 'Inter', sans-serif; line-height: 1.6; color: #334155; max-width: 900px; margin: 0 auto; padding: 40px 20px; background-color: #f8fafc; }
+            .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 30px; border: 1px solid #e2e8f0; }
+            h1 { color: #1e293b; font-size: 2.5rem; margin-bottom: 10px; }
+            h2 { color: #2563eb; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 40px; }
+            code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', monospace; color: #e11d48; font-size: 0.9em; }
+            pre { background: #1e293b; color: #f8fafc; padding: 20px; border-radius: 8px; overflow-x: auto; font-size: 0.9em; position: relative; }
+            .method { display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: bold; font-size: 0.8em; margin-right: 10px; }
+            .post { background: #dcfce7; color: #166534; }
+            .get { background: #dbeafe; color: #1e40af; }
+            .badge { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: bold; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+            th { background: #f1f5f9; }
+            .footer { text-align: center; margin-top: 50px; color: #64748b; font-size: 0.9em; }
+        </style>
+    </head>
+    <body>
+        <h1>WhatsApp API Documentation</h1>
+        <p>Send bulk or single messages with dynamic variables and images using <strong>NotifyNow</strong>.</p>
+
+        <div class="card">
+            <h2>Authentication</h2>
+            <p>Auth is required for all endpoints. Use your login email and <strong>API Password</strong> (found in Profile Settings).</p>
+            <table>
+                <tr><th>Field</th><th>Description</th></tr>
+                <tr><td><code>username</code></td><td>Login Email / Phone</td></tr>
+                <tr><td><code>password</code></td><td>Your <strong>API Password</strong> (not login pass)</td></tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>1. Bulk Campaign API</h2>
+            <p><span class="method post">POST</span> <code>/api/whatsapp/api/send-bulk</code></p>
+            <p>Best for marketing campaigns and mass notifications.</p>
+            <pre>
+{
+  "username": "demo@gmail.com",
+  "password": "your_api_password",
+  "templateName": "order_update",
+  "numbers": [
+    {
+      "to": "919004207813",
+      "variables": { "1": "Sandeep", "2": "Order #456" },
+      "mediaUrl": "https://img.com/receipt.jpg"
+    }
+  ]
+}</pre>
+        </div>
+
+        <div class="card">
+            <h2>2. Single Message API</h2>
+            <p><span class="method post">POST</span> <code>/api/whatsapp/api/send-single</code></p>
+            <p>Optimized for instant OTPs and transaction alerts.</p>
+            <pre>
+{
+  "username": "demo@gmail.com",
+  "password": "your_api_password",
+  "to": "919004207813",
+  "templateName": "otp_verify",
+  "variables": { "1": "452188" }
+}</pre>
+        </div>
+
+        <div class="card">
+            <h2>3. Status Tracking API</h2>
+            <p><span class="method get">GET</span> <code>/api/whatsapp/api/status/{id}</code></p>
+            <p>Poll delivery progress for a Campaign ID or Message ID.</p>
+            <pre>
+curl --location 'https://developer.notifynow.in/api/whatsapp/api/status/CAMP_API_123?username=demo@gmail.com&password=pass'</pre>
+        </div>
+
+        <div class="card">
+            <h2>Variable Mapping</h2>
+            <ul>
+                <li><code>{{1}}</code> &rarr; mapped to key <code>"1"</code></li>
+                <li><code>{{2}}</code> &rarr; mapped to key <code>"2"</code></li>
+                <li>Template Header Image &rarr; mapped to <code>mediaUrl</code></li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            &copy; 2026 NotifyNow Solutions | Dynamic Messaging Platform
+        </div>
+    </body>
+    </html>
+    `;
+    res.send(html);
+});
+
 module.exports = router;
 
