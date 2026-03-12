@@ -3,12 +3,13 @@
 # =========================================
 # 🚀 NotifyNow Auto Deploy Script
 # Usage: just type "up" in terminal
+# AUTO: uses .env.production on server!
 # =========================================
 
 PROJECT_DIR="/home/adm.Cell24X7/developer.notifynow.in/notifynow"
 REMOTE_REPO="git@github.com:Cell24x7/notifynownew17feb.git"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
-BACKEND_DIR="$PROJECT_DIR/backend"
+LOGS_DIR="$PROJECT_DIR/logs"
 
 echo ""
 echo "=========================================="
@@ -26,11 +27,14 @@ else
     exit 1
 fi
 
+# Make sure logs dir exists
+mkdir -p "$LOGS_DIR"
+
 # ── Step 2: Set Git Remote to SSH ────────────
 echo ""
 echo "🔗 [2/6] Setting Git remote to SSH..."
 git remote set-url origin "$REMOTE_REPO"
-echo "   ✅ Remote set: $REMOTE_REPO"
+echo "   ✅ Remote: $REMOTE_REPO"
 
 # ── Step 3: Pull Latest Code ──────────────────
 echo ""
@@ -38,55 +42,72 @@ echo "📥 [3/6] Pulling latest code from GitHub (main)..."
 git fetch origin main
 git reset --hard origin/main
 if [ $? -eq 0 ]; then
-    echo "   ✅ Code updated successfully!"
-    echo "   📌 Latest commit: $(git log -1 --pretty=format:'%h - %s (%ar)')"
+    echo "   ✅ Code updated!"
+    echo "   📌 Commit: $(git log -1 --pretty=format:'%h - %s (%ar)')"
 else
-    echo "   ❌ Git pull failed! Check SSH keys or network."
+    echo "   ❌ Git pull failed! Check SSH keys."
     exit 1
 fi
 
 # ── Step 4: Build Frontend ────────────────────
 echo ""
-echo "🏗️  [4/6] Building frontend (npm run build)..."
+echo "🏗️  [4/6] Building frontend..."
 if [ -d "$FRONTEND_DIR" ]; then
     cd "$FRONTEND_DIR"
     npm run build
     if [ $? -eq 0 ]; then
-        echo "   ✅ Frontend build successful!"
+        echo "   ✅ Frontend build done!"
     else
-        echo "   ❌ Frontend build FAILED! Check for TypeScript/build errors."
+        echo "   ❌ Frontend build FAILED!"
         exit 1
     fi
     cd "$PROJECT_DIR"
 else
-    echo "   ⚠️  Frontend directory not found. Skipping build."
+    echo "   ⚠️  Frontend dir not found. Skipping."
 fi
 
-# ── Step 5: Run DB Migrations (if any) ───────
+# ── Step 5: Run DB Migrations ─────────────────
 echo ""
-echo "🗄️  [5/6] Checking for DB migrations..."
+echo "🗄️  [5/6] Checking DB migrations..."
 if [ -f "backend/migration_fix_template_type.js" ]; then
-    node backend/migration_fix_template_type.js
-    echo "   ✅ Migration ran successfully."
+    NODE_ENV=production node backend/migration_fix_template_type.js
+    echo "   ✅ Migration done."
 else
-    echo "   ℹ️  No migration script found. Skipping."
+    echo "   ℹ️  No migration script. Skipping."
 fi
 
-# ── Step 6: Restart Backend via PM2 ──────────
+# ── Step 6: Restart with PM2 (PRODUCTION ENV) ─
 echo ""
-echo "♻️  [6/6] Restarting PM2 processes..."
+echo "♻️  [6/6] Restarting with PM2 (NODE_ENV=production)..."
 if command -v pm2 &> /dev/null; then
-    pm2 restart all --update-env
-    echo "   ✅ PM2 restarted!"
+
+    # Check if app already running
+    if pm2 list | grep -q "notifynow"; then
+        echo "   🔄 App running — restarting with production env..."
+        pm2 restart ecosystem.config.js --env production --update-env
+    else
+        echo "   🆕 First start — launching with production env..."
+        pm2 start ecosystem.config.js --env production
+    fi
+
+    pm2 save
+    echo "   ✅ PM2 started with NODE_ENV=production"
+    echo "   📋 Using: .env.production (DB: developer_notify)"
     echo ""
     pm2 list
+
 else
-    echo "   ⚠️  PM2 not found. Restart Node manually."
+    echo "   ⚠️  PM2 not found! Installing..."
+    npm install -g pm2
+    pm2 start ecosystem.config.js --env production
+    pm2 save
 fi
 
 echo ""
 echo "=========================================="
 echo "  ✨ DEPLOYMENT COMPLETE! 🎉              "
 echo "  🌐 https://developer.notifynow.in       "
+echo "  🗄️  DB: developer_notify (production)   "
+echo "  📄 ENV: .env.production ✅              "
 echo "=========================================="
 echo ""
