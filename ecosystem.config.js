@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const currentPath = __dirname;
 const folderName = path.basename(currentPath);
 const parentName = path.basename(path.dirname(currentPath));
