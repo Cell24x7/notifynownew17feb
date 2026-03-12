@@ -191,6 +191,12 @@ export default function Templates() {
                 }
               });
 
+              externalTemplates.forEach(external => {
+                if (!localRcs.some(l => l.name === external.name)) {
+                  reconciled.push(external);
+                }
+              });
+
               return [...other, ...reconciled];
             });
           }
@@ -238,6 +244,12 @@ export default function Templates() {
                   reconciled.push({ ...local, ...live, id: local.id });
                 } else {
                   reconciled.push(local);
+                }
+              });
+
+              externalWaTemplates.forEach(external => {
+                if (!localWa.some(l => l.name === external.name)) {
+                  reconciled.push(external);
                 }
               });
 
@@ -1086,18 +1098,44 @@ export default function Templates() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col space-y-4 p-6 pt-0">
-                    <div className="p-4 rounded-xl bg-muted/30 text-sm border border-muted/20 min-h-[80px] flex items-center">
-                       <p className="line-clamp-3 text-muted-foreground leading-relaxed">
-                          {template.body || 'Media-only Template Content'}
-                       </p>
+                    <div className="p-4 rounded-xl bg-muted/30 text-sm border border-muted/20 min-h-[80px] flex flex-col justify-center gap-2">
+                       {template.body === 'External Template' ? (
+                          <>
+                            <div className="flex items-center gap-2 text-amber-600/80 mb-1">
+                                <RefreshCw className="h-3 w-3 animate-pulse" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Ready to Sync</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground italic">
+                               Full content available on provider. Click sync to load locally.
+                            </p>
+                          </>
+                       ) : (
+                          <p className="line-clamp-3 text-muted-foreground leading-relaxed text-[13px]">
+                             {template.body || 'Media-only Template Content'}
+                          </p>
+                       )}
                     </div>
                     
                     <Button
-                        className="w-full mt-auto gradient-primary text-white border-none shadow-lg hover:shadow-xl transition-all duration-300 font-bold h-11 rounded-xl"
-                        onClick={() => handleCreateCampaignFromTemplate(template)}
+                        className={cn(
+                            "w-full mt-auto text-white border-none shadow-lg hover:shadow-xl transition-all duration-300 font-bold h-11 rounded-xl",
+                            template.body === 'External Template' ? "bg-amber-500 hover:bg-amber-600" : "gradient-primary"
+                        )}
+                        onClick={() => {
+                            if (template.body === 'External Template') {
+                                if (template.channel === 'rcs') handleSyncTemplateDetails(template);
+                                else handleRefreshTemplates();
+                            } else {
+                                handleCreateCampaignFromTemplate(template);
+                            }
+                        }}
                     >
-                        <Zap className="h-4 w-4 mr-2 fill-current" />
-                        Create Campaign
+                        {template.body === 'External Template' ? (
+                            <RefreshCw className={cn("h-4 w-4 mr-2", refreshingTemplateId === template.id && "animate-spin")} />
+                        ) : (
+                            <Zap className="h-4 w-4 mr-2 fill-current" />
+                        )}
+                        {template.body === 'External Template' ? 'Sync Template' : 'Create Campaign'}
                     </Button>
                   </CardContent>
                 </Card>
