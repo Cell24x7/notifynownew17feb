@@ -38,7 +38,8 @@ import {
   Lock,
   Image as ImageIcon,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 import { RCSPreview } from './RCSPreview';
 import { RCSBotsList } from './RCSBotsList';
