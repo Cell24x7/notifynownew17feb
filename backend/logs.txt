@@ -1,0 +1,28 @@
+✅ MySQL Connected
+Recent Webhook Logs:
+┌─────────┬─────┬─────────┬─────────────────┬──────┐
+│ (index) │ id  │ user_id │ message_content │ type │
+├─────────┼─────┼─────────┼─────────────────┼──────┤
+│ 0       │ 202 │ 1       │ null            │ null │
+│ 1       │ 201 │ 1       │ null            │ null │
+│ 2       │ 200 │ 1       │ null            │ null │
+│ 3       │ 199 │ 1       │ null            │ null │
+│ 4       │ 198 │ 1       │ null            │ null │
+│ 5       │ 197 │ 1       │ null            │ null │
+│ 6       │ 196 │ 1       │ null            │ null │
+│ 7       │ 195 │ 1       │ null            │ null │
+│ 8       │ 194 │ 1       │ null            │ null │
+│ 9       │ 193 │ 1       │ null            │ null │
+└─────────┴─────┴─────────┴─────────────────┴──────┘
+TGE Flows:
+2 - TGE Water Park Demo - paused - keywords: ["hi","hello","hey"]
+3 - TGE Park Flow (Demo) - paused - keywords: ["hi","hello","tge","park"]
+4 - TGE Step 1: Welcome - paused - keywords: ["hi","hello","tge"]
+5 - TGE Step 2: Info Menu - paused - keywords: ["tge_know_more"]
+13 - TGE - Hello Welcome - active - keywords: ["hi","hello","hey","start","menu"]
+14 - TGE - Know More - active - keywords: ["know more","details","info","information","about park"]
+15 - TGE - Ticket Price - active - keywords: ["ticket","price","rate","charges","fees","cost"]
+16 - TGE - Book Now - active - keywords: ["book","booking","reserve","ticket booking","entry booking"]
+17 - TGE - Park Timing - active - keywords: ["timing","opening time","closing time","hours"]
+18 - TGE - Location - active - keywords: ["location","address","map","how to reach"]
+19 - TGE - Support - active - keywords: ["support","help","talk to agent","contact"]

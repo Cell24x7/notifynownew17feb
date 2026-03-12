@@ -1,0 +1,45 @@
+✅ MySQL Connected
+--- FLOW ---
+ID: 2 | Status: active
+Name: TGE Water Park Demo
+Keywords: ["hi","hello","hey"]
+--- FLOW ---
+ID: 3 | Status: active
+Name: TGE Park Flow (Demo)
+Keywords: ["hi","hello","tge","park"]
+--- FLOW ---
+ID: 4 | Status: active
+Name: TGE Step 1: Welcome
+Keywords: ["hi","hello","tge"]
+--- FLOW ---
+ID: 5 | Status: active
+Name: TGE Step 2: Info Menu
+Keywords: ["tge_know_more"]
+--- FLOW ---
+ID: 13 | Status: active
+Name: TGE - Hello Welcome
+Keywords: ["hi","hello","hey","start","menu"]
+--- FLOW ---
+ID: 14 | Status: active
+Name: TGE - Know More
+Keywords: ["know more","details","info","information","about park"]
+--- FLOW ---
+ID: 15 | Status: active
+Name: TGE - Ticket Price
+Keywords: ["ticket","price","rate","charges","fees","cost"]
+--- FLOW ---
+ID: 16 | Status: active
+Name: TGE - Book Now
+Keywords: ["book","booking","reserve","ticket booking","entry booking"]
+--- FLOW ---
+ID: 17 | Status: active
+Name: TGE - Park Timing
+Keywords: ["timing","opening time","closing time","hours"]
+--- FLOW ---
+ID: 18 | Status: active
+Name: TGE - Location
+Keywords: ["location","address","map","how to reach"]
+--- FLOW ---
+ID: 19 | Status: active
+Name: TGE - Support
+Keywords: ["support","help","talk to agent","contact"]

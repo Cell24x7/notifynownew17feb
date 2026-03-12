@@ -1,0 +1,16 @@
+✅ MySQL Connected
+Checking Flow ID: 13 (TGE - Hello Welcome)
+Keywords: ["hi","hello","hey","start","menu"]
+Checking Flow ID: 14 (TGE - Know More)
+Keywords: ["know more","details","info","information","about park"]
+!!! MATCHED CURRENT FLOW !!!
+Checking Flow ID: 15 (TGE - Ticket Price)
+Keywords: ["ticket","price","rate","charges","fees","cost"]
+Checking Flow ID: 16 (TGE - Book Now)
+Keywords: ["book","booking","reserve","ticket booking","entry booking"]
+Checking Flow ID: 17 (TGE - Park Timing)
+Keywords: ["timing","opening time","closing time","hours"]
+Checking Flow ID: 18 (TGE - Location)
+Keywords: ["location","address","map","how to reach"]
+Checking Flow ID: 19 (TGE - Support)
+Keywords: ["support","help","talk to agent","contact"]

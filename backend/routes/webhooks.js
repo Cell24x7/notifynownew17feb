@@ -564,6 +564,12 @@ router.post('/whatsapp/callback', async (req, res) => {
                                 text = msg.text.body;
                             } else if (msg.type === 'button') {
                                 text = msg.button.text;
+                            } else if (msg.type === 'interactive') {
+                                if (msg.interactive.type === 'button_reply') {
+                                    text = msg.interactive.button_reply.id || msg.interactive.button_reply.title;
+                                } else if (msg.interactive.type === 'list_reply') {
+                                    text = msg.interactive.list_reply.id || msg.interactive.list_reply.title;
+                                }
                             } else {
                                 text = `[Received ${msg.type} message]`;
                             }
