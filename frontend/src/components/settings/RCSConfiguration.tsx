@@ -721,32 +721,38 @@ export function RCSConfiguration() {
                 </div>
 
                 {/* Preview Sidebar - Sticky & Premium */}
-                <div className="xl:block w-full xl:w-[380px] flex-shrink-0">
-                   <div className="xl:sticky xl:top-10 space-y-4">
-                      <div className="p-6 rounded-[3rem] bg-slate-50 border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
-                        <div className="flex items-center justify-between mb-6 px-4">
+                <div className="xl:block w-full xl:w-[400px] flex-shrink-0">
+                   <div className="xl:sticky xl:top-8 space-y-4">
+                      <div className="p-4 md:p-6 rounded-[2.5rem] bg-slate-50 border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] overflow-hidden">
+                        <div className="flex items-center justify-between mb-6 px-2 md:px-4">
                           <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
                              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Live Preview</h3>
                           </div>
-                          <Badge variant="outline" className="text-[9px] font-bold bg-white text-slate-400 border-slate-100 px-3 py-0.5 rounded-full">Device Mockup</Badge>
+                          <Badge variant="outline" className="text-[9px] font-bold bg-white text-slate-400 border-slate-100 px-3 py-0.5 rounded-full whitespace-nowrap">Device Mockup</Badge>
                         </div>
-                        <div className="flex justify-center origin-top scale-[0.85] sm:scale-100 lg:scale-[0.95] xl:scale-[0.95]">
-                          <RCSPreview 
-                            botName={config.botName}
-                            brandName={config.brandName}
-                            shortDescription={config.shortDescription}
-                            brandColor={config.brandColor}
-                            botLogo={config.botLogoUrl}
-                            bannerImage={config.bannerUrl}
-                            phoneNumber={config.primaryPhone}
-                            email={config.primaryEmail}
-                          />
+                        
+                        {/* Improved Preview Wrapper with proper height management */}
+                        <div className="relative w-full flex justify-center py-2" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+                          <div className="w-full max-w-full flex justify-center transition-all duration-500 hover:scale-[1.02] origin-center">
+                            <div className="transform-gpu scale-[0.75] sm:scale-[0.85] md:scale-[0.9] lg:scale-100 xl:scale-[0.88] 2xl:scale-100 h-[650px] flex items-start justify-center">
+                              <RCSPreview 
+                                botName={config.botName}
+                                brandName={config.brandName}
+                                shortDescription={config.shortDescription}
+                                brandColor={config.brandColor}
+                                botLogo={config.botLogoUrl}
+                                bannerImage={config.bannerUrl}
+                                phoneNumber={config.primaryPhone}
+                                email={config.primaryEmail}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="px-10 py-4 bg-primary/5 rounded-3xl border border-primary/10">
-                        <p className="text-[10px] font-bold text-primary/70 text-center leading-relaxed">
-                          Your bot will appear like this on user devices. Ensure high-quality assets for the best premium experience.
+                      <div className="px-6 py-4 bg-primary/5 rounded-2xl border border-primary/10 shadow-sm">
+                        <p className="text-[10px] font-bold text-primary/70 text-center leading-relaxed italic">
+                          "This interactive mockup shows exactly how your brand will appear on modern Android devices."
                         </p>
                       </div>
                    </div>
