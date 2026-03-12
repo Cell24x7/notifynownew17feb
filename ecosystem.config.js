@@ -13,11 +13,17 @@ module.exports = {
       script: './backend/index.js',
       // cwd: env-specific cwd is removed to use local project root
 
-      // ✅ PRODUCTION ENV — auto .env.production use hoga
+      // ✅ PRODUCTION ENV
       env_production: {
         NODE_ENV: 'production',
-        // Explicitly load port from env file for PM2
-        PORT: require('dotenv').config({ path: path.join(__dirname, 'backend/.env.production') }).parsed?.PORT || 5000
+        // Read PORT natively from .env.production without needing 'dotenv' package in PM2
+        PORT: (() => {
+          try {
+            const envContent = fs.readFileSync(path.join(currentPath, 'backend/.env.production'), 'utf8');
+            const match = envContent.match(/^PORT\s*=\s*(\d+)/m);
+            return match ? parseInt(match[1], 10) : 5000;
+          } catch (e) { return 5000; }
+        })()
       },
 
       // ✅ LOCAL DEV — auto .env use hoga
