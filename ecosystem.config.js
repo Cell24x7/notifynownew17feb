@@ -1,5 +1,10 @@
 const path = require('path');
-const appName = path.basename(__dirname);
+const currentPath = __dirname;
+const folderName = path.basename(currentPath);
+const parentName = path.basename(path.dirname(currentPath));
+
+// Generate a unique name like "developer.notifynow.in-notifynow"
+const appName = (parentName && parentName !== 'adm.Cell24X7') ? `${parentName}-${folderName}` : folderName;
 
 module.exports = {
   apps: [

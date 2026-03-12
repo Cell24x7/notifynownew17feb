@@ -110,7 +110,8 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 # Start/Restart exactly this folder's instance
-pm2 start ecosystem.config.js --env production --name "$APP_NAME" || pm2 restart "$APP_NAME" --env production --update-env
+# We let ecosystem.config.js handle the unique naming
+pm2 start ecosystem.config.js --env production || pm2 restart ecosystem.config.js --env production --update-env
 
 ok "Instance '$APP_NAME' is active"
 pm2 save --force
