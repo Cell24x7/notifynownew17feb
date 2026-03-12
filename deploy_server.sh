@@ -97,8 +97,15 @@ if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
     # Passing production flag so it loads .env.production
     NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
     ok "Migration complete"
+fi
+
+# New Step: Auto-seed TGE Chatflows
+if [ -f "$BACKEND_DIR/scripts/seed_tge_flows.js" ]; then
+    log "🤖 Seeding TGE Chatflows..."
+    NODE_ENV=production node "$BACKEND_DIR/scripts/seed_tge_flows.js"
+    ok "TGE Flows Sync Complete"
 else
-    warn "No migration file found — skipping"
+    warn "No seeder file found — skipping"
 fi
 
 # ── Step 7: PM2 restart with unique app name ──────────────

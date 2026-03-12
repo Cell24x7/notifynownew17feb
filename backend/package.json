@@ -8,7 +8,8 @@
     "start:prod": "NODE_ENV=production node scripts/update_changelog.js && NODE_ENV=production node index.js",
     "dev": "node scripts/update_changelog.js && nodemon index.js",
     "update-changelog": "node scripts/update_changelog.js",
-    "init-db": "node scripts/init-database.js"
+    "init-db": "node scripts/init-database.js",
+    "seed-tge": "node scripts/seed_tge_flows.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
