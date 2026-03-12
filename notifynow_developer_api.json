@@ -1,0 +1,153 @@
+{
+	"info": {
+		"_postman_id": "8a3dae39-3b40-45d9-a1bf-77ffd9e10495",
+		"name": "NotifyNow Developer API Collection",
+		"description": "Official Public API Collection for NotifyNow WhatsApp Business Platform. Use these endpoints to automate your business messaging.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Quick Start Guide",
+			"item": [],
+			"description": "1. Get your API Password from NotifyNow Profile Settings.\n2. Set your email and password in the Collection Variables tab."
+		},
+		{
+			"name": "Messaging",
+			"item": [
+				{
+					"name": "Send Bulk Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{your_email}}\",\n  \"password\": \"{{your_api_password}}\",\n  \"templateName\": \"promotion_v1\",\n  \"campaignName\": \"API_Test_Campaign\",\n  \"numbers\": [\n    {\n      \"to\": \"91XXXXXXXXXX\",\n      \"variables\": { \"1\": \"User\", \"2\": \"Special Offer\" },\n      \"mediaUrl\": \"https://notifynow.in/logo.png\"\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://developer.notifynow.in/api/whatsapp/api/send-bulk",
+							"protocol": "https",
+							"host": [
+								"developer",
+								"notifynow",
+								"in"
+							],
+							"path": [
+								"api",
+								"whatsapp",
+								"api",
+								"send-bulk"
+							]
+						},
+						"description": "Send dynamic messages to multiple recipients at once. Supports individual media and variables per contact."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Single Alert (OTP)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{your_email}}\",\n  \"password\": \"{{your_api_password}}\",\n  \"to\": \"91XXXXXXXXXX\",\n  \"templateName\": \"otp_verification\",\n  \"variables\": { \"1\": \"9942\" }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://developer.notifynow.in/api/whatsapp/api/send-single",
+							"protocol": "https",
+							"host": [
+								"developer",
+								"notifynow",
+								"in"
+							],
+							"path": [
+								"api",
+								"whatsapp",
+								"api",
+								"send-single"
+							]
+						},
+						"description": "High-priority instant message for OTPs and critical alerts."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Status & Reports",
+			"item": [
+				{
+					"name": "Get Delivery Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://developer.notifynow.in/api/whatsapp/api/status/{{message_or_campaign_id}}?username={{your_email}}&password={{your_api_password}}",
+							"protocol": "https",
+							"host": [
+								"developer",
+								"notifynow",
+								"in"
+							],
+							"path": [
+								"api",
+								"whatsapp",
+								"api",
+								"status",
+								"{{message_or_campaign_id}}"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "{{your_email}}"
+								},
+								{
+									"key": "password",
+									"value": "{{your_api_password}}"
+								}
+							]
+						},
+						"description": "Verify the delivery status of a single message or get a summary of a bulk campaign."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "your_email",
+			"value": "your@email.com",
+			"type": "string"
+		},
+		{
+			"key": "your_api_password",
+			"value": "your_api_password",
+			"type": "string"
+		},
+		{
+			"key": "message_or_campaign_id",
+			"value": "CAMP_API_123456",
+			"type": "string"
+		}
+	]
+}

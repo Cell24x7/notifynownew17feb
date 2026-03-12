@@ -1300,7 +1300,7 @@ router.get('/docs', (req, res) => {
  * Download the pre-configured Postman Collection
  */
 router.get('/download-postman', (req, res) => {
-    const filePath = path.join(__dirname, '../../Partners_API_V3_Postman_Collection.postman_collection.json');
+    const filePath = path.join(__dirname, '../../notifynow_developer_api.json');
     res.download(filePath, 'NotifyNow_WhatsApp_API.json');
 });
 
