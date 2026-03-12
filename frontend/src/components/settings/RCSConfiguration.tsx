@@ -390,10 +390,10 @@ export function RCSConfiguration() {
               </div>
             </CardHeader>
             <CardContent className="p-6 md:p-10 bg-white">
-              <div className="grid grid-cols-1 xl:grid-cols-[1fr,380px] gap-6 md:gap-12 items-start">
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 md:gap-10 items-start">
                 
-                {/* Form Sections Area */}
-                <div className="space-y-8">
+                {/* Form Sections Area - 8 Columns */}
+                <div className="space-y-8 xl:col-span-8">
                   
                   {/* Section 1: Bot Identity */}
                   <div className="space-y-6 p-6 md:p-8 rounded-[2rem] border border-slate-200 bg-slate-50/20 shadow-sm hover:shadow-md transition-all duration-300">
@@ -720,8 +720,8 @@ export function RCSConfiguration() {
 
                 </div>
 
-                {/* Preview Sidebar - Sticky & Premium */}
-                <div className="xl:block w-full xl:w-[400px] flex-shrink-0">
+                {/* Preview Sidebar Area - 4 Columns */}
+                <div className="xl:block w-full xl:col-span-4 flex-shrink-0">
                    <div className="xl:sticky xl:top-8 space-y-4">
                       <div className="p-4 md:p-6 rounded-[2.5rem] bg-slate-50 border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] overflow-hidden">
                         <div className="flex items-center justify-between mb-6 px-2 md:px-4">
