@@ -362,30 +362,30 @@ export function RCSConfiguration() {
   };
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-6 animate-fade-in relative">
+    <div className="w-full max-w-[1600px] mx-auto space-y-8 animate-fade-in relative px-4 md:px-0">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-10 h-14 p-1.5 bg-slate-100/50 backdrop-blur-md border border-slate-200/60 rounded-[1.25rem]">
-          <TabsTrigger value="create" className="rounded-xl font-bold transition-all duration-300 data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-indigo-600">
+        <TabsList className="grid w-full grid-cols-3 mb-10 h-14 p-1 bg-slate-100/30 backdrop-blur-sm border border-slate-200/40 rounded-2xl">
+          <TabsTrigger value="create" className="rounded-xl font-medium transition-all duration-300 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-600">
             <Plus className="h-4 w-4 mr-2" /> Official Onboarding
           </TabsTrigger>
-          <TabsTrigger value="verify" className="rounded-xl font-bold transition-all duration-300 data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-indigo-600">
+          <TabsTrigger value="verify" className="rounded-xl font-medium transition-all duration-300 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-600">
             <ShieldCheck className="h-4 w-4 mr-2" /> Identity Check
           </TabsTrigger>
-          <TabsTrigger value="view" className="rounded-xl font-bold transition-all duration-300 data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-indigo-600">
+          <TabsTrigger value="view" className="rounded-xl font-medium transition-all duration-300 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-600">
             <Database className="h-4 w-4 mr-2" /> Global Registry
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Card className="border-none shadow-xl bg-white rounded-[2rem] overflow-hidden">
-            <CardHeader className="pb-6 pt-10 px-10 bg-slate-50/50 border-b border-slate-100">
+            <CardHeader className="pb-8 pt-12 px-10 bg-slate-50/30 border-b border-slate-100">
               <div className="flex items-center gap-6">
-                <div className="p-4 rounded-3xl bg-indigo-600 shadow-xl shadow-indigo-100 ring-4 ring-white">
+                <div className="p-4 rounded-3xl bg-indigo-600 shadow-lg shadow-indigo-100 ring-4 ring-white transition-transform hover:scale-105 duration-300">
                   <Smartphone className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-3xl font-black tracking-tight text-slate-900">Official Bot Onboarding</CardTitle>
-                  <CardDescription className="text-base text-slate-400 font-medium">Configure your premium global RCS business identity</CardDescription>
+                  <CardTitle className="text-3xl font-semibold tracking-tight text-slate-800">Official Bot Onboarding</CardTitle>
+                  <CardDescription className="text-base text-slate-500 font-normal">Configure your premium global RCS business identity</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -396,108 +396,108 @@ export function RCSConfiguration() {
                 <div className="space-y-12">
                   
                   {/* SECTION 1: IDENTITY */}
-                  <div className="space-y-8 p-8 rounded-[2.5rem] border border-slate-200 bg-slate-50/10 shadow-sm transition-all duration-500 hover:shadow-xl hover:border-indigo-100">
-                    <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
-                      <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm">
+                  <div className="space-y-8 p-8 rounded-[2.5rem] border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all duration-500 hover:shadow-indigo-100/40 hover:border-indigo-100">
+                    <div className="flex items-center gap-4 pb-6 border-b border-slate-50">
+                      <div className="p-3 rounded-2xl bg-indigo-50/50 text-indigo-500 border border-indigo-50 shadow-sm">
                         <Bot className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-xl tracking-tight text-slate-800">Bot Identity</h3>
-                        <p className="text-xs text-slate-400 font-medium">Core jurisdiction and categorization</p>
+                        <h3 className="font-semibold text-xl tracking-tight text-slate-800">Bot Identity</h3>
+                        <p className="text-xs text-slate-400 font-normal">Core jurisdiction and categorization</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-3">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Region</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Region</Label>
                         <RadioGroup 
                           value={config.botType} 
                           onValueChange={(val: any) => setConfig({...config, botType: val})}
                           className="flex gap-4"
                         >
-                          <div className="flex-1 flex items-center justify-center p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 hover:shadow-lg transition-all cursor-pointer h-14">
+                          <div className="flex-1 flex items-center justify-center p-4 rounded-2xl bg-slate-50/50 border border-slate-100 hover:border-indigo-200 hover:bg-white transition-all cursor-pointer h-14">
                             <RadioGroupItem value="domestic" id="l-reg-india" className="mr-2" />
-                            <Label htmlFor="l-reg-india" className="font-bold text-sm cursor-pointer text-slate-700">India</Label>
+                            <Label htmlFor="l-reg-india" className="font-medium text-sm cursor-pointer text-slate-600">India</Label>
                           </div>
-                          <div className="flex-1 flex items-center justify-center p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 hover:shadow-lg transition-all cursor-pointer h-14">
+                          <div className="flex-1 flex items-center justify-center p-4 rounded-2xl bg-slate-50/50 border border-slate-100 hover:border-indigo-200 hover:bg-white transition-all cursor-pointer h-14">
                             <RadioGroupItem value="international" id="l-reg-row" className="mr-2" />
-                            <Label htmlFor="l-reg-row" className="font-bold text-sm cursor-pointer text-slate-700">Global</Label>
+                            <Label htmlFor="l-reg-row" className="font-medium text-sm cursor-pointer text-slate-600">Global</Label>
                           </div>
                         </RadioGroup>
                       </div>
 
                       <div className="space-y-3">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Traffic Type</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Traffic Type</Label>
                         <Select value={config.messageType} onValueChange={(val: any) => setConfig({...config, messageType: val})}>
-                          <SelectTrigger className="h-14 rounded-2xl bg-white border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 font-bold text-slate-800">
+                          <SelectTrigger className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50/30 font-medium text-slate-700 transition-all">
                             <SelectValue placeholder="Select intent" />
                           </SelectTrigger>
-                          <SelectContent className="rounded-2xl border-slate-200 bg-white">
-                            <SelectItem value="PROMOTIONAL" className="py-3 font-bold">Promotional</SelectItem>
-                            <SelectItem value="OTP" className="py-3 font-bold">OTP / Verification</SelectItem>
-                            <SelectItem value="TRANSACTIONAL" className="py-3 font-bold">Transactional</SelectItem>
+                          <SelectContent className="rounded-2xl border-slate-100 bg-white shadow-xl ring-0">
+                            <SelectItem value="PROMOTIONAL" className="py-3 font-medium">Promotional</SelectItem>
+                            <SelectItem value="OTP" className="py-3 font-medium">OTP / Verification</SelectItem>
+                            <SelectItem value="TRANSACTIONAL" className="py-3 font-medium">Transactional</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-3 md:col-span-2">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Bot Profile Name</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Bot Profile Name</Label>
                         <div className="relative group">
                           <Input 
                             placeholder="e.g. Acme Assistant" 
                             value={config.botName}
                             onChange={(e) => setConfig({...config, botName: e.target.value})}
-                            className="h-14 rounded-2xl bg-white border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 font-bold text-slate-800 pl-14 transition-all"
+                            className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50/30 font-medium text-slate-700 pl-14 transition-all"
                           />
-                          <Bot className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400" />
+                          <Bot className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-300 group-focus-within:text-indigo-500 transition-colors" />
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Brand Alias</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Brand Alias</Label>
                         <div className="relative group">
                           <Input 
                             placeholder="e.g. Acme Corp" 
                             value={config.brandName}
                             onChange={(e) => setConfig({...config, brandName: e.target.value})}
-                            className="h-14 rounded-2xl bg-white border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 font-bold text-slate-800 pl-14 transition-all"
+                            className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50/30 font-medium text-slate-700 pl-14 transition-all"
                           />
-                          <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400" />
+                          <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-300 group-focus-within:text-indigo-500 transition-colors" />
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Settlement Category</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Settlement Category</Label>
                         <div className="relative">
-                          <Input value="Conversational Billing" readOnly className="h-14 rounded-2xl bg-slate-50 border-slate-200 font-black tracking-tight px-6 border-dashed text-slate-400" />
+                          <Input value="Conversational Billing" readOnly className="h-14 rounded-2xl bg-slate-50/30 border-slate-100 font-semibold tracking-tight px-6 border-dashed text-slate-400 text-sm" />
                           <Lock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                         </div>
                       </div>
 
                       <div className="space-y-3 md:col-span-2">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Service Tagline</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Service Tagline</Label>
                         <div className="relative group">
                           <Input 
                             placeholder="Brief purpose of the bot..." 
                             value={config.shortDescription}
                             onChange={(e) => setConfig({...config, shortDescription: e.target.value})}
-                            className="h-14 rounded-2xl bg-white border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 font-medium text-slate-700 pl-14"
+                            className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50/30 font-medium text-slate-700 pl-14 transition-all"
                           />
-                          <FileText className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400" />
+                          <FileText className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-300 group-focus-within:text-indigo-500 transition-colors" />
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* SECTION 2: MEDIA & TECH */}
-                  <div className="space-y-8 p-8 rounded-[2.5rem] border border-slate-200 bg-slate-50/10 shadow-sm transition-all duration-500 hover:shadow-xl hover:border-purple-100">
-                    <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
-                      <div className="p-3 rounded-2xl bg-purple-50 text-purple-600 border border-purple-100 shadow-sm">
+                  <div className="space-y-8 p-8 rounded-[2.5rem] border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all duration-500 hover:shadow-purple-100/40 hover:border-purple-200">
+                    <div className="flex items-center gap-4 pb-6 border-b border-slate-50">
+                      <div className="p-3 rounded-2xl bg-purple-50/50 text-purple-500 border border-purple-50 shadow-sm">
                         <Layout className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-xl tracking-tight text-slate-800">Visuals & Tech</h3>
-                        <p className="text-xs text-slate-400 font-medium">Assets and endpoint configuration</p>
+                        <h3 className="font-semibold text-xl tracking-tight text-slate-800">Visuals & Tech</h3>
+                        <p className="text-xs text-slate-400 font-normal">Assets and endpoint configuration</p>
                       </div>
                     </div>
 
@@ -505,122 +505,122 @@ export function RCSConfiguration() {
                       <div className="space-y-8">
                          <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-3">
-                              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">LOGO (224px)</Label>
-                              <label className="relative h-32 rounded-3xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-white hover:bg-slate-50 transition-all cursor-pointer overflow-hidden group shadow-sm active:scale-[0.98]">
-                                {config.botLogoUrl ? <img src={config.botLogoUrl} className="w-full h-full object-cover" /> : <ImageIcon className="h-6 w-6 text-slate-300 group-hover:text-indigo-500" />}
+                              <Label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">LOGO (224px)</Label>
+                              <label className="relative h-32 rounded-3xl border border-dashed border-slate-200 flex items-center justify-center bg-slate-50/30 hover:bg-white hover:border-indigo-300 transition-all cursor-pointer overflow-hidden group active:scale-[0.98]">
+                                {config.botLogoUrl ? <img src={config.botLogoUrl} className="w-full h-full object-cover" /> : <ImageIcon className="h-6 w-6 text-slate-300 group-hover:text-indigo-400" />}
                                 <Input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'logo')} />
                               </label>
                             </div>
                             <div className="space-y-3">
-                              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">BANNER (1440px)</Label>
-                              <label className="relative h-32 rounded-3xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-white hover:bg-slate-50 transition-all cursor-pointer overflow-hidden group shadow-sm active:scale-[0.98]">
-                                {config.bannerUrl ? <img src={config.bannerUrl} className="w-full h-full object-cover" /> : <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-purple-500" />}
+                              <Label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">BANNER (1440px)</Label>
+                              <label className="relative h-32 rounded-3xl border border-dashed border-slate-200 flex items-center justify-center bg-slate-50/30 hover:bg-white hover:border-purple-300 transition-all cursor-pointer overflow-hidden group active:scale-[0.98]">
+                                {config.bannerUrl ? <img src={config.bannerUrl} className="w-full h-full object-cover" /> : <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-purple-400" />}
                                 <Input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'banner')} />
                               </label>
                             </div>
                          </div>
                          <div className="space-y-3">
-                           <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Brand Theme</Label>
-                           <div className="flex gap-4 p-2 rounded-2xl bg-white border border-slate-200 h-14 items-center px-4">
-                             <Input type="color" value={config.brandColor} onChange={(e) => setConfig({...config, brandColor: e.target.value})} className="w-8 h-8 p-0 rounded-lg cursor-pointer border-none" />
-                             <span className="font-mono font-bold text-slate-800 flex-1">{config.brandColor.toUpperCase()}</span>
-                             <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: config.brandColor }} />
+                           <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Brand Theme</Label>
+                           <div className="flex gap-4 p-2 rounded-2xl bg-slate-50/50 border border-slate-100 h-14 items-center px-4">
+                             <Input type="color" value={config.brandColor} onChange={(e) => setConfig({...config, brandColor: e.target.value})} className="w-8 h-8 p-0 rounded-lg cursor-pointer border-none bg-transparent" />
+                             <span className="font-mono font-semibold text-slate-600 flex-1">{config.brandColor.toUpperCase()}</span>
+                             <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: config.brandColor }} />
                            </div>
                          </div>
                       </div>
 
                       <div className="space-y-6">
                         <div className="space-y-3">
-                          <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Webhook URL</Label>
+                          <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Webhook URL</Label>
                           <div className="relative group">
                             <Input 
                               placeholder="https://your-api.com/rcs" 
                               value={config.webhookUrl}
                               onChange={(e) => setConfig({...config, webhookUrl: e.target.value})}
-                              className="h-14 rounded-2xl bg-white border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 font-bold text-slate-800 pl-14"
+                              className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50/30 font-medium text-slate-700 pl-14 transition-all"
                             />
-                            <Globe className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400" />
+                            <Globe className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-300 group-focus-within:text-indigo-500 transition-colors" />
                           </div>
                         </div>
                         <div className="space-y-3">
-                          <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Capabilities</Label>
+                          <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Capabilities</Label>
                           <div className="relative group">
                             <Input 
                               placeholder="e.g. English, Hindi" 
                               value={config.languagesSupported}
                               onChange={(e) => setConfig({...config, languagesSupported: e.target.value})}
-                              className="h-14 rounded-2xl bg-white border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 font-bold text-slate-800 pl-14"
+                              className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50/30 font-medium text-slate-700 pl-14 transition-all"
                             />
-                            <Languages className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
+                            <Languages className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-300 group-focus-within:text-emerald-500 transition-colors" />
                           </div>
                         </div>
-                        <div className="p-4 rounded-3xl bg-slate-900 border border-slate-800 shadow-lg flex justify-between items-center group overflow-hidden relative">
+                        <div className="p-5 rounded-[2rem] bg-slate-800 border border-slate-700 shadow-md flex justify-between items-center group overflow-hidden relative transition-all hover:bg-slate-900">
                            <div className="relative z-10">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Infrastructure</span>
-                              <p className="text-lg font-black text-white">{config.rcsApi}</p>
+                              <span className="text-[9px] font-semibold uppercase tracking-widest text-indigo-300">Infrastructure</span>
+                              <p className="text-xl font-semibold text-white tracking-tight">{config.rcsApi}</p>
                            </div>
-                           <Shield className="h-6 w-6 text-white/20 relative z-10" />
-                           <div className="absolute inset-0 bg-indigo-600/10 group-hover:bg-indigo-600/20 transition-all" />
+                           <Shield className="h-6 w-6 text-white/10 relative z-10" />
+                           <div className="absolute inset-0 bg-indigo-500/5 transition-all group-hover:bg-indigo-500/10" />
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* SECTION 3: LEGAL */}
-                  <div className="space-y-8 p-8 rounded-[2.5rem] border border-slate-200 bg-slate-50/10 shadow-sm transition-all duration-500 hover:shadow-xl hover:border-emerald-100">
-                    <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
-                      <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">
+                  <div className="space-y-8 p-8 rounded-[2.5rem] border border-slate-100 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all duration-500 hover:shadow-emerald-100/40 hover:border-emerald-200">
+                    <div className="flex items-center gap-4 pb-6 border-b border-slate-50">
+                      <div className="p-3 rounded-2xl bg-emerald-50/50 text-emerald-500 border border-emerald-50 shadow-sm">
                         <ShieldCheck className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-xl tracking-tight text-slate-800">Business & Legal</h3>
-                        <p className="text-xs text-slate-400 font-medium">Compliance and verification info</p>
+                        <h3 className="font-semibold text-xl tracking-tight text-slate-800">Business & Legal</h3>
+                        <p className="text-xs text-slate-400 font-normal">Compliance and verification info</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
                       <div className="space-y-3">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Contact Phone</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Contact Phone</Label>
                         <div className="flex gap-4">
                           <Select value={config.countryCode} onValueChange={(val) => setConfig({...config, countryCode: val})}>
-                            <SelectTrigger className="w-[100px] h-14 rounded-2xl bg-white border-slate-200 font-bold">
+                            <SelectTrigger className="w-[100px] h-14 rounded-2xl bg-slate-50/50 border-slate-100 font-semibold text-slate-600">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="rounded-2xl bg-white">{countryCodes.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.code}</SelectItem>)}</SelectContent>
+                            <SelectContent className="rounded-2xl bg-white border-slate-100 shadow-xl">{countryCodes.map(c => <SelectItem key={c.code} value={c.code} className="font-medium">{c.flag} {c.code}</SelectItem>)}</SelectContent>
                           </Select>
-                          <Input placeholder="98765 43210" value={config.primaryPhone} onChange={(e) => setConfig({...config, primaryPhone: e.target.value})} className="h-14 flex-1 rounded-2xl bg-white border-slate-200 font-bold text-slate-800" />
+                          <Input placeholder="98765 43210" value={config.primaryPhone} onChange={(e) => setConfig({...config, primaryPhone: e.target.value})} className="h-14 flex-1 rounded-2xl bg-slate-50/50 border-slate-100 font-semibold text-slate-700 pl-6 focus:bg-white transition-all shadow-none" />
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Official Email</Label>
+                        <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Official Email</Label>
                         <div className="relative group">
-                          <Input placeholder="support@brand.com" value={config.primaryEmail} onChange={(e) => setConfig({...config, primaryEmail: e.target.value})} className="h-14 rounded-2xl bg-white border-slate-200 font-bold text-slate-800 pl-14" />
-                          <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400" />
+                          <Input placeholder="support@brand.com" value={config.primaryEmail} onChange={(e) => setConfig({...config, primaryEmail: e.target.value})} className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 font-medium text-slate-700 pl-14 focus:bg-white transition-all shadow-none" />
+                          <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-300 group-focus-within:text-indigo-500" />
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                         <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Website</Label>
-                         <Input placeholder="https://brand.com" value={config.primaryWebsite} onChange={(e) => setConfig({...config, primaryWebsite: e.target.value})} className="h-14 rounded-2xl bg-white border-slate-200 font-bold text-slate-800 px-6" />
+                         <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Website</Label>
+                         <Input placeholder="https://brand.com" value={config.primaryWebsite} onChange={(e) => setConfig({...config, primaryWebsite: e.target.value})} className="h-14 rounded-2xl bg-slate-50/50 border-slate-100 font-medium text-slate-700 px-6 focus:bg-white transition-all shadow-none" />
                       </div>
 
                       <div className="space-y-3">
-                         <Label className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Legal Links (T&C / Privacy)</Label>
+                         <Label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 ml-1">Legal Links (T&C / Privacy)</Label>
                          <div className="flex gap-4">
-                            <Input placeholder="T&C URL" value={config.termsOfUseUrl} onChange={(e) => setConfig({...config, termsOfUseUrl: e.target.value})} className="h-14 flex-1 rounded-2xl bg-white border-slate-200 font-medium text-slate-600" />
-                            <Input placeholder="Privacy URL" value={config.privacyPolicyUrl} onChange={(e) => setConfig({...config, privacyPolicyUrl: e.target.value})} className="h-14 flex-1 rounded-2xl bg-white border-slate-200 font-medium text-slate-600" />
+                            <Input placeholder="T&C URL" value={config.termsOfUseUrl} onChange={(e) => setConfig({...config, termsOfUseUrl: e.target.value})} className="h-14 flex-1 rounded-2xl bg-slate-50/50 border-slate-100 font-normal text-slate-500 px-6 focus:bg-white transition-all shadow-none" />
+                            <Input placeholder="Privacy URL" value={config.privacyPolicyUrl} onChange={(e) => setConfig({...config, privacyPolicyUrl: e.target.value})} className="h-14 flex-1 rounded-2xl bg-slate-50/50 border-slate-100 font-normal text-slate-500 px-6 focus:bg-white transition-all shadow-none" />
                          </div>
                       </div>
 
                       <div className="md:col-span-2 pt-6">
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-8 p-6 rounded-[2rem] bg-slate-50 border border-slate-200">
-                            <div className="flex items-start space-x-3">
-                              <Checkbox id="final-agree" checked={config.agreeToLaunch} onCheckedChange={(val: boolean) => setConfig({...config, agreeToLaunch: val})} className="mt-1 h-5 w-5 rounded-md border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600" />
-                              <Label htmlFor="final-agree" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer">I certify that all assets provided match official global RCS identity standards.</Label>
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-8 p-8 rounded-[2rem] bg-slate-50/50 border border-slate-100">
+                            <div className="flex items-start space-x-3 max-w-lg">
+                              <Checkbox id="final-agree" checked={config.agreeToLaunch} onCheckedChange={(val: boolean) => setConfig({...config, agreeToLaunch: val})} className="mt-1 h-5 w-5 rounded-md border-slate-300 data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 transition-all" />
+                              <Label htmlFor="final-agree" className="text-[11px] font-medium text-slate-500 leading-relaxed cursor-pointer select-none">I certify that all branding assets, infrastructure endpoints, and legal URLs provided match official global RCS identity standards.</Label>
                             </div>
-                            <Button className="w-full md:w-[280px] h-16 text-lg font-black rounded-2xl shadow-2xl shadow-indigo-200 bg-indigo-600 hover:bg-slate-900 transition-all active:scale-[0.98] group relative overflow-hidden" onClick={handleSubmit} disabled={isLoading || !config.agreeToLaunch}>
-                              <div className="flex items-center gap-3 relative z-10"><span>PUBLISH BOT</span><Zap className="h-4 w-4 fill-white" /></div>
+                            <Button className="w-full md:w-[280px] h-16 text-lg font-semibold rounded-2xl shadow-xl shadow-indigo-100 bg-indigo-600 hover:bg-slate-800 transition-all active:scale-[0.98] group relative overflow-hidden" onClick={handleSubmit} disabled={isLoading || !config.agreeToLaunch}>
+                              <div className="flex items-center gap-3 relative z-10 text-white"><span>PUBLISH BOT</span><Zap className="h-4 w-4 fill-white" /></div>
                               <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             </Button>
                         </div>
@@ -633,101 +633,101 @@ export function RCSConfiguration() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="verify" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <TabsContent value="verify" className="space-y-6 animate-in fade-in duration-500">
           <Card className="border-none shadow-xl bg-white rounded-[2rem] overflow-hidden">
-            <CardHeader className="pb-4 pt-10 px-10 bg-indigo-50/30 border-b border-indigo-100">
+            <CardHeader className="pb-6 pt-10 px-10 bg-slate-50/30 border-b border-slate-100">
               <div className="flex items-center gap-6">
-                <div className="p-4 rounded-2xl bg-indigo-600 shadow-md shadow-indigo-200">
+                <div className="p-4 rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-100 ring-4 ring-white">
                   <ShieldCheck className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-3xl font-bold tracking-tight text-indigo-900">Official Verification</CardTitle>
-                  <CardDescription className="text-base text-indigo-500 font-medium italic">Submit your bot for carrier-grade approval and status verification.</CardDescription>
+                  <CardTitle className="text-3xl font-semibold tracking-tight text-slate-800">Official Verification</CardTitle>
+                  <CardDescription className="text-base text-slate-500 font-normal">Submit your bot for carrier-grade approval and status verification.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-10 bg-white">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-6 p-8 rounded-3xl border border-slate-200 bg-white">
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-                    <Building2 className="h-5 w-5 text-indigo-600" />
-                    <h3 className="font-bold text-xl tracking-tight text-slate-800">Context</h3>
+                <div className="space-y-6 p-8 rounded-3xl border border-slate-100 bg-white shadow-sm">
+                  <div className="flex items-center gap-3 pb-3 border-b border-slate-50">
+                    <Building2 className="h-5 w-5 text-indigo-400" />
+                    <h3 className="font-semibold text-xl tracking-tight text-slate-800">Context</h3>
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                       <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Select Bot</Label>
+                       <Label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Select Bot</Label>
                        <Select value={verifyConfig.bot_id} onValueChange={(val) => {
                          const selected = bots.find(b => b.bot_id === val);
                          setVerifyConfig({...verifyConfig, bot_id: val, brand_name: selected?.brand_name || ''});
                        }}>
-                         <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 border-slate-200 font-bold text-slate-700">
+                         <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 border-slate-100 font-medium text-slate-700">
                            <SelectValue placeholder="Choose a bot" />
                          </SelectTrigger>
-                         <SelectContent className="rounded-xl border-slate-200 bg-white shadow-2xl">
+                         <SelectContent className="rounded-xl border-slate-100 bg-white shadow-2xl">
                            {bots.map(bot => (
-                             <SelectItem key={bot.bot_id} value={bot.bot_id}>{bot.bot_name} ({bot.bot_id})</SelectItem>
+                             <SelectItem key={bot.bot_id} value={bot.bot_id} className="font-medium">{bot.bot_name} ({bot.bot_id})</SelectItem>
                            ))}
                          </SelectContent>
                        </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Brand Name</Label>
+                      <Label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Brand Name</Label>
                       <Input 
                         placeholder="Brand Name" 
                         value={verifyConfig.brand_name}
                         onChange={(e) => setVerifyConfig({...verifyConfig, brand_name: e.target.value})}
-                        className="h-12 rounded-xl bg-slate-50/50 border-slate-200 font-bold text-slate-700"
+                        className="h-12 rounded-xl bg-slate-50/50 border-slate-100 font-medium text-slate-700"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Business Address</Label>
+                      <Label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Business Address</Label>
                       <Textarea 
                         placeholder="Full business address..." 
                         value={verifyConfig.brand_address}
                         onChange={(e) => setVerifyConfig({...verifyConfig, brand_address: e.target.value})}
-                        className="min-h-[100px] rounded-xl bg-slate-50/50 border-slate-200 font-medium resize-none text-slate-700"
+                        className="min-h-[100px] rounded-xl bg-slate-50/50 border-slate-100 font-normal resize-none text-slate-700 text-sm"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6 p-8 rounded-3xl border border-slate-200 bg-white">
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-                    <Upload className="h-5 w-5 text-indigo-600" />
-                    <h3 className="font-bold text-xl tracking-tight text-slate-800">Assets</h3>
+                <div className="space-y-6 p-8 rounded-3xl border border-slate-100 bg-white shadow-sm">
+                  <div className="flex items-center gap-3 pb-3 border-b border-slate-50">
+                    <Upload className="h-5 w-5 text-indigo-400" />
+                    <h3 className="font-semibold text-xl tracking-tight text-slate-800">Assets</h3>
                   </div>
 
                    <div className="grid grid-cols-2 gap-6 pb-4">
                     <div className="space-y-2">
-                      <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Screenshots</Label>
-                      <div className="relative h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center bg-slate-50/30 hover:bg-slate-50 transition-all cursor-pointer overflow-hidden group">
+                      <Label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Screenshots</Label>
+                      <div className="relative h-32 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center bg-slate-50/30 hover:bg-white hover:border-indigo-200 transition-all cursor-pointer overflow-hidden group">
                          {verifyConfig.screenImagesFile ? (
                            <div className="flex flex-col items-center gap-1">
                              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                             <span className="text-[9px] font-bold text-slate-600">{verifyConfig.screenImagesFile.name.substring(0, 12)}...</span>
+                             <span className="text-[9px] font-semibold text-slate-500">{verifyConfig.screenImagesFile.name.substring(0, 12)}...</span>
                            </div>
                          ) : (
                            <div className="flex flex-col items-center gap-2">
-                             <Plus className="h-5 w-5 text-slate-300" />
+                             <Plus className="h-5 w-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
                            </div>
                          )}
                          <Input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setVerifyConfig({...verifyConfig, screenImagesFile: e.target.files?.[0] || null})} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Verification Logo</Label>
-                      <div className="relative h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center bg-slate-50/30 hover:bg-slate-50 transition-all cursor-pointer overflow-hidden group">
+                      <Label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Verification Logo</Label>
+                      <div className="relative h-32 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center bg-slate-50/30 hover:bg-white hover:border-indigo-200 transition-all cursor-pointer overflow-hidden group">
                          {verifyConfig.brandLogoImageFile ? (
                            <div className="flex flex-col items-center gap-1">
                              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                             <span className="text-[9px] font-bold text-slate-600">{verifyConfig.brandLogoImageFile.name.substring(0, 12)}...</span>
+                             <span className="text-[9px] font-semibold text-slate-500">{verifyConfig.brandLogoImageFile.name.substring(0, 12)}...</span>
                            </div>
                          ) : (
                            <div className="flex flex-col items-center gap-2">
-                             <Plus className="h-5 w-5 text-slate-300" />
+                             <Plus className="h-5 w-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
                            </div>
                          )}
                          <Input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setVerifyConfig({...verifyConfig, brandLogoImageFile: e.target.files?.[0] || null})} />
@@ -737,7 +737,7 @@ export function RCSConfiguration() {
 
                   <Button 
                     size="lg"
-                    className="w-full h-14 text-sm font-bold rounded-xl shadow-lg shadow-indigo-200 bg-indigo-600 hover:bg-indigo-700 transition-all" 
+                    className="w-full h-14 text-sm font-semibold rounded-xl shadow-lg shadow-indigo-100 bg-indigo-600 hover:bg-slate-800 transition-all text-white" 
                     onClick={handleVerify}
                     disabled={isLoading}
                   >
