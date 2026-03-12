@@ -1012,7 +1012,7 @@ router.get('/api/status/:id', async (req, res) => {
 
 /**
  * GET /api/whatsapp/docs
- * Public Browser-Accessible Documentation for WhatsApp API
+ * Premium Browser-Accessible Documentation for WhatsApp API
  */
 router.get('/docs', (req, res) => {
     const html = `
@@ -1021,96 +1021,222 @@ router.get('/docs', (req, res) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>WhatsApp API Documentation | NotifyNow</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+        <title>WhatsApp Developer Portal | NotifyNow</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            body { font-family: 'Inter', sans-serif; line-height: 1.6; color: #334155; max-width: 900px; margin: 0 auto; padding: 40px 20px; background-color: #f8fafc; }
-            .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 30px; border: 1px solid #e2e8f0; }
-            h1 { color: #1e293b; font-size: 2.5rem; margin-bottom: 10px; }
-            h2 { color: #2563eb; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 40px; }
-            code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', monospace; color: #e11d48; font-size: 0.9em; }
-            pre { background: #1e293b; color: #f8fafc; padding: 20px; border-radius: 8px; overflow-x: auto; font-size: 0.9em; position: relative; }
-            .method { display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: bold; font-size: 0.8em; margin-right: 10px; }
-            .post { background: #dcfce7; color: #166534; }
-            .get { background: #dbeafe; color: #1e40af; }
-            .badge { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: bold; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e2e8f0; }
-            th { background: #f1f5f9; }
-            .footer { text-align: center; margin-top: 50px; color: #64748b; font-size: 0.9em; }
+            :root {
+                --primary: #2563eb;
+                --primary-dark: #1d4ed8;
+                --accent: #0ea5e9;
+                --bg: #f8fafc;
+                --card-bg: #ffffff;
+                --text-main: #0f172a;
+                --text-muted: #64748b;
+                --code-bg: #0f172a;
+                --border: #e2e8f0;
+            }
+
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.6; }
+
+            /* Grid Layout */
+            .layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+            
+            /* Sidebar */
+            aside { background: #1e293b; color: white; padding: 40px 20px; position: sticky; top: 0; height: 100vh; border-right: 1px solid rgba(255,255,255,0.1); }
+            .logo { font-size: 1.5rem; font-weight: 800; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; color: white; text-decoration: none; }
+            .logo i { color: #22c55e; }
+            .nav-link { display: block; padding: 12px 15px; color: #94a3b8; text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: all 0.2s; font-size: 0.95rem; }
+            .nav-link:hover { background: rgba(255,255,255,0.05); color: white; }
+            .nav-link.active { background: var(--primary); color: white; font-weight: 600; }
+
+            /* Main Content */
+            main { padding: 60px 80px; max-width: 1200px; }
+            header { margin-bottom: 60px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .badge-live { background: #dcfce7; color: #16a34a; padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; display: inline-block; }
+            
+            /* Typography */
+            h1 { font-size: 2.75rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 15px; color: #1e293b; }
+            .desc { font-size: 1.15rem; color: var(--text-muted); max-width: 700px; }
+            h2 { font-size: 1.75rem; font-weight: 700; margin: 50px 0 25px; display: flex; align-items: center; gap: 12px; }
+            h2 i { color: var(--primary); font-size: 1.25rem; }
+
+            /* Buttons */
+            .btn-download { background: var(--primary); color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 10px; transition: all 0.3s; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); border: none; cursor: pointer; }
+            .btn-download:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
+
+            /* Cards */
+            .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 35px; margin-bottom: 30px; transition: transform 0.2s; }
+            .card:hover { border-color: var(--primary); }
+            
+            /* Endpoint Styles */
+            .endpoint { background: #f1f5f9; padding: 15px 20px; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; display: flex; align-items: center; gap: 15px; margin-bottom: 25px; border-left: 4px solid var(--primary); }
+            .m-post { color: #059669; font-weight: 800; }
+            .m-get { color: #2563eb; font-weight: 800; }
+
+            /* Code Blocks */
+            .code-header { background: #334155; color: #cbd5e1; padding: 10px 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; }
+            .copy-btn { background: none; border: 1px solid #475569; color: #cbd5e1; padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+            .copy-btn:hover { background: white; color: black; }
+            pre { background: var(--code-bg); color: #e2e8f0; padding: 25px; border-radius: 0 0 12px 12px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; border: 1px solid #334155; border-top: none; }
+            
+            /* Table */
+            table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 20px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+            th { background: #f8fafc; text-align: left; padding: 15px 20px; font-weight: 600; color: #475569; }
+            td { padding: 15px 20px; border-top: 1px solid var(--border); }
+            code.param { background: #ffedd5; color: #9a3412; padding: 3px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+
+            @media (max-width: 1024px) { 
+                .layout { grid-template-columns: 1fr; } 
+                aside { display: none; }
+                main { padding: 40px 30px; }
+            }
         </style>
     </head>
     <body>
-        <h1>WhatsApp API Documentation</h1>
-        <p>Send bulk or single messages with dynamic variables and images using <strong>NotifyNow</strong>.</p>
+        <div class="layout">
+            <aside>
+                <a href="#" class="logo"><i class="fab fa-whatsapp"></i> NotifyNow</a>
+                <nav>
+                    <a href="#intro" class="nav-link active">Getting Started</a>
+                    <a href="#auth" class="nav-link">Authentication</a>
+                    <a href="#bulk" class="nav-link">Bulk Message API</a>
+                    <a href="#single" class="nav-link">Single Message API</a>
+                    <a href="#status" class="nav-link">Status Tracking</a>
+                </nav>
+            </aside>
 
-        <div class="card">
-            <h2>Authentication</h2>
-            <p>Auth is required for all endpoints. Use your login email and <strong>API Password</strong> (found in Profile Settings).</p>
-            <table>
-                <tr><th>Field</th><th>Description</th></tr>
-                <tr><td><code>username</code></td><td>Login Email / Phone</td></tr>
-                <tr><td><code>password</code></td><td>Your <strong>API Password</strong> (not login pass)</td></tr>
-            </table>
-        </div>
+            <main>
+                <header>
+                    <div id="intro">
+                        <span class="badge-live">API Version 3.4.0</span>
+                        <h1>WhatsApp Developer API</h1>
+                        <p class="desc">Build powerful messaging experiences using our high-performance WhatsApp Business API. Send personalized campaigns, OTPs, and media in seconds.</p>
+                    </div>
+                    <button class="btn-download" onclick="downloadPostman()">
+                        <i class="fas fa-cloud-download-alt"></i> Download Postman Collection
+                    </button>
+                </header>
 
-        <div class="card">
-            <h2>1. Bulk Campaign API</h2>
-            <p><span class="method post">POST</span> <code>/api/whatsapp/api/send-bulk</code></p>
-            <p>Best for marketing campaigns and mass notifications.</p>
-            <pre>
-{
+                <div class="card" id="auth">
+                    <h2><i class="fas fa-key"></i> Authentication</h2>
+                    <p>All requests must include your account credentials. Authenticate your API calls using your registered email and your unique <b>API Password</b>.</p>
+                    <table>
+                        <thead>
+                            <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code class="param">username</code></td><td>String</td><td>Your NotifyNow account email or phone number.</td></tr>
+                            <tr><td><code class="param">password</code></td><td>String</td><td>Your secret <b>API Password</b> from the dashboard.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2 id="bulk"><i class="fas fa-layer-group"></i> 1. Bulk Messaging API</h2>
+                <div class="card">
+                    <p>Use this endpoint for large marketing campaigns. It supports dynamic variables and unique media links for every single recipient.</p>
+                    <div class="endpoint">
+                        <span class="m-post">POST</span> https://developer.notifynow.in/api/whatsapp/api/send-bulk
+                    </div>
+                    
+                    <div class="code-header">REQUEST PAYLOAD <button class="copy-btn" onclick="copyCode('bulkCode')">COPY</button></div>
+                    <pre id="bulkCode">{
   "username": "demo@gmail.com",
   "password": "your_api_password",
-  "templateName": "order_update",
+  "templateName": "marketing_v3",
+  "campaignName": "Spring Sale 2024",
   "numbers": [
     {
       "to": "919004207813",
-      "variables": { "1": "Sandeep", "2": "Order #456" },
-      "mediaUrl": "https://img.com/receipt.jpg"
+      "variables": { "1": "Sandeep", "2": "20% OFF" },
+      "mediaUrl": "https://yoursite.com/img1.jpg"
     }
   ]
 }</pre>
-        </div>
+                </div>
 
-        <div class="card">
-            <h2>2. Single Message API</h2>
-            <p><span class="method post">POST</span> <code>/api/whatsapp/api/send-single</code></p>
-            <p>Optimized for instant OTPs and transaction alerts.</p>
-            <pre>
-{
+                <h2 id="single"><i class="fas fa-bolt"></i> 2. Single Message API (Fast)</h2>
+                <div class="card">
+                    <p>Optimized for low-latency delivery. Perfect for OTPs, 2FA, and critical transaction alerts.</p>
+                    <div class="endpoint">
+                        <span class="m-post">POST</span> https://developer.notifynow.in/api/whatsapp/api/send-single
+                    </div>
+                    
+                    <div class="code-header">REQUEST PAYLOAD <button class="copy-btn" onclick="copyCode('singleCode')">COPY</button></div>
+                    <pre id="singleCode">{
   "username": "demo@gmail.com",
   "password": "your_api_password",
   "to": "919004207813",
-  "templateName": "otp_verify",
-  "variables": { "1": "452188" }
+  "templateName": "otp_verification",
+  "variables": { "1": "482091" }
 }</pre>
+                </div>
+
+                <h2 id="status"><i class="fas fa-search"></i> 3. Status & Tracking</h2>
+                <div class="card">
+                    <p>Track the delivery lifecycle of your campaigns. Returns sent count, failed count, and delivery timing.</p>
+                    <div class="endpoint">
+                        <span class="m-get">GET</span> /api/whatsapp/api/status/{id}
+                    </div>
+                    
+                    <div class="code-header">CURL EXAMPLE <button class="copy-btn" onclick="copyCode('statusBtn')">COPY</button></div>
+                    <pre id="statusBtn">curl --location --request GET 'https://developer.notifynow.in/api/whatsapp/api/status/CAMP_123?username=demo@gmail.com&password=pass'</pre>
+                </div>
+
+                <div class="footer">
+                    <p>&copy; 2026 NotifyNow Solutions. All rights reserved.</p>
+                    <p style="margin-top: 10px; font-size: 0.8rem;">Powered by Cell24x7 Infrastructure</p>
+                </div>
+            </main>
         </div>
 
-        <div class="card">
-            <h2>3. Status Tracking API</h2>
-            <p><span class="method get">GET</span> <code>/api/whatsapp/api/status/{id}</code></p>
-            <p>Poll delivery progress for a Campaign ID or Message ID.</p>
-            <pre>
-curl --location 'https://developer.notifynow.in/api/whatsapp/api/status/CAMP_API_123?username=demo@gmail.com&password=pass'</pre>
-        </div>
+        <script>
+            function copyCode(id) {
+                const text = document.getElementById(id).innerText;
+                navigator.clipboard.writeText(text);
+                const btn = event.target;
+                const oldText = btn.innerText;
+                btn.innerText = 'COPIED!';
+                btn.style.background = '#22c55e';
+                btn.style.color = 'white';
+                setTimeout(() => {
+                    btn.innerText = oldText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            }
 
-        <div class="card">
-            <h2>Variable Mapping</h2>
-            <ul>
-                <li><code>{{1}}</code> &rarr; mapped to key <code>"1"</code></li>
-                <li><code>{{2}}</code> &rarr; mapped to key <code>"2"</code></li>
-                <li>Template Header Image &rarr; mapped to <code>mediaUrl</code></li>
-            </ul>
-        </div>
+            function downloadPostman() {
+                window.location.href = '/api/whatsapp/download-postman';
+            }
 
-        <div class="footer">
-            &copy; 2026 NotifyNow Solutions | Dynamic Messaging Platform
-        </div>
+            // Sync Nav highlights on scroll
+            window.addEventListener('scroll', () => {
+                let current = "";
+                document.querySelectorAll('div[id], h2[id], div[id]').forEach((section) => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 100) { current = section.getAttribute("id"); }
+                });
+                document.querySelectorAll('.nav-link').forEach((li) => {
+                    li.classList.remove("active");
+                    if (li.getAttribute("href").includes(current)) { li.classList.add("active"); }
+                });
+            });
+        </script>
     </body>
     </html>
     `;
     res.send(html);
+});
+
+/**
+ * GET /api/whatsapp/download-postman
+ * Download the pre-configured Postman Collection
+ */
+router.get('/download-postman', (req, res) => {
+    const filePath = path.join(__dirname, '../../Partners_API_V3_Postman_Collection.postman_collection.json');
+    res.download(filePath, 'NotifyNow_WhatsApp_API.json');
 });
 
 module.exports = router;
