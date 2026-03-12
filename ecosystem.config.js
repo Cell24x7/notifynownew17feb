@@ -4,26 +4,28 @@ const currentPath = __dirname;
 const folderName = path.basename(currentPath);
 const parentName = path.basename(path.dirname(currentPath));
 
-// Generate a unique name like "developer.notifynow.in-notifynow"
-const appName = (parentName && parentName !== 'adm.Cell24X7') ? `${parentName}-${folderName}` : folderName;
+// Ensure unique name even if folder names are identical
+const appName = `${parentName}-${folderName}`;
 
 module.exports = {
   apps: [
     {
       name: appName,
       script: './backend/index.js',
-      // cwd: env-specific cwd is removed to use local project root
+      // cwd is automatic based on where ecosystem.config.js is located
 
       // ✅ PRODUCTION ENV
       env_production: {
         NODE_ENV: 'production',
-        // Read PORT natively from .env.production without needing 'dotenv' package in PM2
+        // Direct read from .env.production in the current backend folder
         PORT: (() => {
           try {
             const envContent = fs.readFileSync(path.join(currentPath, 'backend/.env.production'), 'utf8');
             const match = envContent.match(/^PORT\s*=\s*(\d+)/m);
             return match ? parseInt(match[1], 10) : 5000;
-          } catch (e) { return 5000; }
+          } catch (e) {
+            return 5000;
+          }
         })()
       },
 
