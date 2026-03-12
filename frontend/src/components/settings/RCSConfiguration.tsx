@@ -90,6 +90,7 @@ interface RCSConfig {
   phoneNumbers?: PhoneEntry[];
   emails?: EmailEntry[];
   websiteUrl?: string;
+  countryCode: string;
 }
 
 const countryCodes = [
@@ -388,312 +389,369 @@ export function RCSConfiguration() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-10 bg-white">
-              <div className="flex flex-col xl:flex-row gap-10">
-                {/* 3-Column Grid Container */}
-                <div className="flex-1">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    
-                    {/* Column 1: Bot Identity */}
-                    <div className="space-y-6 p-6 rounded-3xl border border-slate-200 bg-slate-50/30 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
-                        <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-                          <Bot className="h-5 w-5" />
-                        </div>
-                        <h3 className="font-bold text-lg tracking-tight text-slate-800">Bot Identity</h3>
+            <CardContent className="p-6 md:p-10 bg-white">
+              <div className="grid grid-cols-1 xl:grid-cols-[1fr,380px] gap-6 md:gap-12 items-start">
+                
+                {/* Form Sections Area */}
+                <div className="space-y-8">
+                  
+                  {/* Section 1: Bot Identity */}
+                  <div className="space-y-6 p-6 md:p-8 rounded-[2rem] border border-slate-200 bg-slate-50/20 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="flex items-center gap-4 pb-5 border-b border-slate-100">
+                      <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm">
+                        <Bot className="h-6 w-6" />
                       </div>
-
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Region</Label>
-                          <RadioGroup 
-                            value={config.botType} 
-                            onValueChange={(val: any) => setConfig({...config, botType: val})}
-                            className="flex gap-2"
-                          >
-                            <div className="flex-1 flex items-center justify-center p-3 rounded-xl bg-white border border-slate-200 hover:border-primary/50 transition-all cursor-pointer">
-                              <RadioGroupItem value="domestic" id="l-reg-india" className="mr-2" />
-                              <Label htmlFor="l-reg-india" className="font-bold text-xs cursor-pointer text-slate-700">India</Label>
-                            </div>
-                            <div className="flex-1 flex items-center justify-center p-3 rounded-xl bg-white border border-slate-200 hover:border-primary/50 transition-all cursor-pointer">
-                              <RadioGroupItem value="international" id="l-reg-row" className="mr-2" />
-                              <Label htmlFor="l-reg-row" className="font-bold text-xs cursor-pointer text-slate-700">Global</Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Message Type</Label>
-                          <Select value={config.messageType} onValueChange={(val: any) => setConfig({...config, messageType: val})}>
-                            <SelectTrigger className="h-12 rounded-xl bg-white border-slate-200 focus:ring-primary/20 font-bold text-slate-700">
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-slate-200 bg-white shadow-2xl">
-                              <SelectItem value="PROMOTIONAL">Promotional</SelectItem>
-                              <SelectItem value="OTP">OTP</SelectItem>
-                              <SelectItem value="TRANSACTIONAL">Transactional</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Billing Category</Label>
-                          <div className="relative">
-                            <Input 
-                              value="Conversational" 
-                              readOnly 
-                              className="h-12 rounded-xl bg-slate-100 border-slate-200 font-bold text-slate-500 cursor-not-allowed pr-10"
-                            />
-                            <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          </div>
-                          <p className="text-[9px] text-slate-400 font-medium">This category is pre-selected for your account.</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Bot Name</Label>
-                          <Input 
-                            placeholder="Acme Assistant" 
-                            value={config.botName}
-                            onChange={(e) => setConfig({...config, botName: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 focus:border-primary font-bold text-slate-700 placeholder:font-normal"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Brand Name</Label>
-                          <Input 
-                            placeholder="Acme Corp" 
-                            value={config.brandName}
-                            onChange={(e) => setConfig({...config, brandName: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 focus:border-primary font-bold text-slate-700 placeholder:font-normal"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Short Description</Label>
-                          <Textarea 
-                            placeholder="Bot purpose..." 
-                            value={config.shortDescription}
-                            onChange={(e) => setConfig({...config, shortDescription: e.target.value})}
-                            className="min-h-[100px] rounded-xl bg-white border-slate-200 focus:border-primary font-medium resize-none text-slate-700"
-                          />
-                        </div>
+                      <div>
+                        <h3 className="font-bold text-xl tracking-tight text-slate-800">Bot Identity</h3>
+                        <p className="text-xs text-slate-400 font-medium">Define your bot's core identity and region</p>
                       </div>
                     </div>
 
-                    {/* Column 2: Media & Configuration */}
-                    <div className="space-y-6 p-6 rounded-3xl border border-slate-200 bg-slate-50/30 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
-                        <div className="p-2 rounded-xl bg-indigo-50 text-purple-600 border border-purple-100">
-                          <Layout className="h-5 w-5" />
-                        </div>
-                        <h3 className="font-bold text-lg tracking-tight text-slate-800">Media & Tech</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="space-y-2 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Region</Label>
+                        <RadioGroup 
+                          value={config.botType} 
+                          onValueChange={(val: any) => setConfig({...config, botType: val})}
+                          className="flex gap-2"
+                        >
+                          <div className="flex-1 flex items-center justify-center p-3 rounded-xl bg-white border border-slate-200 hover:border-primary/50 transition-all cursor-pointer shadow-sm">
+                            <RadioGroupItem value="domestic" id="l-reg-india" className="mr-2" />
+                            <Label htmlFor="l-reg-india" className="font-bold text-xs cursor-pointer text-slate-700">India</Label>
+                          </div>
+                          <div className="flex-1 flex items-center justify-center p-3 rounded-xl bg-white border border-slate-200 hover:border-primary/50 transition-all cursor-pointer shadow-sm">
+                            <RadioGroupItem value="international" id="l-reg-row" className="mr-2" />
+                            <Label htmlFor="l-reg-row" className="font-bold text-xs cursor-pointer text-slate-700">Global</Label>
+                          </div>
+                        </RadioGroup>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Message Type</Label>
+                        <Select value={config.messageType} onValueChange={(val: any) => setConfig({...config, messageType: val})}>
+                          <SelectTrigger className="h-12 rounded-xl bg-white border-slate-200 shadow-sm focus:ring-primary/20 font-bold text-slate-700">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-slate-200 bg-white shadow-2xl">
+                            <SelectItem value="PROMOTIONAL">Promotional</SelectItem>
+                            <SelectItem value="OTP">OTP</SelectItem>
+                            <SelectItem value="TRANSACTIONAL">Transactional</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Billing Category</Label>
+                        <div className="relative">
+                          <Input 
+                            value="Conversational" 
+                            readOnly 
+                            className="h-12 rounded-xl bg-slate-100 border-slate-200 font-bold text-slate-500 cursor-not-allowed pr-10 shadow-sm"
+                          />
+                          <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        </div>
+                        <p className="text-[9px] text-slate-400 font-medium ml-1">Pre-selected for your account.</p>
+                      </div>
+
+                      <div className="space-y-2 md:col-span-1 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Bot Name</Label>
+                        <Input 
+                          placeholder="Acme Assistant" 
+                          value={config.botName}
+                          onChange={(e) => setConfig({...config, botName: e.target.value})}
+                          className="h-12 rounded-xl bg-white border-slate-200 shadow-sm focus:border-primary font-bold text-slate-700 placeholder:font-normal"
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-1 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Brand Name</Label>
+                        <Input 
+                          placeholder="Acme Corp" 
+                          value={config.brandName}
+                          onChange={(e) => setConfig({...config, brandName: e.target.value})}
+                          className="h-12 rounded-xl bg-white border-slate-200 shadow-sm focus:border-primary font-bold text-slate-700 placeholder:font-normal"
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Short Description</Label>
+                        <Input 
+                          placeholder="Bot purpose..." 
+                          value={config.shortDescription}
+                          onChange={(e) => setConfig({...config, shortDescription: e.target.value})}
+                          className="h-12 rounded-xl bg-white border-slate-200 shadow-sm focus:border-primary font-medium text-slate-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Media & Tech */}
+                  <div className="space-y-6 p-6 md:p-8 rounded-[2rem] border border-slate-200 bg-slate-50/20 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="flex items-center gap-4 pb-5 border-b border-slate-100">
+                      <div className="p-3 rounded-2xl bg-purple-50 text-purple-600 border border-purple-100 shadow-sm">
+                        <Layout className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-xl tracking-tight text-slate-800">Media & Tech</h3>
+                        <p className="text-xs text-slate-400 font-medium">Configure visuals and technical endpoints</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-10 md:col-span-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Bot Logo</Label>
-                            <div className="relative h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center bg-white hover:bg-slate-50 transition-all cursor-pointer overflow-hidden group">
+                            <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Bot Logo (224x224)</Label>
+                            <label className="relative h-40 rounded-3xl border-2 border-dashed border-slate-250 flex flex-col items-center justify-center bg-white hover:bg-indigo-50/30 transition-all cursor-pointer overflow-hidden group shadow-sm">
                               {config.botLogoUrl ? (
                                 <img src={config.botLogoUrl} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="flex flex-col items-center gap-1">
-                                  <Plus className="h-5 w-5 text-primary/60" />
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">224 x 224</span>
+                                <div className="flex flex-col items-center gap-3 text-slate-400 group-hover:text-primary transition-colors">
+                                  <div className="p-3 rounded-full bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
+                                    <ImageIcon className="h-6 w-6" />
+                                  </div>
+                                  <span className="text-[10px] font-bold tracking-widest">UPLOAD LOGO</span>
                                 </div>
                               )}
-                              <Input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(e, 'logo')} />
-                            </div>
+                              <Input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'logo')} />
+                            </label>
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Banner</Label>
-                            <div className="relative h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center bg-white hover:bg-slate-50 transition-all cursor-pointer overflow-hidden group">
+                            <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Banner (1440x448)</Label>
+                            <label className="relative h-40 rounded-3xl border-2 border-dashed border-slate-250 flex flex-col items-center justify-center bg-white hover:bg-purple-50/30 transition-all cursor-pointer overflow-hidden group shadow-sm">
                               {config.bannerUrl ? (
                                 <img src={config.bannerUrl} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="flex flex-col items-center gap-1">
-                                  <Plus className="h-5 w-5 text-purple-500/60" />
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">1440 x 448</span>
+                                <div className="flex flex-col items-center gap-3 text-slate-400 group-hover:text-purple-600 transition-colors">
+                                  <div className="p-3 rounded-full bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
+                                    <Smartphone className="h-6 w-6" />
+                                  </div>
+                                  <span className="text-[10px] font-bold tracking-widest">UPLOAD BANNER</span>
                                 </div>
                               )}
-                              <Input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(e, 'banner')} />
-                            </div>
+                              <Input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'banner')} />
+                            </label>
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Brand Color</Label>
-                          <div className="flex gap-2">
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Brand Color</Label>
+                          <div className="flex gap-4 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm">
                             <Input 
                               type="color" 
                               value={config.brandColor}
                               onChange={(e) => setConfig({...config, brandColor: e.target.value})}
-                              className="w-12 h-12 p-1 rounded-xl bg-white border-slate-200 cursor-pointer overflow-hidden"
+                              className="w-14 h-12 p-1 rounded-xl bg-transparent border-none cursor-pointer"
                             />
                             <Input 
                               value={config.brandColor}
                               onChange={(e) => setConfig({...config, brandColor: e.target.value})}
-                              className="h-12 flex-1 rounded-xl bg-white border-slate-200 font-mono text-center font-bold text-slate-700"
+                              className="h-12 flex-1 border-none focus-visible:ring-0 font-mono font-bold text-slate-700"
                             />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6 md:col-span-1">
+                        <div className="space-y-2">
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Webhook URL</Label>
+                          <div className="relative">
+                            <Input 
+                              placeholder="https://..." 
+                              value={config.webhookUrl}
+                              onChange={(e) => setConfig({...config, webhookUrl: e.target.value})}
+                              className="h-12 rounded-xl bg-white border-slate-200 shadow-sm font-bold text-slate-700 pl-10"
+                            />
+                            <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Webhook URL</Label>
-                          <Input 
-                            placeholder="https://..." 
-                            value={config.webhookUrl}
-                            onChange={(e) => setConfig({...config, webhookUrl: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 font-bold text-slate-700"
-                          />
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Supported Languages</Label>
+                          <div className="relative">
+                            <Input 
+                              placeholder="Eng, Hindi, etc." 
+                              value={config.languagesSupported}
+                              onChange={(e) => setConfig({...config, languagesSupported: e.target.value})}
+                              className="h-12 rounded-xl bg-white border-slate-200 shadow-sm font-bold text-slate-700 pl-10"
+                            />
+                            <Languages className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Languages</Label>
-                          <Input 
-                            placeholder="Eng, Hindi, etc." 
-                            value={config.languagesSupported}
-                            onChange={(e) => setConfig({...config, languagesSupported: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 font-bold text-slate-700"
-                          />
-                        </div>
-
-                        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-2">
-                           <div className="flex items-center gap-2 text-primary">
-                             <Shield className="h-4 w-4" />
-                             <span className="text-[10px] font-bold">API Provider</span>
+                        <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 shadow-inner flex justify-between items-center group">
+                           <div>
+                              <div className="flex items-center gap-2 text-indigo-600 mb-1">
+                                <Shield className="h-4 w-4" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">API Provider</span>
+                              </div>
+                              <p className="text-sm font-bold text-slate-700 tracking-tight">{config.rcsApi}</p>
                            </div>
-                           <p className="text-xs font-bold text-slate-700">{config.rcsApi}</p>
+                           <div className="p-2 rounded-xl bg-white border border-indigo-100 text-indigo-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                              <CheckCircle2 className="h-4 w-4" />
+                           </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Column 3: Contacts & Legal */}
-                    <div className="space-y-6 p-6 rounded-3xl border border-slate-200 bg-slate-50/30 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
-                        <div className="p-2 rounded-xl bg-indigo-50 text-emerald-600 border border-emerald-100">
-                          <Building2 className="h-5 w-5" />
+                  {/* Section 3: Business & Legal */}
+                  <div className="space-y-6 p-6 md:p-8 rounded-[2rem] border border-slate-200 bg-slate-50/20 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="flex items-center gap-4 pb-5 border-b border-slate-100">
+                      <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">
+                        <Building2 className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-xl tracking-tight text-slate-800">Business & Legal</h3>
+                        <p className="text-xs text-slate-400 font-medium">Verify your business details and legal links</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Phone Number</Label>
+                        <div className="flex gap-2">
+                          <Select 
+                            value={config.countryCode} 
+                            onValueChange={(val) => setConfig({...config, countryCode: val})}
+                          >
+                            <SelectTrigger className="w-[100px] h-12 rounded-xl bg-white border-slate-200 shadow-sm font-bold text-slate-700">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200 bg-white">
+                              {countryCodes.map(c => (
+                                <SelectItem key={c.code} value={c.code}>
+                                  <span className="mr-2">{c.flag}</span>
+                                  {c.code}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input 
+                            placeholder="98765 43210" 
+                            value={config.primaryPhone}
+                            onChange={(e) => setConfig({...config, primaryPhone: e.target.value})}
+                            className="h-12 flex-1 rounded-xl bg-white border-slate-200 shadow-sm font-bold text-slate-700"
+                          />
                         </div>
-                        <h3 className="font-bold text-lg tracking-tight text-slate-800">Business & Legal</h3>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Phone Number</Label>
-                          <div className="flex gap-0">
-                            <Select 
-                              value={config.countryCode} 
-                              onValueChange={(val) => setConfig({...config, countryCode: val})}
-                            >
-                              <SelectTrigger className="w-[100px] h-12 rounded-l-xl rounded-r-none bg-white border-slate-200 border-r-0 focus:ring-0 font-bold text-slate-700">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl border-slate-200 bg-white">
-                                {countryCodes.map(c => (
-                                  <SelectItem key={c.code} value={c.code}>
-                                    <span className="mr-2">{c.flag}</span>
-                                    {c.code}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input 
-                              placeholder="98765 43210" 
-                              value={config.primaryPhone}
-                              onChange={(e) => setConfig({...config, primaryPhone: e.target.value})}
-                              className="h-12 flex-1 rounded-l-none rounded-r-xl bg-white border-slate-200 font-bold text-slate-700"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Official Email</Label>
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Official Email</Label>
+                        <div className="relative">
                           <Input 
                             placeholder="support@acme.com" 
                             value={config.primaryEmail}
                             onChange={(e) => setConfig({...config, primaryEmail: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 font-bold text-slate-700"
+                            className="h-12 rounded-xl bg-white border-slate-200 shadow-sm font-bold text-slate-700 pl-10"
                           />
+                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         </div>
+                      </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Official Website</Label>
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Official Website</Label>
+                        <div className="relative">
                           <Input 
                             placeholder="https://acme.corp" 
                             value={config.primaryWebsite}
                             onChange={(e) => setConfig({...config, primaryWebsite: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 font-bold text-slate-700"
+                            className="h-12 rounded-xl bg-white border-slate-200 shadow-sm font-bold text-slate-700 pl-10"
                           />
+                          <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         </div>
+                      </div>
 
-                        <div className="space-y-2 pt-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Terms URL</Label>
+                      <div className="space-y-2 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Terms URL</Label>
+                        <div className="relative">
                           <Input 
-                            placeholder="Terms of use" 
+                            placeholder="https://acme.corp/terms" 
                             value={config.termsOfUseUrl}
                             onChange={(e) => setConfig({...config, termsOfUseUrl: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 text-xs font-medium text-slate-600 italic"
+                            className="h-12 rounded-xl bg-white border-slate-200 shadow-sm font-medium text-slate-700 pl-10"
                           />
+                          <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         </div>
+                      </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-[11px] font-semibold text-slate-500 mb-1.5">Privacy URL</Label>
+                      <div className="space-y-2 lg:col-span-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Privacy URL</Label>
+                        <div className="relative">
                           <Input 
-                            placeholder="Privacy policy" 
+                            placeholder="https://acme.corp/privacy" 
                             value={config.privacyPolicyUrl}
                             onChange={(e) => setConfig({...config, privacyPolicyUrl: e.target.value})}
-                            className="h-12 rounded-xl bg-white border-slate-200 text-xs font-medium text-slate-600 italic"
+                            className="h-12 rounded-xl bg-white border-slate-200 shadow-sm font-medium text-slate-700 pl-10"
                           />
+                          <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         </div>
+                      </div>
 
-                        {/* Agreement & Action */}
-                        <div className="pt-4 space-y-4">
-                          <div className="flex items-start space-x-3">
-                            <Checkbox 
-                              id="light-agree" 
-                              checked={config.agreeToLaunch}
-                              onCheckedChange={(val: boolean) => setConfig({...config, agreeToLaunch: val})}
-                              className="mt-1 border-slate-300"
-                            />
-                            <Label htmlFor="light-agree" className="text-[10px] font-semibold text-slate-500 leading-relaxed cursor-pointer">
-                              I certify that all branding assets and legal URLs provided are legitimate and comply with international RCS standards.
-                            </Label>
-                          </div>
-                          <Button 
-                            className="w-full h-14 text-sm font-bold rounded-xl shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 transition-all active:scale-[0.98]" 
-                            onClick={handleSubmit}
-                            disabled={isLoading || !config.agreeToLaunch}
-                          >
-                            {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
-                            Deploy RCS Bot
-                          </Button>
+                      <div className="flex flex-col justify-end lg:col-span-1">
+                        <div className="flex items-start space-x-3 mb-1">
+                          <Checkbox 
+                            id="light-agree" 
+                            checked={config.agreeToLaunch}
+                            onCheckedChange={(val: boolean) => setConfig({...config, agreeToLaunch: val})}
+                            className="mt-1 border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          />
+                          <Label htmlFor="light-agree" className="text-[10px] font-bold text-slate-500 leading-tight cursor-pointer">
+                            I certify that all branding assets and legal URLs provided are legitimate.
+                          </Label>
                         </div>
+                        <Button 
+                          className="w-full h-12 text-sm font-extrabold rounded-xl shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 transition-all active:scale-[0.98] group" 
+                          onClick={handleSubmit}
+                          disabled={isLoading || !config.agreeToLaunch}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span>Deploy RCS Bot</span>
+                              <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" />
+                            </div>
+                          )}
+                        </Button>
                       </div>
                     </div>
-
                   </div>
+
                 </div>
 
-                {/* Light-Themed Preview Sidebar */}
-                <div className="hidden xl:block w-[360px] flex-shrink-0 animate-in fade-in zoom-in-95 duration-700">
-                   <div className="sticky top-8 p-4 rounded-[2.5rem] bg-slate-50 border border-slate-100 shadow-inner">
-                      <div className="flex items-center gap-2 mb-4 px-4 overflow-hidden">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Live Preview</h3>
+                {/* Preview Sidebar - Sticky & Premium */}
+                <div className="xl:block w-full xl:w-[380px] flex-shrink-0">
+                   <div className="xl:sticky xl:top-10 space-y-4">
+                      <div className="p-6 rounded-[3rem] bg-slate-50 border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
+                        <div className="flex items-center justify-between mb-6 px-4">
+                          <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Live Preview</h3>
+                          </div>
+                          <Badge variant="outline" className="text-[9px] font-bold bg-white text-slate-400 border-slate-100 px-3 py-0.5 rounded-full">Device Mockup</Badge>
+                        </div>
+                        <div className="flex justify-center origin-top scale-[0.85] sm:scale-100 lg:scale-[0.95] xl:scale-[0.95]">
+                          <RCSPreview 
+                            botName={config.botName}
+                            brandName={config.brandName}
+                            shortDescription={config.shortDescription}
+                            brandColor={config.brandColor}
+                            botLogo={config.botLogoUrl}
+                            bannerImage={config.bannerUrl}
+                            phoneNumber={config.primaryPhone}
+                            email={config.primaryEmail}
+                          />
+                        </div>
                       </div>
-                      <RCSPreview 
-                        botName={config.botName}
-                        brandName={config.brandName}
-                        shortDescription={config.shortDescription}
-                        brandColor={config.brandColor}
-                        botLogo={config.botLogoUrl}
-                        bannerImage={config.bannerUrl}
-                        phoneNumber={config.primaryPhone}
-                        email={config.primaryEmail}
-                      />
+                      <div className="px-10 py-4 bg-primary/5 rounded-3xl border border-primary/10">
+                        <p className="text-[10px] font-bold text-primary/70 text-center leading-relaxed">
+                          Your bot will appear like this on user devices. Ensure high-quality assets for the best premium experience.
+                        </p>
+                      </div>
                    </div>
                 </div>
+
               </div>
             </CardContent>
           </Card>
