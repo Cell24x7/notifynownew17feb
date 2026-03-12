@@ -1,14 +1,17 @@
+const path = require('path');
+const appName = path.basename(__dirname);
+
 module.exports = {
   apps: [
     {
-      name: 'notifynow',
+      name: appName,
       script: './backend/index.js',
-      cwd: '/home/adm.Cell24X7/developer.notifynow.in/notifynow',
+      // cwd: env-specific cwd is removed to use local project root
 
       // ✅ PRODUCTION ENV — auto .env.production use hoga
       env_production: {
-        NODE_ENV: 'production',
-        PORT: 5000
+        NODE_ENV: 'production'
+        // PORT is picked up from .env.production
       },
 
       // ✅ LOCAL DEV — auto .env use hoga

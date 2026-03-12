@@ -9,7 +9,9 @@
 
 set -e  # Stop on any error
 
-PROJECT_DIR="/home/adm.Cell24X7/developer.notifynow.in/notifynow"
+# Auto-detect project paths
+PROJECT_DIR=$(pwd)
+APP_NAME=$(basename "$PROJECT_DIR")
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 DIST_DIR="$FRONTEND_DIR/dist"
@@ -32,27 +34,26 @@ err()  { echo -e "   ${RED}❌ $1${NC}"; }
 echo ""
 echo -e "${BOLD}=========================================="
 echo -e "  🚀 NotifyNow Auto Deployment            "
+echo -e "  Current Instance: ${YELLOW}$APP_NAME${NC}"
 echo -e "==========================================${NC}"
 echo ""
 
-# ── Step 1: Go to project dir ─────────────────────────────
-log "📂 [1/7] Navigating to project..."
-if [ ! -d "$PROJECT_DIR" ]; then
-    err "Directory not found: $PROJECT_DIR"
+# ── Step 1: Verification ─────────────────────────────
+log "📂 [1/7] Verifying project structure..."
+if [ ! -d "$BACKEND_DIR" ] || [ ! -d "$FRONTEND_DIR" ]; then
+    err "Error: Not in a proper NotifyNow project directory."
     exit 1
 fi
-cd "$PROJECT_DIR"
 mkdir -p "$LOGS_DIR"
-ok "$(pwd)"
+ok "Working in: $PROJECT_DIR"
 
 # ── Step 2: Fix all permissions BEFORE git ────────────────
 log "🔐 [2/7] Setting permissions..."
 chmod -R 755 "$PROJECT_DIR" 2>/dev/null || true
-ok "Permissions set on project directory"
+ok "Permissions set"
 
 # ── Step 3: Git pull latest code ──────────────────────────
 log "📥 [3/7] Pulling latest from GitHub..."
-git remote set-url origin "$REMOTE_REPO"
 git fetch origin main
 git reset --hard origin/main
 COMMIT=$(git log -1 --pretty=format:'%h — %s (%ar)')
@@ -75,14 +76,11 @@ if [ ! -d "node_modules" ]; then
     npm install --silent
 fi
 
-# Kill any running vite dev server (avoids port conflict)
-pkill -f "vite" 2>/dev/null || true
-
 # Build
 npm run build
 
 if [ $? -ne 0 ]; then
-    err "Frontend build FAILED! Check errors above."
+    err "Frontend build FAILED!"
     exit 1
 fi
 ok "Frontend built successfully!"
@@ -91,39 +89,32 @@ ok "Frontend built successfully!"
 chmod -R 755 "$DIST_DIR"
 ok "dist/ permissions fixed (755)"
 
-# Check dist exists and is fresh
-DIST_TIME=$(date -r "$DIST_DIR/index.html" "+%d-%m-%Y %H:%M" 2>/dev/null || echo "unknown")
-ok "dist/index.html last built: $DIST_TIME"
-
 cd "$PROJECT_DIR"
 
 # ── Step 6: DB migration ──────────────────────────────────
 log "🗄️  [6/7] Checking DB migration..."
 if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
+    # Passing production flag so it loads .env.production
     NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
     ok "Migration complete"
 else
     warn "No migration file found — skipping"
 fi
 
-# ── Step 7: PM2 restart with production env ───────────────
-log "♻️  [7/7] Restarting PM2 with NODE_ENV=production..."
+# ── Step 7: PM2 restart with unique app name ──────────────
+log "♻️  [7/7] Restarting PM2 app: $APP_NAME..."
 
 if ! command -v pm2 &> /dev/null; then
     warn "PM2 not found — installing globally..."
     npm install -g pm2
 fi
 
-if pm2 list | grep -q "notifynow"; then
-    pm2 restart ecosystem.config.js --env production --update-env
-    ok "PM2 app 'notifynow' restarted"
-else
-    pm2 start ecosystem.config.js --env production
-    ok "PM2 app started fresh"
-fi
+# Start/Restart exactly this folder's instance
+pm2 start ecosystem.config.js --env production --name "$APP_NAME" || pm2 restart "$APP_NAME" --env production --update-env
 
+ok "Instance '$APP_NAME' is active"
 pm2 save --force
-ok "PM2 config saved (auto-restart on reboot)"
+ok "PM2 config saved"
 
 # ─── Final Status ─────────────────────────────────────────
 echo ""
