@@ -975,12 +975,39 @@ router.post('/api/send-single', async (req, res) => {
 });
 
 /**
- * Legacy support for the previous endpoint name
+ * GET /api/whatsapp/api/status/:id
+ * Public Status API: Check status of a Bulk Campaign or Single Message
  */
-router.all('/send-campaign-api', async (req, res) => {
-    // Redirect to bulk for now
-    req.url = '/api/send-bulk';
-    return router.handle(req, res);
+router.get('/api/status/:id', async (req, res) => {
+    try {
+        const { username, password } = req.query;
+        const id = req.params.id;
+
+        if (!username || !password) return res.status(401).json({ success: false, message: 'Auth required' });
+
+        // Simple Auth
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !(await bcrypt.compare(password, users[0].api_password))) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        const userId = users[0].id;
+
+        // 1. Check if it's a Campaign
+        if (id.startsWith('CAMP_')) {
+            const [camps] = await query('SELECT id, name, status, recipient_count, sent_count, failed_count, created_at FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+            if (camps.length) return res.json({ success: true, type: 'campaign', data: camps[0] });
+        }
+
+        // 2. Check if it's a Single Message
+        const [logs] = await query('SELECT * FROM message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?', [id, id, userId]);
+        if (logs.length) return res.json({ success: true, type: 'message', data: logs[0] });
+
+        res.status(404).json({ success: false, message: 'Record not found' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 module.exports = router;
