@@ -858,12 +858,12 @@ router.post('/send-campaign', authenticate, async (req, res) => {
 
 /**
  * GET/POST /api/whatsapp/send-campaign-api
- * Public External API for Clients to Send WhatsApp Campaigns
+ * Public External API for Clients to Send WhatsApp Campaigns (Supports Dynamic Params & Media)
  */
 router.all('/send-campaign-api', async (req, res) => {
     try {
         const payload = req.method === 'POST' ? req.body : req.query;
-        const { username, password, numbers, campaignName } = payload;
+        const { username, password, numbers, campaignName, language, mediaUrl, templateMetadata, templateBody } = payload;
         const templateName = payload.templateName || payload.template;
 
         if (!username || !password) {
@@ -873,7 +873,7 @@ router.all('/send-campaign-api', async (req, res) => {
             return res.status(400).json({ success: false, message: 'template or templateName is required' });
         }
         if (!numbers) {
-            return res.status(400).json({ success: false, message: 'numbers are required (comma separated or array)' });
+            return res.status(400).json({ success: false, message: 'numbers are required (comma separated, array of strings, or array of objects)' });
         }
 
         // Authenticate user via api_password
@@ -895,12 +895,39 @@ router.all('/send-campaign-api', async (req, res) => {
 
         const userId = user.id;
 
-        // Parse numbers
+        // Fetch template to get metadata/body if not provided
+        const [temps] = await query('SELECT * FROM message_templates WHERE name = ? AND user_id = ?', [templateName, userId]);
+        const template = temps[0];
+        
+        let finalMetadata = templateMetadata || (template ? template.metadata : null);
+        let finalBody = templateBody || (template ? template.body : null);
+        
+        // Ensure metadata is a proper object if it's a string
+        if (typeof finalMetadata === 'string') {
+            try { finalMetadata = JSON.parse(finalMetadata); } catch(e) {}
+        }
+
+        // If language passed in API, override metadata language
+        if (language && finalMetadata) {
+            if (typeof finalMetadata === 'object') {
+                finalMetadata.language = language;
+            } else {
+                finalMetadata = { language };
+            }
+        } else if (language && !finalMetadata) {
+            finalMetadata = { language };
+        }
+
+        // Parse numbers and their specific variables
         let contacts = [];
         if (typeof numbers === 'string') {
-            contacts = numbers.split(',').map(n => n.trim()).filter(Boolean);
+            contacts = numbers.split(',').map(n => ({ to: n.trim() })).filter(c => c.to);
         } else if (Array.isArray(numbers)) {
-            contacts = numbers;
+            contacts = numbers.map(item => {
+                if (typeof item === 'string') return { to: item.trim() };
+                if (typeof item === 'object' && item.to) return item;
+                return null;
+            }).filter(Boolean);
         }
 
         if (contacts.length === 0) {
@@ -910,23 +937,35 @@ router.all('/send-campaign-api', async (req, res) => {
         const cName = campaignName || `API_WA_${Date.now()}`;
         const campaignId = `CAMP_API_${Math.floor(Math.random() * 10000)}_${Date.now()}`;
 
-        // Create campaign
+        // Create campaign record
         await query(
-            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
-            [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length]
+            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at, template_metadata, template_body)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW(), ?, ?)`,
+            [
+                campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length,
+                finalMetadata ? JSON.stringify(finalMetadata) : null,
+                finalBody || null
+            ]
         );
 
-        const values = contacts.map(mobile => {
-            const cleanMobile = typeof mobile === 'string' ? mobile.replace(/\D/g, '') : String(mobile).replace(/\D/g, '');
+        // Prepare queue values
+        const queueValues = contacts.map(c => {
+            const cleanMobile = c.to.replace(/\D/g, '');
             if (!cleanMobile) return null;
-            return [campaignId, userId, cleanMobile, 'pending'];
+            
+            // Merge global mediaUrl/variables with per-contact ones
+            const vars = { ...(c.variables || {}) };
+            if (c.mediaUrl || mediaUrl) {
+                vars['header_url'] = c.mediaUrl || mediaUrl;
+            }
+            
+            return [campaignId, userId, cleanMobile, 'pending', JSON.stringify(vars)];
         }).filter(Boolean);
 
-        if (values.length > 0) {
+        if (queueValues.length > 0) {
             const BATCH = 1000;
-            for (let i = 0; i < values.length; i += BATCH) {
-                await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
+            for (let i = 0; i < queueValues.length; i += BATCH) {
+                await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
             }
         }
 
@@ -942,14 +981,15 @@ router.all('/send-campaign-api', async (req, res) => {
 
         return res.json({
             success: true,
-            message: 'Campaign accepted for processing',
+            message: 'WhatsApp Campaign accepted for processing',
             campaignId,
-            queued: contacts.length
+            queued: contacts.length,
+            template: templateName
         });
 
     } catch (error) {
         console.error('❌ External API WhatsApp campaign send error:', error.message);
-        res.status(500).json({ success: false, message: 'Internal server error while processing API request' });
+        res.status(500).json({ success: false, message: 'Internal server error while processing API request', error: error.message });
     }
 });
 
