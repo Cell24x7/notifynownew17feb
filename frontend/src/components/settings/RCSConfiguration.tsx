@@ -390,9 +390,9 @@ export function RCSConfiguration() {
             </CardHeader>
             <CardContent className="p-10 bg-white">
               <div className="flex flex-col xl:flex-row gap-10">
-                {/* 3-Column Grid Container */}
-                <div className="flex-1">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 3-Column Grid Container - Improved Responsiveness */}
+                <div className="flex-1 min-w-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                     
                     {/* Column 1: Bot Identity */}
                     <div className="space-y-6 p-6 rounded-3xl border border-slate-200 bg-slate-50/30 shadow-sm hover:shadow-md transition-shadow">
