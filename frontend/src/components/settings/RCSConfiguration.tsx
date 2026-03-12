@@ -363,7 +363,7 @@ export function RCSConfiguration() {
   };
 
   return (
-    <div className="w-full space-y-6 animate-fade-in">
+    <div className="w-full max-w-[1600px] mx-auto space-y-6 animate-fade-in relative">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8 h-12 p-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
           <TabsTrigger value="create" className="rounded-xl transition-all duration-300">
@@ -391,10 +391,10 @@ export function RCSConfiguration() {
               </div>
             </CardHeader>
             <CardContent className="p-6 md:p-10 bg-white">
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 md:gap-10 items-start">
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 md:gap-12 items-start">
                 
-                {/* Form Sections Area - 8 Columns */}
-                <div className="space-y-8 xl:col-span-8">
+                {/* Form Sections Area - 8.5 Columns for better balance */}
+                <div className="space-y-10 xl:col-span-8 md:p-2">
                   
                   {/* Section 1: Bot Identity */}
                   <div className="space-y-6 p-6 md:p-8 rounded-[2rem] border border-slate-200 bg-slate-50/20 shadow-sm hover:shadow-md transition-all duration-300">
@@ -408,7 +408,7 @@ export function RCSConfiguration() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-8">
                       <div className="space-y-2.5 lg:col-span-1">
                         <Label className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2 ml-1">Region</Label>
                         <RadioGroup 
@@ -752,7 +752,7 @@ export function RCSConfiguration() {
                 </div>
 
                 {/* Preview Sidebar Area - 4 Columns */}
-                <div className="xl:block w-full xl:col-span-4 flex-shrink-0">
+                <div className="xl:block w-full xl:col-span-4 flex-shrink-0 lg:pl-4">
                    <div className="xl:sticky xl:top-8 space-y-4">
                       <div className="p-4 md:p-6 rounded-[2.5rem] bg-slate-50 border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] overflow-hidden">
                         <div className="flex items-center justify-between mb-6 px-2 md:px-4">
