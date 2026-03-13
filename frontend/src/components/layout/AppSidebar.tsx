@@ -14,7 +14,7 @@ import {
   Wallet,
   Plus,
   Users,
-  Package,
+  CreditCard,
   Moon,
   Sun,
   UserCircle,
