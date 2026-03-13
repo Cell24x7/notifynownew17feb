@@ -3,6 +3,7 @@ const router = express.Router();
 const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
 const { triggerChatflow } = require('../services/chatflowService');
+const { processAutomation } = require('../services/automationService');
 
 // POST /api/webhooks/rcs/callback
 // Standard endpoint for RCS Delivery Reports & Incoming Messages
@@ -112,6 +113,15 @@ router.post('/rcs/callback', async (req, res) => {
                         // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
                         triggerChatflow(targetUserId, sender, text, 'rcs', req.io).catch(e =>
                             console.error('[ChatFlow] RCS trigger error:', e.message)
+                        );
+
+                        // 🤖 CHECK AUTOMATIONS — graph-based logic
+                        processAutomation(targetUserId, 'new_message', 'rcs', { 
+                            sender, 
+                            message_content: text, 
+                            messageId: payload.messageId 
+                        }, req.io).catch(e =>
+                            console.error('[AutomationService] RCS trigger error:', e.message)
                         );
                     }
                 }
@@ -631,6 +641,14 @@ router.post('/whatsapp/callback', async (req, res) => {
                                     triggerChatflow(userId, sender, text, 'whatsapp', req.io, {
                                         phoneId: value.metadata?.phone_number_id
                                     }).catch(e => console.error('[ChatFlow] WA trigger error:', e.message));
+
+                                    // 🤖 CHECK AUTOMATIONS — graph-based logic
+                                    processAutomation(userId, 'new_message', 'whatsapp', { 
+                                        sender, 
+                                        message_content: text, 
+                                        messageId: msgId,
+                                        metadata: value.metadata 
+                                    }, req.io).catch(e => console.error('[AutomationService] WA trigger error:', e.message));
                                 }
 
                                 console.log(`✅ Saved incoming WA message from ${sender} to DB (User: ${userId}).`);

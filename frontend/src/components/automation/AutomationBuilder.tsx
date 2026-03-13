@@ -45,18 +45,20 @@ const channels = [
 interface AutomationBuilderProps {
   automationId?: string;
   automationName: string;
+  initialNodes?: Node[];
+  initialEdges?: Edge[];
   onClose: () => void;
-  onSave: (data: { name: string; channel: string; nodes: Node[]; edges: Edge[] }) => void;
+  onSave: (data: { name: string; channel: string; trigger_type: string; nodes: Node[]; edges: Edge[] }) => void;
 }
 
-const initialNodes: Node[] = [
+const defaultNodes: Node[] = [
   {
     id: 'trigger-1',
     type: 'trigger',
     position: { x: 400, y: 100 },
     data: { 
       label: 'Trigger', 
-      triggerType: 'new_incoming_message',
+      triggerType: 'new_message',
       channel: 'whatsapp',
       conditions: [],
       onUpdate: () => {},
@@ -64,12 +66,12 @@ const initialNodes: Node[] = [
   },
 ];
 
-const initialEdges: Edge[] = [];
+const defaultEdges: Edge[] = [];
 
-function AutomationBuilderContent({ automationName, onClose, onSave }: AutomationBuilderProps) {
+function AutomationBuilderContent({ automationName, initialNodes, initialEdges, onClose, onSave }: AutomationBuilderProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes && initialNodes.length > 0 ? initialNodes : defaultNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges && initialEdges.length > 0 ? initialEdges : defaultEdges);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [name, setName] = useState(automationName);
   const [channel, setChannel] = useState('whatsapp');
@@ -138,7 +140,7 @@ function AutomationBuilderContent({ automationName, onClose, onSave }: Automatio
         position,
         data: {
           label: type.charAt(0).toUpperCase() + type.slice(1),
-          triggerType: type === 'trigger' ? 'new_incoming_message' : undefined,
+          triggerType: type === 'trigger' ? 'new_message' : undefined,
           conditionType: type === 'condition' ? 'any_message' : undefined,
           actionType: subType || (type === 'action' ? 'auto_reply_buttons' : undefined),
           conditions: [],
@@ -161,7 +163,19 @@ function AutomationBuilderContent({ automationName, onClose, onSave }: Automatio
   };
 
   const handleSave = () => {
-    onSave({ name, channel, nodes, edges });
+    // Extract trigger type and channel from the trigger node
+    const triggerNode = nodes.find(n => n.type === 'trigger');
+    const trigger_type = triggerNode?.data?.triggerType || 'new_message';
+    const activeChannel = triggerNode?.data?.channel || channel;
+
+    onSave({ 
+      name, 
+      channel: activeChannel, 
+      trigger_type, 
+      nodes, 
+      edges 
+    });
+
     toast({
       title: 'Automation saved',
       description: 'Your automation workflow has been saved successfully.',

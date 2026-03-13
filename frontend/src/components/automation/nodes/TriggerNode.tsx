@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 export const triggerEvents = [
   { value: 'new_outgoing_message', label: 'New Outgoing Message', channel: 'all' },
-  { value: 'new_incoming_message', label: 'New Incoming Message', channel: 'all' },
+  { value: 'new_message', label: 'New Incoming Message', channel: 'all' },
   { value: 'user_lands_on_bot', label: 'User Lands on Bot (Welcome Event)', channel: 'all' },
   { value: 'new_incoming_from_new_contact', label: 'New Incoming Message From New Contact', channel: 'all' },
   { value: 'conversation_closed', label: 'Conversation Closed', channel: 'all' },

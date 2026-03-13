@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Play, Pause, Copy, Trash2, Zap, MoreVertical, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { mockAutomations, type Automation } from '@/lib/mockData';
+import type { Automation } from '@/lib/mockData';
 import { formatDistanceToNow } from 'date-fns';
+import { getEndpoint } from '@/config/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +39,8 @@ const channels = [
 ];
 
 export default function Automations() {
-  const [automations, setAutomations] = useState<Automation[]>(mockAutomations);
+  const [automations, setAutomations] = useState<Automation[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -50,80 +52,149 @@ export default function Automations() {
   });
   const { toast } = useToast();
 
+  const fetchAutomations = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(getEndpoint('/api/automations'), {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      });
+      const data = await response.json();
+      setAutomations(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Fetch automations error:', error);
+      toast({ title: 'Error', description: 'Failed to fetch automations', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAutomations();
+  }, []);
+
   const filteredAutomations = automations.filter((automation) =>
     automation.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCreateAutomation = () => {
-    const automation: Automation = {
-      id: Date.now().toString(),
-      name: newAutomation.name,
-      trigger: triggerTypes.find((t) => t.value === newAutomation.trigger)?.label || 'New Message',
-      status: 'draft',
-      triggerCount: 0,
-      createdAt: new Date(),
-    };
-    setAutomations([automation, ...automations]);
-    setIsCreateOpen(false);
-    setSelectedAutomation(automation);
-    setIsBuilderOpen(true);
-    toast({
-      title: 'Automation created',
-      description: 'Now configure your automation workflow.',
-    });
-  };
+  const handleCreateAutomation = async () => {
+    try {
+      const response = await fetch(getEndpoint('/api/automations'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          name: newAutomation.name,
+          trigger_type: newAutomation.trigger,
+          channel: newAutomation.channel,
+          nodes: [],
+          edges: []
+        })
+      });
 
-  const handleStatusChange = (automationId: string, newStatus: Automation['status']) => {
-    setAutomations(automations.map((a) => (a.id === automationId ? { ...a, status: newStatus } : a)));
-    toast({
-      title: 'Automation updated',
-      description: `Automation is now ${newStatus}.`,
-    });
-  };
-
-  const handleDuplicate = (automation: Automation) => {
-    const duplicate: Automation = {
-      ...automation,
-      id: Date.now().toString(),
-      name: `${automation.name} (Copy)`,
-      status: 'draft',
-      triggerCount: 0,
-      createdAt: new Date(),
-    };
-    setAutomations([duplicate, ...automations]);
-    toast({
-      title: 'Automation duplicated',
-      description: 'A copy has been created.',
-    });
-  };
-
-  const handleDelete = (automationId: string) => {
-    setAutomations(automations.filter((a) => a.id !== automationId));
-    toast({
-      title: 'Automation deleted',
-      description: 'The automation has been removed.',
-    });
-  };
-
-  const handleBuilderSave = (data: { name: string; channel: string; nodes: any[]; edges: any[] }) => {
-    if (selectedAutomation) {
-      setAutomations(automations.map((a) => 
-        a.id === selectedAutomation.id 
-          ? { ...a, name: data.name, status: 'active' as const }
-          : a
-      ));
+      if (response.ok) {
+        const result = await response.json();
+        const created: Automation = {
+          id: result.id,
+          name: newAutomation.name,
+          trigger: triggerTypes.find(t => t.value === newAutomation.trigger)?.label || 'New Message',
+          status: 'draft',
+          triggerCount: 0,
+          createdAt: new Date(),
+        };
+        setAutomations([created, ...automations]);
+        setIsCreateOpen(false);
+        setSelectedAutomation(created);
+        setIsBuilderOpen(true);
+        toast({ title: 'Automation created', description: 'Now configure your automation workflow.' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to create automation', variant: 'destructive' });
     }
-    setIsBuilderOpen(false);
-    setSelectedAutomation(null);
+  };
+
+  const handleStatusChange = async (automationId: string, newStatus: Automation['status']) => {
+    try {
+      const response = await fetch(getEndpoint(`/api/automations/${automationId}/status`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        setAutomations(automations.map((a) => (a.id === automationId ? { ...a, status: newStatus } : a)));
+        toast({ title: 'Automation updated', description: `Automation is now ${newStatus}.` });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    }
+  };
+
+  const handleDuplicate = async (automation: Automation) => {
+    toast({ title: 'Feature coming soon', description: 'Duplication is not implemented yet.' });
+  };
+
+  const handleDelete = async (automationId: string) => {
+    if (!confirm('Are you sure you want to delete this automation?')) return;
+    try {
+      const response = await fetch(getEndpoint(`/api/automations/${automationId}`), {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      });
+
+      if (response.ok) {
+        setAutomations(automations.filter((a) => a.id !== automationId));
+        toast({ title: 'Automation deleted', description: 'The automation has been removed.' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete automation', variant: 'destructive' });
+    }
+  };
+
+  const handleBuilderSave = async (data: { name: string; channel: string; nodes: any[]; edges: any[] }) => {
+    if (selectedAutomation) {
+      try {
+        const response = await fetch(getEndpoint(`/api/automations/${selectedAutomation.id}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
+          body: JSON.stringify({
+            name: data.name,
+            channel: data.channel,
+            nodes: data.nodes,
+            edges: data.edges,
+            status: 'active'
+          })
+        });
+
+        if (response.ok) {
+          fetchAutomations();
+          setIsBuilderOpen(false);
+          setSelectedAutomation(null);
+          toast({ title: 'Automation saved', description: 'Your workflow has been updated and activated.' });
+        }
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to save automation', variant: 'destructive' });
+      }
+    }
   };
 
   // Show full-screen builder when active
   if (isBuilderOpen) {
+    const fullSelected = automations.find(a => a.id === selectedAutomation?.id);
     return (
       <div className="fixed inset-0 z-50 bg-background">
         <AutomationBuilder
           automationId={selectedAutomation?.id}
-          automationName={selectedAutomation?.name || newAutomation.name}
+          automationName={fullSelected?.name || selectedAutomation?.name || newAutomation.name}
+          initialNodes={(fullSelected as any)?.nodes}
+          initialEdges={(fullSelected as any)?.edges}
           onClose={() => {
             setIsBuilderOpen(false);
             setSelectedAutomation(null);

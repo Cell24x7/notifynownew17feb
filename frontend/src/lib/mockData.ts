@@ -97,6 +97,8 @@ export interface Automation {
   triggerCount: number;
   lastTriggered?: Date;
   createdAt: Date;
+  nodes?: any[];
+  edges?: any[];
 }
 
 export interface Integration {
@@ -147,15 +149,6 @@ export const mockCampaigns: Campaign[] = [
   { id: '3', name: 'Product Launch', channel: 'rcs', status: 'running', template: 'product_announcement', audience: 2000, sent: 1200, delivered: 1150, failed: 50, cost: 600.00, createdAt: new Date(Date.now() - 172800000) },
   { id: '4', name: 'Flash Sale Alert', channel: 'whatsapp', status: 'draft', template: 'flash_sale', audience: 0, sent: 0, delivered: 0, failed: 0, cost: 0, createdAt: new Date() },
 
-];
-
-// Mock Automations
-export const mockAutomations: Automation[] = [
-  { id: '1', name: 'Welcome Message', trigger: 'New Contact', status: 'active', triggerCount: 1250, lastTriggered: new Date(Date.now() - 3600000), createdAt: new Date(Date.now() - 2592000000) },
-  { id: '2', name: 'Order Confirmation', trigger: 'Order Placed', status: 'active', triggerCount: 3420, lastTriggered: new Date(Date.now() - 1800000), createdAt: new Date(Date.now() - 5184000000) },
-  { id: '3', name: 'Abandoned Cart', trigger: 'Cart Abandoned', status: 'active', triggerCount: 890, lastTriggered: new Date(Date.now() - 7200000), createdAt: new Date(Date.now() - 1296000000) },
-  { id: '4', name: 'Feedback Request', trigger: 'Order Delivered', status: 'paused', triggerCount: 2100, lastTriggered: new Date(Date.now() - 86400000), createdAt: new Date(Date.now() - 3888000000) },
-  { id: '5', name: 'Support Ticket Auto-Reply', trigger: 'New Message', status: 'draft', triggerCount: 0, createdAt: new Date() },
 ];
 
 // Mock Integrations

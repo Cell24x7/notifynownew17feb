@@ -104,6 +104,7 @@ app.use('/api/whatsapp-configs', require('./routes/whatsappConfigs'));
 app.use('/api/whatsapp-pinbot', require('./routes/whatsappPinbot'));
 app.use('/api/chatflows', require('./routes/chatflows'));
 app.use('/api/feedbacks', require('./routes/feedbacks'));
+app.use('/api/automations', require('./routes/automations'));
 
 // Developer Webhook Endpoint (Must have /api/ prefix for Nginx proxy pass)
 app.use('/api/webhook', require('./routes/developerWebhooks'));
@@ -126,9 +127,11 @@ runQueue();
 // Auto-create chat_flows table if it doesn't exist
 const { ensureChatFlowsTable } = require('./services/chatflowService');
 const { ensureWhatsAppPricingColumns } = require('./services/pricingService');
+const { ensureAutomationsTable } = require('./services/automationService');
 
 ensureChatFlowsTable().catch(err => console.error('ChatFlow table init error:', err));
 ensureWhatsAppPricingColumns().catch(err => console.error('Pricing columns init error:', err));
+ensureAutomationsTable().catch(err => console.error('Automations table init error:', err));
 
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');

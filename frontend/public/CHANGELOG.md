@@ -3,6 +3,19 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-13]
+- Enhance Auth page: Replace marquee with rotating FeedbackBox next to contact buttons (87c5fd1)
+- Fix missing lucide icon import in Dashboard (17efc79)
+- Complete redesign of Dashboard Analytics with charts and agent performance matching mockups (5acddc7)
+- Merge from remote (c2f8b5f)
+- Fix API logs not displaying by making insertion log to message_logs properly (e30c3d3)
+- Implement WhatsApp custom pricing and standardized ₹1.00 billing across all channels (556eb04)
+- Auto add database columns for campaign tracking on developer trigger (cd7707f)
+- Update DB schema to support tracking campaign logs properly (e82204b)
+- Add API Logs tracking for developer webhook triggers (c7cbf25)
+- Update webhook to upload PDF and send as template component (2ebbfd7)
+- Update hardcoded user id to 1 for Developer Webhook (6ff3f43)
+- Fix Developer Webhook Route to bypass Nginx 405 constraint (b4f2306)
+- Add Developer Webhook for automatic WhatsApp replies (2715533)
 - Enhance Roles UI and update User Permissions (5f4a79e)
 - Fix whatsapp webhook interactive buttons (267e692)
 - Add TGE chatflow seeder and integrate into deploy script (645969a)
