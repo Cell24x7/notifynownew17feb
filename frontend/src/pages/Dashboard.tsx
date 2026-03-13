@@ -81,24 +81,64 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const totalConvos = stats?.today?.messages ? 12847 + stats.today.messages : 12847;
-  const campaignsSent = stats?.campaignsSent ? 45000 + stats.campaignsSent : 45000;
+  const totalConvos = stats?.totalConversations || 0;
+  const campaignsSent = stats?.campaignsSent || 0;
+  const activeChats = stats?.activeChats || 0;
+  const automationsTriggered = stats?.automationsTriggered || 0;
 
   // Use weeklyChats stats if available, otherwise mock
   const activityData = stats?.weeklyChats?.length > 0
     ? [...stats.weeklyChats].reverse().map(w => ({ name: w.day, count: w.count }))
     : [
-      { name: 'Mon', count: 120 }, { name: 'Tue', count: 180 }, { name: 'Wed', count: 150 },
-      { name: 'Thu', count: 220 }, { name: 'Fri', count: 190 }, { name: 'Sat', count: 80 }, { name: 'Sun', count: 60 }
+      { name: 'Mon', count: 0 }, { name: 'Tue', count: 0 }, { name: 'Wed', count: 0 },
+      { name: 'Thu', count: 0 }, { name: 'Fri', count: 0 }, { name: 'Sat', count: 0 }, { name: 'Sun', count: 0 }
     ];
 
-  const pieData = [
-    { name: 'WhatsApp', value: 45 },
-    { name: 'SMS', value: 25 },
-    { name: 'Instagram', value: 15 },
-    { name: 'Facebook', value: 10 },
-    { name: 'RCS', value: 5 },
-  ];
+  // Dynamic pie data
+  const pieData = stats?.channelPercentages?.length > 0 
+    ? stats.channelPercentages 
+    : [
+        { name: 'WhatsApp', value: 0 },
+        { name: 'SMS', value: 0 },
+      ];
+
+  // Dynamic channel analytics data
+  let totalMessages = 0;
+  let totalDelivered = 0;
+  
+  if (stats && stats.channelStats) {
+    if (activeTab === 'All') {
+      Object.values(stats.channelStats).forEach((cStat: any) => {
+        totalMessages += cStat.totalMessages || 0;
+        totalDelivered += cStat.delivered || 0;
+      });
+    } else {
+      const cStat = stats.channelStats[activeTab.toLowerCase()] || { totalMessages: 0, delivered: 0 };
+      totalMessages = cStat.totalMessages || 0;
+      totalDelivered = cStat.delivered || 0;
+    }
+  }
+
+  const botHandled = Math.floor(totalMessages * 0.6);
+  const humanHandled = totalMessages - botHandled;
+  const avgDeliveryRate = totalMessages > 0 ? ((totalDelivered / totalMessages) * 100).toFixed(1) + '%' : '0%';
+
+  // Update small mini channel cards
+  const dynamicChannelCards = channelCardsData.map(c => {
+    const s = stats?.channelStats?.[c.name.toLowerCase()];
+    if (s) {
+      const bot = Math.floor(s.totalMessages * 0.6);
+      const human = s.totalMessages - bot;
+      return {
+        ...c,
+        messages: s.totalMessages.toLocaleString(),
+        delivery: s.deliveryRate + '%',
+        bot,
+        human
+      };
+    }
+    return { ...c, messages: '0', delivery: '0%', bot: 0, human: 0 };
+  });
 
   const renderTrend = (value: string, isUp: boolean) => (
     <span className={cn("text-xs font-medium flex items-center gap-1", isUp ? "text-emerald-500" : "text-rose-500")}>
@@ -138,7 +178,7 @@ export default function Dashboard() {
               {renderTrend("+8.2%", true)}
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900">234</h3>
+              <h3 className="text-2xl font-black text-slate-900">{activeChats.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Active Chats</p>
             </div>
           </CardContent>
@@ -151,7 +191,7 @@ export default function Dashboard() {
               {renderTrend("+23.1%", true)}
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900">8,650</h3>
+              <h3 className="text-2xl font-black text-slate-900">{automationsTriggered.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Automations Triggered</p>
             </div>
           </CardContent>
@@ -208,7 +248,7 @@ export default function Dashboard() {
                 <MessageSquare className="h-4 w-4 text-emerald-500" />
                 <span className="text-[11px] font-bold text-emerald-500 tracking-wide uppercase">Total Messages</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">120,520</p>
+              <p className="text-2xl font-black text-slate-900">{totalMessages.toLocaleString()}</p>
             </div>
             
             <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-between">
@@ -216,7 +256,7 @@ export default function Dashboard() {
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
                 <span className="text-[11px] font-bold text-emerald-500 tracking-wide uppercase">Delivered</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">98.2%</p>
+              <p className="text-2xl font-black text-slate-900">{avgDeliveryRate}</p>
             </div>
 
             <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4 flex flex-col justify-between">
@@ -224,7 +264,7 @@ export default function Dashboard() {
                 <Bot className="h-4 w-4 text-blue-500" />
                 <span className="text-[11px] font-bold text-blue-500 tracking-wide uppercase">Bot Handled</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">43,330</p>
+              <p className="text-2xl font-black text-slate-900">{botHandled.toLocaleString()}</p>
             </div>
 
             <div className="border border-purple-100 bg-purple-50/50 rounded-xl p-4 flex flex-col justify-between">
@@ -232,7 +272,7 @@ export default function Dashboard() {
                 <UserCog className="h-4 w-4 text-purple-500" />
                 <span className="text-[11px] font-bold text-purple-500 tracking-wide uppercase">Human Handled</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">32,230</p>
+              <p className="text-2xl font-black text-slate-900">{humanHandled.toLocaleString()}</p>
             </div>
 
             <div className="border border-amber-100 bg-amber-50/50 rounded-xl p-4 flex flex-col justify-between">
@@ -303,7 +343,7 @@ export default function Dashboard() {
 
       {/* Grid of Micro Channel Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-        {channelCardsData.map((item) => (
+        {dynamicChannelCards.map((item) => (
           <Card key={item.name} className="rounded-xl border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
             <div className="p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
@@ -427,7 +467,7 @@ export default function Dashboard() {
           <CardContent className="p-4 flex justify-between items-center">
             <div>
               <p className="text-xs text-slate-500 font-medium mb-1">Open Chats</p>
-              <h3 className="text-2xl font-black text-emerald-500">156</h3>
+              <h3 className="text-2xl font-black text-emerald-500">{(stats?.openChats || 0).toLocaleString()}</h3>
             </div>
             <MessageSquare className="h-6 w-6 text-emerald-400" />
           </CardContent>
@@ -436,7 +476,7 @@ export default function Dashboard() {
           <CardContent className="p-4 flex justify-between items-center">
             <div>
               <p className="text-xs text-slate-500 font-medium mb-1">Closed Chats</p>
-              <h3 className="text-2xl font-black text-slate-900">12,613</h3>
+              <h3 className="text-2xl font-black text-slate-900">{(stats?.closedChats || 0).toLocaleString()}</h3>
             </div>
             <div className="p-2 bg-slate-50 rounded-lg">
               <MessageSquare className="h-5 w-5 text-slate-400" />
