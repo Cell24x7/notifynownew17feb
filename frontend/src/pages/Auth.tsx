@@ -14,6 +14,8 @@ import { PasswordCreation } from '@/components/auth/PasswordCreation';
 import { WelcomePopup } from '@/components/auth/WelcomePopup';
 import { useBranding } from '@/contexts/BrandingContext';
 import { FeedbackDialog } from '@/components/auth/FeedbackDialog';
+import { TestimonialSlider } from '@/components/auth/TestimonialSlider';
+import logo from '@/assets/logo.svg';
 
 export default function Auth() {
   const [activeTab, setActiveTab] = useState('login');
@@ -161,12 +163,7 @@ export default function Auth() {
         <div className="w-full lg:w-[58%] bg-[#0052cc] p-6 lg:p-8 flex flex-col relative overflow-hidden shrink-0">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-6 lg:mb-8">
-            <div className="w-8 h-8 bg-[#312E81] rounded-lg flex items-center justify-center shadow-lg border border-white/10">
-              <div className="flex gap-1">
-                <div className="w-1 h-4.5 bg-white rounded-full"></div>
-                <div className="w-1 h-4.5 bg-white rounded-full"></div>
-              </div>
-            </div>
+            <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg shadow-lg" />
             <span className="text-lg font-black text-white tracking-tight">{settings?.brand_name || "NotifyNow"}</span>
           </div>
 
@@ -219,21 +216,7 @@ export default function Auth() {
 
           {/* Testimonial Box */}
           <div className="mt-auto">
-            <div className="bg-white/95 backdrop-blur-sm rounded-[20px] p-4 lg:p-5 max-w-xs shadow-xl border border-white/20">
-              <div className="flex gap-0.5 mb-2.5">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-2.5 h-2.5 fill-[#FFB300] text-[#FFB300]" />
-                ))}
-              </div>
-              <p className="text-[#1E293B] text-[11px] font-bold italic leading-relaxed mb-3">
-                "Excellent messaging platform with great support team. Campaign management is very easy to handle."
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="text-[#059669] font-black text-[9px]">Amit Patel</span>
-                <span className="text-slate-300 text-[9px]">|</span>
-                <span className="text-slate-500 font-bold text-[9px]">GrowthEdge</span>
-              </div>
-            </div>
+            <TestimonialSlider />
           </div>
 
           {/* Decorative Elements inside Panel */}

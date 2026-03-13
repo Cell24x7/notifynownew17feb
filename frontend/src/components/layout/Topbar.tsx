@@ -35,36 +35,36 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             </div>
 
             <div className="flex items-center gap-2 md:gap-4 ml-auto">
-                {/* Wallet Balance */}
-                <div className="flex items-center gap-2 md:gap-3 bg-slate-50 dark:bg-zinc-900 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl border border-slate-100 dark:border-zinc-800">
-                    <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg hidden sm:block">
-                        <Wallet className="h-4 w-4 md:h-5 md:w-5 text-emerald-600" />
+                {/* Wallet Balance - Polished clean look */}
+                <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md">
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
+                        <Wallet className="h-5 w-5 text-emerald-600" />
                     </div>
                     <div>
-                        <p className="text-[8px] md:text-[9px] uppercase font-bold text-slate-400 tracking-wider leading-none">Balance</p>
-                        <p className="text-sm md:text-lg font-bold text-slate-800 dark:text-zinc-100 font-mono leading-tight">₹{Number(user?.wallet_balance || 0).toFixed(2)}</p>
+                        <p className="text-[9px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-zinc-100 leading-tight">₹{Number(user?.wallet_balance || 0).toFixed(2)}</p>
                     </div>
-                    <button className="ml-1 md:ml-2 p-1.5 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all border border-slate-200 dark:border-zinc-700 shadow-sm hidden xs:flex">
-                        <Zap className="h-3 w-3 md:h-4 md:w-4 fill-amber-500 text-amber-500" />
+                    <button className="ml-2 p-1.5 bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all border border-slate-100 dark:border-zinc-700 hidden xs:flex">
+                        <Zap className="h-4 w-4 fill-amber-500 text-amber-500" />
                     </button>
                 </div>
 
-                {/* User Profile Dropdown */}
+                {/* User Profile Dropdown - Polished clean look */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <div className="flex items-center gap-2 bg-white dark:bg-zinc-950 px-2 py-1.5 md:px-3 md:py-2 rounded-2xl shadow-sm border border-slate-100 dark:border-zinc-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-900 transition-all active:scale-95 group">
-                            <div className="h-8 w-8 md:h-9 md:w-9 bg-primary/10 rounded-xl flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/20 shrink-0">
+                        <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-950 px-3 py-1.5 rounded-2xl shadow-sm border border-slate-100 dark:border-zinc-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-900 transition-all active:scale-95 group">
+                            <div className="h-9 w-9 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-600 font-bold overflow-hidden border border-emerald-100 dark:border-emerald-500/20 shrink-0">
                                 {user?.profile_image ? (
                                     <img src={user.profile_image} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (
-                                    user?.name?.charAt(0).toUpperCase() || <UserCircle className="h-5 w-5" />
+                                    <span className="text-lg font-black">{user?.name?.charAt(0).toUpperCase() || 'U'}</span>
                                 )}
                             </div>
                             <div className="hidden sm:block pr-1 select-none">
-                                <p className="text-xs font-bold text-slate-800 dark:text-zinc-100 leading-tight">{user?.name || 'User'}</p>
-                                <p className="text-[10px] text-slate-400 font-medium leading-none">{user?.role || 'Client'}</p>
+                                <p className="text-[13px] font-black text-slate-800 dark:text-zinc-100 leading-tight">{user?.name || 'User'}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide leading-none">{user?.role || 'Client'}</p>
                             </div>
-                            <ChevronDown className="h-3 w-3 text-slate-400 group-data-[state=open]:rotate-180 transition-transform" />
+                            <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-data-[state=open]:rotate-180 transition-transform" />
                         </div>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-64 p-2 rounded-2xl" align="end" sideOffset={8}>
