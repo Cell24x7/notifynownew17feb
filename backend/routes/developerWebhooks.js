@@ -184,8 +184,8 @@ router.post('/data', async (req, res) => {
         // 7. Log the outgoing message in the database
         try {
             await query(
-                'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
-                [targetUserId, 'API Bot', phone, waPayload.type === 'template' ? `Template: ${waPayload.template.name}` : messageText, sendSuccess ? 'sent' : 'failed', 'whatsapp']
+                'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type, campaign_id, campaign_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [targetUserId, 'API Bot', phone, waPayload.type === 'template' ? `Template: ${waPayload.template.name}` : messageText, sendSuccess ? 'sent' : 'failed', 'whatsapp', `CAMP_API_DEV_${Date.now()}`, 'Developer API Trigger']
             );
         } catch (dbErr) {
             console.error('Failed to log webhook message:', dbErr.message);
