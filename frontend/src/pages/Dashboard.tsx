@@ -3,7 +3,7 @@ import {
   MessageSquare, Users, Zap, Send, TrendingUp, TrendingDown,
   BarChart3, MessageCircle, Phone, Mail, Instagram, Facebook,
   Smartphone, Star, ArrowUpRight, ArrowDownRight, Bot,
-  UserCog, UserCircle, Activity
+  UserCog, UserCircle, Activity, CheckCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { API_BASE_URL } from '@/config/api';
