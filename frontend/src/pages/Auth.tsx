@@ -14,7 +14,7 @@ import { PasswordCreation } from '@/components/auth/PasswordCreation';
 import { WelcomePopup } from '@/components/auth/WelcomePopup';
 import { useBranding } from '@/contexts/BrandingContext';
 import { FeedbackDialog } from '@/components/auth/FeedbackDialog';
-import { FeedbackMarquee } from '@/components/auth/FeedbackMarquee';
+import { FeedbackBox } from '@/components/auth/FeedbackBox';
 
 export default function Auth() {
   const [activeTab, setActiveTab] = useState('login');
@@ -145,7 +145,6 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <FeedbackMarquee key={refreshKey} />
       
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 lg:h-[calc(100vh-40px)] lg:overflow-hidden">
         {/* Left Section */}
@@ -184,7 +183,7 @@ export default function Auth() {
                 <span className="font-semibold text-foreground">in one secure platform</span>.
               </p>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 mb-8">
                 <a
                   href="tel:+919892975484"
                   className="px-5 py-2.5 text-sm rounded-xl bg-primary text-white font-bold shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5 flex items-center gap-2"
@@ -195,11 +194,15 @@ export default function Auth() {
 
                 <a
                   href="mailto:notify@notifynow.in"
-                  className="px-5 py-2.5 text-sm rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all hover:-translate-y-0.5 flex items-center gap-2"
+                  className="px-5 py-2.5 text-sm rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all hover:-translate-y-0.5 flex items-center gap-2 whitespace-nowrap"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Email Now
                 </a>
+
+                <div className="hidden lg:block lg:flex-1 max-w-[320px]">
+                  <FeedbackBox key={refreshKey} />
+                </div>
               </div>
             </div>
           </div>
