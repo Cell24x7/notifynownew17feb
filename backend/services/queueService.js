@@ -98,10 +98,10 @@ const processQueue = async () => {
         // 1. Fetch pending items
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
-            COALESCE(c.template_name, mt.name, c.template_id) as template_name,
-            COALESCE(c.template_body, mt.body) as template_body,
-            COALESCE(c.template_type, mt.template_type) as template_type, 
-            COALESCE(c.template_metadata, mt.metadata) as template_metadata,
+            mt.name as template_name,
+            mt.body as template_body,
+            mt.template_type, 
+            mt.metadata as template_metadata,
             c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, c.variable_mapping,
             u.rcs_config_id, u.whatsapp_config_id, q.variables,
             rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 

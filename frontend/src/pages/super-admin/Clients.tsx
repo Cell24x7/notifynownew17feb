@@ -49,9 +49,12 @@ export default function SuperAdminClients() {
     channels_enabled: [] as string[],
     rcs_config_id: '',
     whatsapp_config_id: '',
-    rcs_text_price: 0.10,
-    rcs_rich_card_price: 0.15,
-    rcs_carousel_price: 0.20,
+    rcs_text_price: 1.00,
+    rcs_rich_card_price: 1.00,
+    rcs_carousel_price: 1.00,
+    wa_marketing_price: 1.00,
+    wa_utility_price: 1.00,
+    wa_authentication_price: 1.00,
   });
 
   // Fetch real plans
@@ -296,9 +299,12 @@ export default function SuperAdminClients() {
       channels_enabled: [],
       rcs_config_id: '',
       whatsapp_config_id: '',
-      rcs_text_price: 0.10,
-      rcs_rich_card_price: 0.15,
-      rcs_carousel_price: 0.20,
+      rcs_text_price: 1.00,
+      rcs_rich_card_price: 1.00,
+      rcs_carousel_price: 1.00,
+      wa_marketing_price: 1.00,
+      wa_utility_price: 1.00,
+      wa_authentication_price: 1.00,
     });
   }
 
@@ -324,9 +330,12 @@ export default function SuperAdminClients() {
       channels_enabled: clientChannels,
       rcs_config_id: client.rcs_config_id ? String(client.rcs_config_id) : '',
       whatsapp_config_id: client.whatsapp_config_id ? String(client.whatsapp_config_id) : '',
-      rcs_text_price: client.rcs_text_price || 0.10,
-      rcs_rich_card_price: client.rcs_rich_card_price || 0.15,
-      rcs_carousel_price: client.rcs_carousel_price || 0.20,
+      rcs_text_price: client.rcs_text_price || 1.00,
+      rcs_rich_card_price: client.rcs_rich_card_price || 1.00,
+      rcs_carousel_price: client.rcs_carousel_price || 1.00,
+      wa_marketing_price: client.wa_marketing_price || 1.00,
+      wa_utility_price: client.wa_utility_price || 1.00,
+      wa_authentication_price: client.wa_authentication_price || 1.00,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -346,9 +355,12 @@ export default function SuperAdminClients() {
       channels_enabled: parseChannels(client.channels_enabled),
       rcs_config_id: client.rcs_config_id ? String(client.rcs_config_id) : '',
       whatsapp_config_id: client.whatsapp_config_id ? String(client.whatsapp_config_id) : '',
-      rcs_text_price: client.rcs_text_price || 0.10,
-      rcs_rich_card_price: client.rcs_rich_card_price || 0.15,
-      rcs_carousel_price: client.rcs_carousel_price || 0.20,
+      rcs_text_price: client.rcs_text_price || 1.00,
+      rcs_rich_card_price: client.rcs_rich_card_price || 1.00,
+      rcs_carousel_price: client.rcs_carousel_price || 1.00,
+      wa_marketing_price: client.wa_marketing_price || 1.00,
+      wa_utility_price: client.wa_utility_price || 1.00,
+      wa_authentication_price: client.wa_authentication_price || 1.00,
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -896,6 +908,53 @@ export default function SuperAdminClients() {
                     disabled={modalMode === 'view'}
                   />
                   <p className="text-[10px] text-muted-foreground">Carousel/multi-card</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Section 5: WhatsApp Custom Pricing */}
+            <div className="space-y-4 pb-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> WhatsApp Custom Pricing (Per Message)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>Marketing (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={currentClient.wa_marketing_price}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, wa_marketing_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Marketing templates</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Utility (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={currentClient.wa_utility_price}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, wa_utility_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Utility/Operational</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Authentication (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={currentClient.wa_authentication_price}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, wa_authentication_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">OTP/Auth templates</p>
                 </div>
               </div>
             </div>

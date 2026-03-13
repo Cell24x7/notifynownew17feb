@@ -193,7 +193,10 @@ router.post('/login', async (req, res) => {
         rcs_carousel_price: user.rcs_carousel_price,
         rcs_config_id: user.rcs_config_id,
         whatsapp_config_id: user.whatsapp_config_id,
-        actual_reseller_id: user.actual_reseller_id
+        actual_reseller_id: user.actual_reseller_id,
+        wa_marketing_price: user.wa_marketing_price,
+        wa_utility_price: user.wa_utility_price,
+        wa_authentication_price: user.wa_authentication_price
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -219,7 +222,10 @@ router.post('/login', async (req, res) => {
         rcs_carousel_price: user.rcs_carousel_price,
         rcs_config_id: user.rcs_config_id,
         whatsapp_config_id: user.whatsapp_config_id,
-        actual_reseller_id: user.actual_reseller_id
+        actual_reseller_id: user.actual_reseller_id,
+        wa_marketing_price: user.wa_marketing_price,
+        wa_utility_price: user.wa_utility_price,
+        wa_authentication_price: user.wa_authentication_price
       }
     });
 
@@ -368,7 +374,10 @@ router.post('/signup', async (req, res) => {
         credits_available: finalUser.credits_available,
         rcs_text_price: finalUser.rcs_text_price,
         rcs_rich_card_price: finalUser.rcs_rich_card_price,
-        rcs_carousel_price: finalUser.rcs_carousel_price
+        rcs_carousel_price: finalUser.rcs_carousel_price,
+        wa_marketing_price: finalUser.wa_marketing_price,
+        wa_utility_price: finalUser.wa_utility_price,
+        wa_authentication_price: finalUser.wa_authentication_price
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -390,7 +399,10 @@ router.post('/signup', async (req, res) => {
         credits_available: finalUser.credits_available,
         rcs_text_price: finalUser.rcs_text_price,
         rcs_rich_card_price: finalUser.rcs_rich_card_price,
-        rcs_carousel_price: finalUser.rcs_carousel_price
+        rcs_carousel_price: finalUser.rcs_carousel_price,
+        wa_marketing_price: finalUser.wa_marketing_price,
+        wa_utility_price: finalUser.wa_utility_price,
+        wa_authentication_price: finalUser.wa_authentication_price
       }
     });
 

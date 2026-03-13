@@ -230,11 +230,23 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          const type = (selectedTemplate as any)?.template_type || (selectedTemplate as any)?.templateType || 'standard';
          const u = user as any;
          if (type === 'standard' || type === 'text_message') {
-            costPerMsg = parseFloat(u?.rcs_text_price) || 0.10;
+            costPerMsg = parseFloat(u?.rcs_text_price) || 1.00;
          } else if (type === 'rich_card' || type === 'rich-card') {
-            costPerMsg = parseFloat(u?.rcs_rich_card_price) || 0.15;
+            costPerMsg = parseFloat(u?.rcs_rich_card_price) || 1.00;
          } else if (type === 'carousel') {
-            costPerMsg = parseFloat(u?.rcs_carousel_price) || 0.20;
+            costPerMsg = parseFloat(u?.rcs_carousel_price) || 1.00;
+         }
+      } else if (campaignData.channel === 'whatsapp') {
+         const category = (selectedTemplate as any)?.category?.toLowerCase() || 'marketing';
+         const u = user as any;
+         if (category === 'marketing') {
+            costPerMsg = parseFloat(u?.wa_marketing_price) || 1.00;
+         } else if (category === 'utility') {
+            costPerMsg = parseFloat(u?.wa_utility_price) || 1.00;
+         } else if (category === 'authentication') {
+            costPerMsg = parseFloat(u?.wa_authentication_price) || 1.00;
+         } else {
+            costPerMsg = parseFloat(u?.wa_marketing_price) || 1.00;
          }
       }
       return costPerMsg;

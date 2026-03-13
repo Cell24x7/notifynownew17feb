@@ -10,7 +10,9 @@ const deductCampaignCredits = async (campaignId) => {
     try {
         // 1. Fetch campaign and user details
         const [campaigns] = await query(
-            `SELECT c.*, u.credits_available, u.wallet_balance, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price
+            `SELECT c.*, u.credits_available, u.wallet_balance, 
+                    u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
+                    u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price
              FROM campaigns c 
              JOIN users u ON c.user_id = u.id 
              WHERE c.id = ?`,
@@ -54,16 +56,36 @@ const deductCampaignCredits = async (campaignId) => {
             }
 
             if (templateType === 'standard' || templateType === 'text' || templateType === 'text_message') {
-                costPerMsg = parseFloat(campaign.rcs_text_price || 0.10);
+                costPerMsg = parseFloat(campaign.rcs_text_price || 1.00);
             } else if (templateType === 'rich_card' || templateType === 'rich-card') {
-                costPerMsg = parseFloat(campaign.rcs_rich_card_price || 0.15);
+                costPerMsg = parseFloat(campaign.rcs_rich_card_price || 1.00);
             } else if (templateType === 'carousel') {
-                costPerMsg = parseFloat(campaign.rcs_carousel_price || 0.20);
+                costPerMsg = parseFloat(campaign.rcs_carousel_price || 1.00);
             }
         } else if (channel === 'sms') {
             costPerMsg = 0.25; // Example fixed price for SMS
         } else if (channel === 'whatsapp') {
-            costPerMsg = 0.35; // Example fixed price for WhatsApp
+            // WhatsApp per-category pricing
+            let category = 'marketing';
+            const [tmpl] = await query(
+                'SELECT category FROM message_templates WHERE id = ? OR name = ? LIMIT 1',
+                [campaign.template_id || campaign.template_name, campaign.template_name || campaign.template_id]
+            );
+            
+            if (tmpl && tmpl.length > 0) {
+                category = (tmpl[0].category || 'marketing').toLowerCase();
+                console.log(`[WalletService] Found WhatsApp category: ${category} for campaign ${campaignId}`);
+            }
+
+            if (category === 'marketing') {
+                costPerMsg = parseFloat(campaign.wa_marketing_price || 1.00);
+            } else if (category === 'utility') {
+                costPerMsg = parseFloat(campaign.wa_utility_price || 1.00);
+            } else if (category === 'authentication') {
+                costPerMsg = parseFloat(campaign.wa_authentication_price || 1.00);
+            } else {
+                costPerMsg = parseFloat(campaign.wa_marketing_price || 1.00);
+            }
         }
 
         const totalCost = recipientCount * costPerMsg;

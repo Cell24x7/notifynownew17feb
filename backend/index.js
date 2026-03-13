@@ -125,7 +125,10 @@ runQueue();
 
 // Auto-create chat_flows table if it doesn't exist
 const { ensureChatFlowsTable } = require('./services/chatflowService');
+const { ensureWhatsAppPricingColumns } = require('./services/pricingService');
+
 ensureChatFlowsTable().catch(err => console.error('ChatFlow table init error:', err));
+ensureWhatsAppPricingColumns().catch(err => console.error('Pricing columns init error:', err));
 
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');
