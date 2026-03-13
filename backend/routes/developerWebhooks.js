@@ -181,11 +181,24 @@ router.post('/data', async (req, res) => {
             console.error(`❌ Failed to send WhatsApp message to ${phone}:`, sendErr.response?.data || sendErr.message);
         }
 
-        // 7. Log the outgoing message in the database
+        // 7. Log the outgoing message in the database (For Chat/Incoming views and for Dashboard Reports)
         try {
+            const apiCampaignId = `CAMP_API_DEV_${Date.now()}`;
+            const apiCampaignName = 'Developer API Trigger';
+            const templateName = waPayload.type === 'template' ? waPayload.template.name : 'Text Message';
+            const msgContent = waPayload.type === 'template' ? `Template: ${waPayload.template.name}` : messageText;
+            const finalStatus = sendSuccess ? 'sent' : 'failed';
+
+            // Insert into webhook_logs (for chat interface)
             await query(
                 'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type, campaign_id, campaign_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [targetUserId, 'API Bot', phone, waPayload.type === 'template' ? `Template: ${waPayload.template.name}` : messageText, sendSuccess ? 'sent' : 'failed', 'whatsapp', `CAMP_API_DEV_${Date.now()}`, 'Developer API Trigger']
+                [targetUserId, 'API Bot', phone, msgContent, finalStatus, 'whatsapp', apiCampaignId, apiCampaignName]
+            );
+
+            // Insert into message_logs (for Dashboard API Logs reporting)
+            await query(
+                'INSERT INTO message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+                [targetUserId, apiCampaignId, apiCampaignName, templateName, `DEV_${Date.now()}`, phone, finalStatus]
             );
         } catch (dbErr) {
             console.error('Failed to log webhook message:', dbErr.message);
