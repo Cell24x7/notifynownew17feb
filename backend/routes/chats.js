@@ -13,11 +13,12 @@ router.get('/conversations', authenticateToken, async (req, res) => {
 
     const sql = `
             SELECT 
-                contact_phone,
-                last_message_time,
-                message_content as last_message,
-                status,
-                type as channel
+                t.contact_phone,
+                t.last_message_time,
+                t.message_content as last_message,
+                t.status,
+                t.type as channel,
+                COALESCE(c.name, t.contact_phone) as name
             FROM (
                 SELECT 
                     CASE WHEN sender = 'System' THEN recipient ELSE sender END as contact_phone,
@@ -29,12 +30,15 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                 FROM webhook_logs
                 WHERE user_id = ?
             ) as t
-            WHERE rn = 1
-            ORDER BY last_message_time DESC
+            LEFT JOIN contacts c 
+                ON (c.phone = t.contact_phone OR c.phone = CONCAT('+', t.contact_phone) OR CONCAT('+', c.phone) = t.contact_phone)
+                AND c.user_id = ?
+            WHERE t.rn = 1
+            ORDER BY t.last_message_time DESC
         `;
 
         console.log(`🔍 Fetching conversations for user: ${userId}`);
-        const [conversations] = await query(sql, [userId]);
+        const [conversations] = await query(sql, [userId, userId]);
         console.log(`✅ Found ${conversations.length} conversations`);
         res.json({ success: true, data: conversations });
     } catch (error) {
