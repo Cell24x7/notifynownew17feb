@@ -105,6 +105,8 @@ app.use('/api/whatsapp-pinbot', require('./routes/whatsappPinbot'));
 app.use('/api/chatflows', require('./routes/chatflows'));
 app.use('/api/feedbacks', require('./routes/feedbacks'));
 
+// Developer Webhook Endpoint
+app.use('/webhook', require('./routes/developerWebhooks'));
 
 /* ==================================
    HEALTH & FRONTEND
