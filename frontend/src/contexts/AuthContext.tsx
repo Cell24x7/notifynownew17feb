@@ -14,9 +14,10 @@ interface User {
   role?: 'user' | 'admin' | 'superadmin' | 'reseller';
   contact_phone?: string;
   profile_picture?: string;
+  profile_image?: string;
   plan_id?: string;
   created_at?: string;
-  channels_enabled?: string[]; // Add this
+  channels_enabled?: string[];
   permissions?: any[];
   credits_available?: number;
   wallet_balance?: number;

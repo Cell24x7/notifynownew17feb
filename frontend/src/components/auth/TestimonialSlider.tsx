@@ -45,15 +45,14 @@ export function TestimonialSlider() {
   }, [feedbacks]);
 
   if (feedbacks.length === 0) {
-    // Fallback static testimonial while loading or if none found
     return (
-      <div className="bg-white rounded-[20px] p-4 lg:p-5 max-w-xs shadow-xl border border-slate-100">
-        <div className="flex gap-0.5 mb-2.5">
+      <div className="bg-white rounded-[20px] p-4 shadow-xl border border-slate-100 w-full">
+        <div className="flex gap-0.5 mb-2">
           {[...Array(5)].map((_, i) => (
             <Star key={i} className="w-2.5 h-2.5 fill-[#FFB300] text-[#FFB300]" />
           ))}
         </div>
-        <p className="text-[#1E293B] text-[11px] font-bold italic leading-relaxed mb-3">
+        <p className="text-[#1E293B] text-[10px] font-bold italic leading-relaxed mb-2.5">
           "Excellent messaging platform with great support team. Campaign management is very easy to handle."
         </p>
         <div className="flex items-center gap-2">
@@ -68,14 +67,14 @@ export function TestimonialSlider() {
   const current = feedbacks[currentIndex];
 
   return (
-    <div className={`transition-all duration-500 transform ${fade ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-      <div className="bg-white rounded-[20px] p-4 lg:p-5 max-w-xs shadow-xl border border-slate-100">
-        <div className="flex gap-0.5 mb-2.5">
+    <div className={`transition-all duration-500 transform w-full ${fade ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+      <div className="bg-white rounded-[20px] p-4 shadow-xl border border-slate-100 w-full">
+        <div className="flex gap-0.5 mb-2">
           {[...Array(5)].map((_, i) => (
             <Star key={i} className={`w-2.5 h-2.5 ${i < current.rating ? 'fill-[#FFB300] text-[#FFB300]' : 'text-slate-200'}`} />
           ))}
         </div>
-        <p className="text-[#1E293B] text-[11px] font-bold italic leading-relaxed mb-3">
+        <p className="text-[#1E293B] text-[10px] font-bold italic leading-relaxed mb-2.5">
           "{current.message}"
         </p>
         <div className="flex items-center gap-2">
