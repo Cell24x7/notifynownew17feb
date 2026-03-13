@@ -958,52 +958,74 @@ export default function Templates() {
         </div>
       </div>
 
-      {/* Channel Filter Pills */}
-      <div className="flex flex-wrap items-center gap-2">
-        {[
-          { key: 'all' as const, label: 'All Channels', count: allCount, icon: '📋', color: 'bg-primary/10 text-primary border-primary/20' },
-          { key: 'whatsapp' as const, label: 'WhatsApp', count: channelCounts.whatsapp, icon: '💬', color: 'bg-green-50 text-green-700 border-green-200' },
-          { key: 'rcs' as const, label: 'RCS', count: channelCounts.rcs, icon: '📱', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-          { key: 'sms' as const, label: 'SMS', count: channelCounts.sms, icon: '✉️', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-        ].map(ch => (
-          <button
-            key={ch.key}
-            onClick={() => setChannelFilter(ch.key)}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
-              channelFilter === ch.key
-                ? cn(ch.color, "ring-2 ring-offset-1 ring-primary/30 shadow-sm")
-                : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
-            )}
-          >
-            <span>{ch.icon}</span> {ch.label}
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[20px] justify-center">{ch.count}</Badge>
-          </button>
-        ))}
+      {/* Channel & Status Filter Control Center */}
+      <div className="flex flex-wrap items-center gap-3 bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+        {/* Channel Selection */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: 'all' as const, label: 'All Channels', count: allCount, icon: <FileText className="h-3.5 w-3.5" />, color: 'text-primary' },
+            { key: 'whatsapp' as const, label: 'WhatsApp', count: channelCounts.whatsapp, icon: <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />, color: 'text-emerald-600' },
+            { key: 'rcs' as const, label: 'RCS', count: channelCounts.rcs, icon: <Smartphone className="h-3.5 w-3.5 text-blue-500" />, color: 'text-blue-600' },
+            { key: 'sms' as const, label: 'SMS', count: channelCounts.sms, icon: <Send className="h-3.5 w-3.5 text-slate-500" />, color: 'text-slate-600' },
+          ].map(ch => (
+            <button
+              key={ch.key}
+              onClick={() => setChannelFilter(ch.key)}
+              className={cn(
+                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 border",
+                channelFilter === ch.key
+                  ? "bg-white border-primary/20 shadow-lg shadow-primary/5 text-primary"
+                  : "bg-transparent border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              )}
+            >
+              <span className="flex items-center justify-center">{ch.icon}</span>
+              {ch.label}
+              <Badge 
+                variant="secondary" 
+                className={cn(
+                  "text-[10px] px-1.5 py-0 h-4.5 min-w-[22px] flex items-center justify-center font-bold rounded-md transition-colors",
+                  channelFilter === ch.key ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
+                )}
+              >
+                {ch.count}
+              </Badge>
+            </button>
+          ))}
+        </div>
 
-        <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
+        <div className="w-px h-8 bg-slate-200 mx-2 hidden md:block" />
 
-        {/* Status Filter */}
-        {[
-          { key: 'all' as const, label: 'All Status', count: allCount },
-          { key: 'approved' as const, label: '✅ Approved', count: statusCounts.approved },
-          { key: 'pending' as const, label: '⏳ Pending', count: statusCounts.pending },
-          { key: 'rejected' as const, label: '❌ Rejected', count: statusCounts.rejected },
-        ].map(st => (
-          <button
-            key={st.key}
-            onClick={() => setStatusFilter(st.key)}
-            className={cn(
-              "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all",
-              statusFilter === st.key
-                ? "bg-foreground text-background border-foreground shadow-sm"
-                : "bg-muted/30 text-muted-foreground border-transparent hover:bg-muted"
-            )}
-          >
-            {st.label}
-            {st.count > 0 && <span className="opacity-60">({st.count})</span>}
-          </button>
-        ))}
+        {/* Status Selection */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: 'all' as const, label: 'All Status', icon: <Target className="h-3.5 w-3.5" />, count: allCount, activeColor: 'bg-slate-900 border-slate-900 text-white' },
+            { key: 'approved' as const, label: 'Approved', icon: <Check className="h-3.5 w-3.5" />, count: statusCounts.approved, activeColor: 'bg-emerald-500 border-emerald-500 text-white' },
+            { key: 'pending' as const, label: 'Pending', icon: <Clock className="h-3.5 w-3.5" />, count: statusCounts.pending, activeColor: 'bg-amber-500 border-amber-500 text-white' },
+            { key: 'rejected' as const, label: 'Rejected', icon: <AlertCircle className="h-3.5 w-3.5" />, count: statusCounts.rejected, activeColor: 'bg-rose-500 border-rose-500 text-white' },
+          ].map(st => (
+            <button
+              key={st.key}
+              onClick={() => setStatusFilter(st.key)}
+              className={cn(
+                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 border",
+                statusFilter === st.key
+                  ? cn(st.activeColor, "shadow-lg shadow-slate-200")
+                  : "bg-transparent border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              )}
+            >
+              <span className="flex items-center justify-center">{st.icon}</span>
+              {st.label}
+              {st.count > 0 && (
+                 <span className={cn(
+                   "text-[10px] font-bold opacity-80",
+                   statusFilter === st.key ? "text-white" : "text-slate-400"
+                 )}>
+                   ({st.count})
+                 </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Tabs value={templateSubTab} onValueChange={(v) => setTemplateSubTab(v as 'all' | 'pending')}>
