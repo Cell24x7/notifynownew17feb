@@ -70,30 +70,92 @@ router.post('/data', async (req, res) => {
             }
         };
 
-        // If you want to send a template instead, you can uncomment and modify this:
-        /*
-        waPayload = {
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: phone,
-            type: 'template',
-            template: {
-                name: 'your_template_name_here',
-                language: { code: 'en' },
-                components: [
-                    {
-                        type: "body",
-                        parameters: [
-                            { type: "text", text: customerDetail.firstName },
-                            { type: "text", text: String(orderNumber) }
+        // 5. Check if attachment exists and process it (PDF)
+        let hasAttachment = payload.attachment && payload.attachment.length > 0 && payload.attachment[0].Base64Content;
+        let pdfHandle = null;
+
+        if (hasAttachment && config.provider === 'vendor2') { // Only implemented for PinBot vendor currently
+            try {
+                console.log(`📎 Found attachment, uploading to PinBot...`);
+                // 5a. Convert base64 to buffer
+                const pdfBuffer = Buffer.from(payload.attachment[0].Base64Content, 'base64');
+                const fileLength = pdfBuffer.length;
+                const fileName = `${payload.attachment[0].Name || 'Document'}.pdf`;
+
+                // 5b. Create Upload Session
+                const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
+                    headers: { apikey: config.api_key },
+                    params: { file_length: fileLength, file_type: 'application/pdf' }
+                });
+                
+                const sessionId = sessionRes.data.id;
+                
+                // 5c. Upload File
+                const FormData = require('form-data');
+                const form = new FormData();
+                form.append('file', pdfBuffer, {
+                    filename: fileName,
+                    contentType: 'application/pdf'
+                });
+
+                const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}`, form, {
+                    headers: {
+                        apikey: config.api_key,
+                        ...form.getHeaders()
+                    }
+                });
+
+                pdfHandle = uploadRes.data.h; 
+                console.log(`✅ File uploaded successfully. Handle: ${pdfHandle}`);
+                
+                // 5d. Replace text payload with Template payload containing the attachment
+                // WARNING: You must replace 'your_pdf_template_name' with your actual approved meta template name
+                // that expects a Document header.
+                waPayload = {
+                    messaging_product: 'whatsapp',
+                    recipient_type: 'individual',
+                    to: phone,
+                    type: 'template',
+                    template: {
+                        name: 'the_great_escape_ticket', // Replace with your actual template name
+                        language: { code: 'en' },
+                        components: [
+                            {
+                                type: "header",
+                                parameters: [
+                                    {
+                                        type: "document",
+                                        document: {
+                                            file_name: fileName,
+                                            // Depending on API version, we send the media handle / link
+                                            link: PINBOT_BASE.replace('/v3', '') + `/media/${pdfHandle}` // PinBot usually accepts link if handle doesn't work directly in standard schema, or specifically `handle: pdfHandle` if supported.
+                                            // Fallback for Meta Graph API is object ID, but for Pinbot sending via link might be required, or we just pass the handle as id: pdfHandle
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                type: "body",
+                                parameters: [
+                                    { type: "text", text: customerDetail.firstName || 'Customer' },
+                                    { type: "text", text: String(orderNumber) }
+                                ]
+                            }
                         ]
                     }
-                ]
+                };
+                
+                // If Pinbot supports handle directly (usually it's 'link' or 'id')
+                // Let's use link pointing to the handle if standard
+                 waPayload.template.components[0].parameters[0].document.link = `https://partnersv1.pinbot.ai/media/${pdfHandle}`;
+                 
+            } catch (err) {
+                console.error('❌ Failed to upload PDF attachment:', err.response?.data || err.message);
+                // Fallback to text message if upload fails
             }
-        };
-        */
+        }
 
-        // 5. Send message using WhatsApp API
+        // 6. Send message using WhatsApp API
         let sendSuccess = false;
         
         try {
@@ -119,7 +181,7 @@ router.post('/data', async (req, res) => {
             console.error(`❌ Failed to send WhatsApp message to ${phone}:`, sendErr.response?.data || sendErr.message);
         }
 
-        // 6. Log the outgoing message in the database
+        // 7. Log the outgoing message in the database
         try {
             await query(
                 'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
@@ -129,7 +191,7 @@ router.post('/data', async (req, res) => {
             console.error('Failed to log webhook message:', dbErr.message);
         }
 
-        // 7. Send back success response to the developer who called the webhook
+        // 8. Send back success response to the developer who called the webhook
         res.status(200).json({ 
             success: true, 
             message: 'Data received and WhatsApp message triggered', 
