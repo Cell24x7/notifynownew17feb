@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Zap, Users, Loader2 } from 'lucide-react';
+import { Check, X, Zap, Users, Loader2, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +29,7 @@ type Plan = {
   status: 'active' | 'inactive';
 };
 
-export default function UserPlans() {
+export default function UserPlans({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,125 +96,119 @@ export default function UserPlans() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col flex-1 p-4 sm:p-8 space-y-10 max-w-full min-h-[calc(100vh-5rem)]">
+    <div className={cn(
+      "w-full h-full flex flex-col flex-1 max-w-full",
+      !embedded && "p-4 sm:p-8 space-y-10 min-h-[calc(100vh-5rem)]"
+    )}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Available Plans</h1>
-          <p className="text-muted-foreground text-base mt-1.5">
-            Choose a plan that scales with your business needs.
-          </p>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <CreditCard className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold uppercase tracking-widest text-primary">Subscription Intelligence</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Plans</h1>
+            <p className="text-muted-foreground text-base mt-1.5">
+              Choose a plan that scales with your business needs.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Loading / Empty / Error State */}
+      {/* Plans Grid */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <span className="ml-3 text-muted-foreground">Loading plans...</span>
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-primary opacity-50" />
+          <p className="mt-4 text-muted-foreground font-medium">Loading premium plans...</p>
         </div>
       ) : plans.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          No active plans available at the moment.
+        <div className="text-center py-20 bg-muted/20 rounded-3xl border-2 border-dashed">
+          <CreditCard className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+          <p className="text-muted-foreground font-medium">No active plans available at the moment.</p>
         </div>
       ) : (
-        /* Responsive Grid - Optimized for all devices */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch pt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
           {plans.map((plan) => (
             <Card
               key={plan.id}
               className={cn(
-                "group relative flex flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-muted/20 rounded-2xl",
-                plan.name?.toLowerCase() === 'professional' ? "border-primary/30 shadow-sm bg-primary/[0.01]" : "border-border/60"
+                "group relative flex flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-muted/20 rounded-3xl",
+                plan.name?.toLowerCase() === 'professional' ? "border-primary/30 shadow-md bg-white" : "bg-white"
               )}
             >
               {plan.name?.toLowerCase() === 'professional' && (
-                <div className="absolute top-0 right-0 bg-primary/10 text-primary font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-bl-xl border-b border-l border-primary/20 z-10">
-                  Popular
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-4 py-2 rounded-bl-2xl z-20">
+                  Most Popular
                 </div>
               )}
 
-              <CardHeader className="pb-4 pt-6 px-6">
-                <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-                  <CardTitle className="text-xl font-bold capitalize text-primary">{plan.name}</CardTitle>
+              <CardHeader className="pb-4 pt-8 px-8">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge variant="outline" className="px-3 py-1 rounded-full bg-primary/5 text-primary border-primary/10 text-[10px] uppercase tracking-wider font-bold">
+                    Subscription
+                  </Badge>
                 </div>
-                <div className="mt-1 flex items-baseline gap-1">
-                  <span className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
-                    {"\u20B9"}{Number(plan.price).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                <CardTitle className="text-2xl font-bold capitalize mb-1">{plan.name}</CardTitle>
+                <div className="flex items-baseline gap-1 mt-2">
+                  <span className="text-4xl font-black tracking-tight">
+                    {"\u20B9"}{Number(plan.price).toLocaleString('en-IN')}
                   </span>
-                  <span className="text-muted-foreground text-sm font-medium">/month</span>
+                  <span className="text-muted-foreground text-sm font-semibold">/month</span>
                 </div>
               </CardHeader>
 
-              <CardContent className="flex-1 flex flex-col gap-6 text-sm pb-8 px-6">
+              <CardContent className="flex-1 flex flex-col gap-8 px-8 pb-8">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                        <Zap className="w-4 h-4" />
+                  <div className="flex items-center gap-4 group/item">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 transition-colors group-hover/item:bg-emerald-100">
+                      <Zap className="w-5 h-5 fill-current" />
                     </div>
-                    <span className="text-muted-foreground font-medium">
-                      <strong className="text-foreground font-bold text-base">{(plan.monthlyCredits ?? 0).toLocaleString()}</strong> credits / mo
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <div className="p-2 rounded-lg bg-muted text-muted-foreground">
-                        <Users className="w-4 h-4" />
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{(plan.monthlyCredits ?? 0).toLocaleString()} Credits</p>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-tighter">Per month included</p>
                     </div>
-                    <span className="text-muted-foreground font-medium">
-                        <strong className="text-foreground font-bold text-base">{plan.clientCount ?? 1}</strong> clients included
-                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-4 group/item">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 transition-colors group-hover/item:bg-blue-100">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{plan.clientCount ?? 1} Client Accounts</p>
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-tighter">Maximum capacity</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border/40">
-                  <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-3">Enabled Channels</div>
-                  <div className="flex flex-wrap gap-2">
-                    {plan.channelsAllowed.length === 0 ? (
-                      <span className="text-muted-foreground/70 text-xs italic">No channels assigned</span>
-                    ) : (
-                      plan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs'].includes(c)).map((channel) => (
-                        <div
-                          key={channel}
-                          className="flex items-center gap-1.5 bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-primary/80"
-                        >
-                          <ChannelIcon channel={channel as any} className="w-3.5 h-3.5" />
-                          <span className="capitalize">{channel}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                <div className="space-y-4 pt-6 border-t border-slate-100">
+                   <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground font-medium">Automations</span>
+                      <span className="font-bold">{plan.automationLimit === -1 ? 'Unlimited' : plan.automationLimit}</span>
+                   </div>
+                   <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground font-medium">Campaigns</span>
+                      <span className="font-bold">{plan.campaignLimit === -1 ? 'Unlimited' : plan.campaignLimit}</span>
+                   </div>
+                   <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground font-medium">Channels</span>
+                      <div className="flex gap-1.5">
+                        {plan.channelsAllowed?.slice(0, 3).map(c => (
+                           <ChannelIcon key={c} channel={c as any} className="w-4 h-4 opacity-70" />
+                        ))}
+                      </div>
+                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border/40 space-y-3">
-                  <div className="flex justify-between items-center px-1">
-                    <span className="text-muted-foreground font-medium">Automations</span>
-                    <Badge variant="secondary" className="font-bold">{plan.automationLimit === -1 ? 'Unlimited' : plan.automationLimit}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center px-1">
-                    <span className="text-muted-foreground font-medium">Campaigns</span>
-                    <Badge variant="secondary" className="font-bold">{plan.campaignLimit === -1 ? 'Unlimited' : plan.campaignLimit}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center px-1">
-                    <span className="text-muted-foreground font-medium text-sm">API Access</span>
-                    <span>
-                      {plan.apiAccess ? (
-                        <div className="bg-emerald-500/10 text-emerald-600 p-1 rounded-full"><Check className="w-4 h-4" /></div>
-                      ) : (
-                        <div className="bg-muted text-muted-foreground p-1 rounded-full"><X className="w-4 h-4" /></div>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-auto pt-6">
+                <div className="mt-auto">
                   <Button
-                    className={cn("w-full h-11 rounded-xl shadow-md active:scale-[0.98] transition-all font-bold",
-                      plan.name?.toLowerCase() === 'professional' ? "gradient-primary text-primary-foreground border-none" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    className={cn(
+                      "w-full h-12 rounded-2xl font-bold text-sm transition-all active:scale-[0.98]",
+                      plan.name?.toLowerCase() === 'professional' ? "gradient-primary shadow-lg shadow-primary/20" : "bg-slate-900 hover:bg-slate-800 text-white"
                     )}
                     onClick={() => handleViewDetails(plan)}
                   >
-                    View Details & Buy
+                    Get Started
                   </Button>
                 </div>
               </CardContent>

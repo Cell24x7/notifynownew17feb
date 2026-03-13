@@ -30,7 +30,7 @@ import logo from '@/assets/logo.svg';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard', permission: 'Dashboard - View' },
-  { icon: CreditCard, label: 'User Plans', path: '/super-admin/plans', permission: 'Plans - View' },
+  { icon: CreditCard, label: 'Plans', path: '/super-admin/plans', permission: 'Plans - View' },
   { icon: Building2, label: 'Clients', path: '/super-admin/clients', permission: 'Clients - View' },
   { 
     icon: ScrollText, 

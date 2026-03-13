@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Plus, Mail, Bot, Settings2, Globe, Lock } from 'lucide-react';
+import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Plus, Mail, Bot, Settings2, Globe, Lock, CreditCard } from 'lucide-react';
+import UserPlans from './UserPlans';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -195,7 +196,10 @@ export default function Settings() {
               <Lock className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
-
+            <TabsTrigger value="plans" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <CreditCard className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Plans</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -365,6 +369,13 @@ export default function Settings() {
         {/* Security Tab */}
         <TabsContent value="security">
           <SecuritySettings />
+        </TabsContent>
+
+        {/* Plans Tab */}
+        <TabsContent value="plans">
+          <div className="pt-4">
+            <UserPlans embedded={true} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
