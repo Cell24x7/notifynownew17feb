@@ -25,8 +25,8 @@ router.post('/data', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing customer phone number' });
         }
 
-        // 1. Target User ID (You can change this based on your logic, currently hardcoded for user 34)
-        const targetUserId = 34; // This is the user ID for your specific developer integration
+        // 1. Target User ID (You can change this based on your logic, currently hardcoded for user 1)
+        const targetUserId = 1; // This is the user ID for your specific developer integration
 
         // 2. Format the phone number (Ensure it has country code)
         let phone = customerDetail.phoneNumber.toString();
