@@ -17,7 +17,8 @@ import {
   LogOut,
   FileText,
   MessageSquareMore,
-  MessageCircle
+  MessageCircle,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -29,14 +30,23 @@ import logo from '@/assets/logo.svg';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard', permission: 'Dashboard - View' },
+  { icon: CreditCard, label: 'User Plans', path: '/super-admin/plans', permission: 'Plans - View' },
   { icon: Building2, label: 'Clients', path: '/super-admin/clients', permission: 'Clients - View' },
-
-  { icon: CreditCard, label: 'Plans', path: '/super-admin/plans', permission: 'Plans - View' },
-  { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
+  { 
+    icon: ScrollText, 
+    label: 'Reports', 
+    path: '/super-admin/reports', 
+    permission: 'Reports - View',
+    subItems: [
+      { label: 'Summary Report', path: '/super-admin/reports?tab=summary' },
+      { label: 'Detailed Report', path: '/super-admin/reports?tab=detailed' },
+      { label: 'API Report', path: '/super-admin/reports?tab=api' }
+    ]
+  },
   { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
   { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
   { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
-  { icon: ScrollText, label: 'Reports', path: '/super-admin/reports', permission: 'Reports - View' },
+  { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
   { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'Vendors - View' },
   { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'Vendors - View' },
@@ -51,6 +61,7 @@ interface SuperAdminSidebarProps {
 export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith('/super-admin/reports'));
   const { logout, user } = useAuth();
 
   const hasPermission = (feature: string) => {
@@ -92,10 +103,52 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto" onClick={onClose}>
         <ul className="space-y-1 px-2">
-          {menuItems.map((item) => {
+          {menuItems.map((item: any) => {
             if (!hasPermission(item.permission)) return null;
 
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || (item.subItems && item.subItems.some((si: any) => location.pathname + location.search === si.path));
+            
+            if (item.subItems && !collapsed) {
+              return (
+                <li key={item.label}>
+                  <button
+                    onClick={() => setReportsOpen(!reportsOpen)}
+                    className={cn(
+                      'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <span>{item.label}</span>
+                    </div>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", reportsOpen && "rotate-180")} />
+                  </button>
+                  {reportsOpen && (
+                    <ul className="pl-11 mt-1 space-y-1">
+                      {item.subItems.map((sub: any) => (
+                        <li key={sub.path}>
+                          <NavLink
+                            to={sub.path}
+                            className={() => cn(
+                              'block py-2 text-[13px] font-medium transition-colors rounded-lg px-2',
+                              (location.pathname + location.search === sub.path)
+                                ? 'text-primary font-bold'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            )}
+                          >
+                            {sub.label}
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            }
+
             return (
               <li key={item.path}>
                 <NavLink

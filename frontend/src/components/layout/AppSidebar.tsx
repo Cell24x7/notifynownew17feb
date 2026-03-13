@@ -9,6 +9,7 @@ import {
   Puzzle,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   LogOut,
   Wallet,
   Plus,
@@ -18,11 +19,11 @@ import {
   Sun,
   UserCircle,
   BarChart3,
-  ChevronDown,
   ShoppingCart,
   FileText,
   Globe,
   Bot,
+  ListFilter
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -45,6 +46,7 @@ interface AppSidebarProps {
 export function AppSidebar({ onClose }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith('/reports'));
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -78,19 +80,29 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: true },
-    { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
-    { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
+    { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: FileText, label: 'Templates', path: '/templates', show: true },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
+    { 
+      icon: BarChart3, 
+      label: 'Reports', 
+      path: '/reports', 
+      show: hasPermission('Reports - View') || true,
+      subItems: [
+        { label: 'Summary Report', path: '/reports?tab=summary' },
+        { label: 'Detailed Report', path: '/reports?tab=detailed' },
+        { label: 'API Report', path: '/reports?tab=api' }
+      ]
+    },
+    { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
+    { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
     { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: true },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Bot, label: 'Chatflows', path: '/chatflows', show: true },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
-    { icon: BarChart3, label: 'Reports', path: '/reports', show: hasPermission('Reports - View') || true }, // Default true for now as requested by user
     { icon: Users, label: 'Manage Users', path: '/reseller/users', show: user?.role === 'reseller' },
     { icon: Globe, label: 'White-labeling', path: '/reseller/branding', show: user?.role === 'reseller' },
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: true },
-    { icon: Package, label: 'User Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: true },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
@@ -142,10 +154,51 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
       {/* Navigation – text hamesha dikhega mobile pe */}
       <nav className="flex-1 px-2 py-5 space-y-1 overflow-y-auto" onClick={onClose}>
-        {navItems.filter(item => item.show).map((item) => {
+        {navItems.filter(item => item.show).map((item: any) => {
           const isActive =
             location.pathname === item.path ||
-            location.pathname.startsWith(`${item.path}/`);
+            location.pathname.startsWith(`${item.path}/`) ||
+            (item.subItems && item.subItems.some((si: any) => location.pathname + location.search === si.path));
+
+          if (item.subItems) {
+            return (
+              <div key={item.label} className="space-y-1">
+                <button
+                  onClick={() => setReportsOpen(!reportsOpen)}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </div>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", reportsOpen && "rotate-180")} />
+                </button>
+                {reportsOpen && (
+                  <div className="pl-11 space-y-1 mt-1">
+                    {item.subItems.map((sub: any) => (
+                      <NavLink
+                        key={sub.path}
+                        to={sub.path}
+                        className={({ isActive: subIsActive }) => cn(
+                          'block py-2 text-[13px] font-medium rounded-md transition-all',
+                          (location.pathname + location.search === sub.path)
+                            ? 'text-primary font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {sub.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
 
           return (
             <NavLink

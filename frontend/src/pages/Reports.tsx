@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight, BarChart3, CheckCircle, XCircle, TrendingUp, ListFilter } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 
@@ -59,6 +60,7 @@ const downloadCsv = (content: string, filename: string) => {
 
 export default function Reports() {
     const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
     const [summaryPage, setSummaryPage] = useState(1);
@@ -74,7 +76,13 @@ export default function Reports() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [channelFilter, setChannelFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState('summary');
+    
+    // Read from URL
+    const activeTab = searchParams.get('tab') || 'summary';
+    const setActiveTab = (tab: string) => {
+        setSearchParams({ tab });
+    };
+    
     const [autoRefresh] = useState(true); // Mandatory auto-refresh
 
     useEffect(() => {
@@ -282,55 +290,103 @@ export default function Reports() {
     };
 
     return (
-        <div className="h-full flex flex-col space-y-6 p-8">
+        <div className="h-full flex flex-col space-y-6 p-8 bg-slate-50/30">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">MIS Log Analytics</h1>
-                    <p className="text-muted-foreground">Monitor campaign performance and delivery logs</p>
+                    <h1 className="text-3xl font-black tracking-tight text-slate-900">Campaign Analytics</h1>
+                    <p className="text-slate-500 font-medium">Real-time performance and delivery intelligence</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="default" size="sm" onClick={handleExport} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={handleRefresh} className="bg-white border-slate-200">
+                      Refresh Data
+                    </Button>
+                    <Button variant="default" size="sm" onClick={handleExport} className="gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-md">
                         <Download className="h-4 w-4" />
-                        Export CSV
+                        Export Data
                     </Button>
                 </div>
             </div>
 
-            <Card>
-                <CardHeader className="pb-3 px-6">
-                    <CardTitle className="text-sm font-medium">Filters</CardTitle>
+            {/* Top Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+               <Card className="rounded-xl border-slate-200 shadow-sm border-l-4 border-l-blue-500">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2 bg-blue-50 rounded-lg"><TrendingUp className="h-5 w-5 text-blue-600" /></div>
+                     <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">Total Volume</p>
+                        <h3 className="text-xl font-black text-slate-900">{summaryTotal.toLocaleString()}</h3>
+                     </div>
+                  </CardContent>
+               </Card>
+               <Card className="rounded-xl border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2 bg-emerald-50 rounded-lg"><CheckCircle className="h-5 w-5 text-emerald-600" /></div>
+                     <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">Delivered</p>
+                        <h3 className="text-xl font-black text-slate-900">
+                           {reports.reduce((acc, r) => acc + (r.delivered_count || 0), 0).toLocaleString()}
+                        </h3>
+                     </div>
+                  </CardContent>
+               </Card>
+               <Card className="rounded-xl border-slate-200 shadow-sm border-l-4 border-l-rose-500">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2 bg-rose-50 rounded-lg"><XCircle className="h-5 w-5 text-rose-600" /></div>
+                     <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">Failed</p>
+                        <h3 className="text-xl font-black text-slate-900">
+                           {reports.reduce((acc, r) => acc + (r.failed_count || 0), 0).toLocaleString()}
+                        </h3>
+                     </div>
+                  </CardContent>
+               </Card>
+               <Card className="rounded-xl border-slate-200 shadow-sm bg-gradient-to-br from-indigo-600 to-indigo-800 text-white">
+                  <CardContent className="p-4 flex items-center gap-4 h-full">
+                     <div className="p-2 bg-white/10 rounded-lg"><Search className="h-5 w-5 text-white" /></div>
+                     <div>
+                        <p className="text-[11px] font-bold text-indigo-100 uppercase">Search Active</p>
+                        <h3 className="text-xl font-black">{searchQuery ? 'Filtered' : 'All Data'}</h3>
+                     </div>
+                  </CardContent>
+               </Card>
+            </div>
+
+            <Card className="rounded-xl border-slate-200 shadow-sm bg-white overflow-hidden">
+                <CardHeader className="py-2.5 px-6 border-b bg-slate-50/50">
+                    <CardTitle className="text-[11px] font-black text-slate-400 uppercase flex items-center gap-2">
+                      <ListFilter className="h-3 w-3" /> Search & Filters
+                    </CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-wrap gap-4 px-6 pb-4">
+                <CardContent className="flex flex-wrap items-center gap-4 px-6 py-4">
                     <div className="flex items-center gap-2">
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button
                                     variant={"outline"}
                                     className={cn(
-                                        "w-[200px] justify-start text-left font-normal",
-                                        !startDate && "text-muted-foreground"
+                                        "w-[180px] h-9 justify-start text-left font-semibold text-xs border-slate-200 bg-slate-50/30",
+                                        !startDate && "text-slate-400"
                                     )}
                                 >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                                    {startDate ? format(startDate, "dd MMM yyyy") : <span>Start Date</span>}
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
                                 <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
                             </PopoverContent>
                         </Popover>
-                        <span className="text-muted-foreground">-</span>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button
                                     variant={"outline"}
                                     className={cn(
-                                        "w-[200px] justify-start text-left font-normal",
-                                        !endDate && "text-muted-foreground"
+                                        "w-[180px] h-9 justify-start text-left font-semibold text-xs border-slate-200 bg-slate-50/30",
+                                        !endDate && "text-slate-400"
                                     )}
                                 >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {endDate ? format(endDate, "PPP") : <span>End Date</span>}
+                                    {endDate ? format(endDate, "dd MMM yyyy") : <span>End Date</span>}
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
@@ -342,16 +398,16 @@ export default function Reports() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
-                                className="text-xs h-8"
+                                className="text-rose-500 font-bold text-[10px] h-8 px-2 hover:bg-rose-50"
                             >
-                                Clear Dates
+                                Reset
                             </Button>
                         )}
                     </div>
 
                     <div className="flex items-center gap-2">
                         <Select value={channelFilter} onValueChange={setChannelFilter}>
-                            <SelectTrigger className="w-[180px]">
+                            <SelectTrigger className="w-[150px] h-9 text-xs font-semibold border-slate-200 bg-slate-50/30">
                                 <SelectValue placeholder="All Channels" />
                             </SelectTrigger>
                             <SelectContent>
@@ -361,14 +417,13 @@ export default function Reports() {
                                 <SelectItem value="sms">SMS</SelectItem>
                             </SelectContent>
                         </Select>
-
                     </div>
 
                     <div className="flex-1 max-w-sm relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
                         <Input
-                            placeholder="Search recipient, campaign, template..."
-                            className="pl-9"
+                            placeholder="Search mobile, campaign..."
+                            className="pl-9 h-9 text-xs font-semibold border-slate-200 bg-slate-50/30 placeholder:text-slate-300"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -376,62 +431,64 @@ export default function Reports() {
                 </CardContent>
             </Card>
 
-            <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <TabsList className="grid w-[600px] grid-cols-3">
-                    <TabsTrigger value="summary">Summary Report</TabsTrigger>
-                    <TabsTrigger value="detailed">Detailed Reports</TabsTrigger>
-                    <TabsTrigger value="api">API Logs</TabsTrigger>
+            <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col pt-2">
+                <TabsList className="bg-slate-100 p-1 rounded-xl w-fit h-11 mb-2 border border-slate-200/50">
+                    <TabsTrigger value="summary" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Summary Report</TabsTrigger>
+                    <TabsTrigger value="detailed" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Detailed Reports</TabsTrigger>
+                    <TabsTrigger value="api" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">API Logs</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
 
-                    <Card className="flex-1 overflow-hidden">
+                    <Card className="flex-1 overflow-hidden border-slate-200 shadow-md rounded-xl">
                         <CardContent className="p-0">
                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Campaign Name</TableHead>
-                                        <TableHead>Channel</TableHead>
-                                        <TableHead>Template</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead className="text-right">Total</TableHead>
-                                        <TableHead className="text-right text-blue-600">Sent</TableHead>
-                                        <TableHead className="text-right text-green-600">Deliv.</TableHead>
-                                        <TableHead className="text-right text-purple-600">Read</TableHead>
-                                        <TableHead className="text-right text-red-600">Failed</TableHead>
+                                <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest pl-6">Campaign Name</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest">Channel</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest">Template</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest">Date</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right">Total</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-indigo-600">Sent</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-emerald-600">Deliv.</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-purple-600">Read</TableHead>
+                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-rose-600 pr-6">Failed</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
                                         <TableRow><TableCell colSpan={9} className="text-center py-10">Loading reports...</TableCell></TableRow>
                                     ) : filteredReports.length === 0 ? (
-                                        <TableRow><TableCell colSpan={9} className="text-center py-10">No reports found.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={9} className="text-center py-10 text-slate-400 font-medium">No reports found.</TableCell></TableRow>
                                     ) : (
                                         filteredReports.map((report: any) => (
-                                            <TableRow key={report.id}>
-                                                <TableCell className="font-medium">
+                                            <TableRow key={report.id} className="hover:bg-slate-50/50 transition-colors h-14">
+                                                <TableCell className="font-bold text-slate-900 pl-6">
                                                     <div className="flex flex-col gap-1">
                                                         <span>{report.name}</span>
                                                         {report.id?.startsWith('CAMP_API_') ? (
-                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200">API Run</Badge>
+                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 px-1 py-0 uppercase font-black">API</Badge>
                                                         ) : (
-                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-slate-50 text-slate-600 border-slate-200">Manual Run</Badge>
+                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-slate-50 text-slate-600 border-slate-200 px-1 py-0 uppercase font-black">Manual</Badge>
                                                         )}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="outline" className={cn("uppercase font-bold text-[10px] tracking-wider", report.channel === 'whatsapp' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200')}>{report.channel || 'RCS'}</Badge>
+                                                    <Badge className={cn("uppercase font-black text-[9px] tracking-tighter rounded-md h-5 px-1.5", report.channel === 'whatsapp' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200')}>{report.channel || 'RCS'}</Badge>
                                                 </TableCell>
-                                                <TableCell className="font-mono text-[10px]">{report.template_id}</TableCell>
-                                                <TableCell className="text-muted-foreground leading-tight">
-                                                    {format(new Date(report.created_at), 'dd MMM yy')}<br />
-                                                    <span className="text-[10px]">{format(new Date(report.created_at), 'HH:mm')}</span>
+                                                <TableCell className="font-mono text-[10px] text-slate-500 font-bold">{report.template_id}</TableCell>
+                                                <TableCell className="leading-tight">
+                                                    <div className="flex flex-col">
+                                                      <span className="text-slate-900 font-bold text-xs">{format(new Date(report.created_at), 'dd MMM yy')}</span>
+                                                      <span className="text-[10px] text-slate-400 font-bold">{format(new Date(report.created_at), 'HH:mm')}</span>
+                                                    </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-semibold">{report.recipient_count}</TableCell>
-                                                <TableCell className="text-right text-blue-600">{report.sent_count}</TableCell>
-                                                <TableCell className="text-right text-green-600">{report.delivered_count}</TableCell>
-                                                <TableCell className="text-right text-purple-600">{report.read_count}</TableCell>
-                                                <TableCell className="text-right text-red-600">{report.failed_count}</TableCell>
+                                                <TableCell className="text-right font-black text-slate-900 text-[13px]">{report.recipient_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-indigo-600 font-black text-[13px]">{report.sent_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-emerald-600 font-black text-[13px]">{report.delivered_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-purple-600 font-black text-[13px]">{report.read_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-rose-600 font-black text-[13px] pr-6">{report.failed_count.toLocaleString()}</TableCell>
                                             </TableRow>
                                         ))
                                     )}

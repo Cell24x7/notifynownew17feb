@@ -538,68 +538,72 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Table Section */}
-      <Card className="rounded-xl border-slate-200 shadow-sm overflow-hidden">
-        <CardHeader className="bg-white pb-4 pt-6 border-b border-slate-100">
+      {/* Recent Campaign Activity Section */}
+      <Card className="rounded-xl border-slate-200 shadow-sm overflow-hidden mb-8">
+        <CardHeader className="bg-white pb-4 pt-6 border-b border-slate-100 flex flex-row items-center justify-between">
           <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Users className="h-5 w-5 text-emerald-600" /> Agent Performance Analytics
+            <Send className="h-5 w-5 text-indigo-600" /> Today's Campaign Activity
           </CardTitle>
+          <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100">Live Updating</Badge>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-white border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                <th className="py-4 px-6">Agent</th>
-                <th className="py-4 px-4 text-center">Assigned</th>
-                <th className="py-4 px-4 text-center">Closed</th>
-                <th className="py-4 px-4 text-center">Open</th>
-                <th className="py-4 px-4 text-center">Rating</th>
-                <th className="py-4 px-4 text-center">First Response</th>
-                <th className="py-4 px-4 text-center">Avg Response</th>
-                <th className="py-4 px-4 text-center">Avg Closing</th>
-                <th className="py-4 px-6 text-center">Resolution Rate</th>
+                <th className="py-4 px-6">Campaign Name</th>
+                <th className="py-4 px-4 text-center">Channel</th>
+                <th className="py-4 px-4 text-center">Total Recipient</th>
+                <th className="py-4 px-4 text-center">Sent</th>
+                <th className="py-4 px-4 text-center">Delivered</th>
+                <th className="py-4 px-4 text-center">Read</th>
+                <th className="py-4 px-4 text-center">Failed</th>
+                <th className="py-4 px-6 text-center">Progress</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {agentsData.map((agent, idx) => (
-                <tr key={idx} className="bg-white hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("h-9 w-9 rounded-full flex justify-center items-center font-bold text-xs", agent.bg)}>
-                        {agent.initials}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900 text-[13px]">{agent.name}</p>
-                        <Badge className={cn("text-[9px] px-1.5 py-0 rounded border-none hover:bg-transparent mt-0.5", agent.statusColor)}>
-                          {agent.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-center font-bold text-slate-800 text-xs">{agent.assigned}</td>
-                  <td className="py-4 px-4 text-center font-bold text-emerald-500 text-xs">{agent.closed}</td>
-                  <td className="py-4 px-4 text-center font-bold text-amber-500 text-xs">{agent.open}</td>
-                  <td className="py-4 px-4 text-center">
-                    <div className="flex items-center justify-center gap-1 font-bold text-slate-800 text-xs">
-                      <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> {agent.rating}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-center font-semibold text-emerald-500 text-xs">{agent.firstRes}</td>
-                  <td className="py-4 px-4 text-center font-semibold text-slate-500 text-xs">{agent.avgRes}</td>
-                  <td className="py-4 px-4 text-center font-semibold text-slate-500 text-xs">
-                    {/* The design splits avg closing into two lines for some reason based on width, we just show simple */}
-                    <div className="w-10 mx-auto leading-tight">{agent.avgClose}</div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden min-w-[60px]">
-                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${agent.rate}%` }}></div>
-                      </div>
-                      <span className="font-bold text-emerald-500 text-xs">{agent.rate}%</span>
-                    </div>
+              {!stats?.recentCampaigns || stats.recentCampaigns.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-10 text-center text-slate-400 font-medium">
+                    No campaign activity recorded today.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                stats.recentCampaigns.map((camp: any, idx: number) => {
+                  const progress = camp.recipient_count > 0 
+                    ? Math.round(((camp.sent_count + camp.failed_count) / camp.recipient_count) * 100) 
+                    : 0;
+                  
+                  return (
+                    <tr key={idx} className="bg-white hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col">
+                          <p className="font-bold text-slate-900 text-[13px]">{camp.name}</p>
+                          <span className="text-[10px] text-slate-400 font-medium">{format(new Date(camp.created_at), 'HH:mm')} • {camp.template_id}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <Badge className={cn("text-[9px] px-1.5 py-0 rounded uppercase font-black border-none", 
+                          camp.channel === 'whatsapp' ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700")}>
+                          {camp.channel || 'RCS'}
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-4 text-center font-black text-slate-900 text-xs">{camp.recipient_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-bold text-indigo-600 text-xs">{camp.sent_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-bold text-emerald-600 text-xs">{camp.delivered_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-bold text-purple-600 text-xs">{camp.read_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-bold text-rose-600 text-xs">{camp.failed_count?.toLocaleString()}</td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden min-w-[80px] shadow-inner">
+                            <div className={cn("h-full rounded-full transition-all duration-500", progress === 100 ? "bg-emerald-500" : "bg-indigo-500")} style={{ width: `${progress}%` }}></div>
+                          </div>
+                          <span className="font-black text-slate-900 text-[11px] tabular-nums">{progress}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
