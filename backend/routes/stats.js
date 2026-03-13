@@ -160,12 +160,47 @@ router.get('/super-admin', authenticate, async (req, res) => {
             balance: Number(u.credits_available)
         }));
 
+        // 9. Detailed Channel Stats for Admin (Aggregated)
+        const [aggChannelData] = await query(`
+            SELECT 
+                channel, 
+                SUM(audience_count) as volume,
+                SUM(delivered_count) as delivered,
+                SUM(read_count) as read_count,
+                SUM(failed_count) as failed
+            FROM campaigns 
+            WHERE status IN ('completed', 'running')
+            ${isReseller ? 'AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)' : ''}
+            GROUP BY channel
+        `, isReseller ? [resellerId] : []);
+
+        const channelStatsMap = {};
+        const channelDist = {};
+        aggChannelData.forEach(row => {
+            const key = row.channel.toLowerCase();
+            const volume = Number(row.volume || 0);
+            const delivered = Number(row.delivered || 0);
+            const read = Number(row.read_count || 0);
+            const failed = Number(row.failed || 0);
+
+            channelDist[key] = volume;
+            channelStatsMap[key] = {
+                totalMessages: volume,
+                delivered: delivered,
+                read: read,
+                failed: failed,
+                deliveryRate: volume > 0 ? ((delivered / volume) * 100).toFixed(1) : "0",
+                readRate: delivered > 0 ? ((read / delivered) * 100).toFixed(1) : "0"
+            };
+        });
+
         res.json({
             success: true,
             stats: {
                 totalClients: userCounts[0]?.total || 0,
                 activeClients: activeClientCounts[0]?.total || 0,
                 activePlans: planCounts[0]?.total || 0,
+                totalConversations: Number(msgStats[0]?.total || 0), // Match frontend key
                 totalMessagesProcessed: Number(msgStats[0]?.total || 0),
                 messagesToday: Number(msgStats[0]?.today || 0),
                 revenueTotal: Number(finStats[0]?.total_revenue || 0),
@@ -173,14 +208,26 @@ router.get('/super-admin', authenticate, async (req, res) => {
                 revenueMonth: Number(finStats[0]?.revenue_month || 0),
                 creditsConsumedToday: Number(creditStats[0]?.consumed_today || 0),
                 creditsConsumedMonth: Number(creditStats[0]?.consumed_month || 0),
+                weeklyChats: weeklyMessages.map(m => ({ day: m.day, count: m.messages })), // Match frontend key
                 weeklyMessages,
                 channelUsage,
+                channelStats: channelStatsMap,
+                channelDistribution: channelDist,
+                channelPercentages: Object.entries(channelDist).map(([key, value]) => ({
+                    name: key.charAt(0).toUpperCase() + key.slice(1),
+                    value: Number(value)
+                })),
                 planDistribution,
                 topClients,
+                activeChats: 0, 
+                automationsTriggered: 0,
+                campaignsSent: Number(msgStats[0]?.total > 0 ? 1 : 0), // Placeholder or add count(*) from campaigns
+                openChats: 0,
+                closedChats: Number(msgStats[0]?.total || 0),
                 today: {
                     messages: Number(msgStats[0]?.today || 0),
                     revenue: Number(finStats[0]?.revenue_today || 0),
-                    clientsAdded: 0 // Could add a query for this if needed
+                    clientsAdded: 0 
                 }
             }
         });

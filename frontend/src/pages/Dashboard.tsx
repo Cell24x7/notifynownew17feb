@@ -58,12 +58,17 @@ export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('All');
 
-  // Fetch real stats to simulate "live" updates for top cards
+  // Fetch real stats based on Role
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        const res = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
+        if (!token || !user) return;
+
+        const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.role === 'reseller';
+        const endpoint = isAdmin ? '/api/dashboard/super-admin' : '/api/dashboard/stats';
+
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -72,6 +77,7 @@ export default function Dashboard() {
         }
       } catch (err) { }
     };
+    
     fetchStats();
     
     // Live update simulation interval
@@ -79,7 +85,7 @@ export default function Dashboard() {
         fetchStats();
     }, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   const totalConvos = stats?.totalConversations || 0;
   const campaignsSent = stats?.campaignsSent || 0;
@@ -123,8 +129,15 @@ export default function Dashboard() {
   const humanHandled = totalMessages - botHandled;
   const avgDeliveryRate = totalMessages > 0 ? ((totalDelivered / totalMessages) * 100).toFixed(1) + '%' : '0%';
 
-  // Update small mini channel cards
-  const dynamicChannelCards = channelCardsData.map(c => {
+  // Update and Filter small mini channel cards (Only show active ones)
+  const dynamicChannelCards = channelCardsData.filter(c => {
+    if (stats && stats.channelStats) {
+       const s = stats.channelStats[c.name.toLowerCase()];
+       return s && Number(s.totalMessages) > 0;
+    }
+    // Default show some if stats not loaded
+    return ['WhatsApp', 'SMS', 'RCS'].includes(c.name);
+  }).map(c => {
     const s = stats?.channelStats?.[c.name.toLowerCase()];
     if (s) {
       const bot = Math.floor(s.totalMessages * 0.6);
