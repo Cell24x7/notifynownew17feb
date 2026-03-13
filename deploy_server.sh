@@ -96,6 +96,11 @@ log "🗄️  [6/7] Checking DB migration..."
 if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
     # Passing production flag so it loads .env.production
     NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
+fi
+
+if [ -f "$BACKEND_DIR/migration_add_campaign_cols.js" ]; then
+    # Adds campaign tracking for webhook Developer API
+    NODE_ENV=production node "$BACKEND_DIR/migration_add_campaign_cols.js"
     ok "Migration complete"
 fi
 
