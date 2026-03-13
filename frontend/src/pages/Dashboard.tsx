@@ -384,46 +384,48 @@ export default function Dashboard() {
       </div>
 
       {/* Grid of Micro Channel Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {dynamicChannelCards.map((item) => (
-          <Card key={item.name} className="rounded-xl border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
-            <div className="p-4 flex flex-col gap-3">
+          <Card key={item.name} className="rounded-xl border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:border-emerald-200 transition-colors">
+            <div className="p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 shadow-sm">
                     {item.icon}
                   </div>
-                  <span className="font-bold text-slate-900 text-[13px]">{item.name}</span>
+                  <span className="font-extrabold text-slate-900 text-[14px] tracking-tight">{item.name}</span>
                 </div>
-                <Badge className="bg-blue-600 hover:bg-blue-700 text-[10px] px-1.5 py-0 h-5 rounded-md flex items-center gap-1 border-none shadow-sm">
+                <Badge className="bg-blue-600 hover:bg-blue-700 text-[10px] px-2 py-0 h-6 rounded-lg flex items-center gap-1 border-none shadow-md font-bold">
                   <Star className="h-2.5 w-2.5 fill-white text-white" /> {item.rating}
                 </Badge>
               </div>
 
-              <div className="space-y-2.5 mt-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-medium">Messages</span>
-                  <span className="font-bold text-slate-900">{item.messages}</span>
+              <div className="space-y-3 mt-1">
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-slate-500 font-semibold">Messages</span>
+                  <span className="font-black text-slate-900 tabular-nums">{item.messages}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-medium">Delivery Rate</span>
-                  <span className="font-bold text-emerald-500">{item.delivery}</span>
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-slate-500 font-semibold whitespace-nowrap">Delivery Rate</span>
+                  <span className="font-black text-emerald-500 tabular-nums">{item.delivery}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-medium">Avg Response</span>
-                  <span className="font-bold text-slate-900">{item.response}</span>
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-slate-500 font-semibold whitespace-nowrap">Avg Response</span>
+                  <div className="flex flex-col items-end">
+                    <span className="font-black text-slate-900 tabular-nums leading-none">{item.response}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="px-4 pb-4 mt-auto">
-              <div className="flex justify-between items-center text-[9px] text-slate-400 font-semibold uppercase mb-1.5">
+            <div className="px-5 pb-5 mt-auto">
+              <div className="flex justify-between items-center text-[10px] text-slate-400 font-extrabold uppercase mb-2 tracking-wider">
                 <span>Bot: {item.bot}</span>
                 <span>Human: {item.human}</span>
               </div>
-              <div className="flex h-1.5 w-full rounded-full overflow-hidden">
-                <div style={{ width: `${(item.bot / (item.bot + item.human)) * 100}%` }} className="bg-emerald-400 h-full border-r border-white"></div>
-                <div style={{ width: `${(item.human / (item.bot + item.human)) * 100}%` }} className="bg-pink-400 h-full"></div>
+              <div className="flex h-2 w-full rounded-full bg-slate-100 overflow-hidden shadow-inner">
+                <div style={{ width: `${(item.bot / (item.bot + item.human + 0.1)) * 100}%` }} className="bg-emerald-400 h-full border-r border-white/20 shadow-sm"></div>
+                <div style={{ width: `${(item.human / (item.bot + item.human + 0.1)) * 100}%` }} className="bg-pink-400 h-full shadow-sm"></div>
               </div>
             </div>
           </Card>
