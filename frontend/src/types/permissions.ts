@@ -12,10 +12,16 @@ export interface PlanPermissions {
 export const USER_PERMISSIONS: Permission[] = [
     { feature: 'Dashboard - View', admin: true, manager: true, agent: true },
 
-    { feature: 'Chat - View', admin: true, manager: true, agent: true },
-    { feature: 'Chat - Reply', admin: true, manager: true, agent: true },
-    { feature: 'Chat - Assign', admin: true, manager: true, agent: false },
-    { feature: 'Chat - Close', admin: true, manager: true, agent: true },
+    { feature: 'Template - View', admin: true, manager: true, agent: false },
+    { feature: 'Template - Create', admin: true, manager: true, agent: false },
+    { feature: 'Template - Edit', admin: true, manager: true, agent: false },
+    { feature: 'Template - Delete', admin: true, manager: false, agent: false },
+
+    { feature: 'Campaigns - View', admin: true, manager: true, agent: false },
+    { feature: 'Campaigns - Create', admin: true, manager: true, agent: false },
+    { feature: 'Campaigns - Edit', admin: true, manager: false, agent: false },
+    { feature: 'Campaigns - Delete', admin: true, manager: false, agent: false },
+    { feature: 'Campaigns - Report', admin: true, manager: true, agent: false },
 
     { feature: 'Contacts - View', admin: true, manager: true, agent: false },
     { feature: 'Contacts - Create', admin: true, manager: true, agent: false },
@@ -24,21 +30,25 @@ export const USER_PERMISSIONS: Permission[] = [
     { feature: 'Contacts - Export', admin: true, manager: false, agent: false },
     { feature: 'Contacts - Import', admin: true, manager: false, agent: false },
 
-    { feature: 'Campaigns - View', admin: true, manager: true, agent: false },
-    { feature: 'Campaigns - Create', admin: true, manager: true, agent: false },
-    { feature: 'Campaigns - Edit', admin: true, manager: false, agent: false },
-    { feature: 'Campaigns - Delete', admin: true, manager: false, agent: false },
-    { feature: 'Campaigns - Report', admin: true, manager: true, agent: false },
+    { feature: 'Chat - View', admin: true, manager: true, agent: true },
+    { feature: 'Chat - Reply', admin: true, manager: true, agent: true },
+    { feature: 'Chat - Assign', admin: true, manager: true, agent: false },
+    { feature: 'Chat - Close', admin: true, manager: true, agent: true },
+
+    { feature: 'API & Webhooks - View', admin: true, manager: false, agent: false },
+    { feature: 'API & Webhooks - Manage', admin: true, manager: false, agent: false },
 
     { feature: 'Automations - View', admin: true, manager: true, agent: false },
     { feature: 'Automations - Create', admin: true, manager: false, agent: false },
     { feature: 'Automations - Edit', admin: true, manager: false, agent: false },
     { feature: 'Automations - Delete', admin: true, manager: false, agent: false },
 
-    { feature: 'Integrations - View', admin: true, manager: true, agent: false },
-    { feature: 'Integrations - Manage', admin: true, manager: false, agent: false },
+    { feature: 'Chatflows - View', admin: true, manager: true, agent: false },
+    { feature: 'Chatflows - Create', admin: true, manager: false, agent: false },
+    { feature: 'Chatflows - Edit', admin: true, manager: false, agent: false },
+    { feature: 'Chatflows - Delete', admin: true, manager: false, agent: false },
 
-    { feature: 'User Plans - View', admin: true, manager: true, agent: true },
+    { feature: 'Available Plans - View', admin: true, manager: true, agent: true },
 
     { feature: 'Settings - View', admin: true, manager: false, agent: false },
     { feature: 'Settings - Edit', admin: true, manager: false, agent: false },

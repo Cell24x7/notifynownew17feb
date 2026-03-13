@@ -428,81 +428,134 @@ export default function SuperAdminRoles() {
 
       {/* Permission Matrix */}
       <div className="space-y-6">
-        {Object.entries(groupedPermissions).map(([group, perms]) => (
-          <Card key={group}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{group}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                     <TableHead className="w-[40%]">Feature</TableHead>
-                     {selectedEntityId ? (
-                       <TableHead className="text-center">Enabled</TableHead>
-                     ) : (
-                       <>
-                        <TableHead className="text-center">Admin</TableHead>
-                        <TableHead className="text-center">Manager</TableHead>
-                        <TableHead className="text-center">Agent</TableHead>
-                       </>
-                     )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {perms.map((perm) => (
-                    <TableRow key={perm.feature}>
-                      <TableCell className="font-medium">
-                        {perm.feature.split(' - ')[1] || perm.feature}
-                      </TableCell>
-                      
-                      {selectedEntityId ? (
-                        <TableCell className="text-center">
-                          <div className="flex justify-center">
-                            <Switch 
-                              checked={perm.admin} 
-                              onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
-                              className="data-[state=checked]:bg-primary"
-                            />
-                          </div>
+        {Object.entries(groupedPermissions).map(([group, perms]) => {
+          // Calculate if all items in this group are checked for a specific role
+          const allAdmin = perms.every(p => p.admin);
+          const allManager = perms.every(p => p.manager);
+          const allAgent = perms.every(p => p.agent);
+
+          const handleMasterToggle = (role: 'admin' | 'manager' | 'agent', isChecked: boolean) => {
+            setPermissions(prev => prev.map(p => 
+              p.feature.startsWith(group) ? { ...p, [role]: isChecked } : p
+            ));
+          };
+
+          return (
+            <Card key={group} className="overflow-hidden border-border/50 shadow-sm">
+              <CardHeader className="py-3 bg-muted/40 border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold text-primary">{group}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10 hover:bg-muted/10">
+                       <TableHead className="w-[40%] font-medium">Feature</TableHead>
+                       {selectedEntityId ? (
+                         <TableHead className="text-center font-medium">
+                           <div className="flex flex-col items-center gap-1">
+                             <span>Enabled</span>
+                             <Switch 
+                               checked={allAdmin}
+                               onCheckedChange={(c) => handleMasterToggle('admin', c)}
+                               className="scale-75 data-[state=checked]:bg-primary"
+                             />
+                           </div>
+                         </TableHead>
+                       ) : (
+                         <>
+                          <TableHead className="text-center font-medium">
+                            <div className="flex flex-col items-center gap-1">
+                              <span>Admin</span>
+                              <Switch 
+                                checked={allAdmin}
+                                onCheckedChange={(c) => handleMasterToggle('admin', c)}
+                                className="scale-75 data-[state=checked]:bg-primary"
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-center font-medium">
+                            <div className="flex flex-col items-center gap-1">
+                              <span>Manager</span>
+                              <Switch 
+                                checked={allManager}
+                                onCheckedChange={(c) => handleMasterToggle('manager', c)}
+                                className="scale-75 data-[state=checked]:bg-secondary"
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-center font-medium">
+                            <div className="flex flex-col items-center gap-1">
+                              <span>Agent</span>
+                              <Switch 
+                                checked={allAgent}
+                                onCheckedChange={(c) => handleMasterToggle('agent', c)}
+                                className="scale-75"
+                              />
+                            </div>
+                          </TableHead>
+                         </>
+                       )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {perms.map((perm) => (
+                      <TableRow key={perm.feature} className="border-b-0 hover:bg-transparent">
+                        <TableCell className="text-sm text-muted-foreground py-2 pl-6 relative">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-border"></div>
+                          {perm.feature.split(' - ')[1] || perm.feature}
                         </TableCell>
-                      ) : (
-                        <>
-                          <TableCell className="text-center">
+                        
+                        {selectedEntityId ? (
+                          <TableCell className="text-center py-2">
                             <div className="flex justify-center">
                               <Switch 
                                 checked={perm.admin} 
                                 onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
-                                className="data-[state=checked]:bg-primary"
+                                className="scale-90 data-[state=checked]:bg-primary"
                               />
                             </div>
                           </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex justify-center">
-                              <Switch 
-                                checked={perm.manager} 
-                                onCheckedChange={() => handleTogglePermission(perm.feature, 'manager')}
-                                className="data-[state=checked]:bg-secondary"
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex justify-center">
-                              <Switch 
-                                checked={perm.agent} 
-                                onCheckedChange={() => handleTogglePermission(perm.feature, 'agent')}
-                              />
-                            </div>
-                          </TableCell>
-                        </>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ))}
+                        ) : (
+                          <>
+                            <TableCell className="text-center py-2">
+                              <div className="flex justify-center">
+                                <Switch 
+                                  checked={perm.admin} 
+                                  onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
+                                  className="scale-90 data-[state=checked]:bg-primary"
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center py-2">
+                              <div className="flex justify-center">
+                                <Switch 
+                                  checked={perm.manager} 
+                                  onCheckedChange={() => handleTogglePermission(perm.feature, 'manager')}
+                                  className="scale-90 data-[state=checked]:bg-secondary"
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center py-2">
+                              <div className="flex justify-center">
+                                <Switch 
+                                  checked={perm.agent} 
+                                  onCheckedChange={() => handleTogglePermission(perm.feature, 'agent')}
+                                  className="scale-90"
+                                />
+                              </div>
+                            </TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
