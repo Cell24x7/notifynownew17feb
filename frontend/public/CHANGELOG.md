@@ -2,7 +2,31 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-13]
+- Enhance Roles UI and update User Permissions (5f4a79e)
+- Fix whatsapp webhook interactive buttons (267e692)
+- Add TGE chatflow seeder and integrate into deploy script (645969a)
+
+---
+
 ## [2026-03-12]
+- fix: restore external template fetching and improve unsynced template UI (f6d0a8e)
+- style: enhance Templates UI and remove unsynced external placeholders (a728576)
+- style: sync UserPlans UI with premium 3-column layout and high-end SaaS aesthetic (72f7839)
+- style: overhaul plans page UI with premium 3-column layout and improved spacing (67c2280)
+- feat: separate NotifyNow documentation Postman collection from original Partners collection (6f52a0e)
+- style: ultra-light premium API doc portal with sticky sidebar and perfect mobile UI (43f0075)
+- feat: ultra-responsive WhatsApp API Doc portal with step-by-step guide (b5058e5)
+- feat: upgrade WhatsApp API docs to premium UI with Postman download (b298d7c)
+- feat: add public browser-accessible API documentation page (63fa29e)
+- fix: enforce parent-dir based PM2 naming to isolate instances (93e5eca)
+- fix: add missing fs import in ecosystem.config.js (c0c2d90)
+- fix: remove dotenv dependency from ecosystem.config.js using native fs parsing (e780f0e)
+- fix: explicit port passing for PM2 using dotenv to resolve instance clashing (539792d)
+- Fix deployment system: Unique PM2 names (Parent-Folder-Naming) and smart migrations (d08a3a0)
+- Fix deployment: Dynamic PM2 naming, smart env migration, and directory-independent deployment (6a93df6)
+- Finalize WhatsApp APIs: Added Bulk, Single and Status endpoints with polished documentation (eb566b0)
+- Split WhatsApp API into Bulk and Single endpoints (62d12ef)
 - Enhance WhatsApp Campaign API: Add dynamic variables and media header support (7c255b8)
 - Refactor RCS Configuration: Soften UI aesthetics and fix structural JSX errors (b302812)
 - Refactor RCS Configuration: remove preview sidebar and implement full-width layout (86642a9)
@@ -206,13 +230,6 @@ This document is automatically updated based on development activity.
 
 ## [2026-02-11]
 - updated code for sms (0cf7b6c)
-- updated code for sms (359d12f)
-
----
-
-## [2026-02-10]
-- updated code for user and resseller role access (2fc7ea4)
-- updated code for user and resseller role access (ce2662a)
 
 ---
 
