@@ -129,14 +129,31 @@ export default function Dashboard() {
   const humanHandled = totalMessages - botHandled;
   const avgDeliveryRate = totalMessages > 0 ? ((totalDelivered / totalMessages) * 100).toFixed(1) + '%' : '0%';
 
-  // Update and Filter small mini channel cards (Only show active ones)
+  // Update and Filter small mini channel cards
   const dynamicChannelCards = channelCardsData.filter(c => {
-    if (stats && stats.channelStats) {
-       const s = stats.channelStats[c.name.toLowerCase()];
-       return s && Number(s.totalMessages) > 0;
+    if (!user) return false;
+    
+    const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.role === 'reseller';
+    
+    // Fallback enabled channels list from user object
+    const enabledList = Array.isArray(user?.channels_enabled)
+      ? user.channels_enabled.map((ch: any) => ch.toLowerCase())
+      : typeof user?.channels_enabled === 'string'
+        ? (user.channels_enabled as string).split(',').map(ch => ch.trim().toLowerCase())
+        : ['whatsapp', 'sms', 'rcs'];
+
+    // RULE 1: If Admin, show everything that HAS DATA
+    if (isAdmin) {
+       if (stats && stats.channelStats) {
+          const s = stats.channelStats[c.name.toLowerCase()];
+          return s && Number(s.totalMessages) > 0;
+       }
+       return ['WhatsApp', 'SMS', 'RCS'].includes(c.name);
     }
-    // Default show some if stats not loaded
-    return ['WhatsApp', 'SMS', 'RCS'].includes(c.name);
+
+    // RULE 2: If Client, only show what is ENBALED for them in settings
+    return enabledList.includes(c.name.toLowerCase());
+
   }).map(c => {
     const s = stats?.channelStats?.[c.name.toLowerCase()];
     if (s) {
@@ -233,7 +250,19 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-wrap gap-2 mb-6 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
-            {['All', 'Whatsapp', 'Sms', 'Instagram', 'Messenger', 'Rcs', 'Email', 'Voice'].map((tab) => (
+            {['All', 'Whatsapp', 'Sms', 'Instagram', 'Messenger', 'Rcs', 'Email', 'Voice'].filter(tab => {
+               if (!user) return false;
+               if (tab === 'All') return true;
+               const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.role === 'reseller';
+               if (isAdmin) return true;
+               
+               const enabledList = Array.isArray(user?.channels_enabled)
+                ? user.channels_enabled.map((ch: any) => ch.toLowerCase())
+                : typeof user?.channels_enabled === 'string'
+                  ? (user.channels_enabled as string).split(',').map(ch => ch.trim().toLowerCase())
+                  : ['whatsapp', 'sms', 'rcs'];
+               return enabledList.includes(tab.toLowerCase());
+            }).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
