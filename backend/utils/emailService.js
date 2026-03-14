@@ -1,5 +1,5 @@
 const axios = require('axios');
-require('dotenv').config();
+// Redundant dotenv call removed - handled by index.js
 
 const ADMIN_EMAILS = [
   'vikas@cell24x7.in',
