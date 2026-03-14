@@ -47,7 +47,7 @@ router.post('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
         const {
-            name, channel, template_id, audience_id, audience_count,
+            name, channel, template_id, audience_id, recipient_count,
             status, scheduled_at, variable_mapping,
             template_metadata, template_body, template_type
         } = req.body;
@@ -102,11 +102,11 @@ router.post('/', authenticateToken, async (req, res) => {
 
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, template_name, audience_id, audience_count, status, scheduled_at, variable_mapping, template_metadata, template_body, template_type)
+      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, status, scheduled_at, variable_mapping, template_metadata, template_body, template_type)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 campaignId, userId, name, channel, template_id, templateName,
-                audience_id || null, audience_count || 0, status || 'draft',
+                audience_id || null, recipient_count || 0, status || 'draft',
                 scheduled_at || null, JSON.stringify(variable_mapping || {}),
                 template_metadata ? JSON.stringify(template_metadata) : null,
                 template_body || null,

@@ -16,7 +16,7 @@ export interface Campaign {
     channel: string;
     template_id: string;
     audience_id: string;
-    audience_count: number;
+    recipient_count: number;
     sent_count: number;
     delivered_count: number;
     read_count: number;

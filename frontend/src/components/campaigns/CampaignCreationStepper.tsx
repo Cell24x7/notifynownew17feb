@@ -51,7 +51,7 @@ export interface CampaignData {
    endDate: string;
    endTime: string;
    estimatedCost: number;
-   audienceCount: number;
+   recipientCount: number;
 }
 
 const steps = [
@@ -93,7 +93,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       endDate: '',
       endTime: '',
       estimatedCost: 0,
-      audienceCount: 0,
+      recipientCount: 0,
    });
 
    const [selectedAudienceId, setSelectedAudienceId] = useState('');
@@ -254,7 +254,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
    // Calculate estimated cost
    const calculateCost = () => {
-      return campaignData.audienceCount * getCurrentRate();
+      return campaignData.recipientCount * getCurrentRate();
    };
 
    const handleNext = () => {
@@ -332,7 +332,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             setCampaignData({
                ...campaignData,
                uploadedFile: file,
-               audienceCount: rows.length - 1 // Exclude header
+               recipientCount: rows.length - 1 // Exclude header
             });
          };
          reader.readAsText(file);
@@ -347,7 +347,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       }));
       toast({
          title: "File Uploaded",
-         description: `${campaignData.audienceCount} contacts ready for campaign.`
+         description: `${campaignData.recipientCount} contacts ready for campaign.`
       });
    };
 
@@ -388,7 +388,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
          setCampaignData(prevData => ({
             ...prevData,
-            audienceCount: newSelection.length,
+            recipientCount: newSelection.length,
             selectedContacts: newSelection
          }));
 
@@ -399,11 +399,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    const toggleAllContacts = () => {
       if (selectedContactIds.length === filteredContacts.length) {
          setSelectedContactIds([]);
-         setCampaignData(prev => ({ ...prev, audienceCount: 0, selectedContacts: [] }));
+         setCampaignData(prev => ({ ...prev, recipientCount: 0, selectedContacts: [] }));
       } else {
          const allIds = filteredContacts.map(c => c.id);
          setSelectedContactIds(allIds);
-         setCampaignData(prev => ({ ...prev, audienceCount: allIds.length, selectedContacts: allIds }));
+         setCampaignData(prev => ({ ...prev, recipientCount: allIds.length, selectedContacts: allIds }));
       }
    };
 
@@ -490,7 +490,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                const count = campaignData.manualNumbers.split(/[\n,\s]+/).filter(n => n.trim()).length;
                return count > 0;
             }
-            return campaignData.audienceCount > 0;
+            return campaignData.recipientCount > 0;
          case 4:
             return templateVariables.every(v => {
                const mapping = campaignData.fieldMapping[v];
@@ -860,7 +860,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              <FileSpreadsheet className="h-4 w-4 text-green-600" />
                                              {campaignData.uploadedFile.name}
                                           </h4>
-                                          <Badge variant="outline">{campaignData.audienceCount} Rows</Badge>
+                                          <Badge variant="outline">{campaignData.recipientCount} Rows</Badge>
                                        </div>
 
                                        {csvPreview.length > 0 && (
@@ -902,7 +902,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        onChange={(e) => {
                                           const val = e.target.value;
                                           const count = val.split(/[\n,\s]+/).filter(n => n.trim()).length;
-                                          setCampaignData({ ...campaignData, manualNumbers: val, audienceCount: count });
+                                          setCampaignData({ ...campaignData, manualNumbers: val, recipientCount: count });
                                        }}
                                     />
                                  </div>
@@ -910,7 +910,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                     <p className="text-muted-foreground">
                                        Enter one number per line. Include country code (e.g., 91).
                                     </p>
-                                    <Badge variant="secondary">{campaignData.audienceCount} numbers</Badge>
+                                    <Badge variant="secondary">{campaignData.recipientCount} numbers</Badge>
                                  </div>
                               </div>
                            )}
@@ -1131,7 +1131,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                           <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Audience</Label>
                                           <div className="flex items-center gap-2 mb-1">
                                              <Users className="h-5 w-5 text-primary" />
-                                             <span className="font-semibold text-2xl">{campaignData.audienceCount}</span>
+                                             <span className="font-semibold text-2xl">{campaignData.recipientCount}</span>
                                           </div>
                                           <div className="text-xs text-muted-foreground">Recipients</div>
                                        </CardContent>
@@ -1377,7 +1377,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                      {currentStep === 1 && !campaignData.name.trim() && "Enter campaign name"}
                      {currentStep === 1 && campaignData.name.trim() && !campaignData.channel && "Select channel"}
                      {currentStep === 2 && !campaignData.templateId && "Select a template"}
-                     {currentStep === 3 && campaignData.audienceCount === 0 && "Select contacts"}
+                     {currentStep === 3 && campaignData.recipientCount === 0 && "Select contacts"}
                      {currentStep === 5 && campaignData.scheduleType === 'now' && calculateCost() > (user?.wallet_balance || 0) && "Insufficient wallet balance"}
                      {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
                   </p>

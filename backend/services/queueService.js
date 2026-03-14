@@ -413,9 +413,9 @@ const processQueue = async () => {
             await query('UPDATE campaign_queue SET status = "failed", error_message = ? WHERE id = ?', [r.error, r.id]);
         }
 
-        // Bulk Insert into message_logs (True Optimization)
-        const logs = results.filter(r => r.success).map(r => [
-            r.user_id, r.campaign_id, r.campaign_name, r.template_name, r.messageId, r.mobile, 'sent', new Date()
+        // Bulk Insert into message_logs (Include all results for details page visibility)
+        const logs = results.map(r => [
+            r.user_id, r.campaign_id, r.campaign_name, r.template_name, r.messageId || 'N/A', r.mobile, r.success ? 'sent' : 'failed', new Date()
         ]);
 
         if (logs.length > 0) {
