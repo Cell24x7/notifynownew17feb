@@ -107,6 +107,10 @@ VITE_RCS_API_URL=https://rcs.cell24x7.com
 EOF
 
 log "🗄️  Checking DB migration..."
+if [ -f "$BACKEND_DIR/apply_schema_updates.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/apply_schema_updates.js"
+fi
+
 if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
     NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
 fi
@@ -114,7 +118,11 @@ fi
 if [ -f "$BACKEND_DIR/migration_add_campaign_cols.js" ]; then
     # Adds campaign tracking for webhook Developer API
     NODE_ENV=production node "$BACKEND_DIR/migration_add_campaign_cols.js"
-    ok "Migration complete"
+    ok "API Campaign Migration complete"
+fi
+
+if [ -f "$BACKEND_DIR/migration_final.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/migration_final.js"
 fi
 
 # New Step: Auto-seed TGE Chatflows
