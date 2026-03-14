@@ -91,10 +91,23 @@ ok "dist/ permissions fixed (755)"
 
 cd "$PROJECT_DIR"
 
-# ── Step 6: DB migration ──────────────────────────────────
-log "🗄️  [6/7] Checking DB migration..."
+# ── Step 6: DB migration & ENV enforcement ──────────────
+log "🛠️  [6/7] Enforcing Developer Environment settings..."
+cat <<EOF > "$BACKEND_DIR/.env.production"
+# ENFORCED DEVELOPER SETTINGS
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=waQ4!r1241Kr
+DB_NAME=developer_notify
+PORT=5000
+API_BASE_URL=https://developer.notifynow.in
+JWT_SECRET=notifynow_db_secret_key
+JWT_EXPIRES_IN=7d
+VITE_RCS_API_URL=https://rcs.cell24x7.com
+EOF
+
+log "🗄️  Checking DB migration..."
 if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
-    # Passing production flag so it loads .env.production
     NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
 fi
 
