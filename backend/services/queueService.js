@@ -231,47 +231,44 @@ const processQueue = async () => {
 
                             const payloadComponents = [];
 
-                            // 1. Process Header from Metadata
-                            try {
-                                const metaStr = item.template_metadata;
-                                const meta = typeof metaStr === 'string' ? JSON.parse(metaStr) : (metaStr || {});
-                                const mtComponents = meta.components || [];
+                            // Construct text to scan for variables from all possible places
+                            const metaStr = item.template_metadata;
+                            const meta = typeof metaStr === 'string' ? JSON.parse(metaStr) : (metaStr || {});
+                            const mtComponents = meta.components || [];
+                            
+                            // Consolidate body and all component texts to find placeholders
+                            const componentTexts = mtComponents.map(c => c.text || c.caption || '').filter(Boolean);
+                            const textToScan = [item.template_body, ...componentTexts].filter(Boolean).join(' ');
 
-                                const headerComp = mtComponents.find(c => c.type === 'HEADER' || c.type === 'header');
-                                if (headerComp && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
-                                    const mediaType = headerComp.format.toLowerCase();
-                                    const mediaHandleOrUrl = headerComp.example?.header_handle?.[0] || '';
-                                    
-                                    // Normally headers should map to a dynamic variable. If missing, fallback to example handle
-                                    let dynamicHeader = String(resolvedVars['header_url'] || mediaHandleOrUrl || '');
+                            // 2. Process Body Variables (and any text-based components)
+                            const waParams = getOrderedVariables(textToScan, resolvedVars);
+                            
+                            // 3. Construct specific components for WhatsApp API
+                            // a) Header (Media)
+                            const headerComp = mtComponents.find(c => c.type === 'HEADER' || c.type === 'header');
+                            if (headerComp && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
+                                const mediaType = headerComp.format.toLowerCase();
+                                const mediaHandleOrUrl = headerComp.example?.header_handle?.[0] || '';
+                                let dynamicHeader = String(resolvedVars['header_url'] || mediaHandleOrUrl || '');
 
-                                    // CRITICAL FIX: Handles (4::...) are for creation only. 
-                                    // If we find one and have a persistent file_url, use the file_url for sending.
-                                    if (dynamicHeader.startsWith('4::') && headerComp.file_url) {
-                                        console.log(`[QueueProcessor] Handle detected (${dynamicHeader.substring(0,12)}), switching to persistent URL for sending: ${headerComp.file_url}`);
-                                        dynamicHeader = headerComp.file_url;
-                                    }
-
-                                    if (dynamicHeader) {
-                                        const isUrl = dynamicHeader.startsWith('http');
-                                        console.log(`[QueueProcessor] Header: ${isUrl ? 'LINK' : 'ID'} = ${dynamicHeader}`);
-                                        payloadComponents.push({
-                                            type: 'header',
-                                            parameters: [
-                                                {
-                                                    type: mediaType,
-                                                    [mediaType]: isUrl ? { link: dynamicHeader } : { id: dynamicHeader }
-                                                }
-                                            ]
-                                        });
-                                    }
+                                if (dynamicHeader.startsWith('4::') && headerComp.file_url) {
+                                    dynamicHeader = headerComp.file_url;
                                 }
-                            } catch (metaErr) {
-                                console.error('[QueueProcessor] Error parsing WhatsApp template metadata for header:', metaErr.message);
+
+                                if (dynamicHeader) {
+                                    const isUrl = dynamicHeader.startsWith('http');
+                                    payloadComponents.push({
+                                        type: 'header',
+                                        parameters: [{
+                                            type: mediaType,
+                                            [mediaType]: isUrl ? { link: dynamicHeader } : { id: dynamicHeader }
+                                        }]
+                                    });
+                                }
                             }
 
-                            // 2. Process Body Variables
-                            const waParams = getOrderedVariables(item.template_body || '', resolvedVars);
+                            // b) Body Parameters
+                            // Note: Meta expects parameters in order of {{1}}, {{2}}... across the WHOLE template
                             if (waParams.length > 0) {
                                 payloadComponents.push({
                                     type: 'body',
@@ -279,30 +276,21 @@ const processQueue = async () => {
                                 });
                             }
 
-                            // 3. Process Dynamic URL Buttons
-                            try {
-                                const metaStr = item.template_metadata;
-                                const meta = typeof metaStr === 'string' ? JSON.parse(metaStr) : (metaStr || {});
-                                const mtComponents = meta.components || [];
-                                const buttonComp = mtComponents.find(c => c.type === 'BUTTONS' || c.type === 'buttons');
-                                if (buttonComp) {
-                                    buttonComp.buttons?.forEach((btn, idx) => {
-                                        if (btn.type === 'URL' && btn.url?.includes('{{1}}')) {
-                                            const btnVar = `button_${idx + 1}_url`;
-                                            const val = resolvedVars[btnVar] || '';
-                                            if (val) {
-                                                payloadComponents.push({
-                                                    type: 'button',
-                                                    sub_type: 'url',
-                                                    index: String(idx),
-                                                    parameters: [{ type: 'text', text: String(val) }]
-                                                });
-                                            }
+                            // c) Buttons
+                            const buttonComp = mtComponents.find(c => c.type === 'BUTTONS' || c.type === 'buttons');
+                            if (buttonComp) {
+                                buttonComp.buttons?.forEach((btn, idx) => {
+                                    if (btn.type === 'URL' && btn.url?.includes('{{1}}')) {
+                                        const btnVar = `button_${idx + 1}_url`;
+                                        const val = resolvedVars[btnVar] || '';
+                                        if (val) {
+                                            payloadComponents.push({
+                                                type: 'button', sub_type: 'url', index: String(idx),
+                                                parameters: [{ type: 'text', text: String(val) }]
+                                            });
                                         }
-                                    });
-                                }
-                            } catch (btnErr) {
-                                console.error('[QueueProcessor] Error parsing buttons for WhatsApp:', btnErr.message);
+                                    }
+                                });
                             }
 
                             if (payloadComponents.length > 0) {

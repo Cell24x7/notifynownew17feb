@@ -132,17 +132,20 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       const carouselList = meta.carouselList || [];
 
       // Combine all text fields that might contain variables
+      const componentTexts = (selectedTemplate as any).components?.map((c: any) => c.text || c.caption || '').filter(Boolean) || [];
+      
       const textToScan = [
          selectedTemplate.body,
          meta.cardTitle,
          meta.cardDescription,
-         ...carouselList.map((c: any) => `${c.title || ''} ${c.description || ''}`)
+         ...carouselList.map((c: any) => `${c.title || ''} ${c.description || ''}`),
+         ...componentTexts
       ].filter(Boolean).join(" ");
 
       if (!textToScan) return [];
 
-      // Matches both {{var}} and [var] patterns
-      const matches = textToScan.match(/\{\{([^}]+)\}\}|\[([^\]]+)\]/g);
+      // Matches both {{1}}, {{var}}, [1], [var] patterns
+      const matches = textToScan.match(/\{\{\s*([^}\s]+)\s*\}\}|\[\s*([^\]\s]+)\s*\]/g);
       const vars = matches ? Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]/g, '').trim()))) : [];
 
       // Check if WhatsApp template has a media header
