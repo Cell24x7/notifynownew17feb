@@ -30,6 +30,7 @@ const sendSMS = (mobile, message) => {
             // but for now let's just use the cleaned digits
         }
 
+        const baseUrl = 'https://sms.cell24x7.in/otpReceiver/sendSMS';
         const url = `${baseUrl}?user=${encodeURIComponent(user)}&pwd=${encodeURIComponent(pwd)}&sender=${encodeURIComponent(sender)}&mobile=${encodeURIComponent(cleanMobile)}&msg=${encodeURIComponent(message)}&mt=${mt}`;
 
         console.log(`[SMS] Sending to ${mobile}: ${message}`);
