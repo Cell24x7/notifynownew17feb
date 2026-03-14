@@ -35,18 +35,55 @@ npm run build
 # 3. Fix DB Config for Production
 log "🛠️ Ensuring Production DB config..."
 cat <<EOF > "$BACKEND_DIR/.env.production"
+# NotifyNow PRODUCTION Deployment Enforced Env
 DB_HOST=localhost
 DB_USER=root
 DB_PASS=waQ4!r1241Kr
-DB_NAME=notify_db
+DB_NAME=notifynow_db
 PORT=5050
 API_BASE_URL=https://notifynow.in
+
 JWT_SECRET=notifynow_db_secret_key
 JWT_EXPIRES_IN=7d
+
+# SMS Configuration
+SMS_USER=testdemo
+SMS_PASSWORD=apidemo
+SMS_SENDER_ID=CMTLTD
+
 VITE_RCS_API_URL=https://rcs.cell24x7.com
+
+# Dotgo Admin
+DOTGO_ADMIN_CLIENT_ID=cmNzQGNlbGwyNHg3LmNvbQ
+DOTGO_ADMIN_CLIENT_SECRET=6YPfAx6eYtRGbpkIKFwf5gqVQ21Nvja3
+DOTGO_ADMIN_AUTH_URL=https://auth.dotgo.com/auth/oauth/token
+DOTGO_ADMIN_TEMPLATE_URL=https://developer-api.dotgo.com/directory/secure/api/v1/bots
+
+# Email Configuration
+EMAIL_API_USER=testdemo
+EMAIL_API_PASS=passdemo
+EMAIL_FROM_ADDR=support@cell24x7.com
+EMAIL_API_URL=http://43.242.212.34:7716/emailService/sendEmail
 EOF
 
-# 4. Restart
+# 4. Running Migrations
+log "🗄️ Checking DB migration..."
+if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
+fi
+
+if [ -f "$BACKEND_DIR/migration_add_campaign_cols.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/migration_add_campaign_cols.js"
+    echo "   ✅ Migration complete"
+fi
+
+if [ -f "$BACKEND_DIR/scripts/seed_tge_flows.js" ]; then
+    log "🤖 Seeding TGE Chatflows..."
+    NODE_ENV=production node "$BACKEND_DIR/scripts/seed_tge_flows.js"
+    echo "   ✅ TGE Flows Sync Complete"
+fi
+
+# 5. Restart
 cd "$PROJECT_DIR"
 pm2 start ecosystem.config.js --env production || pm2 restart ecosystem.config.js --env production --update-env
 pm2 save --force
