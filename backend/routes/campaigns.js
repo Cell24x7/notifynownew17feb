@@ -172,9 +172,13 @@ router.post('/:id/duplicate', authenticateToken, async (req, res) => {
 
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, audience_id, audience_count, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [newId, userId, newName, c.channel, c.template_id, c.audience_id, c.audience_count, 'draft']
+      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, status, template_metadata, template_body, template_type, variable_mapping)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                newId, userId, newName, c.channel, c.template_id, c.template_name,
+                c.audience_id, c.recipient_count, 'draft',
+                c.template_metadata, c.template_body, c.template_type, c.variable_mapping
+            ]
         );
 
         res.json({ success: true, message: 'Campaign duplicated successfully', campaignId: newId });

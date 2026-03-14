@@ -285,7 +285,9 @@ export default function Campaigns() {
         template_body: selectedTpl?.body, // New snapshot
         template_type: selectedTpl?.template_type, // New snapshot
         audience_id: campaignData.audienceId || undefined,
-        recipient_count: campaignData.recipientCount,
+        recipient_count: (campaignData.contactSource === 'existing' && campaignData.scheduleType === 'scheduled') 
+          ? campaignData.recipientCount 
+          : 0,
         status: 'draft' as any, // Start as draft, update later if 'now'
         scheduled_at: campaignData.scheduleType === 'scheduled'
           ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
