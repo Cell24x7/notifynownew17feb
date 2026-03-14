@@ -26,7 +26,9 @@ const sendEmail = async (to, subject, text) => {
 
   try {
     const apiUrl = process.env.EMAIL_API_URL;
+    if (!apiUrl) throw new Error('EMAIL_API_URL is missing in .env');
 
+    console.log(`[EMAIL] Attempting to send to ${to} via ${apiUrl}`);
     // The API seems to accept query params based on auth.js
     const response = await axios.post(apiUrl, {
       user: emailUser,
@@ -36,10 +38,14 @@ const sendEmail = async (to, subject, text) => {
       fromName: 'NotifyNow',
       subject: subject,
       body: text
-    });
-    console.log(`📧 Email sent to ${to}:`, response.data);
+    }, { timeout: 10000 }); // 10s timeout
+
+    console.log(`📧 [EMAIL] API Response for ${to}:`, response.data);
+    return response.data;
   } catch (err) {
-    console.error(`❌ Email send failed to ${to}:`, err.message);
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error(`❌ [EMAIL] Send failed to ${to}:`, errorMsg);
+    throw new Error(`Email Service Error: ${errorMsg}`);
   }
 };
 

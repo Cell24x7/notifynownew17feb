@@ -94,25 +94,33 @@ router.post('/send-otp', async (req, res) => {
     [users] = await query(userQuery, userParams);
 
     if (users.length > 0) {
+      console.log(`[AUTH] Sending OTP to ${target} (${type})...`);
       await query('UPDATE users SET otp = ?, otp_expiry = ? WHERE id = ?', [otp, expiry, users[0].id]);
 
       // Send the OTP
-      if (type === 'email') {
-        await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`);
-      } else {
-        // Send via SMS
-        const msg = `Dear Customer, Your One Time Password is ${otp}. CMT`;
-        await sendSMS(target, msg);
+      try {
+        if (type === 'email') {
+          console.log(`[AUTH] Sending Email OTP to ${target}`);
+          await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`);
+        } else {
+          // Send via SMS
+          console.log(`[AUTH] Sending SMS OTP to ${target}`);
+          const msg = `Dear Customer, Your One Time Password is ${otp}. CMT`;
+          await sendSMS(target, msg);
+        }
+        res.json({ success: true, message: 'OTP sent successfully' });
+      } catch (sendErr) {
+        console.error(`❌ [AUTH] External Send Error:`, sendErr.message);
+        throw sendErr; // Let the outer catch handle it
       }
-
-      res.json({ success: true, message: 'OTP sent successfully' });
     } else {
+      console.error(`❌ [AUTH] User not found for ${target} after insert/fetch`);
       res.status(500).json({ success: false, message: 'Failed to create/find user' });
     }
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    console.error(`❌ [AUTH] Send-OTP Error for ${target}:`, err);
+    res.status(500).json({ success: false, message: `Failed to send OTP: ${err.message}` });
   }
 });
 
