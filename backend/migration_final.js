@@ -1,4 +1,12 @@
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Smart env loading: production uses .env.production, dev uses .env
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: path.join(__dirname, envFile) });
+
+console.log(`📡 Migration Environment: ${process.env.NODE_ENV || 'development'} (using ${envFile})`);
+
 const mysql = require('mysql2/promise');
 
 async function run() {
@@ -12,7 +20,7 @@ async function run() {
 
         console.log('Connecting to DB...');
         const connection = await mysql.createConnection({
-            host: '127.0.0.1',
+            host: process.env.DB_HOST || '127.0.0.1',
             user: process.env.DB_USER,
             password: process.env.DB_PASS,
             database: process.env.DB_NAME

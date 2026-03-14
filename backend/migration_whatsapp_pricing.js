@@ -1,5 +1,9 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const dotenv = require('dotenv');
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: path.join(__dirname, envFile) });
+console.log(`📡 Migration Environment: ${process.env.NODE_ENV || 'development'} (using ${envFile})`);
+
 const mysql = require('mysql2/promise');
 
 async function updateSchema() {
