@@ -68,13 +68,21 @@ EOF
 
 # 4. Running Migrations
 log "🗄️ Checking DB migration..."
+if [ -f "$BACKEND_DIR/apply_schema_updates.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/apply_schema_updates.js"
+fi
+
 if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
     NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
 fi
 
 if [ -f "$BACKEND_DIR/migration_add_campaign_cols.js" ]; then
     NODE_ENV=production node "$BACKEND_DIR/migration_add_campaign_cols.js"
-    echo "   ✅ Migration complete"
+    echo "   ✅ API Campaign Migration complete"
+fi
+
+if [ -f "$BACKEND_DIR/migration_final.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/migration_final.js"
 fi
 
 if [ -f "$BACKEND_DIR/scripts/seed_tge_flows.js" ]; then
