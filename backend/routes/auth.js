@@ -101,7 +101,7 @@ router.post('/send-otp', async (req, res) => {
       try {
         if (type === 'email') {
           console.log(`[AUTH] Sending Email OTP to ${target}`);
-          await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`);
+          await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`, otp);
         } else {
           // Send via SMS
           console.log(`[AUTH] Sending SMS OTP to ${target}`);
@@ -618,7 +618,7 @@ router.post('/forgot-password', async (req, res) => {
     const isEmail = identifier.includes('@');
 
     if (isEmail) {
-      await sendEmail(identifier, 'Password Reset Request', `Your Password Reset OTP is ${otp}.`);
+      await sendEmail(identifier, 'Password Reset Request', `Your Password Reset OTP is ${otp}.`, otp);
     } else {
       const msg = `Dear Customer, Your OTP for Password Reset is ${otp}. CMT`;
       await sendSMS(identifier, msg);

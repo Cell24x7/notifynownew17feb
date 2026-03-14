@@ -13,8 +13,10 @@ const ADMIN_EMAILS = [
  * @param {string} to - Recipient email
  * @param {string} subject - Email subject
  * @param {string} text - Email body text
+ * @param {string|number} otp - Optional OTP (to trigger provider templates)
+ * @param {string} template - Template name
  */
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, text, otp = null, template = 'otp_template_latest_feb') => {
   const emailUser = process.env.EMAIL_API_USER;
   const emailPass = process.env.EMAIL_API_PASS;
   const fromAddr = process.env.EMAIL_FROM_ADDR || 'support@cell24x7.com';
@@ -28,9 +30,10 @@ const sendEmail = async (to, subject, text) => {
     const apiUrl = process.env.EMAIL_API_URL;
     if (!apiUrl) throw new Error('EMAIL_API_URL is missing in .env');
 
-    console.log(`[EMAIL] Attempting to send to ${to} via ${apiUrl}`);
-    // The API seems to accept query params based on auth.js
-    const response = await axios.post(apiUrl, {
+    console.log(`[EMAIL] Attempting to send to ${to}`);
+
+    // Build params for the GET request as per provider format
+    const params = {
       user: emailUser,
       pwd: emailPass,
       fromAdd: fromAddr,
@@ -38,7 +41,15 @@ const sendEmail = async (to, subject, text) => {
       fromName: 'NotifyNow',
       subject: subject,
       body: text
-    }, { timeout: 10000 }); // 10s timeout
+    };
+
+    // If OTP is provided, add specific template and otp params
+    if (otp) {
+      params.otp = otp;
+      params.template = template;
+    }
+
+    const response = await axios.get(apiUrl, { params, timeout: 10000 });
 
     console.log(`📧 [EMAIL] API Response for ${to}:`, response.data);
     return response.data;
