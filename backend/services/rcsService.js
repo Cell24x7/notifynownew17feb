@@ -499,8 +499,8 @@ const getExternalTemplates = async (config) => {
 
     console.log(`📥 Dotgo Template List Response [${response.status}]`);
 
-    // Match the JSON structure: { "templateList": [...] } or sometimes it's an array directly
-    const templateList = response.data?.templateList || (Array.isArray(response.data) ? response.data : []);
+    // Match the JSON structure: { "templateList": [...] } or { "templates": [...] } or sometimes it's an array directly
+    const templateList = response.data?.templateList || response.data?.templates || (Array.isArray(response.data) ? response.data : []);
 
     const mapped = templateList.map(t => ({
       id: t.name || t.id,

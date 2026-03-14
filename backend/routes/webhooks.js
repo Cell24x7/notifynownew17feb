@@ -387,7 +387,7 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const total = countResult[0].total;
 
         // Get paginated data
-        const selectSql = `SELECT ml.*, c.channel ${baseSql} ORDER BY ml.updated_at DESC LIMIT ? OFFSET ?`;
+        const selectSql = `SELECT ml.*, c.channel ${baseSql} ORDER BY ml.id DESC LIMIT ? OFFSET ?`;
         const [logs] = await query(selectSql, [...params, limit, offset]);
 
         res.json({

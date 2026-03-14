@@ -413,7 +413,7 @@ export default function Reports() {
                             <SelectContent>
                                 <SelectItem value="all">All Channels</SelectItem>
                                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                                <SelectItem value="RCS">RCS</SelectItem>
+                                <SelectItem value="rcs">RCS</SelectItem>
                                 <SelectItem value="sms">SMS</SelectItem>
                             </SelectContent>
                         </Select>
@@ -440,20 +440,20 @@ export default function Reports() {
 
                 <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
 
-                    <Card className="flex-1 overflow-hidden border-slate-200 shadow-md rounded-xl">
+                    <Card className="flex-1 overflow-hidden border-2 border-slate-200 shadow-md rounded-xl">
                         <CardContent className="p-0">
                             <Table>
-                                <TableHeader className="bg-slate-50 border-b border-slate-200">
-                                    <TableRow className="hover:bg-transparent">
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest pl-6">Campaign Name</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest">Channel</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest">Template</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest">Date</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right">Total</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-indigo-600">Sent</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-emerald-600">Deliv.</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-purple-600">Read</TableHead>
-                                        <TableHead className="font-bold text-slate-900 h-10 py-0 uppercase text-[10px] tracking-widest text-right text-rose-600 pr-6">Failed</TableHead>
+                                <TableHeader className="bg-slate-100 border-b-2 border-slate-200">
+                                    <TableRow className="hover:bg-transparent h-12">
+                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest pl-6 border-r border-slate-200">Campaign Name</TableHead>
+                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest border-r border-slate-200 text-center">Channel</TableHead>
+                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest border-r border-slate-200 text-center">Template</TableHead>
+                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest border-r border-slate-200 text-center">Date</TableHead>
+                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4">Total</TableHead>
+                                        <TableHead className="font-black text-indigo-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4 bg-indigo-50/30">Sent</TableHead>
+                                        <TableHead className="font-black text-emerald-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4 bg-emerald-50/30">Deliv.</TableHead>
+                                        <TableHead className="font-black text-purple-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4 bg-purple-50/30">Read</TableHead>
+                                        <TableHead className="font-black text-rose-700 py-0 uppercase text-[10px] tracking-widest text-right pr-6 bg-rose-50/30">Failed</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -463,32 +463,34 @@ export default function Reports() {
                                         <TableRow><TableCell colSpan={9} className="text-center py-10 text-slate-400 font-medium">No reports found.</TableCell></TableRow>
                                     ) : (
                                         filteredReports.map((report: any) => (
-                                            <TableRow key={report.id} className="hover:bg-slate-50/50 transition-colors h-14">
-                                                <TableCell className="font-bold text-slate-900 pl-6">
+                                            <TableRow key={report.id} className="hover:bg-slate-50/80 transition-colors h-14 border-b border-slate-200">
+                                                <TableCell className="font-bold text-slate-900 pl-6 border-r border-slate-100">
                                                     <div className="flex flex-col gap-1">
-                                                        <span>{report.name}</span>
-                                                        {report.id?.startsWith('CAMP_API_') ? (
-                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 px-1 py-0 uppercase font-black">API</Badge>
-                                                        ) : (
-                                                            <Badge variant="secondary" className="w-fit text-[8px] bg-slate-50 text-slate-600 border-slate-200 px-1 py-0 uppercase font-black">Manual</Badge>
-                                                        )}
+                                                        <span className="text-[13px]">{report.name}</span>
+                                                        <div className="flex gap-1">
+                                                            {report.id?.startsWith('CAMP_API_') ? (
+                                                                <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 px-1 py-0 uppercase font-black">API</Badge>
+                                                            ) : (
+                                                                <Badge variant="secondary" className="w-fit text-[8px] bg-slate-50 text-slate-600 border-slate-200 px-1 py-0 uppercase font-black">Manual</Badge>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="text-center border-r border-slate-100">
                                                     <Badge className={cn("uppercase font-black text-[9px] tracking-tighter rounded-md h-5 px-1.5", report.channel === 'whatsapp' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200')}>{report.channel || 'RCS'}</Badge>
                                                 </TableCell>
-                                                <TableCell className="font-mono text-[10px] text-slate-500 font-bold">{report.template_id}</TableCell>
-                                                <TableCell className="leading-tight">
+                                                <TableCell className="font-mono text-[11px] text-slate-500 font-bold border-r border-slate-100 text-center">{report.template_name || report.template_id}</TableCell>
+                                                <TableCell className="leading-tight border-r border-slate-100 text-center">
                                                     <div className="flex flex-col">
                                                       <span className="text-slate-900 font-bold text-xs">{format(new Date(report.created_at), 'dd MMM yy')}</span>
                                                       <span className="text-[10px] text-slate-400 font-bold">{format(new Date(report.created_at), 'HH:mm')}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-black text-slate-900 text-[13px]">{report.recipient_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-indigo-600 font-black text-[13px]">{report.sent_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-emerald-600 font-black text-[13px]">{report.delivered_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-purple-600 font-black text-[13px]">{report.read_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-rose-600 font-black text-[13px] pr-6">{report.failed_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right font-black text-slate-900 text-[13px] border-r border-slate-100 px-4">{report.recipient_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-indigo-700 font-black text-[13px] border-r border-slate-100 px-4 bg-indigo-50/10">{report.sent_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-emerald-700 font-black text-[13px] border-r border-slate-100 px-4 bg-emerald-50/10">{report.delivered_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-purple-700 font-black text-[13px] border-r border-slate-100 px-4 bg-purple-50/10">{report.read_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right text-rose-700 font-black text-[13px] pr-6 bg-rose-50/10">{report.failed_count.toLocaleString()}</TableCell>
                                             </TableRow>
                                         ))
                                     )}
@@ -515,19 +517,19 @@ export default function Reports() {
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0 overflow-auto">
-                                <Table>
-                                    <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
-                                        <TableRow className="bg-muted/30">
-                                            <TableHead className="w-[50px] font-bold text-black border-r px-2 text-[10px]">Id</TableHead>
-                                            <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Rtime</TableHead>
-                                            <TableHead className="w-[100px] font-bold text-black border-r text-center px-2 text-[10px]">Mobile</TableHead>
-                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">sendTime</TableHead>
-                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">DelTime</TableHead>
-                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">ReadTime</TableHead>
-                                            <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Template</TableHead>
-                                            <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Campaign</TableHead>
-                                            <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">Status</TableHead>
-                                            <TableHead className="font-bold text-black text-center px-2 text-[10px]">reason</TableHead>
+                                <Table className="border-2 border-slate-200">
+                                    <TableHeader className="sticky top-0 bg-slate-100 z-10 shadow-sm">
+                                        <TableRow className="bg-slate-100/80 hover:bg-slate-100 h-10">
+                                            <TableHead className="w-[60px] font-black text-slate-700 border-r border-b border-slate-300 px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
+                                            <TableHead className="w-[120px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Rtime</TableHead>
+                                            <TableHead className="w-[110px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Mobile</TableHead>
+                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">sendTime</TableHead>
+                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">DelTime</TableHead>
+                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">ReadTime</TableHead>
+                                            <TableHead className="w-[130px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Template</TableHead>
+                                            <TableHead className="w-[140px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Campaign</TableHead>
+                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Status</TableHead>
+                                            <TableHead className="font-black text-slate-700 border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">reason</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -537,43 +539,45 @@ export default function Reports() {
                                             <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
                                         ) : (
                                             webhookLogs.map((log) => (
-                                                <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
-                                                    <TableCell className="text-[10px] font-mono border-r px-2">
+                                                <TableRow key={log.id} className="hover:bg-slate-50 transition-colors border-b border-slate-200 h-12">
+                                                    <TableCell className="text-[10px] font-black text-slate-500 border-r border-slate-200 px-3">
                                                         {log.id}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r text-center px-2">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-semibold text-slate-600">
                                                         {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r text-center px-2">
+                                                    <TableCell className="text-[11px] border-r border-slate-200 text-center px-3 font-bold text-slate-900">
                                                         {log.recipient?.replace(/^\+/, '')}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r text-center px-2">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-semibold text-slate-600">
                                                         {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r text-center text-green-600 font-medium px-2">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-emerald-600 font-bold px-3">
                                                         {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r text-center text-purple-600 font-medium px-2">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-purple-600 font-bold px-3">
                                                         {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.template_name}>
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center truncate max-w-[130px] px-3 font-medium text-slate-600" title={log.template_name}>
                                                         {log.template_name || 'N/A'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.campaign_name}>
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center truncate max-w-[140px] px-3 font-medium" title={log.campaign_name}>
                                                         <div className="flex flex-col items-center gap-1">
-                                                            <span>{log.campaign_name || 'N/A'}</span>
-                                                            <Badge variant="outline" className={cn("uppercase font-bold text-[8px] tracking-wider mt-1", log.channel === 'whatsapp' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200')}>{log.channel || 'RCS'}</Badge>
-                                                            {log.campaign_id?.startsWith('CAMP_API_') && (
-                                                                <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 leading-none py-0">API</Badge>
-                                                            )}
+                                                            <span className="text-slate-900 font-bold line-clamp-1">{log.campaign_name || 'N/A'}</span>
+                                                            <div className="flex gap-1">
+                                                                <Badge variant="outline" className={cn("uppercase font-black text-[8px] tracking-tighter px-1 py-0 h-4", log.channel === 'whatsapp' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200')}>{log.channel || 'RCS'}</Badge>
+                                                                {log.campaign_id?.startsWith('CAMP_API_') && (
+                                                                    <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 px-1 py-0 h-4 font-black">API</Badge>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-center border-r px-1">
-                                                        <Badge variant="outline" className={cn("uppercase text-[8px] font-bold px-1 py-0", getStatusColor(log.status))}>
+                                                    <TableCell className="text-center border-r border-slate-200 px-2">
+                                                        <Badge className={cn("uppercase text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm border", getStatusColor(log.status))}>
                                                             {log.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[120px] px-2" title={log.failure_reason || ''}>
+                                                    <TableCell className="text-[10px] text-rose-500 font-semibold text-center truncate max-w-[150px] px-3" title={log.failure_reason || ''}>
                                                         {log.failure_reason || '-'}
                                                     </TableCell>
                                                 </TableRow>

@@ -149,7 +149,7 @@ export const rcsTemplatesService = {
   // NEW: Sync full template details (body, cards, etc) from Dotgo to our DB
   async syncTemplateDetails(templateName: string) {
     try {
-      const response = await fetch(`${API_BASE}/rcs/templates/external/${templateName}/sync`, {
+      const response = await fetch(`${API_BASE}/templates/external/${templateName}/sync`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
