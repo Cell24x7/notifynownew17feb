@@ -35,10 +35,6 @@ router.post('/send-otp', async (req, res) => {
   const type = target.includes('@') ? 'email' : 'mobile';
 
   try {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
-    expiry.setMilliseconds(0);
-
     // Check if user exists
     let userQuery = 'SELECT * FROM users WHERE email = ?';
     let userParams = [target];
@@ -50,6 +46,9 @@ router.post('/send-otp', async (req, res) => {
 
     let [users] = await query(userQuery, userParams);
 
+    let otp;
+    let expiry;
+
     // HANDLING SIGNUP
     if (is_signup) {
       if (users.length > 0) {
@@ -57,64 +56,83 @@ router.post('/send-otp', async (req, res) => {
         if (users[0].is_verified) {
           return res.status(400).json({ success: false, message: 'Account already exists. Please login.' });
         }
-        // If unverified, we will update the OTP below (resend)
-      } else {
-        // Create new unverified user
-        if (type === 'email') {
-          await query(
-            'INSERT INTO users (email, otp, otp_expiry, is_verified, role, password, name) VALUES (?, ?, ?, 0, "user", ?, ?)',
-            [target, otp, expiry, 'TEMP_PASS_HASH', 'New User']
-          );
-        } else {
-          // Mobile signup - require placeholder email if DB enforces not null
-          const placeholderEmail = `${target}@phone.cell24x7.com`;
-          await query(
-            'INSERT INTO users (email, contact_phone, otp, otp_expiry, is_verified, role, password, name) VALUES (?, ?, ?, ?, 0, "user", ?, ?)',
-            [placeholderEmail, target, otp, expiry, 'TEMP_PASS_HASH', 'New User']
-          );
+        
+        // SMART RESEND: If OTP exists and is NOT expired, and was sent recently, reuse it
+        if (users[0].otp && users[0].otp_expiry && new Date() < new Date(users[0].otp_expiry)) {
+          console.log(`[AUTH] Reusing valid OTP for ${target}`);
+          otp = users[0].otp;
+          expiry = users[0].otp_expiry;
         }
+      } else {
+        // Create new unverified user - will generate new OTP below
       }
     }
     // HANDLING FORGOT PASSWORD / LOGIN OTP (if needed)
     else {
       if (users.length === 0) {
-        // Security: Don't reveal user not found, but needed for logic. 
-        // Return 404 for now as it helps frontend debug. 
-        // Production: treat same as success.
         const errorMsg = type === 'email'
           ? 'This email ID does not exist.'
           : 'This mobile number does not exist.';
         return res.status(404).json({ success: false, message: errorMsg });
       }
+      
+      // Also check for existing valid OTP for forgot password
+      if (users[0].otp && users[0].otp_expiry && new Date() < new Date(users[0].otp_expiry)) {
+          console.log(`[AUTH] Reusing valid Forgot Password OTP for ${target}`);
+          otp = users[0].otp;
+          expiry = users[0].otp_expiry;
+      }
     }
 
-    // Update OTP on the found/created user
-    // Re-fetch to get ID in case we just inserted
-    // (Optimization: use INSERT ID, but consistent read is safer)
+    // Generate new OTP if not reused
+    if (!otp) {
+      otp = Math.floor(100000 + Math.random() * 900000).toString();
+      expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+      expiry.setMilliseconds(0);
+
+      if (is_signup && users.length === 0) {
+        // Create the user
+        if (type === 'email') {
+          await query(
+            'INSERT INTO users (email, otp, otp_expiry, is_verified, role, password, name, status) VALUES (?, ?, ?, 0, "user", ?, ?, "pending")',
+            [target, otp, expiry, 'TEMP_PASS_HASH', 'New User']
+          );
+        } else {
+          const placeholderEmail = `${target}@phone.cell24x7.com`;
+          await query(
+            'INSERT INTO users (email, contact_phone, otp, otp_expiry, is_verified, role, password, name, status) VALUES (?, ?, ?, ?, 0, "user", ?, ?, "pending")',
+            [placeholderEmail, target, otp, expiry, 'TEMP_PASS_HASH', 'New User']
+          );
+        }
+      } else {
+        // Update user with new OTP
+        await query('UPDATE users SET otp = ?, otp_expiry = ?, status = "pending" WHERE id = ?', [otp, expiry, users[0].id]);
+      }
+    }
+
+    // Re-fetch to ensure we have the latest state (for logging/send)
     [users] = await query(userQuery, userParams);
 
     if (users.length > 0) {
       console.log(`[AUTH] Sending OTP to ${target} (${type})...`);
-      await query('UPDATE users SET otp = ?, otp_expiry = ? WHERE id = ?', [otp, expiry, users[0].id]);
-
+      
       // Send the OTP
       try {
         if (type === 'email') {
-          console.log(`[AUTH] Sending Email OTP to ${target}`);
+          console.log(`[AUTH] Sending Email OTP: ${otp} to ${target}`);
           await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`, otp);
         } else {
           // Send via SMS
-          console.log(`[AUTH] Sending SMS OTP to ${target}`);
+          console.log(`[AUTH] Sending SMS OTP: ${otp} to ${target}`);
           const msg = `Dear Customer, Your One Time Password is ${otp}. CMT`;
           await sendSMS(target, msg);
         }
         res.json({ success: true, message: 'OTP sent successfully' });
       } catch (sendErr) {
         console.error(`❌ [AUTH] External Send Error:`, sendErr.message);
-        throw sendErr; // Let the outer catch handle it
+        throw sendErr; 
       }
     } else {
-      console.error(`❌ [AUTH] User not found for ${target} after insert/fetch`);
       res.status(500).json({ success: false, message: 'Failed to create/find user' });
     }
 
@@ -270,7 +288,7 @@ router.post('/verify-otp', async (req, res) => {
     if (!rows.length) return res.status(404).json({ success: false, message: 'User not found' });
     const user = rows[0];
 
-    if (user.otp !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    if (String(user.otp) !== String(otp)) return res.status(400).json({ success: false, message: 'Invalid OTP' });
     if (new Date() > new Date(user.otp_expiry)) return res.status(400).json({ success: false, message: 'OTP expired' });
 
     res.json({ success: true, message: 'OTP verified' });
@@ -295,7 +313,7 @@ router.post('/signup', async (req, res) => {
     if (!rows.length) return res.status(400).json({ success: false, message: 'User not found (OTP not sent?)' });
     const user = rows[0];
 
-    if (user.otp !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    if (String(user.otp) !== String(otp)) return res.status(400).json({ success: false, message: 'Invalid OTP' });
 
     // Hash password
     const hash = await bcrypt.hash(password, 10);
@@ -333,8 +351,8 @@ router.post('/signup', async (req, res) => {
 
 
     // Dynamic Update Logic
-    const updates = ['password = ?', 'name = ?', 'company = ?', 'is_verified = 1', 'otp = NULL', 'permissions = ?', 'channels_enabled = ?'];
-    const params = [hash, name || 'User', company || null, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)];
+    const updates = ['password = ?', 'name = ?', 'company = ?', 'is_verified = 1', 'otp = NULL', 'permissions = ?', 'channels_enabled = ?', 'status = ?'];
+    const params = [hash, name || 'User', company || null, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels), 'pending'];
 
     // Handle Secondary Identifier
     if (identifier.includes('@')) {

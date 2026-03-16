@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
@@ -32,6 +33,7 @@ export default function SuperAdminClients() {
   const [rcsConfigs, setRcsConfigs] = useState<any[]>([]); // State for RCS configs
   const [whatsappConfigs, setWhatsappConfigs] = useState<any[]>([]); // State for WhatsApp configs
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('clients');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
 
@@ -553,140 +555,158 @@ export default function SuperAdminClients() {
         </CardContent>
       </Card>
 
-      {/* Clients Table */}
-      <Card className="relative overflow-hidden border shadow-sm">
-        <div className="flex items-center justify-between p-4 border-b bg-muted/5">
-          <div className="flex items-center gap-2">
-            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Client List</h2>
-            <Badge variant="secondary" className="hidden sm:inline-flex bg-muted text-muted-foreground h-5 px-1.5 text-[10px]">{totalClients}</Badge>
-          </div>
-          <div className="flex items-center gap-1 sm:hidden">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => scrollHorizontally('left')}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => scrollHorizontally('right')}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-80 grid-cols-2 rounded-xl bg-muted/50 p-1 mb-2">
+          <TabsTrigger value="clients" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            Clients
+          </TabsTrigger>
+          <TabsTrigger value="enquiries" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            Enquiries
+          </TabsTrigger>
+        </TabsList>
 
-        <div
-          ref={scrollRef}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-          className={cn(
-            "w-full overflow-x-auto",
-            isDragging ? "cursor-grabbing" : "cursor-grab"
-          )}
-        >
-          <Table className="min-w-[1000px]">
-            <TableHeader className="bg-muted/30">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[200px]">Client Name</TableHead>
-                <TableHead className="w-[180px]">Company</TableHead>
-                <TableHead className="w-[220px]">Email</TableHead>
-                <TableHead className="w-[120px]">Plan</TableHead>
-                <TableHead className="text-center w-[150px]">Channels</TableHead>
-                <TableHead className="text-right w-[120px]">Wallet Balance</TableHead>
-                <TableHead className="w-[120px] text-center">Status</TableHead>
-                <TableHead className="w-[140px]">Created</TableHead>
-                <TableHead className="text-right w-[80px] sticky right-0 bg-background/95 backdrop-blur-sm shadow-sm">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                    <p className="mt-2 text-sm text-muted-foreground">Loading clients...</p>
-                  </TableCell>
+        <Card className="relative overflow-hidden border shadow-sm">
+          <div className="flex items-center justify-between p-4 border-b bg-muted/5">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+                {activeTab === 'clients' ? 'Client List' : 'New Enquiries'}
+              </h2>
+              <Badge variant="secondary" className="hidden sm:inline-flex bg-muted text-muted-foreground h-5 px-1.5 text-[10px]">
+                {activeTab === 'clients' 
+                  ? filteredClients.filter(c => c.status !== 'pending').length 
+                  : filteredClients.filter(c => c.status === 'pending').length}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-1 sm:hidden">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => scrollHorizontally('left')}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => scrollHorizontally('right')}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div
+            ref={scrollRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            className={cn(
+              "w-full overflow-x-auto",
+              isDragging ? "cursor-grabbing" : "cursor-grab"
+            )}
+          >
+            <Table className="min-w-[1000px]">
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[200px]">Client Name</TableHead>
+                  <TableHead className="w-[180px]">Company</TableHead>
+                  <TableHead className="w-[220px]">Email</TableHead>
+                  <TableHead className="w-[120px]">Plan</TableHead>
+                  <TableHead className="text-center w-[150px]">Channels</TableHead>
+                  <TableHead className="text-right w-[120px]">Wallet Balance</TableHead>
+                  <TableHead className="w-[120px] text-center">Status</TableHead>
+                  <TableHead className="w-[140px]">Created</TableHead>
+                  <TableHead className="text-right w-[80px] sticky right-0 bg-background/95 backdrop-blur-sm shadow-sm">Actions</TableHead>
                 </TableRow>
-              ) : filteredClients.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-20 text-muted-foreground">
-                    No clients found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredClients.map((client) => (
-                  <TableRow key={client.id} className="group">
-                    <TableCell className="font-medium">{client.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{client.company_name}</TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">{client.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize font-normal">
-                        {plans.find(p => p.id === client.plan_id)?.name || client.plan_id}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
-                        {/* 
-                           Show channels from the Plan if available, fall back to client's own channels 
-                           The logic: client channels are auto-set from plan upon creation/update.
-                        */}
-                        {parseChannels(client.channels_enabled)
-                          .filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch))
-                          .slice(0, 4)
-                          .map((ch: any) => (
-                            <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
-                              <div className="bg-background rounded-full p-0.5 shadow-sm border">
-                                <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-xs font-medium text-green-600">
-                          {"\u20B9"}{(client.wallet_balance || 0).toLocaleString()}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {client.credits_available.toLocaleString()} units
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={cn('text-[10px] px-2 py-0.5 rounded-full capitalize shadow-none border', getStatusColor(client.status))}>
-                        {client.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(client.created_at), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell className="text-right sticky right-0 bg-background/95 backdrop-blur-sm shadow-sm group-hover:bg-muted/5">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuItem onClick={() => handleView(client)}>
-                            <Eye className="w-4 h-4 mr-2" /> View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEdit(client)}>
-                            <Pencil className="w-4 h-4 mr-2" /> Edit Client
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
-                            <LogIn className="w-4 h-4 mr-2" /> Login as Client
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleSuspend(client)} className="text-red-600 focus:text-red-600">
-                            <Ban className="w-4 h-4 mr-2" />
-                            {client.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-20">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                      <p className="mt-2 text-sm text-muted-foreground">Loading clients...</p>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+                ) : (activeTab === 'clients' 
+                  ? filteredClients.filter(c => c.status !== 'pending')
+                  : filteredClients.filter(c => c.status === 'pending')
+                ).length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-20 text-muted-foreground">
+                      No {activeTab === 'clients' ? 'clients' : 'enquiries'} found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  (activeTab === 'clients' 
+                    ? filteredClients.filter(c => c.status !== 'pending')
+                    : filteredClients.filter(c => c.status === 'pending')
+                  ).map((client) => (
+                    <TableRow key={client.id} className="group">
+                      <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{client.company_name}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">{client.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize font-normal">
+                          {plans.find(p => p.id === client.plan_id)?.name || client.plan_id}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
+                          {parseChannels(client.channels_enabled)
+                            .filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch))
+                            .slice(0, 4)
+                            .map((ch: any) => (
+                              <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
+                                <div className="bg-background rounded-full p-0.5 shadow-sm border">
+                                  <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="text-xs font-medium text-green-600">
+                            {"\u20B9"}{(client.wallet_balance || 0).toLocaleString()}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {client.credits_available.toLocaleString()} units
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={cn('text-[10px] px-2 py-0.5 rounded-full capitalize shadow-none border', getStatusColor(client.status))}>
+                          {client.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(client.created_at), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="text-right sticky right-0 bg-background/95 backdrop-blur-sm shadow-sm group-hover:bg-muted/5">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem onClick={() => handleView(client)}>
+                              <Eye className="w-4 h-4 mr-2" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(client)}>
+                              <Pencil className="w-4 h-4 mr-2" /> Edit Client
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
+                              <LogIn className="w-4 h-4 mr-2" /> Login as Client
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSuspend(client)} className="text-red-600 focus:text-red-600">
+                              <Ban className="w-4 h-4 mr-2" />
+                              {client.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      </Tabs>
 
       {/* Redesigned Client Modal */}
       <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>

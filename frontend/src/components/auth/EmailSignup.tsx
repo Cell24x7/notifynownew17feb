@@ -22,6 +22,7 @@ export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps
   const [countryCode, setCountryCode] = useState('+91');
   const [emailError, setEmailError] = useState('');
   const [mobileError, setMobileError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
   const validateEmail = (email: string) => {
@@ -60,6 +61,7 @@ export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isProcessing) return;
 
     if (tab === 'email') {
       if (!email || emailError) {
@@ -73,6 +75,7 @@ export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps
       }
     }
 
+    setIsProcessing(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
         method: 'POST',
@@ -106,6 +109,8 @@ export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps
         description: 'Failed to send OTP. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -168,10 +173,10 @@ export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps
       <Button
         type="submit"
         className="w-full gradient-primary text-primary-foreground py-6 text-base"
-        disabled={isLoading || disabled || (tab === 'email' ? !!emailError : !!mobileError)}
+        disabled={isLoading || disabled || isProcessing || (tab === 'email' ? !!emailError : !!mobileError)}
       >
 
-        {isLoading ? (
+        {isLoading || isProcessing ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Sending OTP...

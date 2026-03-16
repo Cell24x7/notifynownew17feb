@@ -20,6 +20,7 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
 
   const validatePassword = (pwd: string) => {
@@ -53,6 +54,7 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCreating) return;
 
     const pwdError = validatePassword(password);
     if (pwdError) {
@@ -65,6 +67,7 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
       return;
     }
 
+    setIsCreating(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: 'POST',
@@ -110,6 +113,8 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
         description: 'Failed to create account. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -234,9 +239,9 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
       <Button
         type="submit"
         className="w-full gradient-primary text-primary-foreground py-6 text-base font-bold shadow-lg hover:shadow-primary/20 transition-all"
-        disabled={isLoading || !password || !confirmPassword || !!passwordError || !!confirmPasswordError || !name || !company || !secondaryIdentifier}
+        disabled={isLoading || isCreating || !password || !confirmPassword || !!passwordError || !!confirmPasswordError || !name || !company || !secondaryIdentifier}
       >
-        {isLoading ? (
+        {isLoading || isCreating ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Creating Account...

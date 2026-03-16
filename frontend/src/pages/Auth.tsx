@@ -147,7 +147,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#f8faff] flex items-center justify-center p-2 lg:p-4 font-['Inter',_sans-serif] overflow-y-auto lg:overflow-visible py-8 lg:py-4">
+    <div className="min-h-screen w-full bg-[#f8faff] flex items-center justify-center p-0 font-['Inter',_sans-serif] overflow-y-auto py-0">
       {/* Decorative Circles Background with Heavy Blur */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[5%] left-[-5%] w-[400px] h-[400px] bg-[#0052cc]/10 rounded-full blur-[80px]"></div>
@@ -157,10 +157,10 @@ export default function Auth() {
       </div>
 
       {/* Main Container - Optimized for 100% Zoom & Mobile */}
-      <div className="relative z-10 w-full max-w-[1020px] bg-white rounded-[32px] overflow-hidden flex flex-col lg:flex-row shadow-[0_32px_64px_-16px_rgba(0,0,0,0.12)] border border-slate-100/50 lg:max-h-[82vh]">
+      <div className="relative z-10 w-full lg:max-w-none lg:min-h-screen bg-white overflow-hidden flex flex-col lg:flex-row shadow-none border-none">
         
         {/* Left Interactive Section */}
-        <div className="w-full lg:w-[58%] bg-[#0052cc] p-8 lg:p-8 flex flex-col relative overflow-hidden shrink-0 min-h-[400px] lg:min-h-0">
+        <div className="w-full lg:w-[50%] bg-[#0052cc] p-8 lg:p-12 flex flex-col relative overflow-hidden shrink-0 min-h-[500px] lg:min-h-screen">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-6 lg:mb-8">
             <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg shadow-lg" />
@@ -224,7 +224,7 @@ export default function Auth() {
         </div>
 
         {/* Right Form Section */}
-        <div className="w-full lg:w-[42%] bg-white p-4 lg:p-6 flex flex-col items-center justify-center relative shrink-0">
+        <div className="w-full lg:w-[50%] bg-white p-6 lg:p-12 flex flex-col items-center justify-center relative shrink-0 min-h-screen">
           
           <div className="w-full max-w-[320px] flex flex-col justify-center">
             

@@ -2,7 +2,44 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-14]
+- Fix: Re-defined baseUrl in smsService and ensured correct API format (414b25b)
+- Fix: Updated Email API to use GET format with OTP-specific parameters (944f2dd)
+- Fix: Removed redundant dotenv config in email service (975f37f)
+- Fix: Ensured all migration scripts load .env.production and synchronized deploy_server settings (6ce4ed5)
+- Fix: Added robust mobile cleaning and detailed logging to OTP/Auth services (5fb126c)
+- Deploy: Synchronized all migrations across both deployment scripts (2a654b7)
+- Deploy: Added all missing schema migrations to production deploy script (162a66e)
+- Deploy: Updated production script with correct DB and migrations (54e791c)
+- Fix: Improved API logs sorting, fixed RCS sync URL, and enhanced reports UI (2871fd0)
+- Fix: Resolved doubling of recipient_count in reports and aligned duplication logic (98e0814)
+- Fix: Comprehensive variable detection in WhatsApp templates to prevent Parameter Mismatch errors (d25a51e)
+- Fix: Final stability fixes for Developer server, DB enforcement, and robust template payload construction (d67eb07)
+- Fix: Ensure template name is never null in queue and improved WA stability (27ad958)
+- Fix: Align audience_count to recipient_count and enhanced detail logging (b5dc79e)
+
+---
+
 ## [2026-03-13]
+- Fix: Chat list now shows contact name instead of phone number via contacts JOIN (eb603ef)
+- Polished Topbar: My Profile link, better dropdown, fixed lint and testimonial text (b149ed5)
+- Fixed Auth page mobile responsiveness: enabled scrolling and improved layout stacking (8390f1c)
+- Polished UI: Live testimonials on Auth page, sharpened logo, and updated Topbar to match provided designs (no glassmorphism) (ef8e7c4)
+- Refined Auth page: smaller header, password toggle (eye icon), and fixed non-scrolling layout at 100% zoom (c8a1ec5)
+- Fixed scrolling and layout issues for Auth page at 100% zoom (d6e7919)
+- Adjusted layout scaling for 100% zoom visibility, lightened BG, and increased blur on decorative elements (5eb987a)
+- Fixed login page design to match image exactly - adjusted fonts, colors, and removed glassmorphism (e06c15c)
+- Revamped login page to match new design specifications (9ba585c)
+- Fix: Restore Package icon in AppSidebar for DLT Templates (d7f389d)
+- Fix: Add missing CreditCard import in AppSidebar (fec052a)
+- Unify Plans UI and integrate into Settings tab (863c36c)
+- Implement functional automation system with backend and database integration (2a417a8)
+- Refine filter control center in Templates page (5b428a7)
+- Sidebar menu rearrangement and Reports UI enhancement with live campaign activity (14cd73a)
+- Optimize dashboard channel cards layout and responsiveness (06676a0)
+- Filter dashboard channels based on user permissions and role (2d68392)
+- Unify Dashboard stats for Admin/User and filter inactive channels dynamically (f12cc20)
+- Replace dummy stats values with real API variables in Dashboard (dc14359)
 - Enhance Auth page: Replace marquee with rotating FeedbackBox next to contact buttons (87c5fd1)
 - Fix missing lucide icon import in Dashboard (17efc79)
 - Complete redesign of Dashboard Analytics with charts and agent performance matching mockups (5acddc7)
@@ -226,23 +263,6 @@ This document is automatically updated based on development activity.
 
 ## [2026-02-14]
 - update (a43d027)
-- Update auth.js (282ba3f)
-
----
-
-## [2026-02-13]
-- New fresh project upload (7a526ba)
-
----
-
-## [2026-02-12]
-- index.js changes code (ce7ce5a)
-- updated url (754fbff)
-
----
-
-## [2026-02-11]
-- updated code for sms (0cf7b6c)
 
 ---
 

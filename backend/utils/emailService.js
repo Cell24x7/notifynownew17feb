@@ -16,10 +16,11 @@ const ADMIN_EMAILS = [
  * @param {string|number} otp - Optional OTP (to trigger provider templates)
  * @param {string} template - Template name
  */
-const sendEmail = async (to, subject, text, otp = null, template = 'otp_template_latest_feb') => {
+const sendEmail = async (to, subject, text, otp = null, template = process.env.EMAIL_OTP_TEMPLATE || 'otp_template_latest_feb') => {
   const emailUser = process.env.EMAIL_API_USER;
   const emailPass = process.env.EMAIL_API_PASS;
   const fromAddr = process.env.EMAIL_FROM_ADDR || 'support@cell24x7.com';
+  const useTemplate = process.env.EMAIL_USE_TEMPLATE === 'true';
 
   if (!emailUser || !emailPass) {
     console.log(`[DEV MODE] Email to ${to}: ${subject} \n${text}`);
@@ -29,8 +30,6 @@ const sendEmail = async (to, subject, text, otp = null, template = 'otp_template
   try {
     const apiUrl = process.env.EMAIL_API_URL;
     if (!apiUrl) throw new Error('EMAIL_API_URL is missing in .env');
-
-    console.log(`[EMAIL] Attempting to send to ${to}`);
 
     // Build params for the GET request as per provider format
     const params = {
@@ -43,15 +42,25 @@ const sendEmail = async (to, subject, text, otp = null, template = 'otp_template
       body: text
     };
 
-    // If OTP is provided, add specific template and otp params
-    if (otp) {
+    // If OTP is provided AND templates are enabled, add template and otp params
+    if (otp && useTemplate) {
       params.otp = otp;
       params.template = template;
+      params.var1 = otp; // Fallback for some providers
+      params.var2 = otp; // Fallback
+      params.msg = text; // Fallback for message content
+      console.log(`[EMAIL] Attempting to send OTP Email to ${to} using template: ${template}`);
+    } else {
+      console.log(`[EMAIL] Attempting to send Regular Email to ${to}`);
     }
 
     const response = await axios.get(apiUrl, { params, timeout: 10000 });
 
+    // Debug logging (masking password)
+    const logParams = { ...params, pwd: '****' };
+    console.log(`📧 [EMAIL] Request Params:`, JSON.stringify(logParams));
     console.log(`📧 [EMAIL] API Response for ${to}:`, response.data);
+    
     return response.data;
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;

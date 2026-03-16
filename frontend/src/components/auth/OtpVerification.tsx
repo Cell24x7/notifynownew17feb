@@ -18,6 +18,7 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
   const [otpError, setOtpError] = useState('');
   const [timeLeft, setTimeLeft] = useState(60); // 60 seconds
   const [canResend, setCanResend] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
 
   // Timer for OTP expiry
@@ -50,12 +51,14 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isVerifying) return;
 
     if (!otp || otp.length !== 6) {
       setOtpError('Please enter a valid 6-digit OTP');
       return;
     }
 
+    setIsVerifying(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
         method: 'POST',
@@ -77,10 +80,14 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
       onOtpVerified(otp);
     } catch (err) {
       setOtpError('Failed to verify OTP. Please try again.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
   const handleResendOtp = async () => {
+    if (isVerifying) return;
+    setIsVerifying(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
         method: 'POST',
@@ -112,6 +119,8 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
         description: 'Failed to resend OTP',
         variant: 'destructive',
       });
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -161,9 +170,9 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
       <Button
         type="submit"
         className="w-full gradient-primary text-primary-foreground py-6 text-base"
-        disabled={isLoading || otp.length !== 6}
+        disabled={isLoading || isVerifying || otp.length !== 6}
       >
-        {isLoading ? (
+        {isLoading || isVerifying ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Verifying...

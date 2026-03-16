@@ -14,6 +14,7 @@ export function TestimonialSlider() {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fade, setFade] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     const fetchFeedbacks = async () => {
@@ -31,7 +32,7 @@ export function TestimonialSlider() {
   }, []);
 
   useEffect(() => {
-    if (feedbacks.length <= 1) return;
+    if (feedbacks.length <= 1 || isPaused) return;
 
     const timer = setInterval(() => {
       setFade(false);
@@ -42,11 +43,11 @@ export function TestimonialSlider() {
     }, 5000);
 
     return () => clearInterval(timer);
-  }, [feedbacks]);
+  }, [feedbacks, isPaused]);
 
   if (feedbacks.length === 0) {
     return (
-      <div className="bg-white rounded-[20px] p-4 shadow-xl border border-slate-100 w-full">
+      <div className="bg-white rounded-[20px] p-4 shadow-xl border border-slate-100 w-full transition-all duration-300">
         <div className="flex gap-0.5 mb-2">
           {[...Array(5)].map((_, i) => (
             <Star key={i} className="w-2.5 h-2.5 fill-[#FFB300] text-[#FFB300]" />
@@ -67,18 +68,22 @@ export function TestimonialSlider() {
   const current = feedbacks[currentIndex];
 
   return (
-    <div className={`transition-all duration-500 transform w-full ${fade ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-      <div className="bg-white rounded-[20px] p-4 shadow-xl border border-slate-100 w-full">
+    <div 
+      className="bg-white rounded-[20px] p-4 shadow-xl border border-slate-100 w-full cursor-default group"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <div className={`transition-all duration-500 transform ${fade ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
         <div className="flex gap-0.5 mb-2">
           {[...Array(5)].map((_, i) => (
             <Star key={i} className={`w-2.5 h-2.5 ${i < current.rating ? 'fill-[#FFB300] text-[#FFB300]' : 'text-slate-200'}`} />
           ))}
         </div>
-        <p className="text-[#1E293B] text-[10px] font-bold italic leading-relaxed mb-2.5">
+        <p className="text-[#1E293B] text-[12px] font-bold italic leading-relaxed mb-4">
           "{current.message}"
         </p>
-        <div className="flex items-center gap-2">
-          <span className="text-[#059669] font-black text-[9px]">{current.name}</span>
+        <div className="flex items-center gap-2 mt-auto">
+          <span className="text-[#059669] font-black text-[11px]">{current.name}</span>
           {(current.designation || current.company) && (
             <>
               <span className="text-slate-300 text-[9px]">|</span>
