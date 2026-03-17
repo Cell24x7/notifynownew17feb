@@ -182,9 +182,12 @@ router.post('/dotgo', async (req, res) => {
         const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
         const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
         const recipient = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.destinationPhoneNumber || decodedData.recipient;
-        const finalStatus = eventType ? eventType.toLowerCase() : 'unknown';
+        const finalStatus = eventType ? eventType.toLowerCase() : (decodedData.text ? 'received' : 'unknown');
+        const messageContent = decodedData.text || decodedData.message || null;
+        const sender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
 
         console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) for ${recipient}`);
+        if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${sender}`);
 
         // 2. Save/Update webhook_logs (Smart UPSERT logic)
         try {
@@ -202,6 +205,8 @@ router.post('/dotgo', async (req, res) => {
                 await query(
                     `UPDATE webhook_logs SET 
                     user_id = COALESCE(?, user_id),
+                    sender = COALESCE(?, sender),
+                    message_content = COALESCE(?, message_content),
                     status = ?, 
                     event_type = ?, 
                     raw_payload = ?,
@@ -211,6 +216,8 @@ router.post('/dotgo', async (req, res) => {
                     WHERE id = ?`,
                     [
                         userId,
+                        sender,
+                        messageContent,
                         finalStatus,
                         eventType || null,
                         JSON.stringify(payload),
@@ -224,10 +231,12 @@ router.post('/dotgo', async (req, res) => {
                 // INSERT new row as fallback
                 await query(
                     `INSERT INTO webhook_logs 
-                    (user_id, received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    (user_id, sender, message_content, received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         userId,
+                        sender,
+                        messageContent,
                         payload.receivedTime || null,
                         recipient || null,
                         messageId || null,
@@ -313,8 +322,47 @@ router.post('/dotgo', async (req, res) => {
                     } else {
                         console.log(`ℹ️ Status for Log ${log.id} is already ${oldStatus}. No update needed.`);
                     }
+
+                    // 📡 REAL-TIME CHAT UPDATE (Socket.io)
+                    // If it's a new received message (not just a status update)
+                    if (finalStatus === 'received' && messageContent && req.io) {
+                        const targetUserId = userId || log.user_id;
+                        if (targetUserId) {
+                            req.io.to(`user_${targetUserId}`).emit('new_message', {
+                                id: messageId || log.id,
+                                sender: sender || recipient,
+                                message_content: messageContent,
+                                created_at: new Date(),
+                                status: 'received',
+                                type: 'rcs'
+                            });
+                            console.log(`📡 Emitted RCS new_message to user_${targetUserId}`);
+
+                            // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
+                            triggerChatflow(targetUserId, sender || recipient, messageContent, 'rcs', req.io).catch(e =>
+                                console.error('[ChatFlow] RCS trigger error:', e.message)
+                            );
+
+                            // 🤖 CHECK AUTOMATIONS — graph-based logic
+                            processAutomation(targetUserId, 'new_message', 'rcs', {
+                                sender: sender || recipient,
+                                message_content: messageContent,
+                                messageId: messageId || log.message_id
+                            }, req.io).catch(e =>
+                                console.error('[AutomationService] RCS trigger error:', e.message)
+                            );
+                        }
+                    }
                 } else {
                     console.log(`ℹ️ No matching log found for MsgID: ${messageId}, Recipient: ${recipient}`);
+
+                    // 📡 Fallback for unsolicited incoming messages
+                    if (finalStatus === 'received' && messageContent && req.io && sender) {
+                        // For RCS, we need a way to assign this to a user. 
+                        // Let's at least try to find a user who has active RCS agents if possible, 
+                        // or just log it to webhook_logs (already done above).
+                        console.warn(`⚠️ Unsolicited RCS message from ${sender}. No owner found.`);
+                    }
                 }
             } catch (statusErr) {
                 console.error('❌ Error updating message status:', statusErr.message);
