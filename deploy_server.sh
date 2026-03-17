@@ -104,6 +104,10 @@ API_BASE_URL=https://developer.notifynow.in
 JWT_SECRET=notifynow_db_secret_key
 JWT_EXPIRES_IN=7d
 
+# Webhook Config
+WHATSAPP_VERIFY_TOKEN=notifynow_dev_token
+WEBHOOK_URL_BASE=https://developer.notifynow.in/api
+
 # SMS Configuration
 SMS_USER=testdemo
 SMS_PASSWORD=apidemo
@@ -123,6 +127,10 @@ EMAIL_API_PASS=passdemo
 EMAIL_FROM_ADDR=support@cell24x7.com
 EMAIL_API_URL=http://43.242.212.34:7716/emailService/sendEmail
 EOF
+
+# Ensure Frontend knows which API to use
+log "🌐 Configuring Frontend for Developer API..."
+echo "VITE_API_URL=https://developer.notifynow.in/api" > "$FRONTEND_DIR/.env"
 
 log "🗄️  Checking DB migration..."
 if [ -f "$BACKEND_DIR/apply_schema_updates.js" ]; then
