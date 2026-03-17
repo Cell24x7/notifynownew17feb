@@ -53,17 +53,9 @@ npm install --production --silent
 cd "$FRONTEND_DIR"
 if [ ! -d "node_modules" ]; then npm install --silent; fi
 
-# ── Step 4: Build Frontend ────────────────────────────
-log "🏗️  [4/7] Building frontend..."
-API_URL="https://notifynow.in/api"
-echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env"
-echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env.production"
-ok "Frontend configured to use: $API_URL"
-npm run build
-ok "Frontend built successfully"
-
-# ── Step 5: Enforce Env ───────────────────────────────
-log "🛠️  [5/7] Enforcing PRODUCTION settings..."
+# ── Step 4: Enforce Env ───────────────────────────────
+log "🛠️  [4/7] Enforcing PRODUCTION settings..."
+# Backend Env
 cat <<EOF > "$BACKEND_DIR/.env.production"
 DB_HOST=localhost
 DB_USER=root
@@ -75,6 +67,22 @@ JWT_SECRET=notifynow_prod_secret_key_secure
 JWT_EXPIRES_IN=7d
 WHATSAPP_VERIFY_TOKEN=notifynow_prod_token
 EOF
+
+# Frontend Env (VITE_API_URL is critical for build)
+# Writing to both .env and .env.production for maximum compatibility
+API_URL="https://notifynow.in/api"
+echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env"
+echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env.production"
+ok "Environment files created (API: $API_URL)"
+
+# ── Step 5: Build Frontend ────────────────────────────
+log "🏗️  [5/7] Building frontend..."
+cd "$FRONTEND_DIR"
+npm run build
+ok "Frontend built successfully"
+
+# Fix dist folder permissions
+chmod -R 755 "$DIST_DIR"
 
 # ── Step 6: Migrations ────────────────────────────────
 log "🗄️  [6/7] Running migrations..."
@@ -88,5 +96,6 @@ APP_NAME_FROM_CONFIG=$(node -e "console.log(require('./ecosystem.config.js').app
 pm2 delete "$APP_NAME_FROM_CONFIG" 2>/dev/null || true
 pm2 start ecosystem.config.js --env production
 pm2 save --force
-ok "Instance '$APP_NAME_FROM_CONFIG' is active on Port 5050"
+ok "Instance '$APP_NAME_FROM_CONFIG' is active on Production Port (5050)"
+
 echo "✨ PRODUCTION DEPLOYMENT COMPLETE!"
