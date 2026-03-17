@@ -182,8 +182,20 @@ router.post('/dotgo', async (req, res) => {
         const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
         const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
         const recipient = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.destinationPhoneNumber || decodedData.recipient;
-        const finalStatus = eventType ? eventType.toLowerCase() : (decodedData.text ? 'received' : 'unknown');
-        const messageContent = decodedData.text || decodedData.message || null;
+        
+        let finalStatus = 'unknown';
+        if (eventType) {
+            const et = eventType.toLowerCase();
+            if (et === 'message' || et === 'text' || et.includes('received')) finalStatus = 'received';
+            else if (et === 'delivered') finalStatus = 'delivered';
+            else if (et === 'displayed' || et === 'read') finalStatus = 'read';
+            else if (et === 'failed') finalStatus = 'failed';
+            else finalStatus = et;
+        } else if (decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text)) {
+            finalStatus = 'received';
+        }
+
+        const messageContent = decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text) || null;
         const sender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
 
         console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) for ${recipient}`);
@@ -191,11 +203,46 @@ router.post('/dotgo', async (req, res) => {
 
         // 2. Save/Update webhook_logs (Smart UPSERT logic)
         try {
-            // Try to find the user_id for this message
+            // Robust userId resolution
             let userId = null;
-            const [ownerLookup] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
-            if (ownerLookup.length > 0) {
-                userId = ownerLookup[0].user_id;
+            
+            // Step A: Try matching by existing messageId (Delivery Reports)
+            if (messageId) {
+                const [ownerLookup] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
+                if (ownerLookup.length > 0) {
+                    userId = ownerLookup[0].user_id;
+                }
+            }
+
+            // Step B: If still null (Incoming Message/Reply), try matching by Bot ID + Sender
+            if (!userId) {
+                const botId = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
+                if (botId && sender) {
+                    // 1. Find the config
+                    const [configs] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId]);
+                    if (configs.length > 0) {
+                        const configId = configs[0].id;
+                        
+                        // 2. Find who last chatted with this person on this config
+                        const [lastChat] = await query(
+                            `SELECT user_id FROM message_logs 
+                             WHERE recipient = ? 
+                             AND user_id IN (SELECT id FROM users WHERE rcs_config_id = ?)
+                             ORDER BY created_at DESC LIMIT 1`,
+                            [sender.replace(/\D/g, ''), configId]
+                        );
+                        
+                        if (lastChat.length > 0) {
+                            userId = lastChat[0].user_id;
+                        } else {
+                            // 3. Fallback: First user assigned to this config
+                            const [fallbackUser] = await query('SELECT id FROM users WHERE rcs_config_id = ? LIMIT 1', [configId]);
+                            if (fallbackUser.length > 0) {
+                                userId = fallbackUser[0].id;
+                            }
+                        }
+                    }
+                }
             }
 
             const [existing] = await query('SELECT id FROM webhook_logs WHERE message_id = ? LIMIT 1', [messageId]);
@@ -209,6 +256,7 @@ router.post('/dotgo', async (req, res) => {
                     message_content = COALESCE(?, message_content),
                     status = ?, 
                     event_type = ?, 
+                    type = 'rcs',
                     raw_payload = ?,
                     received_time = COALESCE(?, received_time),
                     publish_time = COALESCE(?, publish_time),
@@ -232,7 +280,7 @@ router.post('/dotgo', async (req, res) => {
                 await query(
                     `INSERT INTO webhook_logs 
                     (user_id, sender, message_content, received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rcs', ?, ?, ?, ?, ?, ?)`,
                     [
                         userId,
                         sender,
@@ -244,7 +292,6 @@ router.post('/dotgo', async (req, res) => {
                         payload.message?.data || null,
                         payload.message?.attributes?.product || null,
                         payload.message?.attributes?.business_id || null,
-                        payload.message?.attributes?.type || null,
                         payload.message?.attributes?.project_number || null,
                         payload.message?.attributes?.event_type || null,
                         payload.message?.messageId || null,
