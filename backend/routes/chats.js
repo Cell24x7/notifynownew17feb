@@ -21,12 +21,21 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                 COALESCE(c.name, t.contact_phone) as name
             FROM (
                 SELECT 
-                    CASE WHEN sender = 'System' THEN recipient ELSE sender END as contact_phone,
+                    CASE 
+                        WHEN sender REGEXP '^[0-9]+$' THEN sender
+                        ELSE recipient 
+                    END as contact_phone,
                     created_at as last_message_time,
                     message_content,
                     status,
                     type,
-                    ROW_NUMBER() OVER(PARTITION BY CASE WHEN sender = 'System' THEN recipient ELSE sender END ORDER BY created_at DESC) as rn
+                    ROW_NUMBER() OVER(
+                        PARTITION BY CASE 
+                            WHEN sender REGEXP '^[0-9]+$' THEN sender
+                            ELSE recipient 
+                        END 
+                        ORDER BY created_at DESC
+                    ) as rn
                 FROM webhook_logs
                 WHERE user_id = ?
             ) as t
@@ -56,13 +65,18 @@ router.get('/messages/:phone', authenticateToken, async (req, res) => {
         const userId = req.user.id;
         const phone = req.params.phone;
 
+        const cleanPhone = phone.replace(/\D/g, '');
         const sql = `
             SELECT * FROM webhook_logs 
-            WHERE user_id = ? AND (sender = ? OR recipient = ?)
+            WHERE user_id = ? AND (
+                REPLACE(sender, '+', '') = ? OR 
+                REPLACE(recipient, '+', '') = ? OR
+                sender = ? OR recipient = ?
+            )
             ORDER BY created_at ASC
         `;
 
-        const [messages] = await query(sql, [userId, phone, phone]);
+        const [messages] = await query(sql, [userId, cleanPhone, cleanPhone, phone, phone]);
         res.json({ success: true, data: messages });
     } catch (error) {
         console.error('Error fetching messages:', error.message);
@@ -112,6 +126,7 @@ router.post('/send', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Missing fields' });
         }
 
+        const cleanRecipient = recipient.replace(/\D/g, '');
         const channelType = channel.toLowerCase();
         let apiDispatchSuccess = false;
         let errorMessage = '';
@@ -171,14 +186,21 @@ router.post('/send', authenticateToken, async (req, res) => {
         // Save to webhook_logs as an OUTGOING message
         const [result] = await query(
             'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
-            [userId, 'System', recipient, message, finalStatus, channelType]
+            [userId, 'System', cleanRecipient, message, finalStatus, channelType]
         );
+
+        // ALSO Save to message_logs so it shows in Detailed Reports
+        const logId = `LOG_CHAT_${Date.now()}`;
+        await query(
+            'INSERT INTO message_logs (id, user_id, recipient, channel, status, message_content, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+            [logId, userId, cleanRecipient, channelType.toUpperCase(), finalStatus, message]
+        ).catch(err => console.error('❌ Error logging manual chat to message_logs:', err.message));
 
         if (req.io) {
             req.io.to(`user_${userId}`).emit('new_message', {
                 id: result.insertId,
                 sender: 'System',
-                recipient,
+                recipient: cleanRecipient,
                 message_content: message,
                 status: finalStatus,
                 channel: channelType,

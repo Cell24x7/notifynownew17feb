@@ -16,18 +16,41 @@ dotenv.config({ path: path.join(__dirname, '..', envFile) });
 const { query } = require('../config/db');
 
 async function repair() {
-    console.log('🚀 Starting RCS logs repair...');
+    console.log('🚀 Starting Comprehensive RCS logs repair...');
 
     try {
         // 1. Fix missing 'type' for anything with business_id (Dotgo Bot ID)
         console.log('🔍 Fixing missing types...');
         const [typeUpdate] = await query(
-            "UPDATE webhook_logs SET type = 'rcs' WHERE type IS NULL OR type = '' OR type = 'rcs' AND business_id IS NOT NULL"
+            "UPDATE webhook_logs SET type = 'rcs' WHERE type IS NULL OR type = '' OR (business_id IS NOT NULL AND type != 'rcs')"
         );
         console.log(`✅ Updated type to 'rcs' for ${typeUpdate.affectedRows} entries.`);
 
-        // 2. Resolve missing user_id for RCS logs
-        console.log('🔍 Finding logs with missing user_id...');
+        // 2. Decode missing message_content from message_data (base64)
+        console.log('🔍 Decoding missing message contents from base64...');
+        const [encodedLogs] = await query(
+            "SELECT id, message_data FROM webhook_logs WHERE (message_content IS NULL OR message_content = '') AND (message_data IS NOT NULL AND message_data != '') AND type = 'rcs'"
+        );
+        
+        let decodeCount = 0;
+        for (const log of encodedLogs) {
+            try {
+                const decodedString = Buffer.from(log.message_data, 'base64').toString('utf-8');
+                const decodedData = JSON.parse(decodedString);
+                const content = decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text);
+                
+                if (content) {
+                    await query('UPDATE webhook_logs SET message_content = ? WHERE id = ?', [content, log.id]);
+                    decodeCount++;
+                }
+            } catch (e) {
+                // Silently skip if not valid JSON/Base64
+            }
+        }
+        console.log(`✅ Decoded ${decodeCount} message contents.`);
+
+        // 3. Resolve missing user_id for RCS logs
+        console.log('🔍 Resolving missing user_ids...');
         const [missingUsers] = await query(
             "SELECT id, business_id, sender, recipient FROM webhook_logs WHERE user_id IS NULL AND type = 'rcs'"
         );
@@ -65,22 +88,50 @@ async function repair() {
 
             if (userId) {
                 await query('UPDATE webhook_logs SET user_id = ? WHERE id = ?', [userId, log.id]);
-                process.stdout.write('.');
             }
         }
-        console.log('\n✅ User IDs resolved.');
+        console.log('✅ User IDs resolved.');
 
-        // 3. Normalize numbers in webhook_logs
-        console.log('🔍 Normalizing phone numbers...');
-        // This is a safety step: Ensure sender/recipient look like they should for the UI
+        // 4. Backfill message_logs (Detailed Reports) from webhook_logs
+        console.log('🔍 Backfilling Detailed Reports (message_logs) from webhook_logs...');
+        const [allLogs] = await query(
+            `SELECT * FROM webhook_logs 
+             WHERE type = 'rcs' 
+             AND user_id IS NOT NULL 
+             AND (message_content IS NOT NULL AND message_content != '')`
+        );
+
+        let backfillCount = 0;
+        for (const log of allLogs) {
+            // Check if it already exists in message_logs by message_id
+            const mId = log.message_id || log.message_id_envelope;
+            if (!mId) continue;
+
+            const [exists] = await query('SELECT id FROM message_logs WHERE message_id = ? LIMIT 1', [mId]);
+            if (exists.length === 0) {
+                const contactPhone = log.sender?.replace(/\D/g, '') || log.recipient?.replace(/\D/g, '');
+                const status = (log.status === 'received' || log.status === 'sent') ? log.status : 'sent';
+                
+                await query(
+                    `INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, message_content, created_at) 
+                     VALUES (?, ?, ?, 'RCS', ?, ?, ?, ?)`,
+                    [`REPAIR_${log.id}`, log.user_id, contactPhone, status, mId, log.message_content, log.created_at || new Date()]
+                );
+                backfillCount++;
+            }
+        }
+        console.log(`✅ Backfilled ${backfillCount} messages into Reports.`);
+
+        // 5. Normalization
+        console.log('🔍 Final phone number normalization...');
         await query(`
             UPDATE webhook_logs 
             SET sender = REPLACE(sender, '+', ''), recipient = REPLACE(recipient, '+', '')
             WHERE type = 'rcs' AND (sender LIKE '+%' OR recipient LIKE '+%')
         `);
-        console.log('✅ Phone numbers normalized.');
+        console.log('✅ Normalization complete.');
 
-        console.log('✨ REPAIR COMPLETE!');
+        console.log('✨ ALL REPAIRS FINISHED!');
         process.exit(0);
     } catch (err) {
         console.error('❌ Repair failed:', err.message);
