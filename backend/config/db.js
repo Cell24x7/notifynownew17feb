@@ -20,12 +20,10 @@ let dbConnectionError = null;
 
 pool.getConnection((err, conn) => {
   if (err) {
-    console.error('❌ DB Connection Failed:', err.message);
+    console.error(`❌ DB Connection Failed [${process.env.DB_NAME}]:`, err.message);
     dbConnectionError = err.message;
-    // Do NOT exit process, so we can show error on API root
-    // process.exit(1); 
   } else {
-    console.log('✅ MySQL Connected');
+    console.log(`✅ MySQL Connected to Database: ${process.env.DB_NAME}`);
     conn.release();
   }
 });
