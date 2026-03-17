@@ -181,7 +181,6 @@ router.post('/dotgo', async (req, res) => {
 
         const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
         const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
-        const recipient = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.destinationPhoneNumber || decodedData.recipient;
         
         let finalStatus = 'unknown';
         if (eventType) {
@@ -196,10 +195,20 @@ router.post('/dotgo', async (req, res) => {
         }
 
         const messageContent = decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text) || null;
-        const sender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
+        
+        // Identify participants
+        const rawSender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
+        const rawRecipient = decodedData.destinationPhoneNumber || decodedData.recipient || null;
+        
+        const cleanSender = rawSender ? rawSender.replace(/\D/g, '') : null;
+        const cleanRecipient = rawRecipient ? rawRecipient.replace(/\D/g, '') : null;
 
-        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) for ${recipient}`);
-        if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${sender}`);
+        // For incoming messages, the person we are talking to is the SENDER.
+        // For outgoing/DLRs, the person we are talking to is the RECIPIENT.
+        const contactPhone = finalStatus === 'received' ? cleanSender : cleanRecipient;
+
+        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
+        if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${cleanSender}`);
 
         // 2. Save/Update webhook_logs (Smart UPSERT logic)
         try {
@@ -217,7 +226,7 @@ router.post('/dotgo', async (req, res) => {
             // Step B: If still null (Incoming Message/Reply), try matching by Bot ID + Sender
             if (!userId) {
                 const botId = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
-                if (botId && sender) {
+                if (botId && contactPhone) {
                     // 1. Find the config
                     const [configs] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId]);
                     if (configs.length > 0) {
@@ -229,7 +238,7 @@ router.post('/dotgo', async (req, res) => {
                              WHERE recipient = ? 
                              AND user_id IN (SELECT id FROM users WHERE rcs_config_id = ?)
                              ORDER BY created_at DESC LIMIT 1`,
-                            [sender.replace(/\D/g, ''), configId]
+                            [contactPhone, configId]
                         );
                         
                         if (lastChat.length > 0) {
@@ -264,7 +273,7 @@ router.post('/dotgo', async (req, res) => {
                     WHERE id = ?`,
                     [
                         userId,
-                        sender,
+                        cleanSender,
                         messageContent,
                         finalStatus,
                         eventType || null,
@@ -283,10 +292,10 @@ router.post('/dotgo', async (req, res) => {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rcs', ?, ?, ?, ?, ?, ?)`,
                     [
                         userId,
-                        sender,
+                        cleanSender,
                         messageContent,
                         payload.receivedTime || null,
-                        recipient || null,
+                        contactPhone || null,
                         messageId || null,
                         payload.subscription || null,
                         payload.message?.data || null,
@@ -307,14 +316,14 @@ router.post('/dotgo', async (req, res) => {
         }
 
         // 3. Update message_logs & Campaign counts
-        if (messageId || recipient) {
+        if (messageId || contactPhone) {
             try {
                 // Try matching by message_id first
                 let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
 
-                // Fallback: Match by recipient if message_id is 'N/A' or not found
-                if (logs.length === 0 && recipient) {
-                    const cleanRecipient = recipient.replace(/\D/g, ''); // Remove all non-digits (919918...)
+                // Fallback: Match by contactPhone if message_id is 'N/A' or not found
+                if (logs.length === 0 && contactPhone) {
+                    const cleanRecipient = contactPhone; 
                     console.log(`🔍 No ID match for ${messageId}. Searching by recipient: ${cleanRecipient}`);
 
                     [logs] = await query(
@@ -323,7 +332,7 @@ router.post('/dotgo', async (req, res) => {
                     );
 
                     if (logs.length > 0) {
-                        console.log(`✨ REPAIR: Found log ID ${logs[0].id} for ${recipient}. Linking UUID: ${messageId}`);
+                        console.log(`✨ REPAIR: Found log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
                         await query('UPDATE message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
                     }
                 }
@@ -401,14 +410,38 @@ router.post('/dotgo', async (req, res) => {
                         }
                     }
                 } else {
-                    console.log(`ℹ️ No matching log found for MsgID: ${messageId}, Recipient: ${recipient}`);
+                    console.log(`ℹ️ No matching log for MsgID: ${messageId}. Checking if incoming...`);
 
-                    // 📡 Fallback for unsolicited incoming messages
-                    if (finalStatus === 'received' && messageContent && req.io && sender) {
-                        // For RCS, we need a way to assign this to a user. 
-                        // Let's at least try to find a user who has active RCS agents if possible, 
-                        // or just log it to webhook_logs (already done above).
-                        console.warn(`⚠️ Unsolicited RCS message from ${sender}. No owner found.`);
+                    // 📡 If it's a NEW incoming message, insert into message_logs so it shows in reports
+                    if (finalStatus === 'received' && messageContent) {
+                        try {
+                            // Only insert if not already there as a 'sent' message being replied to
+                            // (Actually, replies should always be new entries in message_logs for full history)
+                            await query(
+                                `INSERT INTO message_logs (user_id, message_id, recipient, message_content, status, created_at) 
+                                 VALUES (?, ?, ?, ?, 'received', NOW())`,
+                                [userId, messageId, contactPhone, messageContent]
+                            );
+                            console.log(`✅ Created NEW message_log entry for incoming message from ${contactPhone}`);
+                        } catch (insErr) {
+                            console.error('❌ Failed to create incoming message_log:', insErr.message);
+                        }
+                    }
+
+                    // 📡 Fallback Socket Emit for unsolicited incoming messages
+                    if (finalStatus === 'received' && messageContent && req.io && cleanSender) {
+                        const targetUserId = userId;
+                        if (targetUserId) {
+                            req.io.to(`user_${targetUserId}`).emit('new_message', {
+                                id: messageId || 'N/A',
+                                sender: cleanSender,
+                                message_content: messageContent,
+                                created_at: new Date(),
+                                status: 'received',
+                                type: 'rcs'
+                            });
+                            console.log(`📡 Emitted RCS new_message (Fallback) to user_${targetUserId}`);
+                        }
                     }
                 }
             } catch (statusErr) {
