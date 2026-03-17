@@ -102,11 +102,11 @@ router.post('/', authenticateToken, async (req, res) => {
 
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, status, scheduled_at, variable_mapping, template_metadata, template_body, template_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, scheduled_at, variable_mapping, template_metadata, template_body, template_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 campaignId, userId, name, channel, template_id, templateName,
-                audience_id || null, recipient_count || 0, status || 'draft',
+                audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
                 scheduled_at || null, JSON.stringify(variable_mapping || {}),
                 template_metadata ? JSON.stringify(template_metadata) : null,
                 template_body || null,

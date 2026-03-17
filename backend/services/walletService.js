@@ -134,6 +134,74 @@ const deductCampaignCredits = async (campaignId) => {
     }
 };
 
+/**
+ * Deducts credit for a single message.
+ * @param {string} userId
+ * @param {string} channel
+ * @param {string} templateName
+ * @param {string} templateType
+ * @returns {Promise<{success: boolean, message: string, cost: number}>}
+ */
+const deductSingleMessageCredit = async (userId, channel, templateName, templateType = 'standard') => {
+    try {
+        const [users] = await query(
+            `SELECT id, wallet_balance, 
+                    rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
+                    wa_marketing_price, wa_utility_price, wa_authentication_price
+             FROM users WHERE id = ?`, 
+            [userId]
+        );
+
+        if (users.length === 0) return { success: false, message: 'User not found' };
+        const user = users[0];
+
+        let cost = 1.0;
+        const chan = (channel || '').toLowerCase();
+
+        if (chan === 'rcs') {
+            const type = (templateType || 'standard').toLowerCase();
+            if (type === 'standard' || type === 'text' || type === 'text_message') cost = parseFloat(user.rcs_text_price || 1.0);
+            else if (type === 'rich_card' || type === 'rich-card') cost = parseFloat(user.rcs_rich_card_price || 1.0);
+            else if (type === 'carousel') cost = parseFloat(user.rcs_carousel_price || 1.0);
+        } else if (chan === 'whatsapp') {
+            let category = 'marketing';
+            const [tmpl] = await query('SELECT category FROM message_templates WHERE name = ? AND user_id = ? LIMIT 1', [templateName, userId]);
+            if (tmpl && tmpl.length > 0) category = (tmpl[0].category || 'marketing').toLowerCase();
+
+            if (category === 'utility') cost = parseFloat(user.wa_utility_price || 1.0);
+            else if (category === 'authentication') cost = parseFloat(user.wa_authentication_price || 1.0);
+            else cost = parseFloat(user.wa_marketing_price || 1.0);
+        } else if (chan === 'sms') {
+            cost = 0.25;
+        }
+
+        if (user.wallet_balance < cost) {
+            return { success: false, message: 'Insufficient wallet balance' };
+        }
+
+        await query(
+            `UPDATE users 
+             SET credits_available = credits_available - ?,
+                 wallet_balance = wallet_balance - ?,
+                 credits_used = credits_used + ?
+             WHERE id = ?`,
+            [cost, cost, cost, userId]
+        );
+
+        await query(
+            `INSERT INTO transactions (user_id, type, amount, credits, description, status, created_at)
+             VALUES (?, 'debit', ?, ?, ?, 'completed', NOW())`,
+            [userId, cost, cost, `Single API Send (${chan}): ${templateName}`]
+        );
+
+        return { success: true, message: 'Credit deducted', cost };
+    } catch (error) {
+        console.error('[WalletService] Single deduction error:', error);
+        return { success: false, message: error.message };
+    }
+};
+
 module.exports = {
-    deductCampaignCredits
+    deductCampaignCredits,
+    deductSingleMessageCredit
 };

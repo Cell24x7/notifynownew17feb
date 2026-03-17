@@ -45,17 +45,17 @@ router.get('/summary', authenticateToken, async (req, res) => {
         // 1. Overall Totals
         const [totals] = await query(`
             SELECT 
-                COALESCE(SUM(recipient_count), 0) as sent,
-                COALESCE(SUM(CASE WHEN status = 'completed' THEN recipient_count ELSE 0 END), 0) as delivered,
-                COALESCE(SUM(CASE WHEN status = 'failed' THEN recipient_count ELSE 0 END), 0) as failed,
-                COALESCE(SUM(recipient_count * 0.25), 0) as cost -- Estimated cost (0.25 per msg)
+                COALESCE(SUM(COALESCE(recipient_count, audience_count, 0)), 0) as sent,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END), 0) as delivered,
+                COALESCE(SUM(CASE WHEN status = 'failed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END), 0) as failed,
+                COALESCE(SUM(COALESCE(recipient_count, audience_count, 0) * 0.25), 0) as cost -- Estimated cost (0.25 per msg)
             FROM campaigns c
             ${whereClause}
         `, params);
 
         // 2. Group by Channel
         const [byChannel] = await query(`
-            SELECT channel as label, SUM(recipient_count) as sent, 0 as delivered, 0 as failed, 0 as pending, SUM(recipient_count * 0.25) as cost
+            SELECT channel as label, SUM(COALESCE(recipient_count, audience_count, 0)) as sent, 0 as delivered, 0 as failed, 0 as pending, SUM(COALESCE(recipient_count, audience_count, 0) * 0.25) as cost
             FROM campaigns c
             ${whereClause}
             GROUP BY channel
@@ -63,7 +63,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
 
         // 3. Group by User (Sender)
         const [byUser] = await query(`
-            SELECT u.email as label, SUM(c.recipient_count) as sent, SUM(c.recipient_count * 0.25) as cost
+            SELECT u.email as label, SUM(COALESCE(c.recipient_count, c.audience_count, 0)) as sent, SUM(COALESCE(c.recipient_count, c.audience_count, 0) * 0.25) as cost
             FROM campaigns c
             JOIN users u ON c.user_id = u.id
             ${whereClause}
@@ -73,7 +73,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
 
         // 4. Group by Date
         const [byDate] = await query(`
-             SELECT DATE_FORMAT(c.created_at, '%Y-%m-%d') as label, SUM(c.recipient_count) as sent
+             SELECT DATE_FORMAT(c.created_at, '%Y-%m-%d') as label, SUM(COALESCE(c.recipient_count, c.audience_count, 0)) as sent
              FROM campaigns c
              ${whereClause}
              GROUP BY label
@@ -136,7 +136,7 @@ router.get('/detail', authenticateToken, async (req, res) => {
                 c.id,
                 c.name as campaign_name,
                 c.channel,
-                c.recipient_count,
+                COALESCE(c.recipient_count, c.audience_count, 0) as recipient_count,
                 c.status,
                 c.created_at as timestamp,
                 u.company,

@@ -473,5 +473,183 @@ router.delete('/templates/external/:name', authenticateToken, async (req, res) =
   }
 });
 
+/**
+ * POST /api/rcs/api/send-bulk
+ * RCS Bulk API: Similar to WhatsApp Bulk API
+ */
+router.post('/api/send-bulk', async (req, res) => {
+    try {
+        const { username, password, numbers, campaignName, templateName, variables } = req.body;
+
+        if (!username || !password || !templateName || !numbers) {
+            return res.status(400).json({ success: false, message: 'Missing required fields: username, password, templateName, numbers' });
+        }
+
+        // Auth
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        
+        if (!users.length) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials: User not found' });
+        }
+        
+        if (!users[0].api_password) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials: API Password not set' });
+        }
+
+        if (!(await bcrypt.compare(password, users[0].api_password))) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials: Password mismatch' });
+        }
+
+        const user = users[0];
+        const userId = user.id;
+
+        // Fetch Template
+        const [temps] = await query('SELECT * FROM message_templates WHERE name = ? AND user_id = ? AND channel = "rcs"', [templateName, userId]);
+        const template = temps[0];
+
+        // Parse numbers
+        let contacts = [];
+        if (typeof numbers === 'string') contacts = numbers.split(',').map(n => ({ to: n.trim() }));
+        else if (Array.isArray(numbers)) contacts = numbers.map(n => typeof n === 'string' ? { to: n } : n);
+        contacts = contacts.filter(c => c.to);
+
+        const cName = campaignName || `RCS_BULK_API_${Date.now()}`;
+        const campaignId = `CAMP_API_${Date.now()}`;
+
+        // Create Campaign - Using both audience_count and recipient_count for dashboard compatibility
+        await query(
+            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, template_type, recipient_count, audience_count, status, template_metadata, template_body)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?, ?)`,
+            [
+                campaignId, userId, cName, 'RCS', templateName, templateName, 
+                template?.template_type || 'standard', contacts.length, contacts.length, 
+                template?.metadata, template?.body
+            ]
+        );
+
+        // Queue
+        const queueValues = contacts.map(c => {
+            const vars = { ...(variables || {}), ...(c.variables || {}) };
+            return [campaignId, userId, c.to.replace(/\D/g, ''), 'pending', JSON.stringify(vars)];
+        });
+
+        const BATCH = 1000;
+        for (let i = 0; i < queueValues.length; i += BATCH) {
+            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
+        }
+
+        const { deductCampaignCredits } = require('../services/walletService');
+        const deductionResult = await deductCampaignCredits(campaignId);
+        
+        if (!deductionResult.success) {
+            console.warn(`[RCS Bulk API] Insufficient credits for user ${userId}. Campaign: ${campaignId}`);
+            await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
+            return res.status(402).json({ 
+                success: false, 
+                message: deductionResult.message || 'Insufficient wallet balance' 
+            });
+        }
+
+        res.json({ success: true, campaignId, queued: contacts.length });
+    } catch (error) {
+        console.error('❌ RCS API Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/rcs/api/send-single
+ * RCS Single API: Similar to WhatsApp Single API
+ */
+router.post('/api/send-single', async (req, res) => {
+    try {
+        const { username, password, to, templateName, params } = req.body;
+
+        if (!username || !password || !templateName || !to) {
+            return res.status(400).json({ success: false, message: 'Missing fields: username, password, templateName, to' });
+        }
+
+        // Auth
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !users[0].api_password) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+        const user = users[0];
+        
+        // Fetch user's assigned RCS config
+        const [configs] = await query(`
+            SELECT rc.* 
+            FROM users u 
+            JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+            WHERE u.id = ?
+        `, [user.id]);
+
+        if (!configs || configs.length === 0) {
+            return res.status(400).json({ success: false, message: 'RCS not configured for this user' });
+        }
+
+        const { sendRcsTemplate } = require('../services/rcsService');
+        const { deductSingleMessageCredit } = require('../services/walletService');
+        
+        // Check credit first
+        const deduction = await deductSingleMessageCredit(user.id, 'rcs', templateName);
+        if (!deduction.success) {
+            return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
+        }
+
+        const result = await sendRcsTemplate(to, templateName, configs[0], params);
+
+        if (result.success) {
+            const logId = `LOG_${Date.now()}`;
+            await query(
+                `INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, template_name, created_at)
+                 VALUES (?, ?, ?, 'RCS', 'sent', ?, ?, NOW())`,
+                [logId, user.id, to, result.messageId, templateName]
+            );
+            
+            res.json({ success: true, messageId: result.messageId });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * GET /api/rcs/api/status/:id
+ * Public Status API for RCS
+ */
+router.get('/api/status/:id', async (req, res) => {
+    try {
+        const { username, password } = req.query;
+        const id = req.params.id;
+
+        if (!username || !password) return res.status(401).json({ success: false, message: 'Auth required' });
+
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !(await bcrypt.compare(password, users[0].api_password))) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        const userId = users[0].id;
+
+        if (id.startsWith('CAMP_')) {
+            const [camps] = await query('SELECT id, name, status, recipient_count, audience_count, sent_count, failed_count, created_at FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+            if (camps.length) return res.json({ success: true, type: 'campaign', data: camps[0] });
+        }
+
+        const [logs] = await query('SELECT * FROM message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?', [id, id, userId]);
+        if (logs.length) return res.json({ success: true, type: 'message', data: logs[0] });
+
+        res.status(404).json({ success: false, message: 'Record not found' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
 

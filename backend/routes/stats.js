@@ -33,8 +33,8 @@ router.get('/super-admin', authenticate, async (req, res) => {
         // 2. Message Stats
         let msgSql = `
             SELECT 
-                COALESCE(SUM(audience_count), 0) as total,
-                COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN audience_count ELSE 0 END), 0) as today
+                COALESCE(SUM(COALESCE(audience_count, recipient_count, 0)), 0) as total,
+                COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN COALESCE(audience_count, recipient_count, 0) ELSE 0 END), 0) as today
             FROM campaigns 
             WHERE status IN ('completed', 'running')
         `;
@@ -73,7 +73,7 @@ router.get('/super-admin', authenticate, async (req, res) => {
 
         // 5. Weekly Messages Trend
         let weeklySql = `
-            SELECT DATE(created_at) as date, SUM(audience_count) as count
+            SELECT DATE(created_at) as date, SUM(COALESCE(audience_count, recipient_count, 0)) as count
             FROM campaigns
             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
         `;
@@ -101,7 +101,7 @@ router.get('/super-admin', authenticate, async (req, res) => {
 
         // 6. Channel Usage
         let channelSql = `
-            SELECT channel, SUM(audience_count) as volume
+            SELECT channel, SUM(COALESCE(audience_count, recipient_count, 0)) as volume
             FROM campaigns 
             WHERE status IN ('completed', 'running')
         `;
@@ -164,7 +164,7 @@ router.get('/super-admin', authenticate, async (req, res) => {
         const [aggChannelData] = await query(`
             SELECT 
                 channel, 
-                SUM(audience_count) as volume,
+                SUM(COALESCE(audience_count, recipient_count, 0)) as volume,
                 SUM(delivered_count) as delivered,
                 SUM(read_count) as read_count,
                 SUM(failed_count) as failed
@@ -256,7 +256,7 @@ router.get('/stats', authenticate, async (req, res) => {
         // 2. Total Conversations (Audience Count from completed/running campaigns)
         const [totalStats] = await query(`
             SELECT 
-                COALESCE(SUM(audience_count), 0) as total_conversations,
+                COALESCE(SUM(COALESCE(audience_count, recipient_count, 0)), 0) as total_conversations,
                 COUNT(*) as campaigns_sent
             FROM campaigns 
             WHERE user_id = ? AND status IN ('completed', 'running')
@@ -266,7 +266,7 @@ router.get('/stats', authenticate, async (req, res) => {
         const [channelData] = await query(`
             SELECT 
                 channel, 
-                SUM(audience_count) as volume,
+                SUM(COALESCE(audience_count, recipient_count, 0)) as volume,
                 SUM(delivered_count) as delivered,
                 SUM(read_count) as read_count,
                 SUM(failed_count) as failed
@@ -298,7 +298,7 @@ router.get('/stats', authenticate, async (req, res) => {
 
         // 4. Weekly Chats (Last 7 days trend)
         const [weeklyRows] = await query(`
-            SELECT DATE(created_at) as date, SUM(audience_count) as count
+            SELECT DATE(created_at) as date, SUM(COALESCE(audience_count, recipient_count, 0)) as count
             FROM campaigns
             WHERE user_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
             GROUP BY DATE(created_at)
@@ -324,7 +324,7 @@ router.get('/stats', authenticate, async (req, res) => {
         // 5. Today's Specific Stats
         const [todayStats] = await query(`
             SELECT 
-                COALESCE(SUM(audience_count), 0) as messages,
+                COALESCE(SUM(COALESCE(audience_count, recipient_count, 0)), 0) as messages,
                 COALESCE(SUM(delivered_count), 0) as delivered,
                 COALESCE(SUM(failed_count), 0) as failed,
                 COUNT(*) as campaigns
@@ -334,7 +334,7 @@ router.get('/stats', authenticate, async (req, res) => {
 
         // 6. Recent Campaigns
         const [recentCampaigns] = await query(`
-            SELECT id, name, channel, audience_count, status, created_at, delivered_count, failed_count
+            SELECT id, name, channel, COALESCE(audience_count, recipient_count, 0) as audience_count, status, created_at, delivered_count, failed_count
             FROM campaigns 
             WHERE user_id = ? 
             ORDER BY created_at DESC 

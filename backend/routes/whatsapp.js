@@ -902,9 +902,9 @@ router.post('/api/send-bulk', async (req, res) => {
 
         // Create Campaign
         await query(
-            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, status, template_metadata, template_body)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, ?)`,
-            [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length, template?.metadata, template?.body]
+            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, audience_count, status, template_metadata, template_body)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'running', ?, ?)`,
+            [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length, contacts.length, template?.metadata, template?.body]
         );
 
         // Queue
@@ -920,7 +920,16 @@ router.post('/api/send-bulk', async (req, res) => {
         }
 
         const { deductCampaignCredits } = require('../services/walletService');
-        await deductCampaignCredits(campaignId);
+        const deductionResult = await deductCampaignCredits(campaignId);
+        
+        if (!deductionResult.success) {
+            console.warn(`[Bulk API] Insufficient credits for user ${userId}. Campaign: ${campaignId}`);
+            await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
+            return res.status(402).json({ 
+                success: false, 
+                message: deductionResult.message || 'Insufficient wallet balance' 
+            });
+        }
 
         res.json({ success: true, campaignId, queued: contacts.length });
     } catch (error) {
@@ -975,6 +984,13 @@ router.post('/api/send-single', async (req, res) => {
                 components.push({ type: 'body', parameters: params });
             }
             payload.template.components = components;
+        }
+
+        const { deductSingleMessageCredit } = require('../services/walletService');
+        const deduction = await deductSingleMessageCredit(user.id, 'whatsapp', templateName);
+        
+        if (!deduction.success) {
+            return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
         }
 
         const response = await axios.post(getMessagesUrl(config), payload, { headers: getHeaders(config) });
@@ -1154,8 +1170,10 @@ router.get('/docs', (req, res) => {
                 </div>
                 <div class="nav-section">
                     <span class="nav-label">Endpoints</span>
-                    <a href="#bulk" class="nav-link"><i class="fas fa-mail-bulk"></i> Bulk Campaigns</a>
-                    <a href="#single" class="nav-link"><i class="fas fa-bolt"></i> Instant Alerts</a>
+                    <a href="#bulk" class="nav-link"><i class="fas fa-mail-bulk"></i> WhatsApp Bulk</a>
+                    <a href="#single" class="nav-link"><i class="fas fa-bolt"></i> WhatsApp Single</a>
+                    <a href="#rcs-bulk" class="nav-link"><i class="fas fa-comment-dots"></i> RCS Bulk</a>
+                    <a href="#rcs-single" class="nav-link"><i class="fas fa-paper-plane"></i> RCS Single</a>
                     <a href="#mapping" class="nav-link"><i class="fas fa-sliders-h"></i> Param Mapping</a>
                 </div>
                 <div style="margin-top:auto; padding-top:20px;">
@@ -1224,11 +1242,11 @@ router.get('/docs', (req, res) => {
 
                 <!-- Single API -->
                 <div class="card" id="single">
-                    <div class="card-title"><i class="fas fa-bolt"></i> Instant Dispatch API</div>
+                    <div class="card-title"><i class="fas fa-bolt"></i> WhatsApp Instant Dispatch (Single)</div>
                     <p style="color:var(--text-muted); margin-bottom:32px; line-height:1.7;">Optimized for millisecond delivery. Use this for time-critical notifications like Login OTPs, Payment confirmations, and Order updates.</p>
                     <div class="endpoint-bar">
                         <span class="method">POST</span>
-                        <span class="url-text">https://developer.notifynow.in/api/whatsapp/api/send-single</span>
+                        <span class="url-text">https://notifynow.in/api/whatsapp/api/send-single</span>
                     </div>
                     <div class="code-box">
                         <div class="code-header"><span class="code-lang">JavaScript / JSON</span> <button class="copy-btn" onclick="copyCode('singleCode')">COPY CODE</button></div>
@@ -1238,6 +1256,46 @@ router.get('/docs', (req, res) => {
   "to": "919004207813",
   "templateName": "transaction_otp",
   "variables": { "1": "992105" }
+}</pre>
+                    </div>
+                </div>
+
+                <!-- RCS Bulk API -->
+                <div class="card" id="rcs-bulk">
+                    <div class="card-title"><i class="fas fa-comment-dots"></i> RCS Bulk Dynamic Campaign</div>
+                    <p style="color:var(--text-muted); margin-bottom:32px; line-height:1.7;">Enterprise-grade RCS rich messaging API. Supports images, carousels, and interactive buttons with higher delivery rates than SMS.</p>
+                    <div class="endpoint-bar">
+                        <span class="method">POST</span>
+                        <span class="url-text">https://notifynow.in/api/rcs/api/send-bulk</span>
+                    </div>
+                    <div class="code-box">
+                        <div class="code-header"><span class="code-lang">JavaScript / JSON</span> <button class="copy-btn" onclick="copyCode('rcsBulkCode')">COPY CODE</button></div>
+                        <pre id="rcsBulkCode">{
+  "username": "demo@gmail.com",
+  "password": "your_api_password",
+  "templateName": "rcs_promo_v1",
+  "campaignName": "Spring Sale RCS",
+  "numbers": [ "919004207813", "919876543210" ]
+}</pre>
+                    </div>
+                </div>
+
+                <!-- RCS Single API -->
+                <div class="card" id="rcs-single">
+                    <div class="card-title"><i class="fas fa-paper-plane"></i> RCS Instant Dispatch (Single)</div>
+                    <p style="color:var(--text-muted); margin-bottom:32px; line-height:1.7;">Direct peer-to-peer RCS messaging API for transactional alerts.</p>
+                    <div class="endpoint-bar">
+                        <span class="method">POST</span>
+                        <span class="url-text">https://notifynow.in/api/rcs/api/send-single</span>
+                    </div>
+                    <div class="code-box">
+                        <div class="code-header"><span class="code-lang">JavaScript / JSON</span> <button class="copy-btn" onclick="copyCode('rcsSingleCode')">COPY CODE</button></div>
+                        <pre id="rcsSingleCode">{
+  "username": "demo@gmail.com",
+  "password": "your_api_password",
+  "to": "919004207813",
+  "templateName": "welcome_rcs",
+  "params": ["Sandeep"]
 }</pre>
                     </div>
                 </div>
