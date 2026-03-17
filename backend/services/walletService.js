@@ -90,9 +90,29 @@ const deductCampaignCredits = async (campaignId) => {
 
         const totalCost = recipientCount * costPerMsg;
 
-        // 4. Check balance
-        if (campaign.wallet_balance < totalCost) {
-            console.warn(`[WalletService] User ${campaign.user_id} has insufficient balance (${campaign.wallet_balance}) for campaign ${campaignId} (cost: ${totalCost})`);
+        console.log(`[WalletService] Campaign ${campaignId} Analysis:`, {
+            recipientCount,
+            costPerMsg,
+            totalCost,
+            userBalance: campaign.wallet_balance,
+            userId: campaign.user_id
+        });
+
+        // 4. Check balance with robust validation
+        let finalCost = totalCost;
+        if (isNaN(finalCost) || finalCost < 0) {
+            console.warn(`[WalletService] Invalid cost calculated for campaign ${campaignId}. Defaulting to 1.0 per msg.`);
+            finalCost = recipientCount * 1.0;
+        }
+
+        // If cost is 0 but there are recipients, we still enforce a minimum to prevent free leaks 
+        // unless explicitly intended (not likely here).
+        if (finalCost === 0 && recipientCount > 0) {
+            finalCost = recipientCount * 0.01; 
+        }
+
+        if (campaign.wallet_balance < finalCost || campaign.wallet_balance <= 0) {
+            console.warn(`[WalletService] User ${campaign.user_id} has insufficient balance (${campaign.wallet_balance}) for campaign ${campaignId} (cost: ${finalCost})`);
             return { success: false, message: 'Insufficient wallet balance' };
         }
 
@@ -100,11 +120,11 @@ const deductCampaignCredits = async (campaignId) => {
         // UPDATE user balance
         await query(
             `UPDATE users 
-             SET credits_available = credits_available - ?,
-                 wallet_balance = wallet_balance - ?,
-                 credits_used = credits_used + ?
+             SET credits_available = COALESCE(credits_available, 0) - ?,
+                 wallet_balance = COALESCE(wallet_balance, 0) - ?,
+                 credits_used = COALESCE(credits_used, 0) + ?
              WHERE id = ?`,
-            [totalCost, totalCost, totalCost, campaign.user_id]
+            [finalCost, finalCost, finalCost, campaign.user_id]
         );
 
         // CREATE single transaction record
@@ -174,16 +194,19 @@ const deductSingleMessageCredit = async (userId, channel, templateName, template
         } else if (chan === 'sms') {
             cost = 0.25;
         }
+        if (isNaN(cost) || cost < 0) cost = 1.0;
+        if (cost === 0) cost = 0.01;
 
-        if (user.wallet_balance < cost) {
+        if (user.wallet_balance < cost || user.wallet_balance <= 0) {
+            console.warn(`[WalletService] Single API: Insufficient balance for user ${userId}. Balance: ${user.wallet_balance}, Cost: ${cost}`);
             return { success: false, message: 'Insufficient wallet balance' };
         }
 
         await query(
             `UPDATE users 
-             SET credits_available = credits_available - ?,
-                 wallet_balance = wallet_balance - ?,
-                 credits_used = credits_used + ?
+             SET credits_available = COALESCE(credits_available, 0) - ?,
+                 wallet_balance = COALESCE(wallet_balance, 0) - ?,
+                 credits_used = COALESCE(credits_used, 0) + ?
              WHERE id = ?`,
             [cost, cost, cost, userId]
         );

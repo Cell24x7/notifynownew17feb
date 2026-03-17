@@ -118,21 +118,30 @@ const processQueue = async () => {
             LIMIT ?
         `;
 
-        const [items] = await query(sql, [BATCH_SIZE]);
+        let [items] = await query(sql, [BATCH_SIZE]);
 
         if (items.length === 0) return; // Nothing to do
 
         // Safety Deduct Campaign Credits
         const uniqueCampaigns = [...new Set(items.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
+        const failedCampaigns = new Set();
+
         for (const campId of uniqueCampaigns) {
             const deductionResult = await deductCampaignCredits(campId);
             if (!deductionResult.success) {
                 console.error(`[QueueProcessor] Credit deduction failed for ${campId}: ${deductionResult.message}. Pausing campaign.`);
                 await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campId]);
-                // We'll skip this campaign's items in this run
+                failedCampaigns.add(campId);
                 continue;
             }
         }
+
+        // LEAK FIX: Filter out items that belong to campaigns that failed credit deduction
+        if (failedCampaigns.size > 0) {
+            items = items.filter(i => !failedCampaigns.has(i.campaign_id));
+        }
+
+        if (items.length === 0) return; 
 
         const itemIds = items.map(i => i.id);
 

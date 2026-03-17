@@ -7,6 +7,7 @@ const express = require('express');
 const axios = require('axios');
 const { query } = require('../config/db');
 const authenticate = require('../middleware/authMiddleware');
+const { deductSingleMessageCredit } = require('../services/walletService');
 
 const router = express.Router();
 
@@ -280,6 +281,13 @@ router.post('/send', authenticate, async (req, res) => {
         if (!payload.type) return res.status(400).json({ success: false, message: '`type` is required' });
         if (!payload.messaging_product) payload.messaging_product = 'whatsapp';
 
+        // Credit Validation
+        const templateName = payload.template?.name || 'unknown';
+        const deduction = await deductSingleMessageCredit(req.user.id, 'whatsapp', templateName);
+        if (!deduction.success) {
+            return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
+        }
+
         const response = await axios.post(getMessagesUrl(config), payload, {
             headers: getHeaders(config)
         });
@@ -319,6 +327,12 @@ router.post('/send-template', authenticate, async (req, res) => {
             }
         };
         if (components) data.template.components = components;
+
+        // Credit Validation
+        const deduction = await deductSingleMessageCredit(req.user.id, 'whatsapp', templateName);
+        if (!deduction.success) {
+            return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
+        }
 
         const response = await axios.post(getMessagesUrl(config), data, {
             headers: getHeaders(config)
