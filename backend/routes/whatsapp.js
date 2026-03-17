@@ -871,8 +871,18 @@ router.post('/api/send-bulk', async (req, res) => {
         // Auth
         const bcrypt = require('bcryptjs');
         const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
-        if (!users.length || !users[0].api_password) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
-        if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        
+        if (!users.length) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials: User not found' });
+        }
+        
+        if (!users[0].api_password) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials: API Password not set in profile' });
+        }
+
+        if (!(await bcrypt.compare(password, users[0].api_password))) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials: Password mismatch' });
+        }
 
         const user = users[0];
         const userId = user.id;
