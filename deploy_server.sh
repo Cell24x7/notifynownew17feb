@@ -69,10 +69,10 @@ JWT_SECRET=notifynow_db_secret_key
 JWT_EXPIRES_IN=7d
 EOF
 else
-    ok "Preserving existing .env.production, patching DB/Port settings..."
     sed -i '/^DB_HOST=/c\DB_HOST=localhost' "$BACKEND_DIR/.env.production"
     sed -i '/^DB_NAME=/c\DB_NAME=developer_notify' "$BACKEND_DIR/.env.production"
     sed -i '/^PORT=/c\PORT=5000' "$BACKEND_DIR/.env.production"
+    sed -i '/^API_BASE_URL=/c\API_BASE_URL=https://developer.notifynow.in' "$BACKEND_DIR/.env.production"
 fi
 
 # Frontend Env (VITE_API_URL is critical for build)

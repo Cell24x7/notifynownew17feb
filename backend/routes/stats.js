@@ -33,10 +33,11 @@ router.get('/super-admin', authenticate, async (req, res) => {
         // 2. Message Stats
         let msgSql = `
             SELECT 
-                COALESCE(SUM(COALESCE(audience_count, recipient_count, 0)), 0) as total,
-                COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN COALESCE(audience_count, recipient_count, 0) ELSE 0 END), 0) as today
+                COALESCE(SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))), 0) as total,
+                COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0)) ELSE 0 END), 0) as today,
+                COUNT(id) as campaigns_count
             FROM campaigns 
-            WHERE status IN ('completed', 'running')
+            WHERE status IN ('completed', 'running', 'sent', 'processing', 'paused', 'scheduled')
         `;
         if (isReseller) {
             msgSql += " AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)";
@@ -101,9 +102,9 @@ router.get('/super-admin', authenticate, async (req, res) => {
 
         // 6. Channel Usage
         let channelSql = `
-            SELECT channel, SUM(COALESCE(audience_count, recipient_count, 0)) as volume
+            SELECT channel, SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) as volume
             FROM campaigns 
-            WHERE status IN ('completed', 'running')
+            WHERE status IN ('completed', 'running', 'sent', 'processing', 'paused', 'scheduled')
         `;
         if (isReseller) {
             channelSql += " AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)";
@@ -159,19 +160,33 @@ router.get('/super-admin', authenticate, async (req, res) => {
             name: u.company || u.name || 'Unknown',
             balance: Number(u.credits_available)
         }));
+        
+        // 9. Active Chats & Automations (Real counts)
+        const [activeChatCounts] = await query("SELECT COUNT(*) as total FROM chats WHERE status = 'open'");
+        const [automationStats] = await query("SELECT COUNT(*) as total FROM automations WHERE status = 'active'");
 
         // 9. Detailed Channel Stats for Admin (Aggregated)
         const [aggChannelData] = await query(`
             SELECT 
                 channel, 
-                SUM(COALESCE(audience_count, recipient_count, 0)) as volume,
+                SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) as volume,
                 SUM(delivered_count) as delivered,
                 SUM(read_count) as read_count,
                 SUM(failed_count) as failed
             FROM campaigns 
-            WHERE status IN ('completed', 'running')
+            WHERE status IN ('completed', 'running', 'sent', 'processing', 'paused', 'scheduled')
             ${isReseller ? 'AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)' : ''}
             GROUP BY channel
+        `, isReseller ? [resellerId] : []);
+
+        // 10. Recent Campaigns (Aggregate for Admin)
+        const [recentCampaigns] = await query(`
+            SELECT id, name, channel, recipient_count, GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0)) as audience_count, 
+                   sent_count, delivered_count, read_count, failed_count, status, created_at, template_id
+            FROM campaigns 
+            ${isReseller ? 'WHERE user_id IN (SELECT id FROM users WHERE reseller_id = ?)' : ''}
+            ORDER BY created_at DESC 
+            LIMIT 10
         `, isReseller ? [resellerId] : []);
 
         const channelStatsMap = {};
@@ -219,10 +234,11 @@ router.get('/super-admin', authenticate, async (req, res) => {
                 })),
                 planDistribution,
                 topClients,
-                activeChats: 0, 
-                automationsTriggered: 0,
-                campaignsSent: Number(msgStats[0]?.total > 0 ? 1 : 0), // Placeholder or add count(*) from campaigns
-                openChats: 0,
+                recentCampaigns,
+                activeChats: activeChatCounts[0]?.total || 0, 
+                automationsTriggered: automationStats[0]?.total || 0,
+                campaignsSent: Number(msgStats[0]?.campaigns_count || 0),
+                openChats: activeChatCounts[0]?.total || 0,
                 closedChats: Number(msgStats[0]?.total || 0),
                 today: {
                     messages: Number(msgStats[0]?.today || 0),
@@ -256,22 +272,22 @@ router.get('/stats', authenticate, async (req, res) => {
         // 2. Total Conversations (Audience Count from completed/running campaigns)
         const [totalStats] = await query(`
             SELECT 
-                COALESCE(SUM(COALESCE(audience_count, recipient_count, 0)), 0) as total_conversations,
+                COALESCE(SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))), 0) as total_conversations,
                 COUNT(*) as campaigns_sent
             FROM campaigns 
-            WHERE user_id = ? AND status IN ('completed', 'running')
+            WHERE user_id = ? AND status IN ('completed', 'running', 'sent', 'processing', 'paused', 'scheduled')
         `, [userId]);
 
         // 3. Channel Distribution & Analytics (Volume, delivered, read, failed by channel)
         const [channelData] = await query(`
             SELECT 
                 channel, 
-                SUM(COALESCE(audience_count, recipient_count, 0)) as volume,
+                SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) as volume,
                 SUM(delivered_count) as delivered,
                 SUM(read_count) as read_count,
                 SUM(failed_count) as failed
             FROM campaigns 
-            WHERE user_id = ? AND status IN ('completed', 'running')
+            WHERE user_id = ? AND status IN ('completed', 'running', 'sent', 'processing', 'paused', 'scheduled')
             GROUP BY channel
         `, [userId]);
 
@@ -298,7 +314,7 @@ router.get('/stats', authenticate, async (req, res) => {
 
         // 4. Weekly Chats (Last 7 days trend)
         const [weeklyRows] = await query(`
-            SELECT DATE(created_at) as date, SUM(COALESCE(audience_count, recipient_count, 0)) as count
+            SELECT DATE(created_at) as date, SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) as count
             FROM campaigns
             WHERE user_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
             GROUP BY DATE(created_at)
@@ -324,7 +340,7 @@ router.get('/stats', authenticate, async (req, res) => {
         // 5. Today's Specific Stats
         const [todayStats] = await query(`
             SELECT 
-                COALESCE(SUM(COALESCE(audience_count, recipient_count, 0)), 0) as messages,
+                COALESCE(SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))), 0) as messages,
                 COALESCE(SUM(delivered_count), 0) as delivered,
                 COALESCE(SUM(failed_count), 0) as failed,
                 COUNT(*) as campaigns
@@ -334,20 +350,25 @@ router.get('/stats', authenticate, async (req, res) => {
 
         // 6. Recent Campaigns
         const [recentCampaigns] = await query(`
-            SELECT id, name, channel, COALESCE(audience_count, recipient_count, 0) as audience_count, status, created_at, delivered_count, failed_count
+            SELECT id, name, channel, recipient_count, GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0)) as audience_count, 
+                   sent_count, delivered_count, read_count, failed_count, status, created_at, template_id
             FROM campaigns 
             WHERE user_id = ? 
             ORDER BY created_at DESC 
-            LIMIT 5
+            LIMIT 10
         `, [userId]);
 
-        // 7. Construct Final Stats Object
+        // 7. Active Chats for User
+        const [userActiveChats] = await query("SELECT COUNT(*) as total FROM chats WHERE user_id = ? AND status = 'open'", [userId]);
+        const [userAutomations] = await query("SELECT COUNT(*) as total FROM automations WHERE user_id = ? AND status = 'active'", [userId]);
+
+        // 8. Construct Final Stats Object
         const stats = {
             totalConversations: Number(totalStats[0]?.total_conversations || 0),
-            activeChats: 0,
-            automationsTriggered: 0,
+            activeChats: userActiveChats[0]?.total || 0,
+            automationsTriggered: userAutomations[0]?.total || 0,
             campaignsSent: Number(totalStats[0]?.campaigns_sent || 0),
-            openChats: 0,
+            openChats: userActiveChats[0]?.total || 0,
             closedChats: Number(totalStats[0]?.total_conversations || 0),
             weeklyChats,
             channelDistribution: channelDist,

@@ -127,6 +127,31 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, timestamp: new Date().toISOString() });
 });
 
+// Diagnostic endpoint to check DB state
+app.get('/api/debug-stats', async (req, res) => {
+  const { query } = require('./config/db');
+  try {
+      const [userCount] = await query('SELECT COUNT(*) as count FROM users');
+      const [campCount] = await query('SELECT COUNT(*) as count FROM campaigns');
+      const [queueCount] = await query('SELECT COUNT(*) as count FROM campaign_queue');
+      const [recentCamps] = await query('SELECT id, user_id, status, created_at, recipient_count, audience_count FROM campaigns ORDER BY created_at DESC LIMIT 10');
+      
+      res.json({
+          success: true,
+          env: process.env.NODE_ENV,
+          db: process.env.DB_NAME,
+          counts: {
+              users: userCount[0].count,
+              campaigns: campCount[0].count,
+              queue: queueCount[0].count
+          },
+          recent_campaigns: recentCamps
+      });
+  } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/check-system', (req, res) => {
   res.json({
       success: true,

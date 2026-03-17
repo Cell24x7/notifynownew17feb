@@ -68,14 +68,18 @@ export default function Dashboard() {
         const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.role === 'reseller';
         const endpoint = isAdmin ? '/api/dashboard/super-admin' : '/api/dashboard/stats';
 
-        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const res = await fetch(`${API_BASE_URL}${endpoint}?_t=${Date.now()}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
         if (data.success) {
           setStats(data.stats);
+        } else {
+          console.error('Dashboard Stats API Error:', data.message);
         }
-      } catch (err) { }
+      } catch (err: any) {
+        console.error('Dashboard Fetch Error:', err.message);
+      }
     };
     
     fetchStats();
