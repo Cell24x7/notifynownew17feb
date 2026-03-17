@@ -70,7 +70,7 @@ EOF
 
 # Frontend Env (VITE_API_URL is critical for build)
 # Writing to both .env and .env.production for maximum compatibility
-API_URL="https://developer.notifynow.in/api"
+API_URL="https://developer.notifynow.in"
 echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env"
 echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env.production"
 ok "Environment files created (API: $API_URL)"

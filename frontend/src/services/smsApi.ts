@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { API_BASE_URL as BASE_URL } from '@/config/api';
+const API_BASE_URL = `${BASE_URL}/api`;
 
 interface SMSSenderData {
   entity_type: string;
