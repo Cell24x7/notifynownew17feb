@@ -4,6 +4,7 @@
 # 🚀 NotifyNow FULL AUTO Deploy Script (Production)
 # - Force Clean: pm2 delete -> pm2 start
 # - Separate DB: notifynow_db
+# - Automated Environment Separation
 # =========================================================
 
 set -e  # Stop on any error
@@ -52,31 +53,80 @@ cd "$BACKEND_DIR"
 npm install --production --silent
 cd "$FRONTEND_DIR"
 if [ ! -d "node_modules" ]; then npm install --silent; fi
+ok "Dependencies ready"
 
-# ── Step 4: Build Frontend ────────────────────────────
-log "🏗️  [4/7] Building frontend..."
-echo "VITE_API_URL=https://notifynow.in/api" > "$FRONTEND_DIR/.env"
-npm run build
-ok "Frontend built"
+# ── Step 4: Environment Setup ─────────────────────────
+log "🛠️  [4/7] Ensuring Production DB and Frontend config..."
 
-# ── Step 5: Enforce Env ───────────────────────────────
-log "🛠️  [5/7] Enforcing PRODUCTION settings..."
+# 1. Frontend Env (VITE_API_URL is critical for build)
+cat <<EOF > "$FRONTEND_DIR/.env.production"
+VITE_API_URL=https://notifynow.in
+EOF
+
+# 2. Backend Env
 cat <<EOF > "$BACKEND_DIR/.env.production"
+# NotifyNow PRODUCTION Deployment Enforced Env
 DB_HOST=localhost
 DB_USER=root
 DB_PASS=waQ4!r1241Kr
 DB_NAME=notifynow_db
 PORT=5050
 API_BASE_URL=https://notifynow.in
+
 JWT_SECRET=notifynow_prod_secret_key_secure
 JWT_EXPIRES_IN=7d
-WHATSAPP_VERIFY_TOKEN=notifynow_prod_token
-EOF
 
-# ── Step 6: Migrations ────────────────────────────────
-log "🗄️  [6/7] Running migrations..."
-cd "$BACKEND_DIR"
-NODE_ENV=production node apply_schema_updates.js || true
+# SMS Configuration
+SMS_USER=testdemo
+SMS_PASSWORD=apidemo
+SMS_SENDER_ID=CMTLTD
+
+VITE_RCS_API_URL=https://rcs.cell24x7.com
+
+# Dotgo Admin
+DOTGO_ADMIN_CLIENT_ID=cmNzQGNlbGwyNHg3LmNvbQ
+DOTGO_ADMIN_CLIENT_SECRET=6YPfAx6eYtRGbpkIKFwf5gqVQ21Nvja3
+DOTGO_ADMIN_AUTH_URL=https://auth.dotgo.com/auth/oauth/token
+DOTGO_ADMIN_TEMPLATE_URL=https://developer-api.dotgo.com/directory/secure/api/v1/bots
+
+# Email Configuration
+EMAIL_API_USER=testdemo
+EMAIL_API_PASS=passdemo
+EMAIL_FROM_ADDR=support@cell24x7.com
+EMAIL_API_URL=http://43.242.212.34:7716/emailService/sendEmail
+EOF
+ok "Environment files created"
+
+# ── Step 5: Build frontend ────────────────────────────────
+log "🏗️  [5/7] Building frontend (npm run build)..."
+cd "$FRONTEND_DIR"
+npm run build
+
+if [ $? -ne 0 ]; then
+    err "Frontend build FAILED!"
+    exit 1
+fi
+ok "Frontend built successfully!"
+
+# Fix dist folder permissions
+chmod -R 755 "$DIST_DIR"
+ok "dist/ permissions fixed (755)"
+
+# ── Step 6: DB migration ───────────────────────────────
+log "🗄️  [6/7] Checking DB migration..."
+cd "$PROJECT_DIR"
+if [ -f "$BACKEND_DIR/apply_schema_updates.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/apply_schema_updates.js"
+fi
+
+if [ -f "$BACKEND_DIR/migration_fix_template_type.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/migration_fix_template_type.js"
+fi
+
+if [ -f "$BACKEND_DIR/migration_add_campaign_cols.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/migration_add_campaign_cols.js"
+    ok "API Campaign Migration complete"
+fi
 
 # ── Step 7: Restart Clean ─────────────────────────────
 log "♻️  [7/7] Starting clean PM2 instance..."
@@ -85,5 +135,10 @@ APP_NAME_FROM_CONFIG=$(node -e "console.log(require('./ecosystem.config.js').app
 pm2 delete "$APP_NAME_FROM_CONFIG" 2>/dev/null || true
 pm2 start ecosystem.config.js --env production
 pm2 save --force
-ok "Instance '$APP_NAME_FROM_CONFIG' is active on Port 5050"
-echo "✨ PRODUCTION DEPLOYMENT COMPLETE!"
+ok "Instance '$APP_NAME_FROM_CONFIG' is active on Production Port (5050)"
+
+echo ""
+echo -e "${GREEN}${BOLD}=========================================="
+echo -e "  ✨ PRODUCTION DEPLOYMENT COMPLETE! 🎉    "
+echo -e "==========================================${NC}"
+echo ""

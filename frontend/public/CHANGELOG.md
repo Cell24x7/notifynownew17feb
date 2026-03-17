@@ -2,6 +2,11 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-16]
+- Fix: OTP delivery matching, Signup segmentation, and DB status schema update (b55ce74)
+
+---
+
 ## [2026-03-14]
 - Fix: Re-defined baseUrl in smsService and ensured correct API format (414b25b)
 - Fix: Updated Email API to use GET format with OTP-specific parameters (944f2dd)
