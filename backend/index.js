@@ -6,11 +6,22 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Smart env loading: production uses .env.production, dev uses .env
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+// Smart env loading: prioritizes .env.production on servers
+const currentPath = __dirname;
+let envFile = '.env';
+
+if (currentPath.includes('notifynow.in') || process.env.NODE_ENV === 'production') {
+    envFile = '.env.production';
+}
+
 dotenv.config({ path: path.join(__dirname, envFile) });
 
-console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'} (using ${envFile})`);
+console.log('===================================');
+console.log(`🌍 MODE: ${process.env.NODE_ENV || 'production'}`);
+console.log(`📄 CONFIG: ${envFile}`);
+console.log(`🗄️  DATABASE: ${process.env.DB_NAME}`);
+console.log(`🔌 TARGET PORT: ${process.env.PORT}`);
+console.log('===================================');
 
 const express = require('express');
 const cors = require('cors');
