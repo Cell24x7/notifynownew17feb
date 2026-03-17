@@ -5,7 +5,10 @@ const folderName = path.basename(currentPath);
 const parentName = path.basename(path.dirname(currentPath));
 
 // Unique App Name - Strictly separate production from dev
-const appName = currentPath.includes('notifynow.in') ? 'notifynow-production' : `notifynow-dev-${parentName}`;
+let appName = 'notifynow-production';
+if (currentPath.includes('developer.notifynow.in')) {
+    appName = 'notifynow-developer';
+}
 
 // Function to read .env files and extract all key-value pairs
 const readEnv = (file) => {
