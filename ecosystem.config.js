@@ -4,38 +4,51 @@ const currentPath = __dirname;
 const folderName = path.basename(currentPath);
 const parentName = path.basename(path.dirname(currentPath));
 
-// Ensure unique name even if folder names are identical
-const appName = `${parentName}-${folderName}`;
+// Unique App Name - Strictly separate production from dev
+const appName = currentPath.includes('notifynow.in') ? 'notifynow-production' : `notifynow-dev-${parentName}`;
+
+// Function to read .env files and extract all key-value pairs
+const readEnv = (file) => {
+  try {
+    const envPath = path.join(currentPath, 'backend', file);
+    if (!fs.existsSync(envPath)) return {};
+    const content = fs.readFileSync(envPath, 'utf8');
+    const env = {};
+    content.split('\n').forEach(line => {
+      // Matches KEY=VALUE while ignoring comments
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        let value = (match[2] || '').trim();
+        // Remove quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        env[match[1]] = value.trim();
+      }
+    });
+    return env;
+  } catch (e) {
+    return {};
+  }
+};
+
+const prodEnv = readEnv('.env.production');
+const devEnv = readEnv('.env');
 
 module.exports = {
   apps: [
     {
       name: appName,
       script: './backend/index.js',
-      // cwd is automatic based on where ecosystem.config.js is located
-
-      // ✅ PRODUCTION ENV
+      // Pass the entire env file to PM2
       env_production: {
         NODE_ENV: 'production',
-        // Direct read from .env.production in the current backend folder
-        PORT: (() => {
-          try {
-            const envContent = fs.readFileSync(path.join(currentPath, 'backend/.env.production'), 'utf8');
-            const match = envContent.match(/^PORT\s*=\s*(\d+)/m);
-            return match ? parseInt(match[1], 10) : 5000;
-          } catch (e) {
-            return 5000;
-          }
-        })()
+        ...prodEnv
       },
-
-      // ✅ LOCAL DEV — auto .env use hoga
       env_development: {
         NODE_ENV: 'development',
-        PORT: 5000
+        ...devEnv
       },
-
-      // PM2 settings
       instances: 1,
       autorestart: true,
       watch: false,

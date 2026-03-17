@@ -1,8 +1,10 @@
 #!/bin/bash
 
 # =========================================================
-# 🚀 NotifyNow SMART Auto-Deployer
-# Detects folder and runs the correct script
+# 🚀 NotifyNow SMART Auto-Deployer (Strict V3)
+# - Detects folder
+# - Clears old PM2 environment
+# - Loads correct DB & Port
 # =========================================================
 
 CURRENT_DIR=$(pwd)
