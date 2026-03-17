@@ -2,6 +2,16 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-17]
+- Fix: Environment separation for production and developer instances (1cf8f45)
+- Final strict separation: Clean PM2 starts and folder-based config enforcement (3a49a1a)
+- Force strict DB separation based on folder path (88a7799)
+- Log database name on connection (6a57351)
+- Better API auth debugging messages (36ed412)
+- Auto-detect environment scripts for Dev and Prod (0bbcb54)
+
+---
+
 ## [2026-03-16]
 - Fix: OTP delivery matching, Signup segmentation, and DB status schema update (b55ce74)
 
