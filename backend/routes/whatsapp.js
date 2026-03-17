@@ -900,25 +900,14 @@ router.post('/api/send-bulk', async (req, res) => {
         const cName = campaignName || `BULK_API_${Date.now()}`;
         const campaignId = `CAMP_API_${Date.now()}`;
 
-        // Create Campaign
+        // Create Campaign initially as checking_credits to prevent worker from picking it up
         await query(
             `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, audience_count, status, template_metadata, template_body)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'running', ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'checking_credits', ?, ?)`,
             [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length, contacts.length, template?.metadata, template?.body]
         );
 
-        // Queue
-        const queueValues = contacts.map(c => {
-            const vars = { ...(variables || {}), ...(c.variables || {}) };
-            if (c.mediaUrl || mediaUrl) vars['header_url'] = c.mediaUrl || mediaUrl;
-            return [campaignId, userId, c.to.replace(/\D/g, ''), 'pending', JSON.stringify(vars)];
-        });
-
-        const BATCH = 1000;
-        for (let i = 0; i < queueValues.length; i += BATCH) {
-            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
-        }
-
+        // Perform Credit Check
         const { deductCampaignCredits } = require('../services/walletService');
         const deductionResult = await deductCampaignCredits(campaignId);
         
@@ -930,6 +919,21 @@ router.post('/api/send-bulk', async (req, res) => {
                 message: deductionResult.message || 'Insufficient wallet balance' 
             });
         }
+
+        // Only insert into queue after successful deduction
+        const queueValues = contacts.map(c => {
+            const vars = { ...(variables || {}), ...(c.variables || {}) };
+            if (c.mediaUrl || mediaUrl) vars['header_url'] = c.mediaUrl || mediaUrl;
+            return [campaignId, userId, c.to.replace(/\D/g, ''), 'pending', JSON.stringify(vars)];
+        });
+
+        const BATCH = 1000;
+        for (let i = 0; i < queueValues.length; i += BATCH) {
+            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
+        }
+
+        // Mark as running so worker processes it
+        await query('UPDATE campaigns SET status = "running" WHERE id = ?', [campaignId]);
 
         res.json({ success: true, campaignId, queued: contacts.length });
     } catch (error) {
