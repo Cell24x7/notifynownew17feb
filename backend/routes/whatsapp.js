@@ -851,7 +851,7 @@ router.post('/send-campaign', authenticate, async (req, res) => {
             const deductionResult = await deductCampaignCredits(campaignId);
             if (!deductionResult.success) {
                 console.error(`❌ Credit deduction failed for WA campaign ${campaignId}: ${deductionResult.message}`);
-                await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
+                await query('UPDATE campaigns SET status = "paused" WHERE id = ?', [campaignId]);
                 return res.status(402).json({ success: false, message: deductionResult.message || 'Insufficient wallet balance' });
             }
 
@@ -927,7 +927,7 @@ router.post('/api/send-bulk', async (req, res) => {
         
         if (!deductionResult.success) {
             console.warn(`[Bulk API] Insufficient credits for user ${userId}. Campaign: ${campaignId}`);
-            await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
+            await query('UPDATE campaigns SET status = "paused" WHERE id = ?', [campaignId]);
             return res.status(402).json({ 
                 success: false, 
                 message: deductionResult.message || 'Insufficient wallet balance' 

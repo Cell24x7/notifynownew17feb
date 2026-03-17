@@ -130,7 +130,7 @@ const processQueue = async () => {
             const deductionResult = await deductCampaignCredits(campId);
             if (!deductionResult.success) {
                 console.error(`[QueueProcessor] Credit deduction failed for ${campId}: ${deductionResult.message}. Pausing campaign.`);
-                await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campId]);
+                await query('UPDATE campaigns SET status = "paused" WHERE id = ?', [campId]);
                 failedCampaigns.add(campId);
                 continue;
             }

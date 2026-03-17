@@ -534,7 +534,7 @@ router.post('/api/send-bulk', async (req, res) => {
         
         if (!deductionResult.success) {
             console.warn(`[RCS Bulk API] Insufficient credits for user ${userId}. Campaign: ${campaignId}`);
-            await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [campaignId]);
+            await query('UPDATE campaigns SET status = "paused" WHERE id = ?', [campaignId]);
             return res.status(402).json({ 
                 success: false, 
                 message: deductionResult.message || 'Insufficient wallet balance' 
