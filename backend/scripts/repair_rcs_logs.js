@@ -1,11 +1,17 @@
-/**
- * REPAIR RCS LOGS SCRIPT
- * 
- * This script fixes two main issues:
- * 1. webhook_logs entries with missing 'user_id' for RCS messages.
- * 2. webhook_logs entries with missing 'type' (ensuring they are set to 'rcs').
- * 3. Normalizes 'sender' and 'recipient' phone numbers.
- */
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Smart env loading: prioritizes .env.production on servers
+const currentPath = process.cwd();
+let envFile = '.env';
+
+// Check if running in a production-like directory or NODE_ENV is production
+if (currentPath.includes('notifynow.in') || process.env.NODE_ENV === 'production') {
+    envFile = '.env.production';
+}
+
+// Load from backend folder since this script is in backend/scripts
+dotenv.config({ path: path.join(__dirname, '..', envFile) });
 
 const { query } = require('../config/db');
 
