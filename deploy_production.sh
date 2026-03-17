@@ -55,9 +55,12 @@ if [ ! -d "node_modules" ]; then npm install --silent; fi
 
 # ── Step 4: Build Frontend ────────────────────────────
 log "🏗️  [4/7] Building frontend..."
-echo "VITE_API_URL=https://notifynow.in/api" > "$FRONTEND_DIR/.env"
+API_URL="https://notifynow.in/api"
+echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env"
+echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env.production"
+ok "Frontend configured to use: $API_URL"
 npm run build
-ok "Frontend built"
+ok "Frontend built successfully"
 
 # ── Step 5: Enforce Env ───────────────────────────────
 log "🛠️  [5/7] Enforcing PRODUCTION settings..."

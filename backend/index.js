@@ -127,6 +127,17 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, timestamp: new Date().toISOString() });
 });
 
+app.get('/api/check-system', (req, res) => {
+  res.json({
+      success: true,
+      environment: process.env.NODE_ENV || 'production',
+      database: process.env.DB_NAME,
+      port: process.env.PORT,
+      api_url: process.env.API_BASE_URL,
+      server_path: __dirname
+  });
+});
+
 // Queue Processor
 const { processQueue } = require('./services/queueService');
 const runQueue = async () => {
