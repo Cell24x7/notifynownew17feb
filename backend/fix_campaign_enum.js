@@ -1,4 +1,20 @@
+const path = require('path');
+const fs = require('fs');
+
+// Smart env loading: production uses .env.production, dev uses .env
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+const envPath = path.join(__dirname, envFile);
+
+if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+    console.log(`📡 Loaded environment: ${envFile}`);
+} else {
+    require('dotenv').config();
+    console.log('📡 Loaded default environment (.env)');
+}
+
 const { query } = require('./config/db');
+
 
 async function fix() {
     try {
