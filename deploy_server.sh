@@ -55,7 +55,9 @@ if [ ! -d "node_modules" ]; then npm install --silent; fi
 
 # ── Step 4: Enforce Env ───────────────────────────────
 log "🛠️  [4/7] Enforcing DEV settings..."
-# Backend Env
+# Backend Env (Strictly preserve credentials if file exists)
+if [ ! -f "$BACKEND_DIR/.env.production" ]; then
+    warn ".env.production not found, creating from template..."
 cat <<EOF > "$BACKEND_DIR/.env.production"
 DB_HOST=localhost
 DB_USER=root
@@ -65,8 +67,13 @@ PORT=5000
 API_BASE_URL=https://developer.notifynow.in
 JWT_SECRET=notifynow_db_secret_key
 JWT_EXPIRES_IN=7d
-WHATSAPP_VERIFY_TOKEN=notifynow_dev_token
 EOF
+else
+    ok "Preserving existing .env.production, patching DB/Port settings..."
+    sed -i '/^DB_HOST=/c\DB_HOST=localhost' "$BACKEND_DIR/.env.production"
+    sed -i '/^DB_NAME=/c\DB_NAME=developer_notify' "$BACKEND_DIR/.env.production"
+    sed -i '/^PORT=/c\PORT=5000' "$BACKEND_DIR/.env.production"
+fi
 
 # Frontend Env (VITE_API_URL is critical for build)
 # Writing to both .env and .env.production for maximum compatibility
@@ -92,10 +99,12 @@ NODE_ENV=production node apply_schema_updates.js || true
 # ── Step 7: Restart Clean ─────────────────────────────
 log "♻️  [7/7] Starting clean PM2 instance..."
 cd "$PROJECT_DIR"
-APP_NAME_FROM_CONFIG=$(node -e "console.log(require('./ecosystem.config.js').apps[0].name)")
-pm2 delete "$APP_NAME_FROM_CONFIG" 2>/dev/null || true
+# Force kill anything on port 5000
+fuser -k 5000/tcp || true
+# Delete ONLY this specific developer instance
+pm2 delete notifynow-developer 2>/dev/null || true
 pm2 start ecosystem.config.js --env production
 pm2 save --force
-ok "Instance '$APP_NAME_FROM_CONFIG' is active on Developer Port (5000)"
+ok "Instance 'notifynow-developer' is active on Developer Port (5000)"
 
 echo "✨ DEVELOPER DEPLOYMENT COMPLETE!"
