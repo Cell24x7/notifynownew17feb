@@ -612,9 +612,9 @@ router.post('/api/send-single', async (req, res) => {
 
             // Main Message Log (For Reports/API Logs)
             await query(
-                `INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
-                 VALUES (?, ?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
-                [apiLogId, user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
+                `INSERT INTO message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
+                 VALUES (?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
+                [user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
             );
 
             // Webhook Log (For Chat visibility if needed)
@@ -715,9 +715,9 @@ router.post('/send', async (req, res) => {
             const apiCampaignName = `API Send (RCS)`;
 
             await query(
-                `INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
-                 VALUES (?, ?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
-                [apiLogId, user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
+                `INSERT INTO message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
+                 VALUES (?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
+                [user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
             );
 
             await query(

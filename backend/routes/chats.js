@@ -194,10 +194,9 @@ router.post('/send', authenticateToken, async (req, res) => {
         );
 
         // ALSO Save to message_logs so it shows in Detailed Reports
-        const logId = `LOG_CHAT_${Date.now()}`;
         await query(
-            'INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, message_content, campaign_id, campaign_name, created_at, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-            [logId, userId, cleanRecipient, channelType.toUpperCase(), finalStatus, providerMessageId, message, manualCampaignId, 'Manual Chat']
+            'INSERT INTO message_logs (user_id, recipient, channel, status, message_id, message_content, campaign_id, campaign_name, created_at, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+            [userId, cleanRecipient, channelType.toUpperCase(), finalStatus, providerMessageId, message, manualCampaignId, 'Manual Chat']
         ).catch(err => console.error('❌ Error logging manual chat to message_logs:', err.message));
 
         if (req.io) {
