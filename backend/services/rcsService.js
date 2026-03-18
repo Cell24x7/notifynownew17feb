@@ -160,7 +160,10 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = []) 
     console.log(`📥 Dotgo Response [${response.status}]:`, JSON.stringify(response.data));
 
     if (response.status === 200 || response.status === 201) {
-      const messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
+      let messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
+      if (messageId === "N/A" && response.data?.name) {
+          messageId = response.data.name.split('/').pop();
+      }
       return { success: true, messageId: messageId, raw: response.data };
     }
 
@@ -210,7 +213,10 @@ const sendRcsMessage = async (mobile, message, config) => {
     console.log(`📥 Dotgo Text Response [${response.status}]:`, JSON.stringify(response.data));
 
     if (response.status === 200 || response.status === 201) {
-      const messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
+      let messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
+      if (messageId === "N/A" && response.data?.name) {
+          messageId = response.data.name.split('/').pop();
+      }
       return { success: true, messageId: messageId };
     }
 
