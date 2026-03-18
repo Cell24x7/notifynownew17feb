@@ -241,7 +241,7 @@ export default function Chats() {
       )}>
         {/* LEFT COLUMN: Sidebar */}
         <div className={cn(
-          "border-r border-border flex-col bg-card transition-all duration-300 h-full",
+          "border-r border-border flex flex-col bg-card transition-all duration-300 h-full min-h-0",
           selectedConversation && !showConversationList ? "hidden md:flex" : "flex"
         )}>
           <div className="p-4 border-b border-border shrink-0">
@@ -275,7 +275,7 @@ export default function Chats() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scrollbar-custom">
             <div className="p-2 space-y-1">
               {filteredConversations.map((conv) => (
                 <button
@@ -366,7 +366,7 @@ export default function Chats() {
 
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth bg-[#f0f2f5] dark:bg-[#0b141a] min-h-0"
+              className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth bg-[#f0f2f5] dark:bg-[#0b141a] min-h-0 scrollbar-custom"
             >
               <div className="space-y-4">
                 {messages.map((message, index) => {
