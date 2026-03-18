@@ -328,7 +328,6 @@ export default function Chats() {
                 </div>
               )}
             </div>
-            </div>
           </div>
         </div>
 
