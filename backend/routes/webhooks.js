@@ -205,7 +205,14 @@ router.post('/dotgo', async (req, res) => {
 
         // For incoming messages, the person we are talking to is the SENDER.
         // For outgoing/DLRs, the person we are talking to is the RECIPIENT.
-        const contactPhone = finalStatus === 'received' ? cleanSender : cleanRecipient;
+        // IMPORTANT: In Dotgo DLR events (delivered/failed/read), destinationPhoneNumber is often missing.
+        // In that case, senderPhoneNumber IS actually the recipient (the person message was sent TO).
+        let contactPhone;
+        if (finalStatus === 'received') {
+            contactPhone = cleanSender;
+        } else {
+            contactPhone = cleanRecipient || cleanSender; // Fallback to sender for DLR events
+        }
 
         console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
         if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${cleanSender}`);
@@ -223,31 +230,44 @@ router.post('/dotgo', async (req, res) => {
                 }
             }
 
-            // Step B: If still null (Incoming Message/Reply), try matching by Bot ID + Sender
+            // Step B: If still null, try matching by Bot ID + contactPhone
             if (!userId) {
                 const botId = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
+                
+                // Step B1: Try by botId + contactPhone
                 if (botId && contactPhone) {
-                    // 1. Find the config
                     const [configs] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId]);
                     if (configs.length > 0) {
                         const configId = configs[0].id;
                         
-                        // 2. Find who last chatted with this person on this config
                         const [lastChat] = await query(
                             `SELECT user_id FROM message_logs 
-                             WHERE recipient = ? 
+                             WHERE recipient LIKE ? 
                              AND user_id IN (SELECT id FROM users WHERE rcs_config_id = ?)
                              ORDER BY created_at DESC LIMIT 1`,
-                            [contactPhone, configId]
+                            [`%${contactPhone.slice(-10)}%`, configId]
                         );
                         
                         if (lastChat.length > 0) {
                             userId = lastChat[0].user_id;
                         } else {
-                            // 3. Fallback: First user assigned to this config
                             const [fallbackUser] = await query('SELECT id FROM users WHERE rcs_config_id = ? LIMIT 1', [configId]);
                             if (fallbackUser.length > 0) {
                                 userId = fallbackUser[0].id;
+                            }
+                        }
+                    }
+                }
+                
+                // Step B2: If still null and we have botId, just find any user with this config
+                if (!userId) {
+                    const botId2 = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
+                    if (botId2) {
+                        const [configs2] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId2]);
+                        if (configs2.length > 0) {
+                            const [fallbackUser2] = await query('SELECT id FROM users WHERE rcs_config_id = ? LIMIT 1', [configs2[0].id]);
+                            if (fallbackUser2.length > 0) {
+                                userId = fallbackUser2[0].id;
                             }
                         }
                     }
@@ -321,14 +341,14 @@ router.post('/dotgo', async (req, res) => {
                 // Try matching by message_id first
                 let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
 
-                // Fallback: Match by contactPhone if message_id is 'N/A' or not found
+                // Fallback: Match by contactPhone (last 10 digits) if message_id not found
                 if (logs.length === 0 && contactPhone) {
-                    const cleanRecipient = contactPhone; 
-                    console.log(`🔍 No ID match for ${messageId}. Searching by recipient: ${cleanRecipient}`);
+                    const last10 = contactPhone.slice(-10);
+                    console.log(`🔍 No ID match for ${messageId}. Searching by recipient (last 10): ${last10}`);
 
                     [logs] = await query(
-                        'SELECT * FROM message_logs WHERE (recipient = ? OR recipient = ?) AND (message_id = "N/A" OR message_id IS NULL OR status = "sent") ORDER BY created_at DESC LIMIT 1',
-                        [cleanRecipient, `+${cleanRecipient}`]
+                        `SELECT * FROM message_logs WHERE (recipient LIKE ? OR recipient LIKE ?) AND (message_id = 'N/A' OR message_id IS NULL OR status = 'sent') ORDER BY created_at DESC LIMIT 1`,
+                        [`%${last10}`, `%${last10}%`]
                     );
 
                     if (logs.length > 0) {
