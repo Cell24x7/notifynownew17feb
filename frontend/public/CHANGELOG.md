@@ -2,7 +2,41 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-18]
+- Fix userId scope - move declaration outside try block for message_logs access (41d258b)
+- Fix webhook DLR matching - contactPhone was null for FAILED events (5bc6409)
+- Fix message_id parsing from DotGo response name field (bd75bb3)
+- Fix incorrect integer value error for message_logs insertion (87263a0)
+- Fix campaign bulk insert to populate channel in message_logs (a47a015)
+- Fix database schema for message_logs error (7a55f49)
+- Fix RCS Send API and Webhook Logging (102dec6)
+- UI: Fixed Chat sidebar scrollbar visibility and added custom scrollbar styling (72b5aec)
+- UI: Fixed Chat layout scrolling by constraining height and adding min-h-0 to columns (0dfc297)
+- UI: Fixed JSX syntax error and restored Pro Tip content in Chats.tsx (8182b19)
+- UI: Fixed Chat scrolling, added channel filtering by configuration, and polished chat window aesthetics (36c466c)
+- Fix: Dashboard Stats Error - Added robust handling for missing chats and automations tables (b637a05)
+- Fix: RCS Chat grouping & Comprehensive Data Repair - Improved conversation SQL, added manual chat reporting, and enhanced repair script to backfill message_logs (82fcb96)
+- Fix: RCS Repair Script - Added prod env detection (85f3590)
+- Fix: RCS Participant Normalization & Repair Logic - Fixed ReferenceError and added history repair script (def2b12)
+- Fix: RCS Chat Integration (Dotgo Webhook) - robust userId resolution and channel typing (3fe03d8)
+- Final Fix: Dashboard calculation logic, missing statuses, and deployment script patching (0d77d66)
+
+---
+
 ## [2026-03-17]
+- Fix dashboard live update and missing campaign fields (93bae2c)
+- Proper Fix: Unique PM2 names and credential preservation on rollback basis (8c0039f)
+- Fix: Surgical PM2 restarts to prevent cross-app interference (f5dfd42)
+- Update: fix_campaign_enum script now supports .env.production (c806735)
+- Fix: Replaced 'failed' with 'paused' to avoid DB truncation error and added enum fix script (7bb3999)
+- Fix: Strict credit validation for WhatsApp/RCS and individual APIs (a7c6100)
+- Fix: WhatsApp/RCS API credit check race condition. Use 'checking_credits' status. (100272c)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (61eca45)
+- Fix: WhatsApp/RCS API login 404, credit validation, and dashboard stats (b06294e)
+- Fix: RCS incoming message extraction and real-time chat notification (966feab)
+- Fix double /api in frontend requests (1a90f09)
+- Resolve merge conflicts and fix sidebar permissions (258648c)
+- Add system check route and strictly separate frontend API URLs (f1d9e52)
 - Fix: Environment separation for production and developer instances (1cf8f45)
 - Final strict separation: Clean PM2 starts and folder-based config enforcement (3a49a1a)
 - Force strict DB separation based on folder path (88a7799)
@@ -271,13 +305,6 @@ This document is automatically updated based on development activity.
 
 ## [2026-02-16]
 - updated (a4fb5d6)
-- updated home page (b32502c)
-- updated auth file (1678f23)
-
----
-
-## [2026-02-14]
-- update (a43d027)
 
 ---
 

@@ -139,12 +139,12 @@ export function OtpVerification({ email, onOtpVerified, onBackClick, isLoading }
           id="otp"
           type="text"
           inputMode="numeric"
-          placeholder="000000"
+          placeholder="Enter 6-digit code"
           value={otp}
           onChange={handleOtpChange}
           disabled={isLoading}
           maxLength={6}
-          className={`py-6 text-2xl tracking-widest text-center ${otpError ? 'border-red-500' : ''}`}
+          className={`py-6 text-2xl tracking-widest text-center rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white transition-all ${otpError ? 'border-red-500' : ''}`}
         />
         {otpError && <p className="text-sm text-red-500">{otpError}</p>}
       </div>

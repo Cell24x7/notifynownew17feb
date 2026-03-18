@@ -130,11 +130,11 @@ export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps
             <Input
               id="email"
               type="email"
-              placeholder="Enter your business email address"
+              placeholder="Enter your business email"
               value={email}
               onChange={handleEmailChange}
               disabled={isLoading}
-              className={`py-6 text-base ${emailError ? 'border-red-500' : ''}`}
+              className={`py-6 text-base rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white transition-all ${emailError ? 'border-red-500' : ''}`}
             />
             {emailError && <p className="text-sm text-red-500">{emailError}</p>}
           </div>
@@ -154,7 +154,7 @@ export function EmailSignup({ onOtpSent, isLoading, disabled }: EmailSignupProps
                 <Input
                   id="mobile"
                   type="tel"
-                  placeholder="Enter 10-digit mobile number"
+                  placeholder="Enter mobile number"
                   value={mobile}
                   onChange={handleMobileChange}
                   disabled={isLoading}

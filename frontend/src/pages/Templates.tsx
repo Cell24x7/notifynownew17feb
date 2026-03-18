@@ -298,6 +298,8 @@ export default function Templates() {
 
   const [templateAnalyticsOpen, setTemplateAnalyticsOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
 
   const filteredTemplates = useMemo(() => {
     return (templates || []).filter((template) => {
@@ -740,24 +742,24 @@ export default function Templates() {
     navigate('/campaigns', { state: { templateId: template.id, channel: template.channel } });
   };
 
-  const renderPhonePreview = () => {
+  const renderPhonePreview = (data: any = newTemplate) => {
     const getHeaderIcon = () => {
-      switch (newTemplate.header.type) {
+      switch (data.header?.type) {
         case 'image':
-          return newTemplate.header.content ? (
+          return data.header.content ? (
             <div className="mb-2 rounded-lg overflow-hidden">
-              <img src={newTemplate.header.content} alt="Header" className="w-full h-auto object-cover" />
+              <img src={data.header.content} alt="Header" className="w-full h-auto object-cover" />
             </div>
           ) : (
             <div className="h-32 bg-muted rounded-lg flex items-center justify-center"><Image className="h-8 w-8 text-muted-foreground" /></div>
           );
-        case 'text': return newTemplate.header.content ? <p className="font-bold text-sm">{newTemplate.header.content}</p> : null;
+        case 'text': return data.header.content ? <p className="font-bold text-sm">{data.header.content}</p> : null;
         default: return null;
       }
     };
-
-    if (newTemplate.channel === 'rcs') {
-      const { template_type, metadata, body, buttons } = newTemplate;
+ 
+    if (data.channel === 'rcs') {
+      const { template_type, metadata, body, buttons } = data;
 
       const renderCard = (cardData: any, isCarousel = false, index?: number) => {
         const orientation = cardData?.orientation || metadata?.orientation || 'VERTICAL';
@@ -923,8 +925,8 @@ export default function Templates() {
             <div className="p-3 h-[calc(100%-120px)] overflow-y-auto">
               <div className="bg-white rounded-lg p-3 shadow-sm max-w-[90%] space-y-2">
                 {getHeaderIcon()}
-                <p className="text-sm whitespace-pre-wrap">{newTemplate.body || 'Message body...'}</p>
-                {newTemplate.footer && <p className="text-xs text-muted-foreground">{newTemplate.footer}</p>}
+                <p className="text-sm whitespace-pre-wrap">{data.body || 'Message body...'}</p>
+                {data.footer && <p className="text-xs text-muted-foreground">{data.footer}</p>}
               </div>
             </div>
           </div>
@@ -1111,6 +1113,13 @@ export default function Templates() {
                             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuItem onClick={() => {
+                              setPreviewTemplate(template);
+                              setIsPreviewOpen(true);
+                            }} className="gap-2">
+                              <Eye className="h-4 w-4" />Preview
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleEditTemplate(template)} className="gap-2"><Edit className="h-4 w-4" />Edit</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive gap-2 focus:text-destructive" onClick={() => handleDeleteTemplate(template.id)}><Trash2 className="h-4 w-4" />Delete</DropdownMenuItem>
@@ -1412,6 +1421,36 @@ export default function Templates() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Standalone Template Preview Dialog */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="sm:max-w-fit w-auto max-h-[90vh] p-0 bg-transparent border-none shadow-none flex flex-col items-center justify-center z-[100] outline-none ring-0 overflow-visible [&>button]:hidden">
+          {/* Minimal Backdrop - Light Blur only, no color as requested */}
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm -z-10" />
+
+          {previewTemplate && (
+            <div className="relative animate-in zoom-in-95 duration-500 origin-center">
+              {/* Core Content Only - No Bezel/Frame */}
+              <div className="overflow-hidden rounded-[2.5rem] bg-white w-[320px] h-auto max-h-[85vh] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] relative overflow-y-auto no-scrollbar border border-white/10">
+                {previewTemplate.channel === 'whatsapp' ? (
+                  <WhatsAppPreview data={{
+                    ...previewTemplate,
+                    components: (previewTemplate as any).components || [
+                      { type: 'BODY', text: previewTemplate.body || 'No content provided' },
+                      ...(previewTemplate.footer ? [{ type: 'FOOTER', text: previewTemplate.footer }] : []),
+                      ...(previewTemplate.header_content ? [{ type: 'HEADER', format: 'TEXT', text: previewTemplate.header_content }] : [])
+                    ]
+                  }} />
+                ) : (
+                  <div className="p-4">
+                    {renderPhonePreview(previewTemplate)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

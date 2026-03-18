@@ -46,7 +46,7 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
     const value = e.target.value;
     setConfirmPassword(value);
     if (value && value !== password) {
-      setConfirmPasswordError('Passwords do not match');
+      confirmPasswordError || setConfirmPasswordError('Passwords do not match');
     } else {
       setConfirmPasswordError('');
     }
@@ -132,10 +132,10 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
            <Label htmlFor="name">Full Name <span className="text-red-500">*</span></Label>
            <Input 
              id="name" 
-             placeholder="John Doe" 
+             placeholder="Enter your full name" 
              value={name} 
              onChange={(e) => setName(e.target.value)} 
-             className="py-6"
+             className="py-6 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white transition-all shadow-sm"
            />
         </div>
 
@@ -143,10 +143,10 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
            <Label htmlFor="company">Company Name <span className="text-red-500">*</span></Label>
            <Input 
              id="company" 
-             placeholder="Acme Inc." 
+             placeholder="Enter your company name" 
              value={company} 
              onChange={(e) => setCompany(e.target.value)} 
-             className="py-6"
+             className="py-6 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white transition-all shadow-sm"
            />
         </div>
 
@@ -158,10 +158,10 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
            <Input 
              id="secondary-contact"
              type={email.includes('@') ? 'tel' : 'email'}
-             placeholder={email.includes('@') ? 'Enter your mobile number' : 'Enter your email address'}
+             placeholder={email.includes('@') ? 'Enter mobile number' : 'Enter email address'}
              value={secondaryIdentifier}
              onChange={(e) => setSecondaryIdentifier(e.target.value)} 
-             className="py-6"
+             className="py-6 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white transition-all shadow-sm"
            />
         </div>
       </div>
@@ -173,11 +173,11 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
+              placeholder="Create a strong password"
               value={password}
               onChange={handlePasswordChange}
               disabled={isLoading}
-              className={`py-6 pr-12 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${passwordError ? 'border-red-500' : ''}`}
+              className={`py-6 pr-12 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white transition-all shadow-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${passwordError ? 'border-red-500' : ''}`}
             />
             <button
               type="button"
@@ -200,11 +200,11 @@ export function PasswordCreation({ email, otp, onPasswordCreated, isLoading }: P
             <Input
               id="confirm-password"
               type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="••••••••"
+              placeholder="Re-enter your password"
               value={confirmPassword}
               onChange={handleConfirmPasswordChange}
               disabled={isLoading}
-              className={`py-6 pr-12 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${confirmPasswordError ? 'border-red-500' : ''}`}
+              className={`py-6 pr-12 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white transition-all shadow-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${confirmPasswordError ? 'border-red-500' : ''}`}
             />
             <button
               type="button"
