@@ -217,10 +217,11 @@ router.post('/dotgo', async (req, res) => {
         console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
         if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${cleanSender}`);
 
+        // userId needs to be available for both webhook_logs AND message_logs sections
+        let userId = null;
+
         // 2. Save/Update webhook_logs (Smart UPSERT logic)
         try {
-            // Robust userId resolution
-            let userId = null;
             
             // Step A: Try matching by existing messageId (Delivery Reports)
             if (messageId) {
