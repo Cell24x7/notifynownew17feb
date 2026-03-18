@@ -68,16 +68,22 @@ export default function Chats() {
 
   const [showConversationList, setShowConversationList] = useState(true);
 
-  const enabledChannels = (user?.channels_enabled || []).map((c: string) => c.toLowerCase());
+  const enabledChannels = Array.isArray(user?.channels_enabled) 
+    ? user.channels_enabled.map((c: string) => c.toLowerCase())
+    : [];
+
   const ALL_CHANNELS = [
-    { label: 'WhatsApp', value: 'whatsapp' },
-    { label: 'RCS', value: 'rcs' },
-    { label: 'SMS', value: 'sms' },
-    { label: 'Email', value: 'email' },
+    { label: 'WhatsApp', value: 'whatsapp', configured: !!user?.whatsapp_config_id },
+    { label: 'RCS', value: 'rcs', configured: !!user?.rcs_config_id },
+    { label: 'SMS', value: 'sms', configured: true }, // SMS usually doesn't need specific bot config here
+    { label: 'Email', value: 'email', configured: true },
   ];
+
   const channels = [
     { label: 'All', value: 'all' },
-    ...ALL_CHANNELS.filter(c => enabledChannels.includes(c.value))
+    ...ALL_CHANNELS.filter(c => 
+      enabledChannels.includes(c.value) && c.configured
+    )
   ];
 
   const getChannelColor = (channel?: string) => {
@@ -179,9 +185,15 @@ export default function Chats() {
 
   useEffect(() => {
     if (scrollRef.current) {
-        scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+        const scrollContainer = scrollRef.current.parentElement;
+        if (scrollContainer) {
+            scrollContainer.scrollTo({
+                top: scrollContainer.scrollHeight,
+                behavior: messages.length <= 1 ? 'auto' : 'smooth'
+            });
+        }
     }
-  }, [messages]);
+  }, [messages, selectedConversation]);
 
   const filteredConversations = conversations.filter((conv) => {
     if (!conv) return false;
@@ -266,7 +278,7 @@ export default function Chats() {
             </div>
           </div>
 
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
             <div className="p-2 space-y-1">
               {filteredConversations.map((conv) => (
                 <button
@@ -316,7 +328,8 @@ export default function Chats() {
                 </div>
               )}
             </div>
-          </ScrollArea>
+            </div>
+          </div>
         </div>
 
         {/* MIDDLE COLUMN: Chat Window */}
@@ -355,7 +368,7 @@ export default function Chats() {
               </div>
             </div>
 
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth bg-[#f0f2f5] dark:bg-[#0b141a]">
               <div className="space-y-4">
                 {messages.map((message, index) => {
                   const isSystem = message.sender === 'System';
@@ -369,28 +382,28 @@ export default function Chats() {
                     >
                       <div
                         className={cn(
-                          'max-w-[75%] rounded-2xl px-4 py-2 shadow-sm relative',
+                          'max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm relative animate-slide-up',
                           isSystem
-                            ? 'bg-green-500 text-white rounded-tr-sm'
-                            : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-700 rounded-tl-sm'
+                            ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-[#303030] dark:text-[#e9edef] rounded-tr-none'
+                            : 'bg-white dark:bg-[#202c33] text-[#303030] dark:text-[#e9edef] border border-transparent dark:border-[#233138] rounded-tl-none'
                         )}
                       >
-                        <p className="text-[14px] leading-relaxed break-words whitespace-pre-wrap">{message.message_content}</p>
+                        <p className="text-[14.5px] leading-normal break-words whitespace-pre-wrap">{message.message_content}</p>
                         <div className={cn(
-                          "flex items-center justify-end gap-1 mt-1", 
-                          isSystem ? "text-green-50" : "text-muted-foreground"
+                          "flex items-center justify-end gap-1.5 mt-1.5", 
+                          isSystem ? "text-[#667781] dark:text-[#8696a0]" : "text-[#667781] dark:text-[#8696a0]"
                         )}>
-                          <span className="text-[10px] font-medium opacity-90">
-                            {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                          <span className="text-[10px] uppercase font-semibold tracking-tight">
+                            {formatDistanceToNow(new Date(message.created_at), { addSuffix: false })}
                           </span>
                         </div>
                       </div>
                     </div>
                   );
                 })}
-                <div ref={scrollRef} />
+                <div ref={scrollRef} className="h-2" />
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Input Area */}
             <div className="bg-card border-t border-border shrink-0">
@@ -499,40 +512,61 @@ export default function Chats() {
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div>
-                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Fast Actions</h3>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-[11px] h-8 shadow-sm">
-                    <Zap className="h-3 w-3 mr-1.5" /> Resolve
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-[11px] h-8 shadow-sm">
-                    <FileText className="h-3 w-3 mr-1.5" /> Archive
-                  </Button>
+              <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-hide">
+                <div>
+                  <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h3>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1 text-[11px] h-9 shadow-sm hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all">
+                      <Zap className="h-3 w-3 mr-1.5 text-yellow-500" /> Mark Resolved
+                    </Button>
+                    <Button variant="outline" className="flex-1 text-[11px] h-9 shadow-sm hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30 transition-all">
+                      <X className="h-3 w-3 mr-1.5 text-destructive" /> Block
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Contact Details</h3>
-                <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-border">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Phone</span>
-                    <span className="font-medium">+{(selectedConversation.contact_phone || '').replace(/\D/g,'')}</span>
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Conversation Properties</h3>
+                  
+                  <div className="bg-muted/30 p-4 rounded-xl border border-border space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Active Channel</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn("w-2 h-2 rounded-full", selectedConversation.channel === 'whatsapp' ? "bg-green-500" : "bg-blue-500")} />
+                        <span className="font-semibold capitalize">{selectedConversation.channel || 'Standard'}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Phone Number</span>
+                      <span className="font-semibold select-all">+{(selectedConversation.contact_phone || '').replace(/\D/g,'')}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Session Status</span>
+                      <StatusBadge status={selectedConversation.status as any} />
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs pt-2 border-t border-border/50">
+                      <span className="text-muted-foreground">First Contact</span>
+                      <span className="font-medium text-slate-500">
+                        {selectedConversation.last_message_time ? new Date(selectedConversation.last_message_time).toLocaleDateString() : 'Unknown'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Active Channel</span>
-                    <span className="font-medium capitalize">{selectedConversation.channel || 'Unknown'}</span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <h4 className="text-xs font-bold text-primary italic">Pro Tip</h4>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Last Seen</span>
-                    <span className="font-medium">
-                      {selectedConversation.last_message_time ? formatDistanceToNow(new Date(selectedConversation.last_message_time), { addSuffix: true }) : 'Never'}
-                    </span>
-                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                    Use <span className="font-bold underline">Quick Replies</span> to respond 3x faster to common customer inquiries.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
         ) : (
           <div className="hidden lg:flex" /> 
         )}
