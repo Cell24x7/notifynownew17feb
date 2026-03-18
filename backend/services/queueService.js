@@ -412,13 +412,13 @@ const processQueue = async () => {
 
         // Bulk Insert into message_logs (Include all results for details page visibility)
         const logs = results.map(r => [
-            r.user_id, r.campaign_id, r.campaign_name, r.template_name, r.messageId || 'N/A', r.mobile, r.success ? 'sent' : 'failed', new Date()
+            r.user_id, r.campaign_id, r.campaign_name, r.template_name, r.messageId || 'N/A', r.mobile, r.success ? 'sent' : 'failed', new Date(), r.channel || 'RCS'
         ]);
 
         if (logs.length > 0) {
             try {
                 await query(
-                    'INSERT INTO message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) VALUES ?',
+                    'INSERT INTO message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES ?',
                     [logs]
                 );
             } catch (logErr) {
