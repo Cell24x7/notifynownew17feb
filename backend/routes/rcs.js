@@ -606,14 +606,25 @@ router.post('/api/send-single', async (req, res) => {
         const result = await sendRcsTemplate(to, templateName, configs[0], params);
 
         if (result.success) {
-            const logId = `LOG_${Date.now()}`;
+            const apiLogId = `LOG_API_${Date.now()}`;
+            const apiCampaignId = `CAMP_API_RCS_${Date.now()}`;
+            const apiCampaignName = `API Send (RCS)`;
+
+            // Main Message Log (For Reports/API Logs)
             await query(
-                `INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, template_name, created_at)
-                 VALUES (?, ?, ?, 'RCS', 'sent', ?, ?, NOW())`,
-                [logId, user.id, to, result.messageId, templateName]
+                `INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
+                 VALUES (?, ?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
+                [apiLogId, user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
+            );
+
+            // Webhook Log (For Chat visibility if needed)
+            await query(
+                `INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type, message_id, campaign_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [user.id, 'API', to, `Template: ${templateName}`, 'sent', 'rcs', result.messageId, apiCampaignId]
             );
             
-            res.json({ success: true, messageId: result.messageId });
+            res.json({ success: true, messageId: result.messageId, logId: apiLogId });
         } else {
             res.status(500).json({ success: false, error: result.error });
         }
@@ -650,6 +661,75 @@ router.get('/api/status/:id', async (req, res) => {
         if (logs.length) return res.json({ success: true, type: 'message', data: logs[0] });
 
         res.status(404).json({ success: false, message: 'Record not found' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/rcs/send
+ * Clean endpoint for External Developers (Alias for send-single)
+ */
+router.post('/send', async (req, res) => {
+    try {
+        const { username, password, to, templateName, params } = req.body;
+
+        if (!username || !password || !templateName || !to) {
+            return res.status(400).json({ success: false, message: 'Missing fields: username, password, templateName, to' });
+        }
+
+        // Auth
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !users[0].api_password) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+        const user = users[0];
+        
+        // Fetch user's assigned RCS config
+        const [configs] = await query(`
+            SELECT rc.* 
+            FROM users u 
+            JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+            WHERE u.id = ?
+        `, [user.id]);
+
+        if (!configs || configs.length === 0) {
+            return res.status(400).json({ success: false, message: 'RCS not configured for this user' });
+        }
+
+        const { sendRcsTemplate } = require('../services/rcsService');
+        const { deductSingleMessageCredit } = require('../services/walletService');
+        
+        // Check credit
+        const deduction = await deductSingleMessageCredit(user.id, 'rcs', templateName);
+        if (!deduction.success) {
+            return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
+        }
+
+        const result = await sendRcsTemplate(to, templateName, configs[0], params);
+
+        if (result.success) {
+            const apiLogId = `LOG_API_${Date.now()}`;
+            const apiCampaignId = `CAMP_API_RCS_${Date.now()}`;
+            const apiCampaignName = `API Send (RCS)`;
+
+            await query(
+                `INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
+                 VALUES (?, ?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
+                [apiLogId, user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
+            );
+
+            await query(
+                `INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type, message_id, campaign_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [user.id, 'API', to, `Template: ${templateName}`, 'sent', 'rcs', result.messageId, apiCampaignId]
+            );
+            
+            res.json({ success: true, messageId: result.messageId, logId: apiLogId });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

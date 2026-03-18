@@ -343,9 +343,28 @@ router.post('/dotgo', async (req, res) => {
 
                     // Only update if status is actually different
                     if (oldStatus !== finalStatus) {
+                        // Hierarchy Protection: Don't downgrade status (e.g., if 'sent' comes after 'delivered')
+                        const statusWeights = { 'sent': 1, 'delivered': 2, 'displayed': 3, 'read': 4, 'failed': -1, 'received': 10 };
+                        if ((statusWeights[finalStatus] || 0) < (statusWeights[oldStatus] || 0) && finalStatus !== 'failed') {
+                            console.log(`⚠️ Prevented status downgrade for ${log.id}: ${oldStatus} -> ${finalStatus}`);
+                            return res.status(200).json({ success: true, message: 'Status downgrade ignored' });
+                        }
+
                         console.log(`📝 Updating Log ${log.id}: ${oldStatus} -> ${finalStatus}`);
 
                         await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE id = ?', [finalStatus, log.id]);
+
+                        // 📡 REAL-TIME CHAT STATUS UPDATE
+                        if (['delivered', 'read', 'displayed', 'failed'].includes(finalStatus) && req.io) {
+                            const socketUser = userId || log.user_id;
+                            if (socketUser) {
+                                req.io.to(`user_${socketUser}`).emit('message_status_update', {
+                                    message_id: messageId || log.message_id,
+                                    status: finalStatus
+                                });
+                                console.log(`📡 Emitted Status Update (${finalStatus}) for ${messageId} to user_${socketUser}`);
+                            }
+                        }
 
                         // Handle Timestamps
                         if (finalStatus === 'delivered') {

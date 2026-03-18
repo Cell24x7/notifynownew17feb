@@ -129,6 +129,7 @@ router.post('/send', authenticateToken, async (req, res) => {
         const cleanRecipient = recipient.replace(/\D/g, '');
         const channelType = channel.toLowerCase();
         let apiDispatchSuccess = false;
+        let providerMessageId = null;
         let errorMessage = '';
 
         try {
@@ -146,6 +147,7 @@ router.post('/send', authenticateToken, async (req, res) => {
 
                 if (response.data && response.data.success) {
                     apiDispatchSuccess = true;
+                    providerMessageId = response.data.data?.messages?.[0]?.id || response.data.data?.id; // Standard Meta/Pinbot ID
                 } else {
                     errorMessage = response.data?.message || 'WhatsApp sending failed';
                 }
@@ -167,6 +169,7 @@ router.post('/send', authenticateToken, async (req, res) => {
                     
                     if (rcsResult.success) {
                         apiDispatchSuccess = true;
+                        providerMessageId = rcsResult.messageId;
                     } else {
                         errorMessage = rcsResult.error || 'RCS sending failed';
                     }
@@ -182,18 +185,19 @@ router.post('/send', authenticateToken, async (req, res) => {
         }
 
         const finalStatus = apiDispatchSuccess ? 'sent' : 'failed';
+        const manualCampaignId = `CAMP_MANUAL_${Date.now()}`;
 
-        // Save to webhook_logs as an OUTGOING message
+        // Save to webhook_logs as an OUTGOING message (including providerMessageId for DLR matching)
         const [result] = await query(
-            'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
-            [userId, 'System', cleanRecipient, message, finalStatus, channelType]
+            'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type, message_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [userId, 'System', cleanRecipient, message, finalStatus, channelType, providerMessageId]
         );
 
         // ALSO Save to message_logs so it shows in Detailed Reports
         const logId = `LOG_CHAT_${Date.now()}`;
         await query(
-            'INSERT INTO message_logs (id, user_id, recipient, channel, status, message_content, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
-            [logId, userId, cleanRecipient, channelType.toUpperCase(), finalStatus, message]
+            'INSERT INTO message_logs (id, user_id, recipient, channel, status, message_id, message_content, campaign_id, campaign_name, created_at, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+            [logId, userId, cleanRecipient, channelType.toUpperCase(), finalStatus, providerMessageId, message, manualCampaignId, 'Manual Chat']
         ).catch(err => console.error('❌ Error logging manual chat to message_logs:', err.message));
 
         if (req.io) {
