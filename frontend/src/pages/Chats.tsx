@@ -185,13 +185,10 @@ export default function Chats() {
 
   useEffect(() => {
     if (scrollRef.current) {
-        const scrollContainer = scrollRef.current.parentElement;
-        if (scrollContainer) {
-            scrollContainer.scrollTo({
-                top: scrollContainer.scrollHeight,
-                behavior: messages.length <= 1 ? 'auto' : 'smooth'
-            });
-        }
+        scrollRef.current.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: messages.length <= 1 ? 'auto' : 'smooth'
+        });
     }
   }, [messages, selectedConversation]);
 
@@ -236,9 +233,9 @@ export default function Chats() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] w-full overflow-hidden bg-background rounded-xl border border-border shadow-sm">
+    <div className="flex h-[calc(100vh-180px)] sm:h-[calc(100vh-160px)] md:h-[calc(100vh-140px)] w-full overflow-hidden bg-background rounded-xl border border-border shadow-sm">
       <div className={cn(
-        "grid w-full h-full",
+        "grid w-full h-full min-h-0",
         "grid-cols-[1fr]",
         selectedConversation ? "md:grid-cols-[280px_1fr] lg:grid-cols-[300px_1fr_270px]" : "md:grid-cols-[300px_1fr] lg:grid-cols-[320px_1fr]"
       )}>
@@ -278,7 +275,7 @@ export default function Chats() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
             <div className="p-2 space-y-1">
               {filteredConversations.map((conv) => (
                 <button
@@ -334,7 +331,7 @@ export default function Chats() {
         {/* MIDDLE COLUMN: Chat Window */}
         {selectedConversation ? (
           <div className={cn(
-            "flex-col h-full bg-slate-50 dark:bg-slate-900/50 relative border-r border-border overflow-hidden",
+            "flex flex-col h-full bg-slate-50 dark:bg-slate-900/50 relative border-r border-border overflow-hidden min-h-0",
             !showConversationList ? "flex" : "hidden md:flex"
           )}>
             <div className="h-[70px] px-6 border-b border-border flex items-center justify-between bg-card shrink-0">
@@ -367,7 +364,10 @@ export default function Chats() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth bg-[#f0f2f5] dark:bg-[#0b141a]">
+            <div 
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth bg-[#f0f2f5] dark:bg-[#0b141a] min-h-0"
+            >
               <div className="space-y-4">
                 {messages.map((message, index) => {
                   const isSystem = message.sender === 'System';
@@ -400,7 +400,7 @@ export default function Chats() {
                     </div>
                   );
                 })}
-                <div ref={scrollRef} className="h-2" />
+                <div className="h-2" />
               </div>
             </div>
 
@@ -497,7 +497,7 @@ export default function Chats() {
 
         {/* RIGHT COLUMN: Contact Info */}
         {selectedConversation ? (
-          <div className="hidden lg:flex flex-col h-full bg-card overflow-y-auto w-full">
+          <div className="hidden lg:flex flex-col h-full bg-card overflow-y-auto w-full min-h-0 border-r border-border">
             <div className="p-8 flex flex-col items-center border-b border-border">
               <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 border border-slate-200 dark:border-slate-700">
                 <span className="text-2xl font-medium text-primary">
