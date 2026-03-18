@@ -59,6 +59,38 @@ async function updateSchema() {
             }
         }
 
+        // 3. Add channel column to message_logs
+        try {
+            const [mlCols] = await connection.execute('DESCRIBE message_logs');
+            const hasChannel = mlCols.some(col => col.Field === 'channel');
+            if (!hasChannel) {
+                console.log('Adding channel column to message_logs...');
+                await connection.execute('ALTER TABLE message_logs ADD COLUMN channel VARCHAR(50) DEFAULT NULL');
+            } else {
+                console.log('channel already exists in message_logs table.');
+            }
+        } catch (e) {
+            console.log('Error checking message_logs columns:', e.message);
+        }
+
+        // 4. Create missing chats table if not exists for stats fallback avoidance
+        try {
+            console.log('Ensuring chats table exists...');
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS chats (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    contact_phone VARCHAR(50) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'open',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_user_status (user_id, status)
+                )
+            `);
+        } catch (e) {
+            console.log('Error creating chats table:', e.message);
+        }
+
         console.log('Schema update completed successfully.');
 
     } catch (err) {
