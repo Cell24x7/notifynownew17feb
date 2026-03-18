@@ -161,9 +161,29 @@ router.get('/super-admin', authenticate, async (req, res) => {
             balance: Number(u.credits_available)
         }));
         
-        // 9. Active Chats & Automations (Real counts)
-        const [activeChatCounts] = await query("SELECT COUNT(*) as total FROM chats WHERE status = 'open'");
-        const [automationStats] = await query("SELECT COUNT(*) as total FROM automations WHERE status = 'active'");
+        // 9. Active Chats & Automations (Robust counting)
+        let activeChats = 0;
+        let automationsTriggered = 0;
+
+        try {
+            const [activeChatCounts] = await query("SELECT COUNT(*) as total FROM chats WHERE status = 'open'");
+            activeChats = activeChatCounts[0]?.total || 0;
+        } catch (e) {
+            // Fallback: If no chats table, count unique contacts from webhook_logs in last 24h
+            try {
+                const [logActive] = await query(`
+                    SELECT COUNT(DISTINCT CASE WHEN sender = 'System' THEN recipient ELSE sender END) as total 
+                    FROM webhook_logs 
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                `);
+                activeChats = logActive[0]?.total || 0;
+            } catch (le) { activeChats = 0; }
+        }
+
+        try {
+            const [automationStats] = await query("SELECT COUNT(*) as total FROM automations WHERE status = 'active'");
+            automationsTriggered = automationStats[0]?.total || 0;
+        } catch (e) { automationsTriggered = 0; }
 
         // 9. Detailed Channel Stats for Admin (Aggregated)
         const [aggChannelData] = await query(`
@@ -235,10 +255,10 @@ router.get('/super-admin', authenticate, async (req, res) => {
                 planDistribution,
                 topClients,
                 recentCampaigns,
-                activeChats: activeChatCounts[0]?.total || 0, 
-                automationsTriggered: automationStats[0]?.total || 0,
+                activeChats: activeChats, 
+                automationsTriggered: automationsTriggered,
                 campaignsSent: Number(msgStats[0]?.campaigns_count || 0),
-                openChats: activeChatCounts[0]?.total || 0,
+                openChats: activeChats,
                 closedChats: Number(msgStats[0]?.total || 0),
                 today: {
                     messages: Number(msgStats[0]?.today || 0),
@@ -358,17 +378,36 @@ router.get('/stats', authenticate, async (req, res) => {
             LIMIT 10
         `, [userId]);
 
-        // 7. Active Chats for User
-        const [userActiveChats] = await query("SELECT COUNT(*) as total FROM chats WHERE user_id = ? AND status = 'open'", [userId]);
-        const [userAutomations] = await query("SELECT COUNT(*) as total FROM automations WHERE user_id = ? AND status = 'active'", [userId]);
+        // 7. Active Chats for User (Robust)
+        let userActiveChatsCount = 0;
+        let userAutomationsCount = 0;
+
+        try {
+            const [userActiveChats] = await query("SELECT COUNT(*) as total FROM chats WHERE user_id = ? AND status = 'open'", [userId]);
+            userActiveChatsCount = userActiveChats[0]?.total || 0;
+        } catch (e) {
+            try {
+                const [logActive] = await query(`
+                    SELECT COUNT(DISTINCT CASE WHEN sender = 'System' THEN recipient ELSE sender END) as total 
+                    FROM webhook_logs 
+                    WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                `, [userId]);
+                userActiveChatsCount = logActive[0]?.total || 0;
+            } catch (le) { userActiveChatsCount = 0; }
+        }
+
+        try {
+            const [userAutomations] = await query("SELECT COUNT(*) as total FROM automations WHERE user_id = ? AND status = 'active'", [userId]);
+            userAutomationsCount = userAutomations[0]?.total || 0;
+        } catch (e) { userAutomationsCount = 0; }
 
         // 8. Construct Final Stats Object
         const stats = {
             totalConversations: Number(totalStats[0]?.total_conversations || 0),
-            activeChats: userActiveChats[0]?.total || 0,
-            automationsTriggered: userAutomations[0]?.total || 0,
+            activeChats: userActiveChatsCount,
+            automationsTriggered: userAutomationsCount,
             campaignsSent: Number(totalStats[0]?.campaigns_sent || 0),
-            openChats: userActiveChats[0]?.total || 0,
+            openChats: userActiveChatsCount,
             closedChats: Number(totalStats[0]?.total_conversations || 0),
             weeklyChats,
             channelDistribution: channelDist,
