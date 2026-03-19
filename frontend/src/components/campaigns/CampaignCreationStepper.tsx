@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { useAuth } from '@/contexts/AuthContext';
 import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter, Smile, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -326,19 +327,42 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          // Parse file properly
          const reader = new FileReader();
          reader.onload = (event) => {
-            const text = event.target?.result as string;
-            const rows = text.split('\n').map(row => row.split(','));
-            const headers = rows[0].map(h => h.trim());
-
-            setDetectedColumns(headers);
-            setCsvPreview(rows.slice(1, 6)); // Preview first 5 rows
-            setCampaignData({
-               ...campaignData,
-               uploadedFile: file,
-               recipientCount: rows.length - 1 // Exclude header
-            });
+            try {
+               const data = event.target?.result;
+               const workbook = XLSX.read(data, { type: 'binary' });
+               const sheetName = workbook.SheetNames[0];
+               const worksheet = workbook.Sheets[sheetName];
+               
+               // Use sheet_to_json with header: 1 to get raw rows for preview
+               const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+               
+               if (rows.length > 0) {
+                  const headers = rows[0].map(h => String(h).trim()).filter(Boolean);
+                  setDetectedColumns(headers);
+                  // Convert all cells to strings for preview
+                  setCsvPreview(rows.slice(1, 6).map(row => (row || []).map(cell => String(cell || ''))));
+                  
+                  setCampaignData({
+                     ...campaignData,
+                     uploadedFile: file,
+                     recipientCount: rows.length - 1 // Exclude header
+                  });
+                  
+                  toast({
+                     title: "File Parsed",
+                     description: `Successfully loaded ${rows.length - 1} contacts from ${file.name}.`
+                  });
+               }
+            } catch (err) {
+               console.error("Error parsing file:", err);
+               toast({
+                  title: "Parsing Error",
+                  description: "Failed to read the file. Please ensure it's a valid CSV or Excel file.",
+                  variant: "destructive"
+               });
+            }
          };
-         reader.readAsText(file);
+         reader.readAsBinaryString(file);
       }
    };
 

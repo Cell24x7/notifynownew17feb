@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import {
     X, Search, Send, Clock,
     MessageSquare, FileText,
@@ -54,6 +55,7 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
     const [recipientSource, setRecipientSource] = useState('manual');
     const [manualRecipients, setManualRecipients] = useState('');
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [excelColumns, setExcelColumns] = useState<string[]>([]);
     const [shortUrl, setShortUrl] = useState(false);
 
     const [submitting, setSubmitting] = useState(false);
@@ -97,6 +99,32 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
             title: 'Template Selected',
             description: `Loaded template: ${template.temp_name || template.temp_id}`,
         });
+    };
+
+    const handleFileChange = async (file: File | null) => {
+        setUploadedFile(file);
+        if (!file) {
+            setExcelColumns([]);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const json: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            if (json.length > 0) {
+                const headers = (json[0] as string[]).map(h => String(h).trim()).filter(Boolean);
+                setExcelColumns(headers);
+                toast({
+                    title: 'File Parsed',
+                    description: `Found ${headers.length} columns in ${file.name}`,
+                });
+            }
+        };
+        reader.readAsBinaryString(file);
     };
 
     const getRecipientCount = () => {
@@ -293,7 +321,8 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                                                             <Input
                                                                 type="file"
                                                                 className="max-w-[200px] h-8 text-xs cursor-pointer"
-                                                                onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+                                                                accept=".csv,.xlsx,.xls"
+                                                                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                                                             />
                                                         )}
                                                     </div>

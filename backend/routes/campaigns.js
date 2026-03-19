@@ -3,6 +3,9 @@ const router = express.Router();
 const { query } = require('../config/db');
 const { deductCampaignCredits } = require('../services/walletService');
 const jwt = require('jsonwebtoken');
+const ExcelJS = require('exceljs');
+const path = require('path');
+
 
 // Middleware to authenticate token
 const authenticateToken = (req, res, next) => {
@@ -269,36 +272,46 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
         };
 
         if (req.file) {
-            // Stream CSV
-            fs.createReadStream(req.file.path)
-                .pipe(csv())
-                .on('data', (row) => {
-                    // Smart search for phone/mobile columns
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            
+            if (ext === '.xlsx' || ext === '.xls') {
+                // Process Excel
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.readFile(req.file.path);
+                const worksheet = workbook.getWorksheet(1);
+                const headers = [];
+
+                worksheet.getRow(1).eachCell((cell, colNumber) => {
+                    headers[colNumber] = cell.value;
+                });
+
+                worksheet.eachRow((row, rowNumber) => {
+                    if (rowNumber === 1) return; // Skip headers
+
+                    const rowData = {};
                     let mobile = null;
 
-                    // 1. Try common keys
-                    const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
-                    const lowerRow = {};
-                    Object.keys(row).forEach(k => lowerRow[k.toLowerCase().replace(/\s/g, '')] = row[k]);
-
-                    for (const key of commonKeys) {
-                        if (lowerRow[key]) {
-                            mobile = lowerRow[key];
-                            break;
+                    row.eachCell((cell, colNumber) => {
+                        const header = headers[colNumber];
+                        if (header) {
+                            rowData[header] = cell.value;
+                            const lowerHeader = String(header).toLowerCase().replace(/\s/g, '');
+                            const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
+                            if (commonKeys.includes(lowerHeader)) {
+                                mobile = cell.value;
+                            }
                         }
-                    }
+                    });
 
-                    // 2. Fallback to first column if no common key found
+                    // Fallback to first column if no common key found
                     if (!mobile) {
-                        const values = Object.values(row);
-                        if (values.length > 0) mobile = values[0];
+                        mobile = row.getCell(1).value;
                     }
 
                     if (mobile) {
-                        mobile = String(mobile).replace(/\D/g, ''); // Clean non-digits
-                        // Valid mobile must be at least 10 digits (Standard for IN + country code)
+                        mobile = String(mobile).replace(/\D/g, '');
                         if (mobile.length >= 10) {
-                            batch.push({ mobile, variables: row });
+                            batch.push({ mobile, variables: rowData });
                             contactCount++;
                             if (batch.length >= BATCH_SIZE) {
                                 const b = [...batch];
@@ -307,25 +320,78 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                             }
                         }
                     }
-                })
-                .on('end', async () => {
-                    // Process remaining
-                    if (batch.length > 0) insertPromises.push(processBatch(batch));
-
-                    await Promise.all(insertPromises);
-                    fs.unlinkSync(req.file.path); // Cleanup
-
-                    console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
-
-                    // Update campaign count
-                    await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
-
-                    res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
-                })
-                .on('error', (err) => {
-                    console.error('CSV processing error:', err);
-                    res.status(500).json({ success: false, message: 'Failed to process CSV' });
                 });
+
+                // Final batch and cleanup
+                if (batch.length > 0) insertPromises.push(processBatch(batch));
+                await Promise.all(insertPromises);
+                fs.unlinkSync(req.file.path);
+
+            } else {
+                // Stream CSV
+                fs.createReadStream(req.file.path)
+                    .pipe(csv())
+                    .on('data', (row) => {
+                        // Smart search for phone/mobile columns
+                        let mobile = null;
+
+                        // 1. Try common keys
+                        const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
+                        const lowerRow = {};
+                        Object.keys(row).forEach(k => lowerRow[k.toLowerCase().replace(/\s/g, '')] = row[k]);
+
+                        for (const key of commonKeys) {
+                            if (lowerRow[key]) {
+                                mobile = lowerRow[key];
+                                break;
+                            }
+                        }
+
+                        // 2. Fallback to first column if no common key found
+                        if (!mobile) {
+                            const values = Object.values(row);
+                            if (values.length > 0) mobile = values[0];
+                        }
+
+                        if (mobile) {
+                            mobile = String(mobile).replace(/\D/g, ''); // Clean non-digits
+                            // Valid mobile must be at least 10 digits (Standard for IN + country code)
+                            if (mobile.length >= 10) {
+                                batch.push({ mobile, variables: row });
+                                contactCount++;
+                                if (batch.length >= BATCH_SIZE) {
+                                    const b = [...batch];
+                                    batch = [];
+                                    insertPromises.push(processBatch(b));
+                                }
+                            }
+                        }
+                    })
+                    .on('end', async () => {
+                        // Process remaining
+                        if (batch.length > 0) insertPromises.push(processBatch(batch));
+
+                        await Promise.all(insertPromises);
+                        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+                        console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
+                        await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
+                        
+                        // We need to send the response here for CSV stream
+                        return res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
+                    })
+                    .on('error', (err) => {
+                        console.error('CSV processing error:', err);
+                        if (!res.headersSent) res.status(500).json({ success: false, message: 'Failed to process CSV' });
+                    });
+                
+                return; // Prevent fallthrough for CSV stream
+            }
+
+            // This part runs for Excel only (synchronous-like flow)
+            console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
+            await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
+            res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
 
         } else if (req.body.manualNumbers) {
             // Handle raw numbers array or string

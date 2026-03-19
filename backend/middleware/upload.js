@@ -21,10 +21,18 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel' || file.originalname.endsWith('.csv')) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const mimetypes = [
+        'text/csv',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/octet-stream'
+    ];
+    
+    if (mimetypes.includes(file.mimetype) || ['.csv', '.xls', '.xlsx'].includes(ext)) {
         cb(null, true);
     } else {
-        cb(new Error('Only CSV files are allowed!'), false);
+        cb(new Error('Only CSV and Excel files are allowed!'), false);
     }
 };
 

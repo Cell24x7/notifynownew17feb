@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { Upload, FileText, X, Check, AlertCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -49,24 +50,57 @@ export function BulkTemplateUpload({ channel, open, onOpenChange, onUploadComple
     setUploading(true);
     setProgress(0);
 
-    // Simulate file parsing
-    const mockTemplates: UploadedTemplate[] = [
-      { id: '1', name: 'Welcome Message', body: 'Welcome to our service! Your OTP is {{1}}', status: 'valid' },
-      { id: '2', name: 'Order Confirmation', body: 'Your order #{{1}} has been confirmed. Delivery on {{2}}', status: 'valid' },
-      { id: '3', name: 'Payment Receipt', body: 'Payment of ₹{{1}} received. Transaction ID: {{2}}', status: 'valid' },
-      { id: '4', name: 'Invalid Template', body: '', status: 'error', error: 'Message body is empty' },
-      { id: '5', name: 'Promo Alert', body: 'Special offer! Get {{1}}% off on your next purchase. Use code: {{2}}', status: 'valid' },
-    ];
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-    // Simulate progress
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setProgress(i);
-    }
+        const processedTemplates: UploadedTemplate[] = jsonData.map((row, index) => {
+          const name = row.name || row.Name || row.template_name || `Template ${index + 1}`;
+          const body = row.body || row.Body || row.template_text || row.message || '';
+          
+          if (!body) {
+            return {
+              id: String(index),
+              name,
+              body,
+              status: 'error' as const,
+              error: 'Missing message body'
+            };
+          }
 
-    setTemplates(mockTemplates);
-    setUploading(false);
-    setStep('preview');
+          return {
+            id: String(index),
+            name,
+            body,
+            status: 'valid' as const
+          };
+        });
+
+        // Simulate progress for UI feel
+        for (let i = 0; i <= 100; i += 20) {
+          setProgress(i);
+          await new Promise(r => setTimeout(r, 50));
+        }
+
+        setTemplates(processedTemplates);
+        setStep('preview');
+      } catch (err) {
+        console.error('Error parsing file:', err);
+        toast({
+          title: 'Parsing Error',
+          description: 'Failed to read the file content. Please check the format.',
+          variant: 'destructive',
+        });
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   const handleConfirmUpload = () => {
