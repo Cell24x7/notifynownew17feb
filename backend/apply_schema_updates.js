@@ -91,7 +91,64 @@ async function updateSchema() {
             console.log('Error creating chats table:', e.message);
         }
 
-        console.log('Schema update completed successfully.');
+        // 5. Create sms_gateways table if not exists
+        try {
+            console.log('Ensuring sms_gateways table exists...');
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS sms_gateways (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    primary_url TEXT NOT NULL,
+                    secondary_url TEXT,
+                    status ENUM('active','inactive') DEFAULT 'active',
+                    routing ENUM('national','international','both') DEFAULT 'national',
+                    priority ENUM('non-otp','otp','both') DEFAULT 'both',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )
+            `);
+            console.log('sms_gateways table ready.');
+        } catch (e) {
+            console.log('Error creating sms_gateways table:', e.message);
+        }
+
+        // 6. Add sms_gateway_id to users table for gateway assignment
+        try {
+            const [uCols] = await connection.execute('DESCRIBE users');
+            const hasSmsGw = uCols.some(col => col.Field === 'sms_gateway_id');
+            if (!hasSmsGw) {
+                console.log('Adding sms_gateway_id to users table...');
+                await connection.execute('ALTER TABLE users ADD COLUMN sms_gateway_id INT DEFAULT NULL');
+            } else {
+                console.log('sms_gateway_id already exists in users table.');
+            }
+        } catch (e) {
+            console.log('Error adding sms_gateway_id:', e.message);
+        }
+
+        // 7. Create webhook_logs table if not exists
+        try {
+            console.log('Ensuring webhook_logs table exists...');
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS webhook_logs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    sender VARCHAR(100),
+                    recipient VARCHAR(50) NOT NULL,
+                    message_content TEXT,
+                    status VARCHAR(50),
+                    type VARCHAR(50),
+                    campaign_id VARCHAR(100),
+                    campaign_name VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_user_recipient (user_id, recipient)
+                )
+            `);
+            console.log('webhook_logs table ready.');
+        } catch (e) {
+            console.log('Error creating webhook_logs table:', e.message);
+        }
+
 
     } catch (err) {
         console.error('Error:', err.message);

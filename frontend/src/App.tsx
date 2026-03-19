@@ -40,6 +40,7 @@ import SuperAdminVendors from "./pages/super-admin/Vendors";
 import SuperAdminNumbers from "./pages/super-admin/Numbers";
 import SuperAdminRcsConfigs from "./pages/super-admin/RcsConfigs";
 import SuperAdminWhatsappConfigs from "./pages/super-admin/WhatsappConfigs";
+import SuperAdminSmsGateways from "./pages/super-admin/SmsGateways";
 import ResellerBranding from "./pages/reseller/Branding";
 import ResellerUsers from "./pages/reseller/Users";
 
@@ -110,6 +111,7 @@ const App = () => (
                     <Route path="/super-admin/numbers" element={<SuperAdminNumbers />} />
                     <Route path="/super-admin/rcs-configs" element={<SuperAdminRcsConfigs />} />
                     <Route path="/super-admin/whatsapp-configs" element={<SuperAdminWhatsappConfigs />} />
+                    <Route path="/super-admin/sms-gateways" element={<SuperAdminSmsGateways />} />
 
 
 

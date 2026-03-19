@@ -52,108 +52,79 @@ router.post('/data', async (req, res) => {
         const config = configs[0];
         
         // 4. Prepare message dynamically based on payload
-        // Example: Sending a simple text message greeting the customer with their order details
-        let itemsList = items && items.length > 0 
-            ? items.map(item => `- ${item.ItemName} (Qty: ${item.Quantity})`).join('\n') 
-            : 'No items';
+        // ALWAYS use a template for business-initiated messages
+        const templateName = 'the_great_escape_ticket'; // Ensure this matches your approved template
+        const langCode = 'en';
 
-        let messageText = `Hi ${customerDetail.firstName || 'Customer'},\n\nWe have received your order #${orderNumber}.\n\nOrder Summary:\n${itemsList}\n\nTotal Paid: Rs. ${summary?.total || 0}\n\nThank you!`;
+        // Map items into a summarized string
+        const itemsSummary = items && items.length > 0 
+            ? items.map(item => `${item.ItemName}x${item.Quantity}`).join(', ') 
+            : 'Order items';
 
-        let waPayload = {
+        // 5. Structure the Template Payload
+        waPayload = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
             to: phone,
-            type: 'text',
-            text: {
-                preview_url: false,
-                body: messageText
+            type: 'template',
+            template: {
+                name: templateName,
+                language: { code: langCode },
+                components: [
+                    {
+                        type: "body",
+                        parameters: [
+                            { type: "text", text: customerDetail.firstName || 'Customer' }, // {{1}}
+                            { type: "text", text: String(orderNumber) },                  // {{2}}
+                            { type: "text", text: itemsSummary.substring(0, 1024) },      // {{3}}
+                            { type: "text", text: String(summary?.total || 0) }           // {{4}}
+                        ]
+                    }
+                ]
             }
         };
 
-        // 5. Check if attachment exists and process it (PDF)
+        // 6. Add PDF attachment if available (in Header)
         let hasAttachment = payload.attachment && payload.attachment.length > 0 && payload.attachment[0].Base64Content;
-        let pdfHandle = null;
-
-        if (hasAttachment && config.provider === 'vendor2') { // Only implemented for PinBot vendor currently
+        
+        if (hasAttachment) {
             try {
-                console.log(`📎 Found attachment, uploading to PinBot...`);
-                // 5a. Convert base64 to buffer
+                console.log(`📎 Found attachment, uploading for ${config.provider}...`);
                 const pdfBuffer = Buffer.from(payload.attachment[0].Base64Content, 'base64');
                 const fileLength = pdfBuffer.length;
-                const fileName = `${payload.attachment[0].Name || 'Document'}.pdf`;
+                const fileName = `${payload.attachment[0].Name || 'Ticket'}.pdf`;
 
-                // 5b. Create Upload Session
-                const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
-                    headers: { apikey: config.api_key },
-                    params: { file_length: fileLength, file_type: 'application/pdf' }
-                });
-                
-                const sessionId = sessionRes.data.id;
-                
-                // 5c. Upload File
-                const FormData = require('form-data');
-                const form = new FormData();
-                form.append('file', pdfBuffer, {
-                    filename: fileName,
-                    contentType: 'application/pdf'
-                });
-
-                const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}`, form, {
-                    headers: {
-                        apikey: config.api_key,
-                        ...form.getHeaders()
-                    }
-                });
-
-                pdfHandle = uploadRes.data.h; 
-                console.log(`✅ File uploaded successfully. Handle: ${pdfHandle}`);
-                
-                // 5d. Replace text payload with Template payload containing the attachment
-                // WARNING: You must replace 'your_pdf_template_name' with your actual approved meta template name
-                // that expects a Document header.
-                waPayload = {
-                    messaging_product: 'whatsapp',
-                    recipient_type: 'individual',
-                    to: phone,
-                    type: 'template',
-                    template: {
-                        name: 'the_great_escape_ticket', // Replace with your actual template name
-                        language: { code: 'en' },
-                        components: [
-                            {
-                                type: "header",
-                                parameters: [
-                                    {
-                                        type: "document",
-                                        document: {
-                                            file_name: fileName,
-                                            // Depending on API version, we send the media handle / link
-                                            link: PINBOT_BASE.replace('/v3', '') + `/media/${pdfHandle}` // PinBot usually accepts link if handle doesn't work directly in standard schema, or specifically `handle: pdfHandle` if supported.
-                                            // Fallback for Meta Graph API is object ID, but for Pinbot sending via link might be required, or we just pass the handle as id: pdfHandle
-                                        }
-                                    }
-                                ]
-                            },
-                            {
-                                type: "body",
-                                parameters: [
-                                    { type: "text", text: customerDetail.firstName || 'Customer' },
-                                    { type: "text", text: String(orderNumber) }
-                                ]
+                if (config.provider === 'vendor2') { // PinBot
+                    const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
+                        headers: { apikey: config.api_key },
+                        params: { file_length: fileLength, file_type: 'application/pdf' }
+                    });
+                    const sessionId = sessionRes.data.id;
+                    const FormData = require('form-data');
+                    const form = new FormData();
+                    form.append('file', pdfBuffer, { filename: fileName, contentType: 'application/pdf' });
+                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}`, form, {
+                        headers: { apikey: config.api_key, ...form.getHeaders() }
+                    });
+                    const pdfHandle = uploadRes.data.h; 
+                    
+                    waPayload.template.components.unshift({
+                        type: "header",
+                        parameters: [{
+                            type: "document",
+                            document: {
+                                file_name: fileName,
+                                link: `https://partnersv1.pinbot.ai/media/${pdfHandle}`
                             }
-                        ]
-                    }
-                };
-                
-                // If Pinbot supports handle directly (usually it's 'link' or 'id')
-                // Let's use link pointing to the handle if standard
-                 waPayload.template.components[0].parameters[0].document.link = `https://partnersv1.pinbot.ai/media/${pdfHandle}`;
-                 
+                        }]
+                    });
+                }
             } catch (err) {
                 console.error('❌ Failed to upload PDF attachment:', err.response?.data || err.message);
-                // Fallback to text message if upload fails
+                // Continue with template minus header if upload fails
             }
         }
+
 
         // 6. Send message using WhatsApp API
         let sendSuccess = false;

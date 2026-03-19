@@ -102,6 +102,7 @@ app.use('/api/vendors', require('./routes/vendors'));
 app.use('/api/numbers', require('./routes/numbers'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/sms', require('./routes/sms'));
+app.use('/api/sms-gateways', require('./routes/smsGateways'));
 app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/templates', require('./routes/templates'));
