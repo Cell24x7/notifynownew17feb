@@ -65,7 +65,10 @@ DB_PASS=waQ4!r1241Kr
 DB_NAME=developer_notify
 PORT=5000
 API_BASE_URL=https://developer.notifynow.in
+JWT_SECRET=notifynow_db_secret_key
+JWT_EXPIRES_IN=7d
 EOF
+
 else
     sed -i '/^DB_HOST=/c\DB_HOST=localhost' "$BACKEND_DIR/.env.production"
     sed -i '/^DB_NAME=/c\DB_NAME=developer_notify' "$BACKEND_DIR/.env.production"
