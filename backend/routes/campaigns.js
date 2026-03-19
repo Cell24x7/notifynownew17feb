@@ -103,6 +103,19 @@ router.post('/', authenticateToken, async (req, res) => {
         // Use provided template_name or fallback to template_id (if it looks like a name)
         const templateName = req.body.template_name || (isNaN(template_id) ? template_id : null);
 
+        let finalMetadata = template_metadata || {};
+        if (channel === 'sms' && template_id) {
+            try {
+                const [dltTpl] = await query('SELECT pe_id, hash_id FROM dlt_templates WHERE temp_id = ? LIMIT 1', [template_id]);
+                if (dltTpl.length > 0) {
+                    finalMetadata.peId = dltTpl[0].pe_id;
+                    finalMetadata.hashId = dltTpl[0].hash_id;
+                }
+            } catch (err) {
+                console.error('Error fetching DLT template metadata:', err.message);
+            }
+        }
+
         await query(
             `INSERT INTO campaigns 
       (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, scheduled_at, variable_mapping, template_metadata, template_body, template_type)
@@ -111,7 +124,7 @@ router.post('/', authenticateToken, async (req, res) => {
                 campaignId, userId, name, channel, template_id, templateName,
                 audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
                 scheduled_at || null, JSON.stringify(variable_mapping || {}),
-                template_metadata ? JSON.stringify(template_metadata) : null,
+                JSON.stringify(finalMetadata),
                 template_body || null,
                 template_type || null
             ]

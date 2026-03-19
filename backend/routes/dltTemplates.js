@@ -126,16 +126,16 @@ router.get('/senders', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { sender, template_text, temp_id, temp_name, status, temp_type } = req.body;
+        const { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
 
         if (!sender || !template_text || !temp_id) {
             return res.status(400).json({ success: false, message: 'Sender, Template Text, and Template ID are required' });
         }
 
         const [result] = await query(
-            `INSERT INTO dlt_templates (user_id, sender, template_text, temp_id, temp_name, status, temp_type)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [userId, sender, template_text, temp_id, temp_name || '', status || 'Y', temp_type || 'Transactional']
+            `INSERT INTO dlt_templates (user_id, sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, sender, template_text, temp_id, temp_name || '', status || 'Y', temp_type || 'Transactional', pe_id || null, hash_id || null]
         );
 
         res.status(201).json({
@@ -154,7 +154,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
-        const { sender, template_text, temp_id, temp_name, status, temp_type } = req.body;
+        const { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
 
         const [existing] = await query('SELECT id FROM dlt_templates WHERE id = ? AND user_id = ?', [id, userId]);
         if (existing.length === 0) {
@@ -168,9 +168,11 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 temp_id = COALESCE(?, temp_id),
                 temp_name = COALESCE(?, temp_name),
                 status = COALESCE(?, status),
-                temp_type = COALESCE(?, temp_type)
+                temp_type = COALESCE(?, temp_type),
+                pe_id = COALESCE(?, pe_id),
+                hash_id = COALESCE(?, hash_id)
              WHERE id = ? AND user_id = ?`,
-            [sender, template_text, temp_id, temp_name, status, temp_type, id, userId]
+            [sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id, id, userId]
         );
 
         res.json({ success: true, message: 'DLT Template updated successfully' });
@@ -246,6 +248,8 @@ router.post('/bulk-upload', authenticateToken, upload.single('file'), async (req
                 const textIdx = headerRow.findIndex(h => h.includes('TEMPLATE') && h.includes('TEXT') || h.includes('CONTENT') || h.includes('MESSAGE'));
                 const statusIdx = headerRow.findIndex(h => h.includes('STATUS'));
                 const typeIdx = headerRow.findIndex(h => h.includes('TYPE') || h.includes('TEMP_TYPE'));
+                const peIdx = headerRow.findIndex(h => h.includes('PE_ID') || h.includes('PRINCIPAL'));
+                const hashIdx = headerRow.findIndex(h => h.includes('HASH_ID') || h.includes('HASH'));
 
                 rowData = {
                     sender: String(cells[senderIdx !== -1 ? senderIdx : 0] || '').trim(),
@@ -254,6 +258,8 @@ router.post('/bulk-upload', authenticateToken, upload.single('file'), async (req
                     template_text: String(cells[textIdx !== -1 ? textIdx : 3] || '').trim(),
                     status: String(cells[statusIdx !== -1 ? statusIdx : 4] || 'Y').trim(),
                     temp_type: String(cells[typeIdx !== -1 ? typeIdx : 5] || 'Transactional').trim(),
+                    pe_id: peIdx !== -1 && cells[peIdx] ? String(cells[peIdx]).trim() : null,
+                    hash_id: hashIdx !== -1 && cells[hashIdx] ? String(cells[hashIdx]).trim() : null,
                 };
             } else {
                 // Positional mapping matching user image: Sender, Name, ID, Text
@@ -264,6 +270,8 @@ router.post('/bulk-upload', authenticateToken, upload.single('file'), async (req
                     template_text: String(cells[3] || '').trim(),
                     status: String(cells[4] || 'Y').trim(),
                     temp_type: String(cells[5] || 'Transactional').trim(),
+                    pe_id: cells[6] ? String(cells[6]).trim() : null,
+                    hash_id: cells[7] ? String(cells[7]).trim() : null,
                 };
             }
 
@@ -283,19 +291,21 @@ router.post('/bulk-upload', authenticateToken, upload.single('file'), async (req
         let inserted = 0;
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
             const batch = rows.slice(i, i + BATCH_SIZE);
-            const values = batch.map(r => [userId, r.sender, r.template_text, r.temp_id, r.temp_name, r.status, r.temp_type]);
-            const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
+            const values = batch.map(r => [userId, r.sender, r.template_text, r.temp_id, r.temp_name, r.status, r.temp_type, r.pe_id, r.hash_id]);
+            const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
             const flatValues = values.flat();
 
             await query(
-                `INSERT INTO dlt_templates (user_id, sender, template_text, temp_id, temp_name, status, temp_type)
+                `INSERT INTO dlt_templates (user_id, sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id)
                  VALUES ${placeholders}
                  ON DUPLICATE KEY UPDATE 
                     template_text = VALUES(template_text),
                     temp_name = VALUES(temp_name),
                     sender = VALUES(sender),
                     status = VALUES(status),
-                    temp_type = VALUES(temp_type)`,
+                    temp_type = VALUES(temp_type),
+                    pe_id = VALUES(pe_id),
+                    hash_id = VALUES(hash_id)`,
                 flatValues
             );
             inserted += batch.length;

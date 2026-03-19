@@ -17,6 +17,8 @@ export interface DLTTemplate {
     temp_name: string;
     status: 'Y' | 'N';
     temp_type: string;
+    pe_id?: string;
+    hash_id?: string;
     created_at: string;
     updated_at: string;
 }

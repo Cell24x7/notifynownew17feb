@@ -39,6 +39,8 @@ export default function DLTTemplates() {
         temp_name: '',
         status: 'Y' as 'Y' | 'N',
         temp_type: 'Transactional',
+        pe_id: '',
+        hash_id: '',
     });
     const [saving, setSaving] = useState(false);
 
@@ -99,7 +101,7 @@ export default function DLTTemplates() {
     // Open add modal
     const openAddModal = () => {
         setEditingTemplate(null);
-        setFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', status: 'Y', temp_type: 'Transactional' });
+        setFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', status: 'Y', temp_type: 'Transactional', pe_id: '', hash_id: '' });
         setIsModalOpen(true);
     };
 
@@ -113,6 +115,8 @@ export default function DLTTemplates() {
             temp_name: template.temp_name,
             status: template.status,
             temp_type: template.temp_type,
+            pe_id: template.pe_id || '',
+            hash_id: template.hash_id || '',
         });
         setIsModalOpen(true);
     };
@@ -346,9 +350,23 @@ export default function DLTTemplates() {
                                                 </p>
                                             </TableCell>
                                             <TableCell>
-                                                <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{template.temp_id}</code>
+                                                <div className="flex flex-col gap-1">
+                                                    <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{template.temp_id}</code>
+                                                    {template.hash_id && (
+                                                        <code className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={template.hash_id}>
+                                                            {template.hash_id.substring(0,8)}...
+                                                        </code>
+                                                    )}
+                                                </div>
                                             </TableCell>
-                                            <TableCell className="text-sm font-medium">{template.temp_name || '—'}</TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-sm font-medium">{template.temp_name || '—'}</span>
+                                                    {template.pe_id && (
+                                                        <span className="text-[10px] text-muted-foreground">PE: {template.pe_id}</span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge variant={template.status === 'Y' ? 'default' : 'secondary'} className={cn(
                                                     "text-xs font-semibold",
@@ -470,6 +488,27 @@ export default function DLTTemplates() {
                                     placeholder="e.g. 1107111110001001"
                                     value={formData.temp_id}
                                     onChange={(e) => setFormData(p => ({ ...p, temp_id: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="pe_id" className="text-sm font-medium">PE ID (Principal Entity ID)</Label>
+                                <Input
+                                    id="pe_id"
+                                    placeholder="e.g. 1001276659..."
+                                    value={formData.pe_id}
+                                    onChange={(e) => setFormData(p => ({ ...p, pe_id: e.target.value }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="hash_id" className="text-sm font-medium">Template Hash ID</Label>
+                                <Input
+                                    id="hash_id"
+                                    placeholder="e.g. 31e922c61..."
+                                    value={formData.hash_id}
+                                    onChange={(e) => setFormData(p => ({ ...p, hash_id: e.target.value }))}
                                 />
                             </div>
                         </div>

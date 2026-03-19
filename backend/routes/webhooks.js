@@ -870,12 +870,12 @@ const handleSmsCallback = async (req, res) => {
             const s = String(status || '').toLowerCase();
             
             // Map common SMS status strings to internal statuses
-            // Support: DELIVRD, REJECTD, UNDELIV, etc.
-            if (s.includes('deliver') || s === 'success' || s === '0' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd') {
+            // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a numeric flags (1=Delivered, 2=Failed, 8=Submitted, 16=Rejected), etc.
+            if (s.includes('deliver') || s === 'success' || s === '0' || s === '1' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd') {
                 finalStatus = 'delivered';
-            } else if (s.includes('fail') || s.includes('reject') || s === '16' || s === 'failed' || s === 'undeliv' || s === 'undelivered' || s === 'rejectd') {
+            } else if (s.includes('fail') || s.includes('reject') || s === '16' || s === '2' || s === 'failed' || s === 'undeliv' || s === 'undelivered' || s === 'rejectd') {
                 finalStatus = 'failed';
-            } else if (s.includes('sent') || s.includes('submit') || s === 'submitted') {
+            } else if (s.includes('sent') || s.includes('submit') || s === '8' || s === '4' || s === 'submitted') {
                 finalStatus = 'sent';
             }
 

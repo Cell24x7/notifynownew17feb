@@ -101,6 +101,7 @@ const sendSMS = async (mobile, message, options = {}) => {
             sender: options.sender || process.env.SMS_SENDER_ID,
             templateId: options.templateId || '',
             peId: options.peId || '',
+            hashId: options.hashId || '',
             userId: options.userId || '0',
             gatewayName: gateway.name
         };

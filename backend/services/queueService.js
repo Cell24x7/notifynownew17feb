@@ -354,18 +354,19 @@ const processQueue = async () => {
                         const customMessage = replaceVariables(body, resolvedVars);
 
                         // Extract DLT Template ID and PE ID from metadata if available
-                        let templateId = item.raw_template_id || '', peId = '';
+                        let templateId = item.raw_template_id || '', peId = '', hashId = '';
                         try {
                             const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
                             templateId = meta.templateId || meta.dlt_template_id || templateId;
                             peId = meta.peId || meta.pe_id || '';
+                            hashId = meta.hashId || meta.hash_id || '';
                         } catch(e) {}
-
 
                         const raw = await sendSMS(item.mobile, customMessage, {
                             userId: item.user_id,
                             templateId,
-                            peId
+                            peId,
+                            hashId
                         });
                         
                         // Treat it as success if it didn't throw
