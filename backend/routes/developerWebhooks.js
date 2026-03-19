@@ -53,8 +53,9 @@ router.post('/data', async (req, res) => {
         
         // 4. Prepare message dynamically based on payload
         // ALWAYS use a template for business-initiated messages
-        const templateName = 'the_great_escape_ticket'; // Ensure this matches your approved template
+        const templateName = 'waterpark_booking_confirmation'; // Aapka specifically requested template
         const langCode = 'en';
+
 
         // Map items into a summarized string
         const itemsSummary = items && items.length > 0 
