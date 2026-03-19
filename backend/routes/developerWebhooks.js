@@ -163,7 +163,7 @@ router.post('/data', async (req, res) => {
                             parameters: [{
                                 type: "document",
                                 document: {
-                                    file_name: fileName,
+                                    filename: fileName,
                                     id: pdfHandle // Use 'id' for uploaded handles
                                 }
                             }]
