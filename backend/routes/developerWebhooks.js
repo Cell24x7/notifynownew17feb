@@ -152,7 +152,12 @@ router.post('/data', async (req, res) => {
                         }
                     );
 
-                    const mediaId = uploadRes.data.id || uploadRes.data.media_id || uploadRes.data.h;
+                    console.log("Full media upload response:", JSON.stringify(uploadRes.data));
+
+                    // Some APIs return inside a 'media' array or object
+                    const mediaId = uploadRes.data.id || uploadRes.data.media_id || uploadRes.data.h || 
+                        (uploadRes.data.media && uploadRes.data.media[0] && uploadRes.data.media[0].id);
+                        
                     console.log(`✅ PDF Uploaded, Media ID: ${mediaId}`);
 
                     if (mediaId) {
