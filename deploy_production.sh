@@ -76,11 +76,30 @@ else
 fi
 
 # Frontend Env (VITE_API_URL is critical for build)
-# Writing to both .env and .env.production for maximum compatibility
 API_URL="https://notifynow.in"
-echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env"
-echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env.production"
-ok "Environment files created (API: $API_URL)"
+GOOGLE_ID="387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com"
+
+if [ ! -f "$FRONTEND_DIR/.env.production" ]; then
+    cat <<EOF > "$FRONTEND_DIR/.env.production"
+VITE_API_URL=$API_URL
+VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID
+EOF
+else
+    # Update only the API URL
+    if grep -q "VITE_API_URL=" "$FRONTEND_DIR/.env.production"; then
+        sed -i "/^VITE_API_URL=/c\VITE_API_URL=$API_URL" "$FRONTEND_DIR/.env.production"
+    else
+        echo "VITE_API_URL=$API_URL" >> "$FRONTEND_DIR/.env.production"
+    fi
+    # Ensure Google ID is present
+    if ! grep -q "VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/.env.production"; then
+        echo "VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID" >> "$FRONTEND_DIR/.env.production"
+    fi
+fi
+
+# Sync .env with .env.production
+cp "$FRONTEND_DIR/.env.production" "$FRONTEND_DIR/.env"
+ok "Environment files updated (API: $API_URL)"
 
 # ── Step 5: Build Frontend ────────────────────────────
 log "🏗️  [5/7] Building frontend..."
