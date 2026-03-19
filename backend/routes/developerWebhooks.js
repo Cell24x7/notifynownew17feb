@@ -121,40 +121,65 @@ router.post('/data', async (req, res) => {
         let hasAttachment = payload.attachment && payload.attachment.length > 0 && payload.attachment[0].Base64Content;
         if (hasAttachment) {
             try {
-                console.log(`📎 Found attachment, uploading for ${config.provider}...`);
                 const pdfBuffer = Buffer.from(payload.attachment[0].Base64Content, 'base64');
                 const fileLength = pdfBuffer.length;
                 let rawName = payload.attachment[0].Name || 'Ticket';
                 let sanitizedName = rawName.replace(/[^a-z0-9]/gi, '_').substring(0, 40); 
                 const fileName = `${sanitizedName}.pdf`;
 
+                console.log(`📎 Found attachment: ${fileName} (${fileLength} bytes). Uploading to ${config.provider}...`);
+
                 if (config.provider === 'vendor2') { // PinBot
-                    const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
-                        headers: { apikey: config.api_key },
-                        params: { file_length: fileLength, file_type: 'application/pdf' }
+                    // Step 1: Create Upload Session
+                    const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, {}, {
+                        headers: { 
+                            apikey: config.api_key,
+                            'Content-Type': 'application/json'
+                        },
+                        params: { 
+                            file_length: fileLength, 
+                            file_type: 'application/pdf' 
+                        }
                     });
+
                     const sessionId = sessionRes.data.id;
+                    const sig = sessionRes.data.sig || '';
+                    console.log(`📡 Upload session created ID: ${sessionId}`);
+
+                    // Step 2: Upload File
                     const FormData = require('form-data');
                     const form = new FormData();
-                    form.append('file', pdfBuffer, { filename: fileName, contentType: 'application/pdf' });
-                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}`, form, {
-                        headers: { apikey: config.api_key, ...form.getHeaders() }
+                    form.append('file', pdfBuffer, { 
+                        filename: fileName, 
+                        contentType: 'application/pdf' 
                     });
+
+                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`, form, {
+                        headers: { 
+                            apikey: config.api_key, 
+                            ...form.getHeaders() 
+                        }
+                    });
+
                     const pdfHandle = uploadRes.data.h; 
+                    console.log(`✅ PDF Uploaded, Handle: ${pdfHandle}`);
                     
-                    payloadComponents.unshift({
-                        type: "header",
-                        parameters: [{
-                            type: "document",
-                            document: {
-                                file_name: fileName,
-                                link: `https://partnersv1.pinbot.ai/media/${pdfHandle}`
-                            }
-                        }]
-                    });
+                    if (pdfHandle) {
+                        payloadComponents.unshift({
+                            type: "header",
+                            parameters: [{
+                                type: "document",
+                                document: {
+                                    file_name: fileName,
+                                    id: pdfHandle // Use 'id' for uploaded handles
+                                }
+                            }]
+                        });
+                    }
                 }
             } catch (err) {
                 console.error('❌ Failed to upload PDF attachment:', err.response?.data || err.message);
+                // If template requires header, we might still fail later, but at least we logged it.
             }
         } else {
             // b) Handle Text Header if no media attachment provided
