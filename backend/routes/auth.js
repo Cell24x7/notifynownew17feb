@@ -13,6 +13,9 @@ if (!JWT_SECRET) {
   console.error('JWT_SECRET missing in .env file! Authentication will fail.');
 }
 
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 const axios = require('axios');
 
 const { sendEmail, sendAdminNotification } = require('../utils/emailService');
@@ -272,6 +275,93 @@ router.post('/login', async (req, res) => {
     // Log Login Error
     await logSystem('error', 'Login Failed', `Error: ${err.message}`, null, null, null, req.ip, 'error');
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
+// Google Login / Signup
+router.post('/google', async (req, res) => {
+  const { access_token } = req.body;
+  if (!access_token) return res.status(400).json({ success: false, message: 'Access token required' });
+
+  try {
+    const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+    
+    const payload = response.data;
+    if (!payload.email) return res.status(400).json({ success: false, message: 'Invalid Google token' });
+
+    let [rows] = await query(`
+      SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
+      WHERE u.email = ?
+    `, [payload.email]);
+
+    let user;
+
+    if (rows.length > 0) {
+      user = rows[0];
+    } else {
+      const defaultPermissions = [
+        { feature: 'Dashboard - View', admin: true },
+        { feature: 'Chat - View', admin: true },
+        { feature: 'Chat - Reply', admin: true },
+        { feature: 'Contacts - View', admin: true },
+        { feature: 'Campaigns - View', admin: true }
+      ];
+      const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
+      
+      const [insertResult] = await query(`
+        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password)
+        VALUES (?, ?, 'user', 1, 'active', 'google', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD')
+      `, [payload.email, payload.name || 'Google User', JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
+      
+      const insertId = insertResult.insertId;
+      
+      const [newRows] = await query(`
+        SELECT u.*, p.permissions as plan_permissions, p.name as plan_name
+        FROM users u
+        LEFT JOIN plans p ON u.plan_id = p.id
+        WHERE u.id = ?
+      `, [insertId]);
+      
+      user = newRows[0];
+    }
+
+    let finalPermissions = [];
+    if (user.permissions) {
+      try { finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions; } catch (e) {}
+    } else if (user.plan_permissions) {
+      try { finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions; } catch (e) {}
+    }
+
+    const token = jwt.sign({
+        id: user.id, email: user.email, role: user.role, name: user.name,
+        company: user.company, channels_enabled: user.channels_enabled,
+        permissions: finalPermissions, wallet_balance: user.wallet_balance,
+        credits_available: user.credits_available,
+        actual_reseller_id: user.actual_reseller_id || null
+      },
+      JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    await logSystem('login', 'User Google Login', `User ${user.email} logged in via Google`, user.id, user.name, user.company, req.ip, 'info');
+
+    res.json({
+      success: true, token,
+      user: {
+        id: user.id, name: user.name, email: user.email, role: user.role,
+        channels_enabled: user.channels_enabled, permissions: finalPermissions, plan_name: user.plan_name,
+      }
+    });
+
+  } catch (error) {
+    console.error('Google Auth Error:', error.message);
+    res.status(500).json({ success: false, message: 'Google Authentication Failed' });
   }
 });
 

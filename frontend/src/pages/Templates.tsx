@@ -812,26 +812,10 @@ export default function Templates() {
       };
 
       return (
-        <div className="flex flex-col h-full items-center justify-start py-2 overflow-y-auto max-h-[750px] no-scrollbar">
-          <div
-            className="w-[340px] h-[680px] bg-[#000a14] rounded-[3.5rem] p-3 shadow-2xl relative transition-all duration-500 flex flex-col shrink-0"
-            style={{
-              boxShadow: '0 0 40px rgba(0, 114, 255, 0.2), inset 0 0 20px rgba(0, 114, 255, 0.1)',
-              border: '4px solid transparent',
-              backgroundImage: 'linear-gradient(#000a14, #000a14), linear-gradient(to right, #0072FF, #00C6FF, #D81B60)',
-              backgroundOrigin: 'border-box',
-              backgroundClip: 'padding-box, border-box',
-            }}
-          >
-            {/* Phone Notch/Features */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 h-8 w-32 bg-black rounded-full z-20 shadow-inner flex items-center justify-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-900/40" />
-              <div className="w-12 h-1.5 rounded-full bg-zinc-800/60" />
-            </div>
-
-            <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10 no-scrollbar">
+        <div className="flex flex-col h-full items-center justify-start py-2 overflow-y-auto max-h-[750px] no-scrollbar w-full">
+          <div className="h-full w-[310px] bg-slate-50 dark:bg-[#0b141a] rounded-[2rem] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-2xl border border-black/5 min-h-[550px]">
               {/* Header */}
-              <div className="px-4 pt-10 pb-3 bg-[#1A73E8] text-white flex items-center gap-3 shadow-md border-b border-white/5">
+              <div className="px-4 pt-5 pb-4 bg-[#1A73E8] text-white flex items-center gap-3 shadow-md border-b border-white/5 relative z-20">
                 <ChevronLeft className="h-5 w-5" />
                 <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-[11px] font-bold border border-blue-400/20">
                   RCS
@@ -906,16 +890,13 @@ export default function Templates() {
               </div>
             </div>
           </div>
-        </div>
       );
     }
 
     return (
-      <div className="flex flex-col h-full scale-[0.65] origin-center">
-        <div className="relative mx-auto">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-10" />
-          <div className="w-[280px] h-[500px] bg-[#ECE5DD] rounded-[2rem] overflow-hidden border-8 border-black relative">
-            <div className="bg-[#075E54] text-white px-4 py-2 flex items-center gap-3">
+        <div className="flex flex-col h-full items-center justify-start py-8 overflow-y-auto no-scrollbar w-full">
+          <div className="w-[280px] bg-[#ECE5DD] dark:bg-[#0b141a] rounded-[2rem] shadow-2xl overflow-hidden relative border border-black/5 min-h-[500px]">
+            <div className="bg-[#075E54] text-white px-4 py-4 flex items-center gap-3 shadow-md relative z-20">
               <ChevronRight className="h-5 w-5 rotate-180" />
               <div className="w-8 h-8 rounded-full bg-gray-300" />
               <div className="flex-1">
@@ -930,8 +911,8 @@ export default function Templates() {
               </div>
             </div>
           </div>
-        </div>
       </div>
+
     );
   };
 
