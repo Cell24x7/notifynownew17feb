@@ -103,7 +103,7 @@ const processQueue = async () => {
             COALESCE(mt.body, c.template_body) as template_body,
             mt.template_type, 
             COALESCE(mt.metadata, c.template_metadata) as template_metadata,
-            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, c.variable_mapping,
+            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, c.variable_mapping, c.template_id as raw_template_id,
             u.rcs_config_id, u.whatsapp_config_id, q.variables,
             rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
             rc.client_id, rc.client_secret, rc.bot_id,
@@ -354,12 +354,13 @@ const processQueue = async () => {
                         const customMessage = replaceVariables(body, resolvedVars);
 
                         // Extract DLT Template ID and PE ID from metadata if available
-                        let templateId = '', peId = '';
+                        let templateId = item.raw_template_id || '', peId = '';
                         try {
                             const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
-                            templateId = meta.templateId || meta.dlt_template_id || '';
+                            templateId = meta.templateId || meta.dlt_template_id || templateId;
                             peId = meta.peId || meta.pe_id || '';
                         } catch(e) {}
+
 
                         const raw = await sendSMS(item.mobile, customMessage, {
                             userId: item.user_id,
