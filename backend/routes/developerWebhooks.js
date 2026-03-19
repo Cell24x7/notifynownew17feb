@@ -50,14 +50,31 @@ router.post('/data', async (req, res) => {
 
         const config = configs[0];
         
-        // 4. Prepare message dynamically based on payload
-        // ALWAYS use a template for business-initiated messages
         const templateName = 'waterpark_booking_co'; 
         const langCode = 'en_US'; 
 
-        const itemsSummary = items && items.length > 0 
-            ? items.map(item => `${item.ItemName}x${item.Quantity}`).join(', ') 
-            : 'Order items';
+        // 4. Fetch the message template details
+        const [templates] = await query(
+            'SELECT body, metadata FROM message_templates WHERE name = ? AND user_id = ? LIMIT 1',
+            [templateName, targetUserId]
+        );
+
+        if (!templates.length) {
+            console.error('Template not found:', templateName);
+            return res.status(404).json({ success: false, error: 'Template not found' });
+        }
+
+        const template = templates[0];
+        const itemsSummary = (items || []).map(i => `${i.ItemName}x${i.Quantity}`).join(', ');
+
+        // Create a mapping of payload fields to variables
+        const resolvedVars = {
+            '1': customerDetail.firstName || 'Customer',
+            '2': String(orderNumber || ''),
+            '3': itemsSummary.substring(0, 1024),
+            '4': String(summary?.total || 0),
+            'header_url': '' // Will be updated if PDF exists
+        };
 
         // 5. Structure the Template Payload
         let waPayload = {
@@ -68,30 +85,45 @@ router.post('/data', async (req, res) => {
             template: {
                 name: templateName,
                 language: { code: langCode },
-                components: [
-                    {
-                        type: "body",
-                        parameters: [
-                            { type: "text", text: customerDetail.firstName || 'Customer' }, // {{1}}
-                            { type: "text", text: String(orderNumber) },                  // {{2}}
-                            { type: "text", text: itemsSummary.substring(0, 1024) },      // {{3}}
-                            { type: "text", text: String(summary?.total || 0) }           // {{4}}
-                        ]
-                    }
-                ]
+                components: []
             }
         };
 
-        // 6. Add PDF attachment if available (in Header)
+        const payloadComponents = [];
+        const templateMeta = typeof template.metadata === 'string' ? JSON.parse(template.metadata) : (template.metadata || {});
+        const mtComponents = templateMeta.components || [];
+
+        // Function to extract variables for WhatsApp parameters
+        const getOrderedVariables = (text, vars) => {
+            if (!text) return [];
+            const regex = /\{\{\s*([^}\s]+)\s*\}\}|\[\s*([^\]\s]+)\s*\]/g;
+            const params = [];
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                const varName = match[1] || match[2];
+                params.push(vars[varName] || '');
+            }
+            return params;
+        };
+
+        // a) Handle Body Component
+        const bodyComp = mtComponents.find(c => c.type === 'BODY' || c.type === 'body');
+        const bodyText = bodyComp?.text || template.body || '';
+        const bodyParams = getOrderedVariables(bodyText, resolvedVars);
+        if (bodyParams.length > 0) {
+            payloadComponents.push({
+                type: 'body',
+                parameters: bodyParams.map(v => ({ type: 'text', text: String(v) }))
+            });
+        }
+
+        // 6. Handle PDF Attachment (Header Component)
         let hasAttachment = payload.attachment && payload.attachment.length > 0 && payload.attachment[0].Base64Content;
-        
         if (hasAttachment) {
             try {
                 console.log(`📎 Found attachment, uploading for ${config.provider}...`);
                 const pdfBuffer = Buffer.from(payload.attachment[0].Base64Content, 'base64');
                 const fileLength = pdfBuffer.length;
-                
-                // Truncate filename to prevent ENAMETOOLONG
                 let rawName = payload.attachment[0].Name || 'Ticket';
                 let sanitizedName = rawName.replace(/[^a-z0-9]/gi, '_').substring(0, 40); 
                 const fileName = `${sanitizedName}.pdf`;
@@ -110,7 +142,7 @@ router.post('/data', async (req, res) => {
                     });
                     const pdfHandle = uploadRes.data.h; 
                     
-                    waPayload.template.components.unshift({
+                    payloadComponents.unshift({
                         type: "header",
                         parameters: [{
                             type: "document",
@@ -124,11 +156,26 @@ router.post('/data', async (req, res) => {
             } catch (err) {
                 console.error('❌ Failed to upload PDF attachment:', err.response?.data || err.message);
             }
+        } else {
+            // b) Handle Text Header if no media attachment provided
+            const headerComp = mtComponents.find(c => c.type === 'HEADER' || c.type === 'header');
+            if (headerComp && headerComp.format?.toUpperCase() === 'TEXT' && headerComp.text?.includes('{{')) {
+                const headParams = getOrderedVariables(headerComp.text, resolvedVars);
+                if (headParams.length > 0) {
+                    payloadComponents.unshift({
+                        type: 'header',
+                        parameters: headParams.map(v => ({ type: 'text', text: String(v) }))
+                    });
+                }
+            }
         }
+
+        waPayload.template.components = payloadComponents;
 
         // 7. Send message using WhatsApp API
         let sendSuccess = false;
         try {
+            console.log('📡 Sending dynamic WhatsApp payload:', JSON.stringify(waPayload, null, 2));
             if (config.provider === 'vendor2') {
                 await axios.post(
                     `${PINBOT_BASE}/${config.ph_no_id}/messages`,
