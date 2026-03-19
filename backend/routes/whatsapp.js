@@ -24,8 +24,11 @@ const storage = multer.diskStorage({
         cb(null, dir);
     },
     filename: (req, file, cb) => {
-        cb(null, `wa_${Date.now()}_${file.originalname}`);
+        // Fix for ENAMETOOLONG: Truncate and sanitize originalname
+        const safeName = file.originalname.replace(/[^a-z0-9.]/gi, '_').substring(0, 50);
+        cb(null, `wa_${Date.now()}_${safeName}`);
     }
+
 });
 const uploadDisk = multer({ storage });
 const uploadMemory = multer({ storage: multer.memoryStorage() });

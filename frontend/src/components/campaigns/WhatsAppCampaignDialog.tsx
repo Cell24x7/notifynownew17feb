@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
+
 import {
     X, Search, Send, Clock,
     MessageSquare, FileText,
@@ -51,6 +53,8 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
     const [recipientSource, setRecipientSource] = useState<'manual' | 'upload'>('manual');
     const [manualRecipients, setManualRecipients] = useState('');
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [excelColumns, setExcelColumns] = useState<string[]>([]);
+
 
     const [submitting, setSubmitting] = useState(false);
     const [fieldMapping, setFieldMapping] = useState<Record<string, { type: 'field' | 'custom', value: string }>>({});
@@ -137,6 +141,43 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
             title: 'Template Selected',
             description: `Loaded WhatsApp template: ${template.name}`,
         });
+    };
+
+    const handleFileChange = async (file: File | null) => {
+        setUploadedFile(file);
+        if (!file) {
+            setExcelColumns([]);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const json: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            if (json.length > 0) {
+                const headers = (json[0] as string[]).map(h => String(h).trim()).filter(Boolean);
+                setExcelColumns(headers);
+                
+                // Smart Auto-Mapping
+                const newMapping: any = { ...fieldMapping };
+                headers.forEach(h => {
+                    const lowHeader = h.toLowerCase();
+                    if (lowHeader.includes('name')) newMapping['1'] = { type: 'field', value: h };
+                    if (lowHeader.includes('date')) newMapping['2'] = { type: 'field', value: h };
+                    if (lowHeader.includes('id') || lowHeader.includes('ticket')) newMapping['3'] = { type: 'field', value: h };
+                    if (lowHeader.includes('guest')) newMapping['4'] = { type: 'field', value: h };
+                });
+                setFieldMapping(newMapping);
+                toast({
+                    title: 'Excel Columns Parsed',
+                    description: `Found ${headers.length} columns. Smart mapping applied.`,
+                });
+            }
+        };
+        reader.readAsBinaryString(file);
     };
 
     const getRecipientCount = () => {
@@ -306,7 +347,8 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                                                             <Input
                                                                 type="file"
                                                                 className="max-w-[200px] h-8 text-xs cursor-pointer"
-                                                                onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+                                                                accept=".csv,.xlsx,.xls"
+                                                                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                                                             />
                                                         )}
                                                     </div>
@@ -339,15 +381,52 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                                                         </div>
 
                                                         <div className="flex items-center gap-2">
-                                                            <Input
-                                                                placeholder={variable === 'header_url' ? "Enter URL or Upload..." : `Value for {{${variable}}}...`}
-                                                                className="h-10 border-gray-200 focus:border-green-600/30"
-                                                                value={fieldMapping[variable]?.value || ''}
-                                                                onChange={(e) => setFieldMapping(prev => ({
-                                                                    ...prev,
-                                                                    [variable]: { type: 'custom', value: e.target.value }
-                                                                }))}
-                                                            />
+                                                            <div className="flex-1 flex gap-2">
+                                                                <Select 
+                                                                    value={fieldMapping[variable]?.type || 'custom'} 
+                                                                    onValueChange={(v) => setFieldMapping(prev => ({ 
+                                                                        ...prev, 
+                                                                        [variable]: { type: v as any, value: prev[variable]?.value || '' } 
+                                                                    }))}
+                                                                >
+                                                                    <SelectTrigger className="w-28 h-10 border-gray-200">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="custom">Custom</SelectItem>
+                                                                        <SelectItem value="field" disabled={excelColumns.length === 0}>Column</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+
+                                                                {fieldMapping[variable]?.type === 'field' ? (
+                                                                    <Select 
+                                                                        value={fieldMapping[variable]?.value || ''} 
+                                                                        onValueChange={(v) => setFieldMapping(prev => ({ 
+                                                                            ...prev, 
+                                                                            [variable]: { type: 'field', value: v } 
+                                                                        }))}
+                                                                    >
+                                                                        <SelectTrigger className="flex-1 h-10 border-green-600/20 bg-green-50/30">
+                                                                            <SelectValue placeholder="Pick Column..." />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {excelColumns.map(col => (
+                                                                                <SelectItem key={col} value={col}>{col}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                ) : (
+                                                                    <Input
+                                                                        placeholder={variable === 'header_url' ? "Enter URL or Upload..." : `Value for {{${variable}}}...`}
+                                                                        className="h-10 border-gray-200 focus:border-green-600/30 flex-1"
+                                                                        value={fieldMapping[variable]?.value || ''}
+                                                                        onChange={(e) => setFieldMapping(prev => ({
+                                                                            ...prev,
+                                                                            [variable]: { type: 'custom', value: e.target.value }
+                                                                        }))}
+                                                                    />
+                                                                )}
+                                                            </div>
                                                             {variable === 'header_url' && (
                                                                 <div className="relative">
                                                                     <input
