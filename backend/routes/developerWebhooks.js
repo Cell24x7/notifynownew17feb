@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const axios = require('axios');
+const FormData = require('form-data');
 
 const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
 
@@ -129,42 +130,39 @@ router.post('/data', async (req, res) => {
 
                 console.log(`📎 Found attachment: ${fileName} (${fileLength} bytes). Uploading to ${config.provider}...`);
 
-                if (config.provider === 'vendor2') { // PinBot
-                    // Step 1: Create Upload Session
-                    const sessionRes = await axios.post(`${PINBOT_BASE}/app/uploads`, {}, {
-                        headers: { 
-                            apikey: config.api_key,
-                            'Content-Type': 'application/json'
-                        },
-                        params: { 
-                            file_length: fileLength, 
-                            file_type: 'application/pdf' 
-                        }
-                    });
-
-                    const sessionId = sessionRes.data.id;
-                    const sig = sessionRes.data.sig || '';
-                    console.log(`📡 Upload session created ID: ${sessionId}`);
-
-                    // Step 2: Upload File (using RAW binary as required by some API versions)
-                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`, pdfBuffer, {
-                        headers: { 
-                            apikey: config.api_key, 
-                            'Content-Type': 'application/pdf'
-                        }
-                    });
-
-                    const pdfHandle = uploadRes.data.h; 
-                    console.log(`✅ PDF Uploaded, Handle: ${pdfHandle}`);
+                if (config.provider === 'vendor2') { // PinBot / Meta Direct
+                    // Step: Upload Media using Multipart Form-Data (Recommended for Templates)
+                    const form = new FormData();
                     
-                    if (pdfHandle) {
+                    form.append('sheet', pdfBuffer, { // pdfBuffer is already a Buffer
+                        filename: fileName,
+                        contentType: 'application/pdf',
+                    });
+
+                    console.log(`📡 Uploading PDF to ${PINBOT_BASE}/${config.ph_no_id}/media ...`);
+                    
+                    const uploadRes = await axios.post(
+                        `${PINBOT_BASE}/${config.ph_no_id}/media`,
+                        form, // form-data handles the multipart
+                        {
+                            headers: {
+                                ...form.getHeaders(),
+                                apikey: config.api_key
+                            }
+                        }
+                    );
+
+                    const mediaId = uploadRes.data.id || uploadRes.data.media_id || uploadRes.data.h;
+                    console.log(`✅ PDF Uploaded, Media ID: ${mediaId}`);
+
+                    if (mediaId) {
                         payloadComponents.unshift({
                             type: "header",
                             parameters: [{
                                 type: "document",
                                 document: {
                                     filename: fileName,
-                                    id: pdfHandle // Use 'id' for uploaded handles
+                                    id: mediaId
                                 }
                             }]
                         });
