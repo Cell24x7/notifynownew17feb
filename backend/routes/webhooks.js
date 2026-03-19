@@ -140,6 +140,7 @@ router.post('/rcs/callback', async (req, res) => {
     }
 });
 
+
 // GET /api/webhooks/dotgo
 // Quick check to see if logs are storing correctly
 router.get('/dotgo', async (req, res) => {
@@ -839,6 +840,114 @@ router.post('/whatsapp/callback', async (req, res) => {
 
 // GET /api/webhooks/whatsapp
 // Quick check to see if WhatsApp logs are storing correctly from browser
+
+// ==========================================
+// SMS WEBHOOKS (DLR)
+// ==========================================
+
+// GET or POST /api/webhooks/sms/callback
+// SMS Delivery Reports (DLR) from various gateways
+const handleSmsCallback = async (req, res) => {
+    try {
+        const payload = { ...req.query, ...req.body };
+        console.log('==============================================');
+        console.log('📨 RECEIVED SMS WEBHOOK');
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('Method:', req.method);
+        console.log('Payload:', JSON.stringify(payload, null, 2));
+        console.log('==============================================');
+
+        // Common SMS gateway DLR parameters lookup:
+        // Job ID / Msg ID: 'jobid', 'msgid', 'id', 'mid', 'fid'
+        // Status: 'status', 'dlr_status', 'state', 'stat', 'err'
+        // Mobile: 'mobile', 'msisdn', 'to', 'dest'
+        const messageId = payload.jobid || payload.msgid || payload.id || payload.mid || payload.fid;
+        const status = payload.status || payload.dlr_status || payload.state || payload.stat || payload.err;
+        const mobile = payload.mobile || payload.msisdn || payload.to || payload.dest;
+
+        if (messageId || mobile) {
+            let finalStatus = 'sent';
+            const s = String(status || '').toLowerCase();
+            
+            // Map common SMS status strings to internal statuses
+            // Support: DELIVRD, REJECTD, UNDELIV, etc.
+            if (s.includes('deliver') || s === 'success' || s === '0' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd') {
+                finalStatus = 'delivered';
+            } else if (s.includes('fail') || s.includes('reject') || s === '16' || s === 'failed' || s === 'undeliv' || s === 'undelivered' || s === 'rejectd') {
+                finalStatus = 'failed';
+            } else if (s.includes('sent') || s.includes('submit') || s === 'submitted') {
+                finalStatus = 'sent';
+            }
+
+            console.log(`📊 SMS DLR: Msg ${messageId || 'N/A'} for ${mobile || 'N/A'} is ${finalStatus}`);
+
+            // Update database (Try searching by messageId, then fallback to mobile + time window)
+            try {
+                let log = null;
+                if (messageId) {
+                    const [rows] = await query('SELECT * FROM message_logs WHERE message_id = ? ORDER BY id DESC LIMIT 1', [messageId]);
+                    if (rows.length > 0) log = rows[0];
+                }
+                
+                if (!log && mobile) {
+                    // Search for recent sent SMS to this mobile if ID didn't match
+                    const last10 = String(mobile).slice(-10);
+                    const [rows] = await query(
+                        'SELECT * FROM message_logs WHERE recipient LIKE ? AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR) ORDER BY id DESC LIMIT 1',
+                        [`%${last10}`]
+                    );
+                    if (rows.length > 0) log = rows[0];
+                }
+
+                if (log) {
+                    // Avoid status downgrade (don't go from delivered to sent)
+                    const weights = { 'sent': 1, 'delivered': 2, 'failed': -1 };
+                    const currentWeight = weights[log.status] || 0;
+                    const newWeight = weights[finalStatus] || 0;
+
+                    if (newWeight !== 0 && (newWeight > currentWeight || finalStatus === 'failed')) {
+                        console.log(`📝 Updating SMS Log ${log.id}: ${log.status} -> ${finalStatus}`);
+                        
+                        await query(
+                            'UPDATE message_logs SET status = ?, message_id = COALESCE(?, message_id), updated_at = NOW() WHERE id = ?', 
+                            [finalStatus, messageId, log.id]
+                        );
+                        
+                        // Handle Timestamps & Counters
+                        if (finalStatus === 'delivered') {
+                            await query('UPDATE message_logs SET delivery_time = NOW() WHERE id = ?', [log.id]);
+                            if (log.campaign_id) {
+                                await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                            }
+                        } else if (finalStatus === 'failed') {
+                            const reason = payload.reason || payload.err_code || payload.description || 'Gateway reported failure';
+                            await query('UPDATE message_logs SET failure_reason = ? WHERE id = ?', [reason, log.id]);
+                            if (log.campaign_id) {
+                                await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                            }
+                        }
+                    }
+                } else {
+                    console.warn(`⚠️ No matching SMS log found for callback: ID=${messageId}, Mobile=${mobile}`);
+                }
+            } catch (dbErr) {
+                console.error('❌ Failed to update SMS DLR in DB:', dbErr.message);
+            }
+        }
+
+        // Always acknowledge receipt for the gateway
+        res.status(200).json({ success: true, message: 'DLR Receipt acknowledged' });
+    } catch (error) {
+        console.error('❌ Global SMS Callback Error:', error.message);
+        res.status(200).json({ success: false, error: 'Internal logic error' });
+    }
+};
+
+router.get('/sms/callback', handleSmsCallback);
+router.post('/sms/callback', handleSmsCallback);
+
+// GET /api/webhooks/whatsapp
+// Quick check to see if WhatsApp logs are storing correctly from browser
 router.get('/whatsapp', async (req, res) => {
     console.log('🔍 GET /api/webhooks/whatsapp hit');
     try {
@@ -855,4 +964,5 @@ router.get('/whatsapp', async (req, res) => {
 });
 
 module.exports = router;
+
 

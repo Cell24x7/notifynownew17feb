@@ -107,11 +107,33 @@ router.post('/templates', authenticate, async (req, res) => {
         const config = await getPinbotConfig(req.user.id);
         const { name, category, language, components, allow_category_change } = req.body;
 
-        if (!name || !category || !language || !components) {
-            return res.status(400).json({ success: false, message: 'name, category, language, and components are required' });
-        }
+        // 🛠️ ENHANCEMENT: Auto-generate examples for body placeholders if missing
+        // Meta/Pinbot require examples for variable like {{1}}, {{2}} etc.
+        const processedComponents = components.map(comp => {
+            const normalizedComp = { ...comp };
+            const typeUC = (normalizedComp.type || '').toUpperCase();
+            
+            if (typeUC === 'BODY' && normalizedComp.text && normalizedComp.text.includes('{{')) {
+                if (!normalizedComp.example || !normalizedComp.example.body_text) {
+                    const matches = normalizedComp.text.match(/{{(\d+)}}/g);
+                    if (matches) {
+                        const count = matches.length;
+                        console.log(`[WA-PINBOT] Auto-generating ${count} examples for BODY variables`);
+                        normalizedComp.example = {
+                            body_text: [ matches.map((_, i) => `SampleValue ${i+1}`) ]
+                        };
+                    }
+                }
+            }
+            return normalizedComp;
+        });
 
-        const payload = { name, category, language, components };
+        const payload = { 
+            name: name.toLowerCase().replace(/[^a-z0-9_]/g, '_'), 
+            category, 
+            language, 
+            components: processedComponents 
+        };
         if (allow_category_change !== undefined) payload.allow_category_change = allow_category_change;
 
         const response = await axios.post(
@@ -119,6 +141,7 @@ router.post('/templates', authenticate, async (req, res) => {
             payload,
             { headers: { apikey: config.api_key, 'Content-Type': 'application/json' } }
         );
+
         res.json({ success: true, message: 'Template created successfully', data: response.data });
     } catch (error) {
         console.error('❌ Pinbot CREATE template:', error.response?.data || error.message);

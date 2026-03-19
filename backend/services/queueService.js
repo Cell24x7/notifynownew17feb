@@ -1,5 +1,6 @@
 const { query } = require('../config/db');
 const { sendRcsTemplate, sendRcsMessage, getRcsToken } = require('./rcsService');
+const { sendSMS } = require('../utils/smsService');
 const axios = require('axios');
 
 const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
@@ -325,6 +326,34 @@ const processQueue = async () => {
                         const errMsg = waErr.response?.data?.error?.message || waErr.response?.data?.message || waErr.message;
                         console.error(`❌ WhatsApp send failed for ${item.mobile}:`, errMsg);
                         result = { success: false, error: errMsg };
+                    }
+                } else if (item.channel === 'sms' || item.channel === 'SMS') {
+                    // ──── SMS CHANNEL ────
+                    try {
+                        const body = item.template_body || item.campaign_name;
+                        const customMessage = replaceVariables(body, resolvedVars);
+
+                        // Extract DLT Template ID and PE ID from metadata if available
+                        let templateId = '', peId = '';
+                        try {
+                            const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
+                            templateId = meta.templateId || meta.dlt_template_id || '';
+                            peId = meta.peId || meta.pe_id || '';
+                        } catch(e) {}
+
+                        const raw = await sendSMS(item.mobile, customMessage, {
+                            userId: item.user_id,
+                            templateId,
+                            peId
+                        });
+                        
+                        // Treat it as success if it didn't throw
+                        // Gateway usually returns a job ID or status, but we'll generate a internal trackable ID if needed
+                        result = { success: true, messageId: `sms_${Date.now()}_${item.mobile.substring(item.mobile.length - 4)}` };
+                        console.log(`✅ SMS sent to ${item.mobile} via Gateway`);
+                    } catch (smsErr) {
+                        console.error(`❌ SMS send failed for ${item.mobile}:`, smsErr.message);
+                        result = { success: false, error: smsErr.message };
                     }
                 } else {
                     result = { success: false, error: `Channel '${item.channel}' not supported` };

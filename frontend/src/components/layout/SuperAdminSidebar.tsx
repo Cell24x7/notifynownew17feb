@@ -18,6 +18,7 @@ import {
   FileText,
   MessageSquareMore,
   MessageCircle,
+  Send,
   ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ const menuItems = [
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
   { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'Vendors - View' },
   { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'Vendors - View' },
+  { icon: Send, label: 'SMS Gateways', path: '/super-admin/sms-gateways', permission: 'Vendors - View' },
   { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
 ];
