@@ -154,9 +154,12 @@ router.post('/data', async (req, res) => {
 
                     console.log("Full media upload response:", JSON.stringify(uploadRes.data));
 
-                    // Some APIs return inside a 'media' array or object
-                    const mediaId = uploadRes.data.id || uploadRes.data.media_id || uploadRes.data.h || 
-                        (uploadRes.data.media && uploadRes.data.media[0] && uploadRes.data.media[0].id);
+                    // Some APIs return inside a 'media' array or object, Pinbot v3 returns 'response.id'
+                    const mediaId = uploadRes.data.id || 
+                                    uploadRes.data.media_id || 
+                                    (uploadRes.data.response && uploadRes.data.response.id) ||
+                                    uploadRes.data.h || 
+                                    (uploadRes.data.media && uploadRes.data.media[0] && uploadRes.data.media[0].id);
                         
                     console.log(`✅ PDF Uploaded, Media ID: ${mediaId}`);
 
