@@ -70,10 +70,10 @@ router.post('/data', async (req, res) => {
 
         // Create a mapping of payload fields to variables
         const resolvedVars = {
-            '1': customerDetail.firstName || 'Customer',
-            '2': String(orderNumber || ''),
-            '3': itemsSummary.substring(0, 1024),
-            '4': String(summary?.total || 0),
+            '1': `${customerDetail.firstName || ''} ${customerDetail.lastName || ''}`.trim() || 'Customer',
+            '2': String(payload.date || new Date().toISOString()),
+            '3': String(orderNumber || ''),
+            '4': String(payload.guestCount || 0),
             'header_url': '' // Will be updated if PDF exists
         };
 
