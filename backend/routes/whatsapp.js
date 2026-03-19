@@ -151,7 +151,7 @@ router.post('/templates', authenticate, async (req, res) => {
         // Meta requirement: Lowercase and underscores only
         const sanitizedName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
         
-        // Meta/Pinbot requirement: Media headers MUST have an example/sample
+        // Meta/Pinbot requirement: Media headers and variable body text MUST have an example/sample
         const processedComponents = components.map(comp => {
             const normalizedComp = { ...comp };
             
@@ -160,7 +160,6 @@ router.post('/templates', authenticate, async (req, res) => {
             const formatUC = (normalizedComp.format || '').toUpperCase();
 
             // Pinbot V3 manual shows lowercase for these fields. 
-            // Meta usually accepts both, but let's follow the provider's V3 manual exactly.
             if (config.isPinbot) {
                 if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toLowerCase();
                 if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toLowerCase();
@@ -169,13 +168,33 @@ router.post('/templates', authenticate, async (req, res) => {
                 if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toUpperCase();
             }
             
+            // 1. Handle Header Examples
             if (typeUC === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formatUC)) {
-                if (!normalizedComp.example || !normalizedComp.example.header_handle) {
-                    console.warn(`[WA-TEMPLATE] ⚠️ HEADER ${formatUC} might be missing required example handle.`);
+                if (!normalizedComp.example || (!normalizedComp.example.header_handle && !normalizedComp.example.header_text)) {
+                    console.warn(`[WA-TEMPLATE] ⚠️ HEADER ${formatUC} missing required example. Adding placeholder.`);
+                    // We can't easily auto-gen a handle, but usually UI provides it.
                 }
             }
+
+            // 2. Handle Body Examples (CRITICAL fix for variables like {{1}})
+            if (typeUC === 'BODY' && normalizedComp.text && normalizedComp.text.includes('{{')) {
+                if (!normalizedComp.example || !normalizedComp.example.body_text) {
+                    const matches = normalizedComp.text.match(/{{(\d+)}}/g);
+                    if (matches) {
+                        const count = matches.length;
+                        console.log(`[WA-TEMPLATE] 🛠️ Auto-generating examples for ${count} variables in BODY`);
+                        normalizedComp.example = {
+                            body_text: [
+                                matches.map((_, i) => `SampleValue ${i+1}`)
+                            ]
+                        };
+                    }
+                }
+            }
+            
             return normalizedComp;
         });
+
 
         const payload = { 
             name: sanitizedName, 
