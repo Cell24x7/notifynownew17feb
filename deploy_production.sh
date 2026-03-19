@@ -85,14 +85,16 @@ VITE_API_URL=$API_URL
 VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID
 EOF
 else
-    # Update only the API URL
+    # Update or add API URL
     if grep -q "VITE_API_URL=" "$FRONTEND_DIR/.env.production"; then
         sed -i "/^VITE_API_URL=/c\VITE_API_URL=$API_URL" "$FRONTEND_DIR/.env.production"
     else
         echo "VITE_API_URL=$API_URL" >> "$FRONTEND_DIR/.env.production"
     fi
-    # Ensure Google ID is present
-    if ! grep -q "VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/.env.production"; then
+    # Update or add Google ID (Force update to ensure it's correct)
+    if grep -q "VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/.env.production"; then
+        sed -i "/^VITE_GOOGLE_CLIENT_ID=/c\VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID" "$FRONTEND_DIR/.env.production"
+    else
         echo "VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID" >> "$FRONTEND_DIR/.env.production"
     fi
 fi
