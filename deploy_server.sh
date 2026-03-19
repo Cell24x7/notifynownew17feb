@@ -65,8 +65,6 @@ DB_PASS=waQ4!r1241Kr
 DB_NAME=developer_notify
 PORT=5000
 API_BASE_URL=https://developer.notifynow.in
-JWT_SECRET=notifynow_db_secret_key
-JWT_EXPIRES_IN=7d
 EOF
 else
     sed -i '/^DB_HOST=/c\DB_HOST=localhost' "$BACKEND_DIR/.env.production"
@@ -76,17 +74,33 @@ else
 fi
 
 # Frontend Env (VITE_API_URL is critical for build)
-# Writing to both .env and .env.production for maximum compatibility
 API_URL="https://developer.notifynow.in"
-echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env"
-echo "VITE_API_URL=$API_URL" > "$FRONTEND_DIR/.env.production"
-ok "Environment files created (API: $API_URL)"
+# Preserve other variables (like VITE_GOOGLE_CLIENT_ID) instead of overwriting
+if [ ! -f "$FRONTEND_DIR/.env.production" ]; then
+    cat <<EOF > "$FRONTEND_DIR/.env.production"
+VITE_API_URL=$API_URL
+VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com
+EOF
+else
+    # Update only the API URL
+    if grep -q "VITE_API_URL=" "$FRONTEND_DIR/.env.production"; then
+        sed -i "/^VITE_API_URL=/c\VITE_API_URL=$API_URL" "$FRONTEND_DIR/.env.production"
+    else
+        echo "VITE_API_URL=$API_URL" >> "$FRONTEND_DIR/.env.production"
+    fi
+fi
+
+# Sync .env with .env.production for simplicity
+cp "$FRONTEND_DIR/.env.production" "$FRONTEND_DIR/.env"
+ok "Environment files updated (API: $API_URL)"
 
 # ── Step 5: Build Frontend ────────────────────────────
 log "🏗️  [5/7] Building frontend..."
 cd "$FRONTEND_DIR"
+npm install --silent # Always ensure fresh modules for developer build
 npm run build
 ok "Frontend built"
+
 
 # Fix dist folder permissions
 chmod -R 755 "$DIST_DIR"
