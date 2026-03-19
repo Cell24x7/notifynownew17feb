@@ -146,18 +146,11 @@ router.post('/data', async (req, res) => {
                     const sig = sessionRes.data.sig || '';
                     console.log(`📡 Upload session created ID: ${sessionId}`);
 
-                    // Step 2: Upload File
-                    const FormData = require('form-data');
-                    const form = new FormData();
-                    form.append('file', pdfBuffer, { 
-                        filename: fileName, 
-                        contentType: 'application/pdf' 
-                    });
-
-                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`, form, {
+                    // Step 2: Upload File (using RAW binary as required by some API versions)
+                    const uploadRes = await axios.post(`${PINBOT_BASE}/${sessionId}${sig ? `?sig=${sig}` : ''}`, pdfBuffer, {
                         headers: { 
                             apikey: config.api_key, 
-                            ...form.getHeaders() 
+                            'Content-Type': 'application/pdf'
                         }
                     });
 
