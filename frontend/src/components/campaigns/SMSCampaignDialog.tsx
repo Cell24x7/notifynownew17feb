@@ -167,8 +167,9 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                 name: campaignName,
                 channel: 'sms',
                 template_id: dltTemplateId,
+                template_body: message,
+                template_metadata: { templateId: dltTemplateId, sender: senderName },
                 status: 'draft' as const,
-                // Other fields as needed
             };
 
             const createRes = await campaignService.createCampaign(payload);
