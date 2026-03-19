@@ -240,45 +240,51 @@ const processQueue = async () => {
                             };
 
                             const payloadComponents = [];
-
-                            // Construct text to scan for variables from all possible places
                             const metaStr = item.template_metadata;
                             const meta = typeof metaStr === 'string' ? JSON.parse(metaStr) : (metaStr || {});
                             const mtComponents = meta.components || [];
-                            
-                            // Consolidate body and all component texts to find placeholders
-                            const componentTexts = mtComponents.map(c => c.text || c.caption || '').filter(Boolean);
-                            const textToScan = [item.template_body, ...componentTexts].filter(Boolean).join(' ');
 
-                            // 2. Process Body Variables (and any text-based components)
-                            const waParams = getOrderedVariables(textToScan, resolvedVars);
+                            // Construct and scan only the BODY component for body variables to avoid duplication
+                            const bodyComp = mtComponents.find(c => c.type === 'BODY' || c.type === 'body');
+                            const bodyText = bodyComp?.text || item.template_body || '';
+                            const waParams = getOrderedVariables(bodyText, resolvedVars);
                             
                             // 3. Construct specific components for WhatsApp API
-                            // a) Header (Media)
+                            // a) Header (Media or Text)
                             const headerComp = mtComponents.find(c => c.type === 'HEADER' || c.type === 'header');
-                            if (headerComp && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
-                                const mediaType = headerComp.format.toLowerCase();
-                                const mediaHandleOrUrl = headerComp.example?.header_handle?.[0] || '';
-                                let dynamicHeader = String(resolvedVars['header_url'] || mediaHandleOrUrl || '');
+                            if (headerComp) {
+                                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
+                                    const mediaType = headerComp.format.toLowerCase();
+                                    const mediaHandleOrUrl = headerComp.example?.header_handle?.[0] || '';
+                                    let dynamicHeader = String(resolvedVars['header_url'] || mediaHandleOrUrl || '');
 
-                                if (dynamicHeader.startsWith('4::') && headerComp.file_url) {
-                                    dynamicHeader = headerComp.file_url;
-                                }
+                                    if (dynamicHeader.startsWith('4::') && headerComp.file_url) {
+                                        dynamicHeader = headerComp.file_url;
+                                    }
 
-                                if (dynamicHeader) {
-                                    const isUrl = dynamicHeader.startsWith('http');
-                                    payloadComponents.push({
-                                        type: 'header',
-                                        parameters: [{
-                                            type: mediaType,
-                                            [mediaType]: isUrl ? { link: dynamicHeader } : { id: dynamicHeader }
-                                        }]
-                                    });
+                                    if (dynamicHeader) {
+                                        const isUrl = dynamicHeader.startsWith('http');
+                                        payloadComponents.push({
+                                            type: 'header',
+                                            parameters: [{
+                                                type: mediaType,
+                                                [mediaType]: isUrl ? { link: dynamicHeader } : { id: dynamicHeader }
+                                            }]
+                                        });
+                                    }
+                                } else if (headerComp.format?.toUpperCase() === 'TEXT' && headerComp.text?.includes('{{')) {
+                                    // Handle Text Header Variables
+                                    const headParams = getOrderedVariables(headerComp.text, resolvedVars);
+                                    if (headParams.length > 0) {
+                                        payloadComponents.push({
+                                            type: 'header',
+                                            parameters: headParams.map(v => ({ type: 'text', text: String(v) }))
+                                        });
+                                    }
                                 }
                             }
 
                             // b) Body Parameters
-                            // Note: Meta expects parameters in order of {{1}}, {{2}}... across the WHOLE template
                             if (waParams.length > 0) {
                                 payloadComponents.push({
                                     type: 'body',
@@ -286,18 +292,32 @@ const processQueue = async () => {
                                 });
                             }
 
-                            // c) Buttons
+                            // c) Button Parameters
                             const buttonComp = mtComponents.find(c => c.type === 'BUTTONS' || c.type === 'buttons');
-                            if (buttonComp) {
-                                buttonComp.buttons?.forEach((btn, idx) => {
-                                    if (btn.type === 'URL' && btn.url?.includes('{{1}}')) {
-                                        const btnVar = `button_${idx + 1}_url`;
-                                        const val = resolvedVars[btnVar] || '';
-                                        if (val) {
+                            if (buttonComp && buttonComp.buttons) {
+                                buttonComp.buttons.forEach((btn, idx) => {
+                                    // Map dynamic URL buttons to payload parameters
+                                    if (btn.type === 'URL' && btn.url) {
+                                        const btnKey = `button_${idx + 1}_url`;
+                                        const btnValue = resolvedVars[btnKey];
+                                        
+                                        if (btnValue) {
                                             payloadComponents.push({
-                                                type: 'button', sub_type: 'url', index: String(idx),
-                                                parameters: [{ type: 'text', text: String(val) }]
+                                                type: 'button',
+                                                sub_type: 'url',
+                                                index: String(idx),
+                                                parameters: [{ type: 'text', text: String(btnValue) }]
                                             });
+                                        } else if (btn.url.includes('{{') || btn.url.includes('[')) {
+                                            const btnParams = getOrderedVariables(btn.url, resolvedVars);
+                                            if (btnParams.length > 0) {
+                                                payloadComponents.push({
+                                                    type: 'button',
+                                                    sub_type: 'url',
+                                                    index: String(idx),
+                                                    parameters: btnParams.map(v => ({ type: 'text', text: String(v) }))
+                                                });
+                                            }
                                         }
                                     }
                                 });
