@@ -96,8 +96,16 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
         setDltTemplateId(template.temp_id);
         setSenderName(template.sender);
         
+        // Normalize all DLT variable formats to a standard {#var_N#} format
         let count = 1;
-        const processedText = template.template_text.replace(/\{#var#\}/gi, () => `{#var_${count++}#}`);
+        let processedText = template.template_text;
+        // Replace {#var#} (repeated identical placeholders)
+        processedText = processedText.replace(/\{#var#\}/gi, () => `{#var_${count++}#}`);
+        // Replace {dynamic} or {Dynamic} etc.
+        processedText = processedText.replace(/\{dynamic\}/gi, () => `{#var_${count++}#}`);
+        // Replace {{1}}, {{2}} etc.
+        processedText = processedText.replace(/\{\{(\d+)\}\}/g, (_, num) => `{#var_${num}#}`);
+        
         setMessage(processedText);
         setFieldMapping({}); // Reset mapping on template change
         
@@ -108,12 +116,14 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
     };
 
     const templateVariables = useMemo(() => {
-        const regex = /\{#([a-zA-Z0-9_]+)#\}/g;
+        // Detect all variable patterns: {#var_1#}, {#name#}, {dynamic}, {{1}}, [var]
+        const regex = /\{#([a-zA-Z0-9_]+)#\}|\{(dynamic\d*)\}|\{\{(\d+)\}\}|\[([a-zA-Z0-9_]+)\]/gi;
         const vars: string[] = [];
         let match;
         while ((match = regex.exec(message)) !== null) {
-            if (!vars.includes(match[1])) {
-                vars.push(match[1]);
+            const varName = match[1] || match[2] || match[3] || match[4];
+            if (varName && !vars.includes(varName)) {
+                vars.push(varName);
             }
         }
         return vars;
@@ -461,10 +471,10 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                                                         <div key={variable} className="p-3 bg-gray-50/80 rounded-xl border border-gray-100 hover:border-primary/20 transition-all">
                                                             <div className="flex items-center gap-2 mb-2">
                                                                 <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
-                                                                    {variable.replace('var_', '')}
+                                                                    {variable.replace('var_', '#')}
                                                                 </div>
                                                                 <span className="text-xs font-semibold text-gray-600">
-                                                                    {`{#${variable}#}`}
+                                                                    Variable: <code className="bg-gray-100 px-1 py-0.5 rounded text-primary">{`{#${variable}#}`}</code>
                                                                 </span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
