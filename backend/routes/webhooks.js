@@ -858,33 +858,61 @@ const handleSmsCallback = async (req, res) => {
         console.log('==============================================');
 
         // Common SMS gateway DLR parameters lookup:
-        // Job ID / Msg ID: 'jobid', 'msgid', 'id', 'mid', 'fid'
-        // Status: 'status', 'dlr_status', 'state', 'stat', 'err'
-        // Mobile: 'mobile', 'msisdn', 'to', 'dest'
-        const messageId = payload.jobid || payload.msgid || payload.id || payload.mid || payload.fid;
-        const status = payload.status || payload.dlr_status || payload.state || payload.stat || payload.err;
-        const mobile = payload.mobile || payload.msisdn || payload.to || payload.dest;
+        // Job ID / Msg ID: 'jobid', 'msgid', 'id', 'mid', 'fid', 'externalid'
+        // Status: 'status', 'dlr_status', 'state', 'stat', 'err', 'delivery_status'
+        // Mobile: 'mobile', 'msisdn', 'to', 'dest', 'phoneno', 'phone'
+        const messageId = payload.jobid || payload.msgid || payload.id || payload.mid || payload.fid || payload.externalid;
+        const status = payload.status || payload.dlr_status || payload.state || payload.stat || payload.err || payload.delivery_status;
+        const mobile = payload.mobile || payload.msisdn || payload.to || payload.dest || payload.phoneno || payload.phone;
 
-        if (messageId || mobile) {
-            let finalStatus = 'sent';
-            const s = String(status || '').toLowerCase();
-            
-            // Map common SMS status strings to internal statuses
-            // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a numeric flags (1=Delivered, 2=Failed, 8=Submitted, 16=Rejected), etc.
-            if (s.includes('deliver') || s === 'success' || s === '0' || s === '1' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd') {
-                finalStatus = 'delivered';
-            } else if (s.includes('fail') || s.includes('reject') || s === '16' || s === '2' || s === 'failed' || s === 'undeliv' || s === 'undelivered' || s === 'rejectd') {
-                finalStatus = 'failed';
-            } else if (s.includes('sent') || s.includes('submit') || s === '8' || s === '4' || s === 'submitted') {
-                finalStatus = 'sent';
+        let finalStatus = 'sent';
+        const s = String(status || '').toLowerCase();
+        
+        // Map common SMS status strings to internal statuses
+        // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a numeric flags
+        // Kannel mapping for %a: 1=Delivered, 2=Failed, 4=Queued, 8=Submitted, 16=Rejected
+        if (s.includes('deliver') || s === 'success' || s === '0' || s === '1' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd') {
+            finalStatus = 'delivered';
+        } else if (s.includes('fail') || s.includes('reject') || s === '16' || s === '2' || s === 'failed' || s === 'undeliv' || s === 'undelivered' || s === 'rejectd') {
+            finalStatus = 'failed';
+        } else if (s.includes('sent') || s.includes('submit') || s === '8' || s === '4' || s === 'submitted' || s === 'buffered') {
+            finalStatus = 'sent';
+        }
+
+        console.log(`📊 SMS DLR: Msg ${messageId || 'N/A'} for ${mobile || 'N/A'} is ${finalStatus} (Raw: ${status})`);
+
+        // 1. SAVE TO WEBHOOK_LOGS (For Display on Panel)
+        let userId = null;
+        try {
+            // Try to find the user_id associated with this message
+            if (messageId) {
+                const [rows] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
+                if (rows.length > 0) userId = rows[0].user_id;
             }
 
-            console.log(`📊 SMS DLR: Msg ${messageId || 'N/A'} for ${mobile || 'N/A'} is ${finalStatus}`);
+            await query(
+                `INSERT INTO webhook_logs 
+                (user_id, sender, recipient, message_id, status, type, raw_payload, created_at) 
+                VALUES (?, ?, ?, ?, ?, 'sms', ?, NOW())`,
+                [
+                    userId, 
+                    'Gateway', 
+                    mobile || 'N/A', 
+                    messageId || 'N/A', 
+                    finalStatus, 
+                    JSON.stringify(payload)
+                ]
+            );
+            console.log(`✅ Saved SMS webhook to webhook_logs table.`);
+        } catch (logErr) {
+            console.error('❌ Failed to save SMS webhook log:', logErr.message);
+        }
 
-            // Update database (Try searching by messageId, then fallback to mobile + time window)
+        // 2. UPDATE MESSAGE_LOGS & CAMPAIGN COUNTS
+        if (messageId || mobile) {
             try {
                 let log = null;
-                if (messageId) {
+                if (messageId && messageId !== 'N/A') {
                     const [rows] = await query('SELECT * FROM message_logs WHERE message_id = ? ORDER BY id DESC LIMIT 1', [messageId]);
                     if (rows.length > 0) log = rows[0];
                 }
@@ -893,7 +921,7 @@ const handleSmsCallback = async (req, res) => {
                     // Search for recent sent SMS to this mobile if ID didn't match
                     const last10 = String(mobile).slice(-10);
                     const [rows] = await query(
-                        'SELECT * FROM message_logs WHERE recipient LIKE ? AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR) ORDER BY id DESC LIMIT 1',
+                        'SELECT * FROM message_logs WHERE recipient LIKE ? AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) ORDER BY id DESC LIMIT 1',
                         [`%${last10}`]
                     );
                     if (rows.length > 0) log = rows[0];
@@ -906,7 +934,7 @@ const handleSmsCallback = async (req, res) => {
                     const newWeight = weights[finalStatus] || 0;
 
                     if (newWeight !== 0 && (newWeight > currentWeight || finalStatus === 'failed')) {
-                        console.log(`📝 Updating SMS Log ${log.id}: ${log.status} -> ${finalStatus}`);
+                        console.log(`📝 Updating SMS Log ${log.id} (${log.recipient}): ${log.status} -> ${finalStatus}`);
                         
                         await query(
                             'UPDATE message_logs SET status = ?, message_id = COALESCE(?, message_id), updated_at = NOW() WHERE id = ?', 
@@ -920,12 +948,22 @@ const handleSmsCallback = async (req, res) => {
                                 await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
                             }
                         } else if (finalStatus === 'failed') {
-                            const reason = payload.reason || payload.err_code || payload.description || 'Gateway reported failure';
+                            const reason = payload.reason || payload.err_code || payload.description || payload.err || 'Gateway reported failure';
                             await query('UPDATE message_logs SET failure_reason = ? WHERE id = ?', [reason, log.id]);
                             if (log.campaign_id) {
                                 await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
                             }
                         }
+
+                        // Emit socket status update if user is active
+                        if (req.io && (userId || log.user_id)) {
+                            req.io.to(`user_${userId || log.user_id}`).emit('message_status_update', {
+                                message_id: messageId || log.message_id,
+                                status: finalStatus
+                            });
+                        }
+                    } else {
+                        console.log(`ℹ️ SMS Log ${log.id} status update ignored (Weights: Current ${currentWeight}, New ${newWeight})`);
                     }
                 } else {
                     console.warn(`⚠️ No matching SMS log found for callback: ID=${messageId}, Mobile=${mobile}`);
@@ -935,11 +973,11 @@ const handleSmsCallback = async (req, res) => {
             }
         }
 
-        // Always acknowledge receipt for the gateway
-        res.status(200).json({ success: true, message: 'DLR Receipt acknowledged' });
+        // Always acknowledge receipt for the gateway with simple OK or JSON
+        res.status(200).send("OK"); // Some gateways prefer simple text response
     } catch (error) {
         console.error('❌ Global SMS Callback Error:', error.message);
-        res.status(200).json({ success: false, error: 'Internal logic error' });
+        res.status(200).send("ERROR");
     }
 };
 

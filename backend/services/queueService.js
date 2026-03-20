@@ -390,7 +390,8 @@ const processQueue = async () => {
                     mobile: item.mobile,
                     success: result.success,
                     messageId: result.messageId,
-                    error: result.error
+                    error: result.error,
+                    channel: item.channel
                 });
 
                 if (result.success) {
@@ -445,9 +446,9 @@ const processQueue = async () => {
                 try {
                     await query(
                         `INSERT INTO webhook_logs 
-                        (user_id, recipient, message_id, status, event_type, raw_payload, created_at) 
-                        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-                        [r.user_id, r.mobile, r.messageId, 'sent', 'SENT', JSON.stringify({ note: 'Initial status from queue' })]
+                        (user_id, recipient, message_id, status, event_type, type, raw_payload, created_at) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+                        [r.user_id, r.mobile, r.messageId, 'sent', 'SENT', (r.channel || 'rcs').toLowerCase(), JSON.stringify({ note: 'Initial status from queue' })]
                     );
                 } catch (logErr) {
                     console.error('[QueueProcessor] Failed to create initial webhook_log:', logErr.message);
