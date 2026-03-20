@@ -614,59 +614,76 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
 
                     {/* Preview Dialog */}
                     <Dialog open={showPreview} onOpenChange={setShowPreview}>
-                        <DialogContent className="max-w-md bg-white rounded-2xl shadow-2xl p-0 overflow-hidden border-none">
-                            <DialogHeader className="p-6 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
-                                <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                                    <Send className="h-5 w-5" />
+                        <DialogContent className="max-w-[420px] w-[420px] bg-white rounded-xl shadow-2xl p-0 overflow-hidden border border-gray-200/60">
+                            {/* Compact Header */}
+                            <DialogHeader className="px-4 py-3 bg-gradient-to-r from-[#f0fdf4] to-[#ecfdf5] border-b border-emerald-100">
+                                <DialogTitle className="text-[15px] font-bold text-gray-800 flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
+                                        <Send className="h-3.5 w-3.5 text-white" />
+                                    </div>
                                     Campaign Preview
                                 </DialogTitle>
-                                <DialogDescription className="text-emerald-50/90 font-medium">
-                                    Review your SMS campaign before sending.
+                                <DialogDescription className="text-[11px] text-gray-500 font-medium ml-9">
+                                    Review details before sending
                                 </DialogDescription>
                             </DialogHeader>
-                            <div className="p-6 space-y-6 bg-white">
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Campaign Name</span>
-                                        <span className="text-sm font-semibold text-gray-800">{campaignName}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Sender Name</span>
-                                        <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 px-3">{senderName}</Badge>
-                                    </div>
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Recipients</span>
-                                        <span className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-                                            <Users className="h-4 w-4 text-emerald-600" />
-                                            {getRecipientCount()}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                        <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">SMS Parts</span>
-                                        <Badge variant="secondary" className="font-bold">{getSmsCount()}</Badge>
-                                    </div>
-                                </div>
 
-                                <div className="space-y-3">
-                                    <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Message (Template)</span>
-                                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 text-[13px] leading-relaxed text-gray-500 whitespace-pre-wrap italic shadow-inner">
-                                        "{message}"
+                            {/* Compact Info Grid */}
+                            <div className="px-4 py-3 space-y-0">
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-0">
+                                    <div className="flex items-center gap-2 py-2 border-b border-gray-50">
+                                        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Campaign</span>
                                     </div>
-                                    {previewMessage !== message && (
-                                        <>
-                                            <span className="text-sm font-bold text-emerald-600 uppercase tracking-tighter flex items-center gap-1.5 mt-3">
-                                                <Check className="h-3.5 w-3.5" /> Final Message (Contact #1)
-                                            </span>
-                                            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap font-medium shadow-inner">
-                                                "{previewMessage}"
-                                            </div>
-                                        </>
-                                    )}
+                                    <div className="flex items-center justify-end py-2 border-b border-gray-50">
+                                        <span className="text-[12px] font-semibold text-gray-800 truncate max-w-[180px]" title={campaignName}>{campaignName}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 py-2 border-b border-gray-50">
+                                        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Sender</span>
+                                    </div>
+                                    <div className="flex items-center justify-end py-2 border-b border-gray-50">
+                                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">{senderName}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 py-2 border-b border-gray-50">
+                                        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Recipients</span>
+                                    </div>
+                                    <div className="flex items-center justify-end gap-1.5 py-2 border-b border-gray-50">
+                                        <Users className="h-3.5 w-3.5 text-emerald-500" />
+                                        <span className="text-[12px] font-bold text-gray-800">{getRecipientCount()}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 py-2">
+                                        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">SMS Parts</span>
+                                    </div>
+                                    <div className="flex items-center justify-end py-2">
+                                        <span className="text-[11px] font-bold text-white bg-emerald-500 min-w-[22px] h-[22px] rounded-full flex items-center justify-center">{getSmsCount()}</span>
+                                    </div>
                                 </div>
                             </div>
-                            <DialogFooter className="p-4 bg-gray-50 flex items-center gap-3">
-                                <Button variant="outline" onClick={() => setShowPreview(false)} className="flex-1 rounded-xl">Edit Details</Button>
-                                <Button onClick={() => { setShowPreview(false); handleSubmit(); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold">Confirm & Send</Button>
+
+                            {/* Compact Message Section */}
+                            <div className="px-4 pb-3 space-y-2">
+                                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Template Message</span>
+                                <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-100 text-[12px] leading-relaxed text-gray-500 whitespace-pre-wrap italic">
+                                    "{message}"
+                                </div>
+                                {previewMessage !== message && (
+                                    <div className="space-y-1.5 pt-1">
+                                        <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide flex items-center gap-1">
+                                            <Check className="h-3 w-3" /> Final Message (Contact #1)
+                                        </span>
+                                        <div className="p-2.5 bg-emerald-50/70 rounded-lg border border-emerald-200/80 text-[12px] leading-relaxed text-gray-800 whitespace-pre-wrap font-medium">
+                                            "{previewMessage}"
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Compact Footer */}
+                            <DialogFooter className="px-4 py-2.5 bg-gray-50/80 border-t border-gray-100 flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setShowPreview(false)} className="flex-1 rounded-lg h-8 text-[12px] font-semibold border-gray-200">Edit Details</Button>
+                                <Button size="sm" onClick={() => { setShowPreview(false); handleSubmit(); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 rounded-lg h-8 text-[12px] font-bold">Confirm & Send</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
