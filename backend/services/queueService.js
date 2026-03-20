@@ -35,8 +35,8 @@ const replaceVariables = (text, variablesJson) => {
 
         Object.keys(vars).forEach(key => {
             const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            // Support both {{var}} and {{ var }} as well as [var] and [ var ]
-            const regex = new RegExp(`\\[\\s*${escapedKey}\\s*\\]|\\{\\{\\s*${escapedKey}\\s*\\}\\}`, 'gi');
+            // Support {{var}}, [var], and DLT's {#var#} or {#var_1#}
+            const regex = new RegExp(`\\[\\s*${escapedKey}\\s*\\]|\\{\\{\\s*${escapedKey}\\s*\\}\\}|\\{#\\s*${escapedKey}\\s*#\\}`, 'gi');
             result = result.replace(regex, vars[key]);
         });
 
@@ -50,12 +50,12 @@ const getOrderedVariables = (text, variablesJson) => {
     if (!text || !variablesJson) return [];
     try {
         const vars = typeof variablesJson === 'string' ? JSON.parse(variablesJson) : variablesJson;
-        // Regex to match {{var}} or [var] with optional internal whitespace
-        const regex = /\{\{\s*([^}\s]+)\s*\}\}|\[\s*([^\]\s]+)\s*\]/g;
+        // Regex to match {{var}}, [var], or DLT's {#var#} with optional internal whitespace
+        const regex = /\{\{\s*([^}\s]+)\s*\}\}|\[\s*([^\]\s]+)\s*\]|\{#\s*([^#\s]+)\s*#\}/g;
         const results = [];
         let match;
         while ((match = regex.exec(text)) !== null) {
-            const varName = (match[1] || match[2]).trim();
+            const varName = (match[1] || match[2] || match[3]).trim();
             results.push(String(vars[varName] || ''));
         }
         return results;

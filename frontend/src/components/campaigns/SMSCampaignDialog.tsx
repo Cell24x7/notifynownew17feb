@@ -60,6 +60,7 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
 
     const [submitting, setSubmitting] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
+    const [fieldMapping, setFieldMapping] = useState<Record<string, { type: 'field' | 'custom', value: string }>>({});
 
     // Fetch templates when dialog opens
     useEffect(() => {
@@ -94,12 +95,29 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
     const handleSelectTemplate = (template: DLTTemplate) => {
         setDltTemplateId(template.temp_id);
         setSenderName(template.sender);
-        setMessage(template.template_text);
+        
+        let count = 1;
+        const processedText = template.template_text.replace(/\{#var#\}/gi, () => `{#var_${count++}#}`);
+        setMessage(processedText);
+        setFieldMapping({}); // Reset mapping on template change
+        
         toast({
             title: 'Template Selected',
             description: `Loaded template: ${template.temp_name || template.temp_id}`,
         });
     };
+
+    const templateVariables = useMemo(() => {
+        const regex = /\{#([a-zA-Z0-9_]+)#\}/g;
+        const vars: string[] = [];
+        let match;
+        while ((match = regex.exec(message)) !== null) {
+            if (!vars.includes(match[1])) {
+                vars.push(match[1]);
+            }
+        }
+        return vars;
+    }, [message]);
 
     const handleFileChange = async (file: File | null) => {
         setUploadedFile(file);
@@ -169,6 +187,7 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                 template_id: dltTemplateId,
                 template_body: message,
                 template_metadata: { templateId: dltTemplateId, sender: senderName },
+                variable_mapping: fieldMapping,
                 status: 'draft' as const,
             };
 
@@ -418,6 +437,87 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* ── Variable Mapping Section (SMS Customization) ── */}
+                                        {templateVariables.length > 0 && (
+                                            <div className="space-y-4 pt-4 border-t border-gray-100 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                                        <Layout className="h-4 w-4 text-primary" />
+                                                        Variable Mapping
+                                                    </Label>
+                                                    <Badge variant="outline" className="text-[10px] text-primary border-primary/30 bg-primary/5">
+                                                        {templateVariables.length} Variable{templateVariables.length > 1 ? 's' : ''} Found
+                                                    </Badge>
+                                                </div>
+                                                {excelColumns.length === 0 && recipientSource === 'upload' && (
+                                                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg flex items-center gap-1.5">
+                                                        <Info className="h-3.5 w-3.5" />
+                                                        Upload an Excel/CSV file first to map columns to variables.
+                                                    </p>
+                                                )}
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {templateVariables.map((variable) => (
+                                                        <div key={variable} className="p-3 bg-gray-50/80 rounded-xl border border-gray-100 hover:border-primary/20 transition-all">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                                                                    {variable.replace('var_', '')}
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-gray-600">
+                                                                    {`{#${variable}#}`}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <Select
+                                                                    value={fieldMapping[variable]?.type || 'custom'}
+                                                                    onValueChange={(v) => setFieldMapping(prev => ({
+                                                                        ...prev,
+                                                                        [variable]: { type: v as any, value: prev[variable]?.value || '' }
+                                                                    }))}
+                                                                >
+                                                                    <SelectTrigger className="w-28 h-9 border-gray-200 text-xs">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="custom">Custom</SelectItem>
+                                                                        <SelectItem value="field" disabled={excelColumns.length === 0}>Excel Column</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+
+                                                                {(fieldMapping[variable]?.type === 'field') ? (
+                                                                    <Select
+                                                                        value={fieldMapping[variable]?.value || ''}
+                                                                        onValueChange={(v) => setFieldMapping(prev => ({
+                                                                            ...prev,
+                                                                            [variable]: { ...prev[variable], value: v }
+                                                                        }))}
+                                                                    >
+                                                                        <SelectTrigger className="flex-1 h-9 border-gray-200 text-xs">
+                                                                            <SelectValue placeholder="Select column..." />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {excelColumns.map(col => (
+                                                                                <SelectItem key={col} value={col}>{col}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                ) : (
+                                                                    <Input
+                                                                        placeholder="Enter fixed value..."
+                                                                        className="flex-1 h-9 border-gray-200 text-xs"
+                                                                        value={fieldMapping[variable]?.value || ''}
+                                                                        onChange={(e) => setFieldMapping(prev => ({
+                                                                            ...prev,
+                                                                            [variable]: { type: 'custom', value: e.target.value }
+                                                                        }))}
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="pt-4">
                                             <Button
