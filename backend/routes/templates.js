@@ -17,44 +17,71 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// GET all templates for ADMIN (all users)
+// GET all templates for ADMIN (all users) - with pagination
 router.get('/admin', authenticateToken, async (req, res) => {
     try {
         if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
             return res.status(403).json({ success: false, message: 'Admin access required' });
         }
 
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const [[{ total }]] = await query('SELECT COUNT(*) as total FROM message_templates');
+
         const [templates] = await query(`
             SELECT mt.*, u.email as user_email, u.name as user_name 
             FROM message_templates mt
             LEFT JOIN users u ON mt.user_id = u.id
             ORDER BY mt.created_at DESC
-        `);
+            LIMIT ? OFFSET ?
+        `, [limit, offset]);
 
         const templatesWithButtons = await Promise.all(templates.map(async (t) => {
             const [buttons] = await query('SELECT * FROM template_buttons WHERE template_id = ? ORDER BY position', [t.id]);
             return { ...t, buttons };
         }));
 
-        res.json({ success: true, templates: templatesWithButtons });
+        res.json({
+            success: true,
+            templates: templatesWithButtons,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error('Get admin templates error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch templates' });
     }
 });
 
-// GET all templates for current user (Filtered by active config)
+// GET all templates for current user (Filtered by active config) - with pagination
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
 
         // Fetch user's current configurations
         const [users] = await query('SELECT whatsapp_config_id, rcs_config_id FROM users WHERE id = ?', [userId]);
         const userConfig = users[0] || { whatsapp_config_id: null, rcs_config_id: null };
 
-        // Query templates that belong to the user AND strictly match their current active configs
-        // This hides templates from previous configurations/bots.
-        console.log(`📡 Fetching templates for User: ${userId}, WA_Config: ${userConfig.whatsapp_config_id}, RCS_Config: ${userConfig.rcs_config_id}`);
+        // Get total count
+        const [[{ total }]] = await query(`
+            SELECT COUNT(*) as total FROM message_templates 
+            WHERE user_id = ? 
+            AND (
+                (channel = 'whatsapp' AND (whatsapp_config_id = ? OR whatsapp_config_id IS NULL)) OR
+                (channel = 'rcs' AND (rcs_config_id = ? OR rcs_config_id IS NULL)) OR
+                (channel NOT IN ('whatsapp', 'rcs'))
+            )
+        `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id]);
 
         const [templates] = await query(`
             SELECT * FROM message_templates 
@@ -65,16 +92,24 @@ router.get('/', authenticateToken, async (req, res) => {
                 (channel NOT IN ('whatsapp', 'rcs'))
             )
             ORDER BY created_at DESC
-        `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id]);
-
-        console.log(`✅ Found ${templates.length} local templates matching current configs.`);
+            LIMIT ? OFFSET ?
+        `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id, limit, offset]);
 
         const templatesWithButtons = await Promise.all(templates.map(async (t) => {
             const [buttons] = await query('SELECT * FROM template_buttons WHERE template_id = ? ORDER BY position', [t.id]);
             return { ...t, buttons };
         }));
 
-        res.json({ success: true, templates: templatesWithButtons });
+        res.json({
+            success: true,
+            templates: templatesWithButtons,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error('Get templates error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch templates' });

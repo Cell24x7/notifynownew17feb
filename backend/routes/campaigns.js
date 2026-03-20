@@ -7,6 +7,21 @@ const ExcelJS = require('exceljs');
 const path = require('path');
 
 
+// Middleware to authenticate token and check admin role
+const authenticateAdmin = (req, res, next) => {
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123', (err, decoded) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (decoded.role !== 'admin' && decoded.role !== 'superadmin') {
+            return res.status(403).json({ error: 'Access denied. Admin role required.' });
+        }
+        req.user = decoded;
+        next();
+    });
+};
+
 // Middleware to authenticate token
 const authenticateToken = (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];
@@ -19,15 +34,98 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// GET all campaigns for current user
+// GET all campaigns for current user (with pagination)
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const [campaigns] = await query('SELECT * FROM campaigns WHERE user_id = ? ORDER BY created_at DESC', [userId]);
-        res.json({ success: true, campaigns });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const [[{ total }]] = await query('SELECT COUNT(*) as total FROM campaigns WHERE user_id = ?', [userId]);
+
+        // Get paginated data
+        const [campaigns] = await query(
+            'SELECT * FROM campaigns WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+            [userId, limit, offset]
+        );
+
+        res.json({
+            success: true,
+            campaigns,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error('Get campaigns error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch campaigns' });
+    }
+});
+
+// GET all campaigns for admin (cross-user pagination)
+router.get('/admin', authenticateAdmin, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+        const searchQuery = req.query.search || '';
+        const clientFilter = req.query.clientId || 'all';
+        const channelFilter = req.query.channel || 'all';
+        const statusFilter = req.query.status || 'all';
+
+        let whereClause = 'WHERE 1=1';
+        const params = [];
+
+        if (searchQuery) {
+            whereClause += ' AND (c.name LIKE ? OR u.name LIKE ?)';
+            params.push(`%${searchQuery}%`, `%${searchQuery}%`);
+        }
+        if (clientFilter !== 'all') {
+            whereClause += ' AND c.user_id = ?';
+            params.push(clientFilter);
+        }
+        if (channelFilter !== 'all') {
+            whereClause += ' AND c.channel = ?';
+            params.push(channelFilter);
+        }
+        if (statusFilter !== 'all') {
+            whereClause += ' AND c.status = ?';
+            params.push(statusFilter);
+        }
+
+        // Get total count
+        const countSql = `SELECT COUNT(*) as total FROM campaigns c JOIN users u ON c.user_id = u.id ${whereClause}`;
+        const [[{ total }]] = await query(countSql, params);
+
+        // Get paginated data with user details
+        const sql = `
+            SELECT c.*, u.name as clientName, u.email as clientEmail 
+            FROM campaigns c 
+            JOIN users u ON c.user_id = u.id 
+            ${whereClause} 
+            ORDER BY c.created_at DESC 
+            LIMIT ? OFFSET ?
+        `;
+        const [campaigns] = await query(sql, [...params, limit, offset]);
+
+        res.json({
+            success: true,
+            campaigns,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Get admin campaigns error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch global campaigns' });
     }
 });
 

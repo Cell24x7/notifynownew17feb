@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File as FileIcon, Phone, Link, MessageSquare, Smartphone, ChevronRight, Check, ChevronsUpDown, IndianRupee, RefreshCw } from 'lucide-react';
+import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File as FileIcon, Phone, Link, MessageSquare, Smartphone, ChevronRight, ChevronLeft, Check, ChevronsUpDown, IndianRupee, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,13 +63,16 @@ export default function Campaigns() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   useEffect(() => {
     fetchData();
     if (!user) {
       refreshUser();
     }
-  }, [user?.id]); // Re-fetch when user identity is established
+  }, [user?.id, page]); // Re-fetch when user identity is established or page changes
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -90,11 +93,16 @@ export default function Campaigns() {
       // Refresh user to get latest wallet balance and custom pricing
       await refreshUser();
 
-      const [campaignsData, templatesData] = await Promise.all([
-        campaignService.getCampaigns(),
+      const [campaignsRes, templatesRes] = await Promise.all([
+        campaignService.getCampaigns(page),
         templateService.getTemplates()
       ]);
-      setCampaigns(campaignsData);
+      
+      setCampaigns(campaignsRes.campaigns);
+      setTotalPages(campaignsRes.pagination.totalPages);
+      setTotalItems(campaignsRes.pagination.total);
+      
+      const templatesData = templatesRes.templates;
 
       // Fetch external RCS templates if channel enabled
       let mergedTemplates = [...templatesData];
@@ -818,6 +826,62 @@ export default function Campaigns() {
           </Card>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-4 border-t">
+          <p className="text-sm text-muted-foreground">
+            Showing <span className="font-medium">{(page - 1) * 20 + 1}</span> to{" "}
+            <span className="font-medium">{Math.min(page * 20, totalItems)}</span> of{" "}
+            <span className="font-medium">{totalItems}</span> campaigns
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (page <= 3) {
+                  pageNum = i + 1;
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = page - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={page === pageNum ? "default" : "outline"}
+                    size="sm"
+                    className="w-9 h-9 p-0"
+                    onClick={() => setPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Campaign Analytics Modal */}
       <Dialog open={analyticsOpen} onOpenChange={setAnalyticsOpen}>

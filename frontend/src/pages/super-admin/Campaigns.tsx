@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, BarChart3, Pause, Play, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,10 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChannelIcon } from '@/components/ui/channel-icon';
-import { mockGlobalCampaigns, mockClients, GlobalCampaign } from '@/lib/superAdminMockData';
+import { campaignService, Campaign } from '@/services/campaignService';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import { mockClients } from '@/lib/superAdminMockData';
 
 export default function SuperAdminCampaigns() {
   const { toast } = useToast();
@@ -20,16 +22,40 @@ export default function SuperAdminCampaigns() {
   const [clientFilter, setClientFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedCampaign, setSelectedCampaign] = useState<GlobalCampaign | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
-  const filteredCampaigns = mockGlobalCampaigns.filter(campaign => {
-    const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      campaign.clientName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClient = clientFilter === 'all' || campaign.clientId === clientFilter;
-    const matchesChannel = channelFilter === 'all' || campaign.channel === channelFilter;
-    const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
-    return matchesSearch && matchesClient && matchesChannel && matchesStatus;
-  });
+  const fetchCampaigns = async () => {
+    setLoading(true);
+    try {
+      const resp = await campaignService.getAdminCampaigns({
+        page,
+        search: searchQuery,
+        clientId: clientFilter,
+        channel: channelFilter,
+        status: statusFilter
+      });
+      setCampaigns(resp.campaigns);
+      setTotalPages(resp.pagination.totalPages);
+      setTotalItems(resp.pagination.total);
+    } catch (error) {
+      console.error('Fetch global campaigns error:', error);
+      toast({ title: 'Error', description: 'Failed to load global campaigns', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchCampaigns();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, clientFilter, channelFilter, statusFilter, page]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -42,16 +68,23 @@ export default function SuperAdminCampaigns() {
     }
   };
 
-  const handlePauseCampaign = (campaign: GlobalCampaign) => {
-    toast({
-      title: campaign.status === 'paused' ? 'Campaign Resumed' : 'Campaign Paused',
-      description: `${campaign.name} has been ${campaign.status === 'paused' ? 'resumed' : 'paused'} (admin override)`,
-    });
+  const handlePauseCampaign = async (campaign: Campaign) => {
+    try {
+      const newStatus = campaign.status === 'paused' ? 'running' : 'paused';
+      await campaignService.updateStatus(campaign.id, newStatus);
+      toast({
+        title: campaign.status === 'paused' ? 'Campaign Resumed' : 'Campaign Paused',
+        description: `${campaign.name} has been ${campaign.status === 'paused' ? 'resumed' : 'paused'} (admin override)`,
+      });
+      fetchCampaigns();
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to update campaign status', variant: 'destructive' });
+    }
   };
 
-  const totalMessages = filteredCampaigns.reduce((acc, c) => acc + c.messagesSent, 0);
-  const totalCredits = filteredCampaigns.reduce((acc, c) => acc + c.creditsUsed, 0);
-  const runningCount = filteredCampaigns.filter(c => c.status === 'running').length;
+  const totalMessages = campaigns.reduce((acc, c) => acc + (c.sent_count || 0), 0);
+  const totalCredits = campaigns.reduce((acc, c) => acc + (c.cost || 0), 0);
+  const runningCount = campaigns.filter(c => c.status === 'running').length;
 
   return (
     <div className="p-6 space-y-6">
@@ -61,6 +94,10 @@ export default function SuperAdminCampaigns() {
           <h1 className="text-2xl font-bold">Global Campaigns</h1>
           <p className="text-muted-foreground">View and manage campaigns across all clients</p>
         </div>
+        <Button variant="outline" onClick={fetchCampaigns} disabled={loading}>
+          <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats */}
@@ -68,7 +105,7 @@ export default function SuperAdminCampaigns() {
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total Campaigns</div>
-            <div className="text-2xl font-bold">{filteredCampaigns.length}</div>
+            <div className="text-2xl font-bold">{totalItems}</div>
           </CardContent>
         </Card>
         <Card>
@@ -149,27 +186,27 @@ export default function SuperAdminCampaigns() {
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Campaign Name</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Messages</TableHead>
-                <TableHead className="text-right">Credits</TableHead>
-                <TableHead className="text-right">Delivery</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
             <TableBody>
-              {filteredCampaigns.map((campaign) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-12">
+                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-2" />
+                     <p className="text-muted-foreground">Loading global campaigns...</p>
+                  </TableCell>
+                </TableRow>
+              ) : campaigns.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                    No campaigns found matching your criteria
+                  </TableCell>
+                </TableRow>
+              ) : campaigns.map((campaign) => (
                 <TableRow key={campaign.id}>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
-                  <TableCell className="text-primary">{campaign.clientName}</TableCell>
+                  <TableCell className="text-primary">{(campaign as any).clientName || 'User ID: ' + campaign.user_id}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <ChannelIcon channel={campaign.channel} className="w-4 h-4" />
+                      <ChannelIcon channel={campaign.channel as any} className="w-4 h-4" />
                       <span className="capitalize text-sm">{campaign.channel}</span>
                     </div>
                   </TableCell>
@@ -178,13 +215,13 @@ export default function SuperAdminCampaigns() {
                       {campaign.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{campaign.messagesSent.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{campaign.creditsUsed.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{(campaign.sent_count || 0).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{(campaign.cost || 0).toLocaleString()}</TableCell>
                   <TableCell className="text-right">
-                    {campaign.deliveryRate > 0 ? `${campaign.deliveryRate}%` : '-'}
+                    {campaign.sent_count > 0 ? `${Math.round((campaign.delivered_count / campaign.sent_count) * 100)}%` : '-'}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {format(new Date(campaign.createdAt), 'MMM d, yyyy')}
+                    {format(new Date(campaign.created_at), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -219,13 +256,45 @@ export default function SuperAdminCampaigns() {
         </CardContent>
       </Card>
 
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-4 border-t">
+          <p className="text-sm text-muted-foreground">
+            Showing <span className="font-medium">{(page - 1) * 20 + 1}</span> to{" "}
+            <span className="font-medium">{Math.min(page * 20, totalItems)}</span> of{" "}
+            <span className="font-medium">{totalItems}</span> campaigns
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Campaign Detail Dialog */}
       <Dialog open={!!selectedCampaign} onOpenChange={() => setSelectedCampaign(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5" />
-              Campaign Analytics
+              Global Campaign Analytics
             </DialogTitle>
           </DialogHeader>
           
@@ -234,7 +303,7 @@ export default function SuperAdminCampaigns() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-lg">{selectedCampaign.name}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedCampaign.clientName}</p>
+                  <p className="text-sm text-muted-foreground">{(selectedCampaign as any).clientName || 'User ID: ' + selectedCampaign.user_id}</p>
                 </div>
                 <Badge className={getStatusColor(selectedCampaign.status)}>
                   {selectedCampaign.status}
@@ -245,13 +314,13 @@ export default function SuperAdminCampaigns() {
                 <Card>
                   <CardContent className="p-4">
                     <div className="text-sm text-muted-foreground">Messages Sent</div>
-                    <div className="text-2xl font-bold">{selectedCampaign.messagesSent.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(selectedCampaign.sent_count || 0).toLocaleString()}</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
                     <div className="text-sm text-muted-foreground">Credits Used</div>
-                    <div className="text-2xl font-bold">{selectedCampaign.creditsUsed.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(selectedCampaign.cost || 0).toLocaleString()}</div>
                   </CardContent>
                 </Card>
               </div>
@@ -259,30 +328,32 @@ export default function SuperAdminCampaigns() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium">Delivery Rate</span>
-                  <span className="text-sm font-bold text-primary">{selectedCampaign.deliveryRate}%</span>
+                  <span className="text-sm font-bold text-primary">
+                    {selectedCampaign.sent_count > 0 ? Math.round((selectedCampaign.delivered_count / selectedCampaign.sent_count) * 100) : 0}%
+                  </span>
                 </div>
-                <Progress value={selectedCampaign.deliveryRate} className="h-3" />
+                <Progress value={selectedCampaign.sent_count > 0 ? (selectedCampaign.delivered_count / selectedCampaign.sent_count) * 100 : 0} className="h-3" />
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-muted-foreground">Channel</div>
                   <div className="font-medium capitalize flex items-center gap-2 mt-1">
-                    <ChannelIcon channel={selectedCampaign.channel} className="w-4 h-4" />
+                    <ChannelIcon channel={selectedCampaign.channel as any} className="w-4 h-4" />
                     {selectedCampaign.channel}
                   </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Created</div>
                   <div className="font-medium mt-1">
-                    {format(new Date(selectedCampaign.createdAt), 'MMM d, yyyy')}
+                    {format(new Date(selectedCampaign.created_at), 'MMM d, yyyy')}
                   </div>
                 </div>
-                {selectedCampaign.scheduledAt && (
+                {selectedCampaign.scheduled_at && (
                   <div className="col-span-2">
                     <div className="text-muted-foreground">Scheduled For</div>
                     <div className="font-medium mt-1">
-                      {format(new Date(selectedCampaign.scheduledAt), 'MMM d, yyyy HH:mm')}
+                      {format(new Date(selectedCampaign.scheduled_at), 'MMM d, yyyy HH:mm')}
                     </div>
                   </div>
                 )}

@@ -69,7 +69,7 @@ router.get('/', authenticateToken, async (req, res) => {
         const userId = req.user.id;
         const search = req.query.search || '';
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
+        const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
         let sql = 'SELECT * FROM dlt_templates WHERE user_id = ?';

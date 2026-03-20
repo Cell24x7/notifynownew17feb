@@ -46,15 +46,25 @@ export interface MessageTemplate {
     };
 }
 
+export interface PaginatedTemplates {
+    templates: MessageTemplate[];
+    pagination: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+}
+
 export const templateService = {
-    async getTemplates() {
-        const response = await axios.get(API_BASE_URL_TEMPLATES, { headers: getAuthHeader() });
-        return response.data.templates as MessageTemplate[];
+    async getTemplates(page: number = 1, limit: number = 20) {
+        const response = await axios.get(`${API_BASE_URL_TEMPLATES}?page=${page}&limit=${limit}`, { headers: getAuthHeader() });
+        return response.data as PaginatedTemplates;
     },
 
-    async getAdminTemplates() {
-        const response = await axios.get(`${API_BASE_URL_TEMPLATES}/admin`, { headers: getAuthHeader() });
-        return response.data.templates as MessageTemplate[];
+    async getAdminTemplates(page: number = 1, limit: number = 20) {
+        const response = await axios.get(`${API_BASE_URL_TEMPLATES}/admin?page=${page}&limit=${limit}`, { headers: getAuthHeader() });
+        return response.data as PaginatedTemplates;
     },
 
     async createTemplate(data: Partial<MessageTemplate>) {

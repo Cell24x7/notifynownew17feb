@@ -29,10 +29,34 @@ export interface Campaign {
     updated_at: string;
 }
 
+export interface PaginatedCampaigns {
+    campaigns: Campaign[];
+    pagination: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+}
+
 export const campaignService = {
-    async getCampaigns() {
-        const response = await axios.get(API_BASE_URL_CAMPAIGNS, { headers: getAuthHeader() });
-        return response.data.campaigns as Campaign[];
+    async getCampaigns(page: number = 1, limit: number = 20) {
+        const response = await axios.get(`${API_BASE_URL_CAMPAIGNS}?page=${page}&limit=${limit}`, { headers: getAuthHeader() });
+        return response.data as PaginatedCampaigns;
+    },
+
+    async getAdminCampaigns(params: { page: number; limit?: number; search?: string; clientId?: string; channel?: string; status?: string }) {
+        const { page = 1, limit = 20, search = '', clientId = 'all', channel = 'all', status = 'all' } = params;
+        const queryParams = new URLSearchParams({
+            page: page.toString(),
+            limit: limit.toString(),
+            search,
+            clientId,
+            channel,
+            status
+        });
+        const response = await axios.get(`${API_BASE_URL_CAMPAIGNS}/admin?${queryParams.toString()}`, { headers: getAuthHeader() });
+        return response.data as PaginatedCampaigns;
     },
 
     async getCampaign(id: string) {

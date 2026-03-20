@@ -2,6 +2,13 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-20]
+- polished auth page layout and spacing (514b78c)
+- completed enquiry flow and notification badge (955b5d5)
+- updated code (a656bc5)
+
+---
+
 ## [2026-03-19]
 - fix: added PE_ID and HASH_ID for DLT templates & fixed kannel DLR parsing (08fb3dc)
 - fix sms campaign creation not sending template_body text (25582ea)

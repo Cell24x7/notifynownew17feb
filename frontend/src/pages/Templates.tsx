@@ -82,6 +82,9 @@ export default function Templates() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingTemplateId, setRefreshingTemplateId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // File states for RCS uploads
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -106,16 +109,23 @@ export default function Templates() {
 
   useEffect(() => {
     if (user) {
-      console.log('🔄 User detected, fetching templates for:', user.email);
+      console.log('🔄 User detected, fetching templates for:', user.email, 'Page:', page, 'Tab:', templateSubTab);
       fetchTemplates();
     }
-  }, [user?.id, user?.rcs_config_id, user?.whatsapp_config_id]);
+  }, [user?.id, user?.rcs_config_id, user?.whatsapp_config_id, page, templateSubTab]);
 
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      console.log('📡 Fetching local templates...');
-      const templatesData = await templateService.getTemplates();
+      console.log(`📡 Fetching local templates (Tab: ${templateSubTab}, Page: ${page})...`);
+      const templatesRes = templateSubTab === 'pending' && isAdmin
+        ? await templateService.getAdminTemplates(page)
+        : await templateService.getTemplates(page);
+      
+      const templatesData = templatesRes.templates;
+      setTotalPages(templatesRes.pagination.totalPages);
+      setTotalItems(templatesRes.pagination.total);
+      
       console.log(`✅ Loaded ${templatesData.length} local templates.`);
       setTemplates(templatesData);
 
@@ -1047,7 +1057,8 @@ export default function Templates() {
               {[1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted" />)}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredTemplates.map((template) => (
                 <Card key={template.id} className="group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col h-full border-muted/20 rounded-2xl">
                   {template.channel === 'whatsapp' && (
@@ -1153,12 +1164,140 @@ export default function Templates() {
                 </Card>
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {(totalPages > 1 || filteredTemplates.length > 20) && (
+              <div className="flex items-center justify-between px-2 py-8 mt-4 border-t border-slate-100">
+                <p className="text-sm text-muted-foreground">
+                  Showing <span className="font-medium">{(page - 1) * 20 + 1}</span> to{" "}
+                  <span className="font-medium">{Math.min(page * 20, totalItems)}</span> of{" "}
+                  <span className="font-medium">{totalItems}</span> templates
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                        setPage(p => Math.max(1, p - 1));
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    disabled={page === 1}
+                    className="rounded-xl"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (page <= 3) {
+                        pageNum = i + 1;
+                      } else if (page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = page - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className={cn(
+                              "w-9 h-9 p-0 rounded-xl",
+                              page === pageNum ? "bg-primary text-white shadow-lg shadow-primary/20" : ""
+                          )}
+                          onClick={() => {
+                              setPage(pageNum);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                        setPage(p => Math.min(totalPages, p + 1));
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    disabled={page === totalPages}
+                    className="rounded-xl"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </TabsContent>
 
         <TabsContent value="pending" className="mt-6">
-          {/* Admin Pending Logic here */}
-          <div className="text-center p-12 text-muted-foreground">Admin approval logic ported.</div>
+          {loading ? (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               {[1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted shadow-none rounded-2xl" />)}
+             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {templates.filter(t => t.status === 'pending').map((template) => (
+                  <Card key={template.id} className="group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col h-full border-muted/20 rounded-2xl">
+                     <div className="absolute top-0 right-0 bg-amber-500/10 text-amber-600 font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-bl-xl border-b border-l border-amber-500/20 z-10">
+                        Pending
+                      </div>
+                      <CardHeader className="pb-3 pt-6 px-6">
+                        <CardTitle className="text-lg font-bold tracking-tight text-primary">{template.name}</CardTitle>
+                        <Badge variant="outline" className="w-fit">{template.channel.toUpperCase()}</Badge>
+                      </CardHeader>
+                      <CardContent className="flex-1 px-6 pb-6 pt-0 flex flex-col">
+                        <p className="text-sm text-muted-foreground line-clamp-3 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100 italic">
+                          "{template.body}"
+                        </p>
+                        <div className="flex gap-2 mt-auto">
+                          <Button 
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold h-11 rounded-xl"
+                            onClick={() => handleApproveTemplate(template.id, 'approved')}
+                          >
+                            Approve
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 border-red-200 text-red-600 hover:bg-red-50 font-bold h-11 rounded-xl"
+                            onClick={() => handleApproveTemplate(template.id, 'rejected')}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      </CardContent>
+                  </Card>
+                ))}
+              </div>
+              
+              {templates.filter(t => t.status === 'pending').length === 0 && (
+                <div className="text-center py-20 bg-muted/20 rounded-3xl border-2 border-dashed border-muted/50">
+                  <Clock className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
+                  <h3 className="text-lg font-bold text-slate-400">No Pending Approvals</h3>
+                  <p className="text-sm text-slate-400">All templates have been processed.</p>
+                </div>
+              )}
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2 py-8 mt-4 border-t border-slate-100">
+                  <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl">Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-xl">Next</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
       </Tabs>
 
