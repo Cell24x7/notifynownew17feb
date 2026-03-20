@@ -304,7 +304,7 @@ export default function Auth() {
           </div>
 
           {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#34D399]/20 border border-[#34D399]/30 text-[#34D399] font-bold text-[9px] mb-6 w-fit uppercase tracking-wider">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#34D399]/20 border border-[#34D399]/30 text-[#34D399] font-bold text-[9px] mb-2 w-fit uppercase tracking-wider">
             <div className="relative w-1 h-1">
               <span className="absolute inset-0 bg-[#34D399] rounded-full animate-ping"></span>
               <span className="relative block w-1 h-1 bg-[#34D399] rounded-full"></span>
@@ -314,24 +314,24 @@ export default function Auth() {
 
           {/* Main Titles */}
           <div className="flex-grow flex flex-col justify-center">
-            <h1 className="text-xl lg:text-3xl font-extrabold text-white leading-tight mb-4">
+            <h1 className="text-xl lg:text-3xl font-extrabold text-white leading-tight mb-2">
               Intelligent Messaging Across<br />
               <span className="text-white">SMS | </span>
               <span className="text-[#34D399]">WhatsApp</span>
               <span className="text-white"> | RCS</span>
             </h1>
 
-            <p className="text-sm lg:text-base font-bold text-white mb-3">
+            <p className="text-sm lg:text-base font-bold text-white mb-2">
               Drive Business Growth with <span className="text-[#34D399]">AI-Powered</span> Conversations
             </p>
 
-            <p className="text-[11px] lg:text-xs text-blue-50/80 max-w-sm mb-8 leading-relaxed">
+            <p className="text-[11px] lg:text-xs text-blue-50/80 max-w-sm mb-4 leading-relaxed">
               Engage customers faster with official WhatsApp API, 
               bulk campaigns, and seamless automations in one powerful platform.
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-2.5 mb-8">
+            <div className="flex flex-wrap gap-2.5 mb-4">
               <a
                 href="tel:+919892975484"
                 className="px-5 py-2.5 rounded-xl bg-[#00C853] text-white font-black text-[12px] shadow-[0_8px_20px_-6px_rgba(0,200,83,0.4)] hover:bg-[#00B248] transition-all flex items-center gap-2"
@@ -481,8 +481,7 @@ export default function Auth() {
                     </div>
 
                     {/* Social Auth - Uniform & Centered */}
-                    <div className="pt-6 border-t border-slate-50">
-                      <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4">Or continue with</p>
+                    <div className="pt-4 border-t border-slate-50">
                       <div className="grid grid-cols-3 gap-3">
                         <button type="button" onClick={() => handleGoogleLogin()} disabled={googleLoading} className="flex items-center justify-center h-10 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200 transition-all shadow-sm group disabled:opacity-50">
                            {googleLoading ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" /> : (
