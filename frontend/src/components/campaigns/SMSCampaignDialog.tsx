@@ -56,11 +56,12 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
     const [manualRecipients, setManualRecipients] = useState('');
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [excelColumns, setExcelColumns] = useState<string[]>([]);
+    const [excelSampleData, setExcelSampleData] = useState<Record<string, string>[]>([]);
     const [shortUrl, setShortUrl] = useState(false);
 
     const [submitting, setSubmitting] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
-    const [fieldMapping, setFieldMapping] = useState<Record<string, { type: 'field' | 'custom', value: string }>>({});
+    const [fieldMapping, setFieldMapping] = useState<Record<string, { type: 'field' | 'custom', value: string }>>({}); 
 
     // Fetch templates when dialog opens
     useEffect(() => {
@@ -133,6 +134,7 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
         setUploadedFile(file);
         if (!file) {
             setExcelColumns([]);
+            setExcelSampleData([]);
             return;
         }
 
@@ -146,9 +148,21 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
             if (json.length > 0) {
                 const headers = (json[0] as string[]).map(h => String(h).trim()).filter(Boolean);
                 setExcelColumns(headers);
+
+                // Store first 3 rows as sample data for preview
+                const sampleRows: Record<string, string>[] = [];
+                for (let i = 1; i < Math.min(json.length, 4); i++) {
+                    const row: Record<string, string> = {};
+                    headers.forEach((h, idx) => {
+                        row[h] = String((json[i] as any[])?.[idx] ?? '').trim();
+                    });
+                    sampleRows.push(row);
+                }
+                setExcelSampleData(sampleRows);
+
                 toast({
                     title: 'File Parsed',
-                    description: `Found ${headers.length} columns in ${file.name}`,
+                    description: `Found ${headers.length} columns & ${json.length - 1} contacts in ${file.name}`,
                 });
             }
         };
@@ -159,8 +173,32 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
         if (recipientSource === 'manual') {
             return manualRecipients.split(/[\n,]+/).filter(r => r.trim()).length;
         }
-        return 0; // File upload count would be handled on backend or after parsing
+        if (recipientSource === 'upload' && excelSampleData.length > 0) {
+            return excelSampleData.length + '+'; // Show approximate count
+        }
+        return 0;
     };
+
+    // Live preview: replace variables with mapped values from first Excel row
+    const previewMessage = useMemo(() => {
+        if (!message || templateVariables.length === 0) return message;
+        let preview = message;
+        const sampleRow = excelSampleData[0] || {};
+        templateVariables.forEach(varName => {
+            const mapping = fieldMapping[varName];
+            let value = '';
+            if (mapping?.type === 'field' && mapping.value) {
+                value = sampleRow[mapping.value] || `[${mapping.value}]`;
+            } else if (mapping?.type === 'custom' && mapping.value) {
+                value = mapping.value;
+            }
+            if (value) {
+                const regex = new RegExp(`\\{#\\s*${varName}\\s*#\\}`, 'gi');
+                preview = preview.replace(regex, value);
+            }
+        });
+        return preview;
+    }, [message, fieldMapping, excelSampleData, templateVariables]);
 
     const getCharCount = () => message.length;
     const getSmsCount = () => {
@@ -529,6 +567,29 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                                             </div>
                                         )}
 
+                                        {/* ── Live Message Preview ── */}
+                                        {templateVariables.length > 0 && previewMessage !== message && (
+                                            <div className="space-y-3 pt-4 border-t border-gray-100 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                                        <MessageSquare className="h-4 w-4 text-emerald-500" />
+                                                        Live Preview (Contact #1)
+                                                    </Label>
+                                                    <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50">
+                                                        Sample
+                                                    </Badge>
+                                                </div>
+                                                <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-100 text-[14px] leading-relaxed text-gray-800 whitespace-pre-wrap shadow-sm">
+                                                    "{previewMessage}"
+                                                </div>
+                                                {excelSampleData.length > 1 && (
+                                                    <p className="text-[11px] text-muted-foreground px-1">
+                                                        📱 This is how Contact #1 will see the SMS. Each contact gets their own personalized message.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
                                         <div className="pt-4">
                                             <Button
                                                 variant="secondary"
@@ -587,10 +648,20 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                                 </div>
 
                                 <div className="space-y-3">
-                                    <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Message Body Preview</span>
-                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-[15px] leading-relaxed text-gray-700 whitespace-pre-wrap italic shadow-inner">
+                                    <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Message (Template)</span>
+                                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 text-[13px] leading-relaxed text-gray-500 whitespace-pre-wrap italic shadow-inner">
                                         "{message}"
                                     </div>
+                                    {previewMessage !== message && (
+                                        <>
+                                            <span className="text-sm font-bold text-emerald-600 uppercase tracking-tighter flex items-center gap-1.5 mt-3">
+                                                <Check className="h-3.5 w-3.5" /> Final Message (Contact #1)
+                                            </span>
+                                            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap font-medium shadow-inner">
+                                                "{previewMessage}"
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             <DialogFooter className="p-4 bg-gray-50 flex items-center gap-3">
