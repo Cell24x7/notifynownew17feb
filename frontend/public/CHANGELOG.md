@@ -2,6 +2,38 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-19]
+- fix: added PE_ID and HASH_ID for DLT templates & fixed kannel DLR parsing (08fb3dc)
+- fix sms campaign creation not sending template_body text (25582ea)
+- fix sms template id param extraction (73a531d)
+- update webhook param mapping for great escape (3327555)
+- fix mediaId extraction response.id (3593bd8)
+- Log media response structure (2816400)
+- Upload Media using direct FormData to media endpoint (4ff0ed5)
+- Fix WhatsApp PDF parameter key: file_name to filename (83b853c)
+- Unify Google ID logic in developer deploy script and fix PDF raw upload (b23c923)
+- Switch to RAW binary upload for PDF at developer webhook Step 2 (ca42fbf)
+- Force overwrite Google Client ID in production deploy script to prevent empty values (b547ee0)
+- Fix Google Client ID in production deploy script (a1b305e)
+- Force npm install in production deploy script to avoid missing dependencies (5f2cc65)
+- Fix PDF upload session and handle-id for developer webhook (4ee94f2)
+- Make developer webhook dynamic and robust for WhatsApp templates (fceeca0)
+- Fix WhatsApp template parameter mismatch and add button/header-text support (c8a5da5)
+- Fix: Excel upload and Webhook integration enhancements (31b9574)
+- fix: smart excel mapping and whatsapp template final fixes (34fe0e5)
+- fix: restore JWT env in deploy script (6aaf69f)
+- fix: update deploy script to preserve frontend env and ensure npm install (0a828da)
+- fix: restore developerWebhooks.js and finalize template name and filename truncation (a7b759d)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (8c691e3)
+-  Merge remote-tracking branch origin/main and removed tmp/ files (69d07f1)
+- fix: change WhatsApp template language to en_US and finalize webhook (76c22b6)
+- updated code by vikas (9b98280)
+- feat: updated developer webhook to use waterpark_booking_confirmation template (92ca7c5)
+- fix: auto-generate examples for WhatsApp body variables to prevent OAuthException (049ebb4)
+- feat: updated developer webhook to use template messages and added webhook_logs migration (d9dbf3d)
+
+---
+
 ## [2026-03-18]
 - updated code by vikas (76a504d)
 - Fix userId scope - move declaration outside try block for message_logs access (41d258b)
@@ -295,12 +327,6 @@ This document is automatically updated based on development activity.
 
 ## [2026-02-18]
 - updated campaign (be5fbac)
-
----
-
-## [2026-02-17]
-- userlogin (01dfce9)
-- latest code (397597a)
 
 ---
 

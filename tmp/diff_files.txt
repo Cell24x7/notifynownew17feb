@@ -1,0 +1,14 @@
+backend/.env
+backend/.env.production
+backend/node_modules/.package-lock.json
+backend/package-lock.json
+backend/package.json
+backend/routes/auth.js
+frontend/.env
+frontend/.env.production
+frontend/package-lock.json
+frontend/package.json
+frontend/public/CHANGELOG.md
+frontend/src/main.tsx
+frontend/src/pages/Auth.tsx
+frontend/src/pages/Templates.tsx

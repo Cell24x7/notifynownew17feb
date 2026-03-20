@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +21,7 @@ import logo from '@/assets/logo.svg';
 export default function Auth() {
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, user, authenticateWithToken } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { settings } = useBranding();
@@ -129,6 +129,27 @@ export default function Auth() {
 
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  useEffect(() => {
+    // Initialize Facebook SDK
+    const fbAppId = import.meta.env.VITE_FACEBOOK_APP_ID || '911577051771273';
+    (window as any).fbAsyncInit = function () {
+      (window as any).FB.init({
+        appId: fbAppId,
+        cookie: true,
+        xfbml: true,
+        version: 'v18.0'
+      });
+    };
+
+    (function (d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s) as HTMLScriptElement; js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode?.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+  }, []);
+
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setGoogleLoading(true);
@@ -141,10 +162,12 @@ export default function Auth() {
         });
         const data = await res.json();
         if (data.success && data.token) {
-          localStorage.setItem('authToken', data.token);
-          // Use the login function from AuthContext
-          await login(data.user.email, '', data.token);
+          // Use the new authenticateWithToken function to set state correctly
+          authenticateWithToken(data.token, data.user);
+          
           setShowWelcome(true);
+          
+          // Small delay for the welcome popup before redirecting
           setTimeout(() => {
             if (data.user.role === 'admin' || data.user.role === 'reseller') {
               navigate('/super-admin/dashboard', { replace: true });
@@ -177,6 +200,66 @@ export default function Auth() {
       });
     },
   });
+
+  const handleLinkedInLogin = () => {
+    const clientId = import.meta.env.VITE_LINKEDIN_CLIENT_ID || '786x0ghymovi1f';
+    const redirectUri = encodeURIComponent(window.location.origin + '/auth/linkedin/callback');
+    const scope = encodeURIComponent('openid profile email');
+    const state = Math.random().toString(36).substring(7);
+
+    const linkedinUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`;
+
+    window.location.href = linkedinUrl;
+  };
+
+  const handleFacebookLogin = () => {
+    if (!(window as any).FB) return;
+    (window as any).FB.login((response: any) => {
+      if (response.authResponse) {
+        processFacebookLogin(response.authResponse.accessToken);
+      } else {
+        toast({
+          title: 'Facebook Login Cancelled',
+          description: 'Login process was interrupted',
+          variant: 'destructive',
+        });
+      }
+    }, { scope: 'public_profile,email' });
+  };
+
+  const processFacebookLogin = async (accessToken: string) => {
+    setLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/auth/facebook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken }),
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        authenticateWithToken(data.token, data.user);
+        setShowWelcome(true);
+        setTimeout(() => {
+          if (data.user.role === 'admin' || data.user.role === 'reseller') {
+            navigate('/super-admin/dashboard', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        }, 2000);
+      } else {
+        throw new Error(data.message || 'Facebook verification failed');
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Facebook Login Failed',
+        description: err.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignupOtpSent = (identifier: string) => {
     setSignupEmail(identifier);
@@ -412,13 +495,13 @@ export default function Auth() {
                            )}
                          </button>
 
-                        <button type="button" className="flex items-center justify-center h-10 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200 transition-all shadow-sm group">
-                          <svg className="w-5 h-5 fill-[#1877F2] transition-transform group-hover:scale-110" viewBox="0 0 24 24">
-                            <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978 1.62 0 3.33.193 3.33.193v2.537h-1.3c-2.01 0-2.636 1.228-2.636 2.484v2.344h3.357l-.536 3.667h-2.821v7.98h-4.3z"/>
+                        <button type="button" onClick={handleFacebookLogin} className="flex items-center justify-center h-10 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200 transition-all shadow-sm group">
+                          <svg className="w-5 h-5 fill-[#1877f2] transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.791-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.248h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                           </svg>
                         </button>
 
-                        <button type="button" className="flex items-center justify-center h-10 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200 transition-all shadow-sm group">
+                        <button type="button" onClick={handleLinkedInLogin} className="flex items-center justify-center h-10 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200 transition-all shadow-sm group">
                           <svg className="w-5 h-5 fill-[#0077b5] transition-transform group-hover:scale-110" viewBox="0 0 24 24">
                             <path d="M4.98 3.5c0 1.381-1.11 2.5-2.48 2.5s-2.48-1.119-2.48-2.5c0-1.38 1.11-2.5 2.48-2.5s2.48 1.12 2.48 2.5zm.02 4.5h-5v16h5v-16zm7.982 0h-4.968v16h4.969v-8.399c0-4.67 6.029-5.052 6.029 0v8.399h4.988v-10.131c0-7.88-8.922-7.593-11.018-3.714v-2.155z"/>
                           </svg>

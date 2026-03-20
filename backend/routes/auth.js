@@ -366,6 +366,202 @@ router.post('/google', async (req, res) => {
 });
 
 
+// LinkedIn Login / Signup
+router.post('/linkedin', async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ success: false, message: 'Authorization code required' });
+
+  const client_id = process.env.LINKEDIN_CLIENT_ID;
+  const client_secret = process.env.LINKEDIN_CLIENT_SECRET;
+  const redirect_uri = process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:5173/auth/linkedin/callback';
+
+  try {
+    // 1. Exchange code for access token
+    const tokenResponse = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', null, {
+      params: {
+        grant_type: 'authorization_code',
+        code,
+        client_id,
+        client_secret,
+        redirect_uri
+      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
+    const { access_token } = tokenResponse.data;
+
+    // 2. Fetch user profile (OpenID Connect userinfo)
+    const profileResponse = await axios.get('https://api.linkedin.com/v2/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+
+    const payload = profileResponse.data;
+    if (!payload.email) return res.status(400).json({ success: false, message: 'Invalid LinkedIn token/profile' });
+
+    let [rows] = await query(`
+      SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
+      WHERE u.email = ?
+    `, [payload.email]);
+
+    let user;
+
+    if (rows.length > 0) {
+      user = rows[0];
+    } else {
+      const defaultPermissions = [
+        { feature: 'Dashboard - View', admin: true },
+        { feature: 'Chat - View', admin: true },
+        { feature: 'Chat - Reply', admin: true },
+        { feature: 'Contacts - View', admin: true },
+        { feature: 'Campaigns - View', admin: true }
+      ];
+      const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
+      
+      const fullName = `${payload.given_name || ''} ${payload.family_name || ''}`.trim() || 'LinkedIn User';
+      
+      const [insertResult] = await query(`
+        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password)
+        VALUES (?, ?, 'user', 1, 'active', 'linkedin', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD')
+      `, [payload.email, fullName, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
+      
+      const insertId = insertResult.insertId;
+      
+      const [newRows] = await query(`
+        SELECT u.*, p.permissions as plan_permissions, p.name as plan_name
+        FROM users u
+        LEFT JOIN plans p ON u.plan_id = p.id
+        WHERE u.id = ?
+      `, [insertId]);
+      
+      user = newRows[0];
+    }
+
+    let finalPermissions = [];
+    if (user.permissions) {
+      try { finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions; } catch (e) {}
+    } else if (user.plan_permissions) {
+      try { finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions; } catch (e) {}
+    }
+
+    const token = jwt.sign({
+        id: user.id, email: user.email, role: user.role, name: user.name,
+        company: user.company, channels_enabled: user.channels_enabled,
+        permissions: finalPermissions, wallet_balance: user.wallet_balance,
+        credits_available: user.credits_available,
+        actual_reseller_id: user.actual_reseller_id || null
+      },
+      JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    await logSystem('login', 'User LinkedIn Login', `User ${user.email} logged in via LinkedIn`, user.id, user.name, user.company, req.ip, 'info');
+
+    res.json({
+      success: true, token,
+      user: {
+        id: user.id, name: user.name, email: user.email, role: user.role,
+        channels_enabled: user.channels_enabled, permissions: finalPermissions, plan_name: user.plan_name,
+      }
+    });
+
+  } catch (error) {
+    console.error('LinkedIn Auth Error:', error.response?.data || error.message);
+    res.status(500).json({ success: false, message: 'LinkedIn Authentication Failed' });
+  }
+});
+
+
+// Facebook Login / Signup
+router.post('/facebook', async (req, res) => {
+  const { accessToken } = req.body;
+  if (!accessToken) return res.status(400).json({ success: false, message: 'Access token required' });
+
+  try {
+    // 1. Verify token and fetch user profile from Facebook Graph API
+    const response = await axios.get(`https://graph.facebook.com/me?fields=id,name,email&access_token=${accessToken}`);
+    const payload = response.data;
+
+    if (!payload.email) {
+      return res.status(400).json({ success: false, message: 'Facebook account must have an email associated' });
+    }
+
+    let [rows] = await query(`
+      SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
+      WHERE u.email = ?
+    `, [payload.email]);
+
+    let user;
+
+    if (rows.length > 0) {
+      user = rows[0];
+    } else {
+      const defaultPermissions = [
+        { feature: 'Dashboard - View', admin: true },
+        { feature: 'Chat - View', admin: true },
+        { feature: 'Chat - Reply', admin: true },
+        { feature: 'Contacts - View', admin: true },
+        { feature: 'Campaigns - View', admin: true }
+      ];
+      const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
+      
+      const [insertResult] = await query(`
+        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password)
+        VALUES (?, ?, 'user', 1, 'active', 'facebook', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD')
+      `, [payload.email, payload.name || 'Facebook User', JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
+      
+      const insertId = insertResult.insertId;
+      
+      const [newRows] = await query(`
+        SELECT u.*, p.permissions as plan_permissions, p.name as plan_name
+        FROM users u
+        LEFT JOIN plans p ON u.plan_id = p.id
+        WHERE u.id = ?
+      `, [insertId]);
+      
+      user = newRows[0];
+    }
+
+    let finalPermissions = [];
+    if (user.permissions) {
+      try { finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions; } catch (e) {}
+    } else if (user.plan_permissions) {
+      try { finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions; } catch (e) {}
+    }
+
+    const token = jwt.sign({
+        id: user.id, email: user.email, role: user.role, name: user.name,
+        company: user.company, channels_enabled: user.channels_enabled,
+        permissions: finalPermissions, wallet_balance: user.wallet_balance,
+        credits_available: user.credits_available,
+        actual_reseller_id: user.actual_reseller_id || null
+      },
+      JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    await logSystem('login', 'User Facebook Login', `User ${user.email} logged in via Facebook`, user.id, user.name, user.company, req.ip, 'info');
+
+    res.json({
+      success: true, token,
+      user: {
+        id: user.id, name: user.name, email: user.email, role: user.role,
+        channels_enabled: user.channels_enabled, permissions: finalPermissions, plan_name: user.plan_name,
+      }
+    });
+
+  } catch (error) {
+    console.error('Facebook Auth Error:', error.response?.data || error.message);
+    res.status(500).json({ success: false, message: 'Facebook Authentication Failed' });
+  }
+});
+
+
 // Verify OTP (Used for generic verification)
 router.post('/verify-otp', async (req, res) => {
   const { identifier, otp } = req.body; // identifier can be email or mobile

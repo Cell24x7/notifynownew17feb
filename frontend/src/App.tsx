@@ -22,6 +22,7 @@ import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
 import Templates from "./pages/Templates";
 import Chatflows from "./pages/Chatflows";
+import LinkedInCallback from "./pages/LinkedInCallback";
 
 
 // Super Admin Pages
@@ -66,6 +67,7 @@ const App = () => (
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/linkedin/callback" element={<LinkedInCallback />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />

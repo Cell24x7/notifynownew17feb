@@ -42,6 +42,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   refreshUser: () => Promise<void>;
+  authenticateWithToken: (token: string, userData: any) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -231,6 +232,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const authenticateWithToken = (token: string, userData: any) => {
+    localStorage.setItem('authToken', token);
+
+    const channels = typeof userData.channels_enabled === 'string'
+      ? JSON.parse(userData.channels_enabled)
+      : (userData.channels_enabled || []);
+
+    const permissions = typeof userData.permissions === 'string'
+      ? JSON.parse(userData.permissions)
+      : (userData.permissions || []);
+
+    setUser({
+      id: userData.id?.toString() || '',
+      name: userData.name || userData.email?.split('@')[0] || 'User',
+      email: userData.email || '',
+      company: userData.company,
+      role: userData.role,
+      channels_enabled: channels,
+      permissions: permissions,
+      credits_available: userData.credits_available || 0,
+      wallet_balance: userData.wallet_balance || 0,
+      plan_name: userData.plan_name,
+      rcs_text_price: userData.rcs_text_price,
+      rcs_rich_card_price: userData.rcs_rich_card_price,
+      rcs_carousel_price: userData.rcs_carousel_price,
+      wa_marketing_price: userData.wa_marketing_price,
+      wa_utility_price: userData.wa_utility_price,
+      wa_authentication_price: userData.wa_authentication_price,
+      rcs_config_id: userData.rcs_config_id,
+      whatsapp_config_id: userData.whatsapp_config_id,
+      actual_reseller_id: userData.actual_reseller_id,
+    });
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -240,6 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     updateUser,
     refreshUser,
+    authenticateWithToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
