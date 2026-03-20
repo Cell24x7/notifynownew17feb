@@ -316,8 +316,8 @@ router.post('/google', async (req, res) => {
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
       const [insertResult] = await query(`
-        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password)
-        VALUES (?, ?, 'user', 1, 'active', 'google', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD')
+        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password, is_social_signup, is_read)
+        VALUES (?, ?, 'user', 1, 'pending', 'google', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD', 1, 0)
       `, [payload.email, payload.name || 'Google User', JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
       
       const insertId = insertResult.insertId;
@@ -424,8 +424,8 @@ router.post('/linkedin', async (req, res) => {
       const fullName = `${payload.given_name || ''} ${payload.family_name || ''}`.trim() || 'LinkedIn User';
       
       const [insertResult] = await query(`
-        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password)
-        VALUES (?, ?, 'user', 1, 'active', 'linkedin', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD')
+        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password, is_social_signup, is_read)
+        VALUES (?, ?, 'user', 1, 'pending', 'linkedin', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD', 1, 0)
       `, [payload.email, fullName, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
       
       const insertId = insertResult.insertId;
@@ -512,8 +512,8 @@ router.post('/facebook', async (req, res) => {
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
       const [insertResult] = await query(`
-        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password)
-        VALUES (?, ?, 'user', 1, 'active', 'facebook', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD')
+        INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password, is_social_signup, is_read)
+        VALUES (?, ?, 'user', 1, 'pending', 'facebook', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD', 1, 0)
       `, [payload.email, payload.name || 'Facebook User', JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
       
       const insertId = insertResult.insertId;
@@ -637,8 +637,8 @@ router.post('/signup', async (req, res) => {
 
 
     // Dynamic Update Logic
-    const updates = ['password = ?', 'name = ?', 'company = ?', 'is_verified = 1', 'otp = NULL', 'permissions = ?', 'channels_enabled = ?', 'status = ?'];
-    const params = [hash, name || 'User', company || null, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels), 'pending'];
+    const updates = ['password = ?', 'name = ?', 'company = ?', 'is_verified = 1', 'otp = NULL', 'permissions = ?', 'channels_enabled = ?', 'status = ?', 'is_read = ?'];
+    const params = [hash, name || 'User', company || null, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels), 'pending', 0];
 
     // Handle Secondary Identifier
     if (identifier.includes('@')) {

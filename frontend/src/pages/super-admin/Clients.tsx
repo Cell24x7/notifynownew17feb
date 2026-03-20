@@ -310,7 +310,23 @@ export default function SuperAdminClients() {
     });
   }
 
+  const handleMarkAsRead = async (clientId: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await axios.post(`${API_BASE_URL}/api/clients/${clientId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Update local state to reflect read status
+      setClients(prev => prev.map(c => c.id === clientId ? { ...prev.find(x => x.id === clientId), is_read: 1 } : c));
+    } catch (err) {
+      console.error('Failed to mark as read', err);
+    }
+  };
+
   const handleView = (client: any) => {
+    if (client.status === 'pending' && !client.is_read) {
+      handleMarkAsRead(client.id);
+    }
     // When viewing/editing, ensure we set channels correctly if plan exists
     // However, for existing clients, we should use what's in the DB
     const clientChannels = parseChannels(client.channels_enabled);
@@ -344,6 +360,9 @@ export default function SuperAdminClients() {
   };
 
   const handleEdit = (client: any) => {
+    if (client.status === 'pending' && !client.is_read) {
+      handleMarkAsRead(client.id);
+    }
     setCurrentClient({
       id: client.id,
       name: client.name,
@@ -560,8 +579,13 @@ export default function SuperAdminClients() {
           <TabsTrigger value="clients" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Clients
           </TabsTrigger>
-          <TabsTrigger value="enquiries" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="enquiries" className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm relative">
             Enquiries
+            {filteredClients.filter(c => c.status === 'pending' && !c.is_read).length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white animate-pulse">
+                {filteredClients.filter(c => c.status === 'pending' && !c.is_read).length}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -634,8 +658,15 @@ export default function SuperAdminClients() {
                     ? filteredClients.filter(c => c.status !== 'pending')
                     : filteredClients.filter(c => c.status === 'pending')
                   ).map((client) => (
-                    <TableRow key={client.id} className="group">
-                      <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableRow key={client.id} className={cn("group transition-colors", client.status === 'pending' && !client.is_read && "bg-blue-50/50 hover:bg-blue-100/50")}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {client.name}
+                          {client.status === 'pending' && !client.is_read && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{client.company_name}</TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">{client.email}</TableCell>
                       <TableCell>

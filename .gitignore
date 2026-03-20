@@ -10,4 +10,15 @@ frontend/public/uploads/
 backend/backend.log
 backend/output.log
 
+# Environment Files
+.env
+.env.*
+!.env.example
+backend/.env*
+frontend/.env*
+
+# Temporary files
+tmp/
+*.timestamp-*.mjs
+
 

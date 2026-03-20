@@ -32,7 +32,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         status, created_at, permissions, rcs_config_id, whatsapp_config_id,
         rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
         wa_marketing_price, wa_utility_price, wa_authentication_price,
-        reseller_id
+        reseller_id, is_read, is_social_signup
       FROM users
       WHERE role IN ('client', 'user')
     `;
@@ -318,6 +318,27 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       message: 'Failed to impersonate client',
       error: err.message || 'Internal server error'
     });
+  }
+});
+/**
+ * Mark Enquiry as Read
+ */
+router.post('/:id/read', authenticateToken, isResellerOrAdmin, async (req, res) => {
+  const clientId = req.params.id;
+  try {
+    let sql = "UPDATE users SET is_read = 1 WHERE id = ?";
+    let params = [clientId];
+
+    if (req.user.role === 'reseller') {
+      sql += " AND reseller_id = ?";
+      params.push(req.user.actual_reseller_id);
+    }
+
+    await query(sql, params);
+    res.json({ success: true, message: 'Enquiry marked as read' });
+  } catch (err) {
+    console.error('MARK READ ERROR:', err.message);
+    res.status(500).json({ success: false });
   }
 });
 
