@@ -3,7 +3,7 @@ const { query } = require('./config/db');
 
 async function check() {
     try {
-        const [rows] = await query('SELECT * FROM sms_gateways');
+        const [rows] = await query('DESCRIBE message_templates');
         console.log(JSON.stringify(rows, null, 2));
         process.exit(0);
     } catch (e) {

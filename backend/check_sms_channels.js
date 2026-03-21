@@ -1,9 +1,9 @@
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const { query } = require('./config/db');
+require('dotenv').config();
 
 async function check() {
     try {
-        const [rows] = await query('SELECT * FROM sms_gateways');
+        const [rows] = await query('DESCRIBE sms_channels');
         console.log(JSON.stringify(rows, null, 2));
         process.exit(0);
     } catch (e) {

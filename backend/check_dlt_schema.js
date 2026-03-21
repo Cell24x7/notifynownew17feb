@@ -3,11 +3,10 @@ const { query } = require('./config/db');
 
 async function check() {
     try {
-        const [rows] = await query('SELECT * FROM sms_gateways');
+        const [rows] = await query('DESCRIBE dlt_templates');
         console.log(JSON.stringify(rows, null, 2));
         process.exit(0);
     } catch (e) {
-        console.error('Check failed:', e.message);
         process.exit(1);
     }
 }
