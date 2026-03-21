@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-21]
+- hotfix: resolved React Hooks error on Auth page and removed non-existent require causing 502 Bad Gateway (76d7d38)
 - fix: compressed JWT permissions payload to prevent header limits crash and enforced sidebar permission visibility (f40bf37)
 - Create Sandy super admin user and update deployment scripts (cae2d51)
 - Final sync: Include all helper scripts and latest updates for deployment (37c8562)

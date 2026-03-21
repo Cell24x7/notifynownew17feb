@@ -78,8 +78,8 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: hasPermission('Dashboard - View') },
-    { icon: CreditCard, label: 'Plans', path: '/user-plans', show: hasPermission('Plans - View') },
-    { icon: FileText, label: 'Templates', path: '/templates', show: hasPermission('Templates - View') },
+    { icon: CreditCard, label: 'Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
+    { icon: FileText, label: 'Templates', path: '/templates', show: hasPermission('Template - View') },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { 
       icon: BarChart3, 
