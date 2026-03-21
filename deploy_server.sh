@@ -119,6 +119,7 @@ chmod -R 755 "$DIST_DIR"
 log "🗄️  [6/7] Running migrations..."
 cd "$BACKEND_DIR"
 NODE_ENV=production node apply_schema_updates.js || true
+NODE_ENV=production node scripts/add_api_key.js || true
 
 # ── Step 7: Restart Clean ─────────────────────────────
 log "♻️  [7/7] Starting clean PM2 instance..."
