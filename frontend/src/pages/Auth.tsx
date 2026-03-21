@@ -45,7 +45,7 @@ export default function Auth() {
   const [agreedToTerms, setAgreedToTerms] = useState(true);
 
   if (isAuthenticated && !showWelcome) {
-    if (user?.role === 'admin' || user?.role === 'reseller') {
+    if (user?.role === 'admin' || user?.role === 'reseller' || user?.role === 'superadmin') {
       return <Navigate to="/super-admin/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
