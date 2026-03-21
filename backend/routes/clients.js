@@ -10,6 +10,12 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const authenticateToken = require('../middleware/authMiddleware');
 
+const compressPermissions = (perms) => {
+  if (!Array.isArray(perms)) return [];
+  if (perms.length > 0 && typeof perms[0] === 'string') return perms;
+  return perms.filter(p => p.admin).map(p => p.feature);
+};
+
 const isResellerOrAdmin = (req, res, next) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'reseller') {
     return res.status(403).json({ success: false, message: 'Unauthorized. Admin or Reseller access required.' });
@@ -282,7 +288,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       role: client.role || 'user',
       impersonatedBy: 'superadmin',
       originalRole: 'user',
-      permissions: finalPermissions, // Added
+      permissions: compressPermissions(finalPermissions), // Added
       channels_enabled: channelsEnabled, // Added
       rcs_config_id: client.rcs_config_id,
       whatsapp_config_id: client.whatsapp_config_id,

@@ -65,30 +65,27 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     // Safety check: ensure permissions is an array
     if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
-    // In db, permissions is array of objects: { feature: "Chat - View", admin: true, ... }
-    // We check the 'admin' column for now as the user is the account admin
-    // User role in DB is 'user' or 'admin' (platform admin). 
-    // Here 'admin' column in permission means 'Account Admin' (the user).
+    // Support compressed permissions array from JWT
+    if (user.permissions.length > 0 && typeof user.permissions[0] === 'string') {
+      return user.permissions.includes(feature);
+    }
 
-    // Find permission object for the feature
-    // Feature names in DB: "Chat - View", "Campaign - View", etc.
     const perm = user.permissions.find((p: any) => p.feature === feature);
-    if (!perm) return false; // Strict: if feature not found, deny
+    if (!perm) return false;
 
-    // Check 'admin' column (since logged in user is the Account Admin)
     return perm.admin === true || perm.admin === 1;
   };
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: true },
-    { icon: CreditCard, label: 'Plans', path: '/user-plans', show: true },
-    { icon: FileText, label: 'Templates', path: '/templates', show: true },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: hasPermission('Dashboard - View') },
+    { icon: CreditCard, label: 'Plans', path: '/user-plans', show: hasPermission('Plans - View') },
+    { icon: FileText, label: 'Templates', path: '/templates', show: hasPermission('Templates - View') },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { 
       icon: BarChart3, 
       label: 'Reports', 
       path: '/reports', 
-      show: hasPermission('Reports - View') || true,
+      show: hasPermission('Reports - View'),
       subItems: [
         { label: 'Summary Report', path: '/reports?tab=summary' },
         { label: 'Detailed Report', path: '/reports?tab=detailed' },
@@ -97,14 +94,14 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     },
     { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
     { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
-    { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: true },
+    { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: hasPermission('DLT Templates - View') },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
-    { icon: Bot, label: 'Chatflows', path: '/chatflows', show: true },
+    { icon: Bot, label: 'Chatflows', path: '/chatflows', show: hasPermission('Chatflows - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: Users, label: 'Manage Users', path: '/reseller/users', show: user?.role === 'reseller' },
     { icon: Globe, label: 'White-labeling', path: '/reseller/branding', show: user?.role === 'reseller' },
-    { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: true },
-    { icon: Wallet, label: 'Wallet', path: '/wallet', show: true },
+    { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: hasPermission('Marketplace - View') },
+    { icon: Wallet, label: 'Wallet', path: '/wallet', show: hasPermission('Wallet - View') },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
 

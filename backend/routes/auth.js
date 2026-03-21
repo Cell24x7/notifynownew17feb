@@ -3,7 +3,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/db');
 const { logSystem } = require('../utils/logger');
+const { getPermissionsList } = require('../utils/permissionsHelper');
 const { sendSMS } = require('../utils/smsService');
+
+const compressPermissions = (perms) => {
+  if (!Array.isArray(perms)) return [];
+  if (perms.length > 0 && typeof perms[0] === 'string') return perms;
+  return perms.filter(p => p.admin).map(p => p.feature);
+};
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -214,7 +221,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         company: user.company,
         channels_enabled: user.channels_enabled,
-        permissions: finalPermissions,
+        permissions: compressPermissions(finalPermissions),
         wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         rcs_text_price: user.rcs_text_price,
@@ -382,7 +389,7 @@ router.post('/google', async (req, res) => {
     const token = jwt.sign({
         id: user.id, email: user.email, role: user.role, name: user.name,
         company: user.company, channels_enabled: user.channels_enabled,
-        permissions: finalPermissions, wallet_balance: user.wallet_balance,
+        permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         actual_reseller_id: user.actual_reseller_id || null
       },
@@ -530,7 +537,7 @@ router.post('/linkedin', async (req, res) => {
     const token = jwt.sign({
         id: user.id, email: user.email, role: user.role, name: user.name,
         company: user.company, channels_enabled: user.channels_enabled,
-        permissions: finalPermissions, wallet_balance: user.wallet_balance,
+        permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         actual_reseller_id: user.actual_reseller_id || null
       },
@@ -658,7 +665,7 @@ router.post('/facebook', async (req, res) => {
     const token = jwt.sign({
         id: user.id, email: user.email, role: user.role, name: user.name,
         company: user.company, channels_enabled: user.channels_enabled,
-        permissions: finalPermissions, wallet_balance: user.wallet_balance,
+        permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         actual_reseller_id: user.actual_reseller_id || null
       },
@@ -821,7 +828,7 @@ router.post('/signup', async (req, res) => {
         role: 'user',
         name: finalUser.name,
         channels_enabled: finalUser.channels_enabled,
-        permissions: defaultPermissions,
+        permissions: compressPermissions(defaultPermissions),
         wallet_balance: finalUser.wallet_balance,
         credits_available: finalUser.credits_available,
         rcs_text_price: finalUser.rcs_text_price,
