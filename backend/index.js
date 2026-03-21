@@ -116,6 +116,7 @@ app.use('/api/whatsapp-configs', require('./routes/whatsappConfigs'));
 app.use('/api/whatsapp-pinbot', require('./routes/whatsappPinbot'));
 app.use('/api/chatflows', require('./routes/chatflows'));
 app.use('/api/feedbacks', require('./routes/feedbacks'));
+app.use('/api/sms-v1', require('./routes/smsApiV1'));
 app.use('/api/automations', require('./routes/automations'));
 
 // Developer Webhook Endpoint (Must have /api/ prefix for Nginx proxy pass)

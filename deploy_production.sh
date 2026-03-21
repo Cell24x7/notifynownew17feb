@@ -52,7 +52,6 @@ cd "$BACKEND_DIR"
 npm install --production --silent
 cd "$FRONTEND_DIR"
 npm install --silent
-
 # ── Step 4: Enforce Env ───────────────────────────────
 log "🛠️  [4/7] Enforcing PRODUCTION settings..."
 # Backend Env (Strictly preserve credentials if file exists)

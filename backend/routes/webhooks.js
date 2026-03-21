@@ -854,28 +854,32 @@ const handleSmsCallback = async (req, res) => {
         console.log('📨 RECEIVED SMS WEBHOOK');
         console.log('Timestamp:', new Date().toISOString());
         console.log('Method:', req.method);
+        console.log('URL:', req.originalUrl); // Added this line
         console.log('Payload:', JSON.stringify(payload, null, 2));
         console.log('==============================================');
 
         // Common SMS gateway DLR parameters lookup:
-        // Job ID / Msg ID: 'jobid', 'msgid', 'id', 'mid', 'fid', 'externalid'
-        // Status: 'status', 'dlr_status', 'state', 'stat', 'err', 'delivery_status'
+        // Job ID / Msg ID: 'jobid', 'msgid', 'id', 'mid', 'fid', 'externalid', 'msg_id'
+        const messageId = payload.jobid || payload.msgid || payload.id || payload.mid || payload.fid || payload.externalid || payload.msg_id;
+        
+        // Status: 'status', 'dlr_status', 'state', 'stat', 'err', 'delivery_status', 'status_id'
+        const status = payload.status || payload.dlr_status || payload.state || payload.stat || payload.err || payload.delivery_status || payload.status_id;
+        
         // Mobile: 'mobile', 'msisdn', 'to', 'dest', 'phoneno', 'phone'
-        const messageId = payload.jobid || payload.msgid || payload.id || payload.mid || payload.fid || payload.externalid;
-        const status = payload.status || payload.dlr_status || payload.state || payload.stat || payload.err || payload.delivery_status;
         const mobile = payload.mobile || payload.msisdn || payload.to || payload.dest || payload.phoneno || payload.phone;
 
         let finalStatus = 'sent';
         const s = String(status || '').toLowerCase();
         
         // Map common SMS status strings to internal statuses
-        // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a numeric flags
-        // Kannel mapping for %a: 1=Delivered, 2=Failed, 4=Queued, 8=Submitted, 16=Rejected
-        if (s.includes('deliver') || s === 'success' || s === '0' || s === '1' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd') {
+        // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a/%d numeric flags
+        // Kannel/Gateway mapping: 1=Delivered, 2=Failed, 4=Queued, 8=Submitted, 16=Rejected
+        // Some also use 0=Success (Delivered)
+        if (s.includes('deliver') || s === 'success' || s === '0' || s === '1' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd' || s === 'sent') {
             finalStatus = 'delivered';
         } else if (s.includes('fail') || s.includes('reject') || s === '16' || s === '2' || s === 'failed' || s === 'undeliv' || s === 'undelivered' || s === 'rejectd') {
             finalStatus = 'failed';
-        } else if (s.includes('sent') || s.includes('submit') || s === '8' || s === '4' || s === 'submitted' || s === 'buffered') {
+        } else if (s.includes('submit') || s === '8' || s === '4' || s === 'submitted' || s === 'buffered') {
             finalStatus = 'sent';
         }
 
@@ -895,9 +899,9 @@ const handleSmsCallback = async (req, res) => {
                 (user_id, sender, recipient, message_id, status, type, raw_payload, created_at) 
                 VALUES (?, ?, ?, ?, ?, 'sms', ?, NOW())`,
                 [
-                    userId, 
+                    userId || null, 
                     'Gateway', 
-                    mobile || 'N/A', 
+                    (mobile || 'N/A').replace(/\D/g, ''), // Clean mobile number 
                     messageId || 'N/A', 
                     finalStatus, 
                     JSON.stringify(payload)
