@@ -2,7 +2,20 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-21]
+- Improve script to automatically pick correct .env file (.env or .env.production) (8d10e22)
+- Include API Key migration in deployment scripts (d0c1acc)
+- Add SMS API v1 with auto-resolution and credit check (62673c3)
+
+---
+
 ## [2026-03-20]
+- Enhance SMS webhooks handling and fix queue processor channel logging (4241aad)
+- ui: compact modern Campaign Preview dialog - smaller height, proper width, light colors, clean layout (8294f42)
+- feat: live SMS preview with mapped Excel values - shows final personalized message per contact (4a727b8)
+- fix: support {dynamic} and all DLT variable formats in SMS campaign variable mapping (4887951)
+- Implement pagination for campaigns and templates, integrate real API for super admin campaigns, and restore admin approval tab (c51cbf9)
+- feat: SMS campaign variable mapping - map Excel columns to DLT {#var#} placeholders for customized bulk SMS (9ba2848)
 - polished auth page layout and spacing (514b78c)
 - completed enquiry flow and notification badge (955b5d5)
 - updated code (a656bc5)
@@ -329,11 +342,6 @@ This document is automatically updated based on development activity.
 - code (8428e45)
 - code (409f55d)
 - remove node_modules and add to gitignore (7b369ee)
-
----
-
-## [2026-02-18]
-- updated campaign (be5fbac)
 
 ---
 

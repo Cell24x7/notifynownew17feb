@@ -42,7 +42,7 @@ export default function Auth() {
   const [loginEmailError, setLoginEmailError] = useState('');
   const [loginPasswordError, setLoginPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(true);
 
   if (isAuthenticated && !showWelcome) {
     if (user?.role === 'admin' || user?.role === 'reseller') {
@@ -411,7 +411,7 @@ export default function Auth() {
                         value={loginEmail}
                         onChange={handleLoginEmailChange}
                         required
-                        className={`h-9 px-4 text-[12px] font-medium rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginEmailError ? 'border-red-400' : ''}`}
+                        className={`h-9 px-4 text-[12px] font-normal rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginEmailError ? 'border-red-400' : ''}`}
                       />
                     </div>
 
@@ -430,7 +430,7 @@ export default function Auth() {
                            value={loginPassword}
                            onChange={handleLoginPasswordChange}
                            required
-                           className={`h-9 pl-4 pr-10 text-[12px] font-medium rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginPasswordError ? 'border-red-400' : ''}`}
+                           className={`h-9 pl-4 pr-10 text-[12px] font-normal rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginPasswordError ? 'border-red-400' : ''}`}
                          />
                          <button
                            type="button"

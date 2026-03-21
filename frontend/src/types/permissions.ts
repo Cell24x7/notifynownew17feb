@@ -50,6 +50,23 @@ export const USER_PERMISSIONS: Permission[] = [
 
     { feature: 'Available Plans - View', admin: true, manager: true, agent: true },
 
+    { feature: 'Integrations - View', admin: true, manager: true, agent: true },
+    { feature: 'Integrations - Manage', admin: true, manager: false, agent: false },
+    { feature: 'User Plans - View', admin: true, manager: true, agent: true },
+
+    { feature: 'DLT Templates - View', admin: true, manager: true, agent: false },
+    { feature: 'DLT Templates - Create', admin: true, manager: true, agent: false },
+    { feature: 'DLT Templates - Edit', admin: true, manager: false, agent: false },
+    { feature: 'DLT Templates - Delete', admin: true, manager: false, agent: false },
+
+    { feature: 'Marketplace - View', admin: true, manager: true, agent: true },
+
+    { feature: 'Reports - View', admin: true, manager: true, agent: true },
+    { feature: 'Reports - Export', admin: true, manager: true, agent: false },
+
+    { feature: 'Wallet - View', admin: true, manager: true, agent: false },
+    { feature: 'Wallet - Manage', admin: true, manager: false, agent: false },
+
     { feature: 'Settings - View', admin: true, manager: false, agent: false },
     { feature: 'Settings - Edit', admin: true, manager: false, agent: false },
 ];
