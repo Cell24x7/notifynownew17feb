@@ -66,7 +66,7 @@ DB_NAME=developer_notify
 PORT=5000
 API_BASE_URL=https://developer.notifynow.in
 JWT_SECRET=notifynow_db_secret_key
-JWT_EXPIRES_IN=7d
+JWT_EXPIRES_IN=30d
 EOF
 
 else
@@ -74,6 +74,8 @@ else
     sed -i '/^DB_NAME=/c\DB_NAME=developer_notify' "$BACKEND_DIR/.env.production"
     sed -i '/^PORT=/c\PORT=5000' "$BACKEND_DIR/.env.production"
     sed -i '/^API_BASE_URL=/c\API_BASE_URL=https://developer.notifynow.in' "$BACKEND_DIR/.env.production"
+    if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production"; then echo "JWT_EXPIRES_IN=30d" >> "$BACKEND_DIR/.env.production"; else sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=30d' "$BACKEND_DIR/.env.production"; fi
+    if ! grep -q "JWT_SECRET=" "$BACKEND_DIR/.env.production"; then echo "JWT_SECRET=notifynow_db_secret_key" >> "$BACKEND_DIR/.env.production"; fi
 fi
 
 # Frontend Env (VITE_API_URL is critical for build)
