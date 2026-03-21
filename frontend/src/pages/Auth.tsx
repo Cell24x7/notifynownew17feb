@@ -411,7 +411,7 @@ export default function Auth() {
                         value={loginEmail}
                         onChange={handleLoginEmailChange}
                         required
-                        className={`h-9 px-4 text-[12px] font-bold rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginEmailError ? 'border-red-400' : ''}`}
+                        className={`h-9 px-4 text-[12px] font-medium rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginEmailError ? 'border-red-400' : ''}`}
                       />
                     </div>
 
@@ -430,7 +430,7 @@ export default function Auth() {
                            value={loginPassword}
                            onChange={handleLoginPasswordChange}
                            required
-                           className={`h-9 pl-4 pr-10 text-[12px] font-bold rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginPasswordError ? 'border-red-400' : ''}`}
+                           className={`h-9 pl-4 pr-10 text-[12px] font-medium rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:ring-2 focus:ring-[#0052cc]/10 focus:border-[#0052cc] transition-all ${loginPasswordError ? 'border-red-400' : ''}`}
                          />
                          <button
                            type="button"
@@ -459,7 +459,6 @@ export default function Auth() {
                         id="terms-check"
                         checked={agreedToTerms}
                         onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                        required
                         className="w-4 h-4 mt-0.5 rounded border-2 border-slate-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-all"
                       />
                       <Label htmlFor="terms-check" className="text-[11px] text-slate-500 font-medium leading-relaxed cursor-pointer select-none">
