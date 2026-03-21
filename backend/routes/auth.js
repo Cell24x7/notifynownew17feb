@@ -3,7 +3,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/db');
 const { logSystem } = require('../utils/logger');
-const { getPermissionsList } = require('../utils/permissionsHelper');
 const { sendSMS } = require('../utils/smsService');
 
 const compressPermissions = (perms) => {

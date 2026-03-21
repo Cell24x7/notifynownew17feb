@@ -3,6 +3,12 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-21]
+- fix: compressed JWT permissions payload to prevent header limits crash and enforced sidebar permission visibility (f40bf37)
+- Create Sandy super admin user and update deployment scripts (cae2d51)
+- Final sync: Include all helper scripts and latest updates for deployment (37c8562)
+- feat: updated auth ui and added missing pages to roles (24850ab)
+- Force JWT expiry to 30d and ensure JWT_SECRET is present in deployment (886e0b0)
+- UI: Make privacy checkbox optional and change input text font to normal (9b86bbf)
 - Improve script to automatically pick correct .env file (.env or .env.production) (8d10e22)
 - Include API Key migration in deployment scripts (d0c1acc)
 - Add SMS API v1 with auto-resolution and credit check (62673c3)
@@ -341,7 +347,6 @@ This document is automatically updated based on development activity.
 ## [2026-02-19]
 - code (8428e45)
 - code (409f55d)
-- remove node_modules and add to gitignore (7b369ee)
 
 ---
 

@@ -44,12 +44,7 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(true);
 
-  if (isAuthenticated && !showWelcome) {
-    if (user?.role === 'admin' || user?.role === 'reseller' || user?.role === 'superadmin') {
-      return <Navigate to="/super-admin/dashboard" replace />;
-    }
-    return <Navigate to="/dashboard" replace />;
-  }
+
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -281,6 +276,13 @@ export default function Auth() {
     setSignupEmail('');
     setSignupOtp('');
   };
+
+  if (isAuthenticated && !showWelcome) {
+    if (user?.role === 'admin' || user?.role === 'reseller' || user?.role === 'superadmin') {
+      return <Navigate to="/super-admin/dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#f8faff] flex items-center justify-center p-0 font-['Inter',_sans-serif] overflow-y-auto py-0">
