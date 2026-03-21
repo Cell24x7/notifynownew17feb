@@ -1,4 +1,14 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const fs = require('fs');
+const path = require('path');
+
+// Load environment variables correctly across environments
+const envPath = fs.existsSync(path.join(__dirname, '../.env.production')) 
+    ? path.join(__dirname, '../.env.production') 
+    : path.join(__dirname, '../.env');
+
+require('dotenv').config({ path: envPath });
+console.log(`📡 Using environment file: ${path.basename(envPath)}`);
+
 const { query } = require('../config/db');
 const crypto = require('crypto');
 
