@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const { deductCampaignCredits } = require('../services/walletService');
+const { calculateNextRun } = require('../services/queueService');
 const jwt = require('jsonwebtoken');
 const ExcelJS = require('exceljs');
 const path = require('path');
@@ -174,7 +175,8 @@ router.post('/', authenticateToken, async (req, res) => {
         const {
             name, channel, template_id, audience_id, recipient_count,
             status, scheduled_at, variable_mapping,
-            template_metadata, template_body, template_type
+            template_metadata, template_body, template_type,
+            schedule_type, scheduling_mode, frequency, repeat_days, end_date
         } = req.body;
 
         // Validate channel against user profile
@@ -225,6 +227,14 @@ router.post('/', authenticateToken, async (req, res) => {
         // Use provided template_name or fallback to template_id (if it looks like a name)
         const templateName = req.body.template_name || (isNaN(template_id) ? template_id : null);
 
+        // Calculate next_run_at
+        let nextRunAt = null;
+        if (schedule_type === 'scheduled') {
+            nextRunAt = scheduled_at;
+        } else if (schedule_type === 'now') {
+            nextRunAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        }
+
         let finalMetadata = template_metadata || {};
         if (channel === 'sms' && template_id) {
             try {
@@ -240,19 +250,27 @@ router.post('/', authenticateToken, async (req, res) => {
 
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, scheduled_at, variable_mapping, template_metadata, template_body, template_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
+       scheduled_at, variable_mapping, template_metadata, template_body, template_type,
+       schedule_type, scheduling_mode, frequency, repeat_days, end_date, next_run_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 campaignId, userId, name, channel, template_id, templateName,
                 audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
                 scheduled_at || null, JSON.stringify(variable_mapping || {}),
                 JSON.stringify(finalMetadata),
                 template_body || null,
-                template_type || null
+                template_type || null,
+                schedule_type || 'now',
+                scheduling_mode || 'one-time',
+                frequency || null,
+                repeat_days ? JSON.stringify(repeat_days) : null,
+                end_date || null,
+                nextRunAt
             ]
         );
 
-        console.log(`✅ Campaign ${campaignId} created for user ${userId}. Template: ${templateName}`);
+        console.log(`✅ Campaign ${campaignId} created for user ${userId}. Template: ${templateName}. Schedule: ${schedule_type} (${scheduling_mode})`);
         res.status(201).json({ success: true, message: 'Campaign created successfully', campaignId });
     } catch (error) {
         console.error('CRITICAL: Create campaign error:', error);

@@ -39,8 +39,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
-import { SMSCampaignDialog } from '@/components/campaigns/SMSCampaignDialog';
-import { WhatsAppCampaignDialog } from '@/components/campaigns/WhatsAppCampaignDialog';
+import { dltTemplateService } from '@/services/dltTemplateService';
 import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
 import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesService';
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
@@ -62,7 +61,7 @@ export default function Campaigns() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -232,6 +231,33 @@ export default function Campaigns() {
           console.error('Failed to fetch WhatsApp templates:', waErr);
         }
       }
+      const isSmsEnabled = enabledChannels.includes('sms') || user?.channels_enabled?.includes('sms');
+      if (isSmsEnabled) {
+        try {
+          const smsData = await dltTemplateService.getTemplates('', 1, 1000);
+          const smsList = smsData?.templates || [];
+          if (Array.isArray(smsList)) {
+            const mappedSms = smsList.map((t: any) => ({
+              id: String(t.temp_id),
+              name: String(t.temp_name || t.temp_id),
+              channel: 'sms' as const,
+              status: 'approved' as any,
+              template_type: (t.temp_type || 'text') as any,
+              body: t.template_text || '',
+              metadata: {
+                dlt_template_id: t.temp_id,
+                sender: t.sender,
+                pe_id: t.pe_id || ''
+              },
+              isExternal: true
+            }));
+            const other = mergedTemplates.filter(p => p.channel !== 'sms');
+            mergedTemplates = [...other, ...mappedSms];
+          }
+        } catch (smsErr) {
+          console.error('Failed to fetch SMS templates:', smsErr);
+        }
+      }
 
       setTemplates(mergedTemplates);
 
@@ -270,9 +296,7 @@ export default function Campaigns() {
     return campaigns.find(c => c.id === selectedCampaign.id) || selectedCampaign;
   }, [campaigns, selectedCampaign]);
 
-  // SMS Specific Dialog
-  const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
-  const [isWhatsappDialogOpen, setIsWhatsappDialogOpen] = useState(false);
+
 
   const filteredCampaigns = (campaigns || []).filter((campaign) =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -293,14 +317,20 @@ export default function Campaigns() {
         template_body: selectedTpl?.body, // New snapshot
         template_type: selectedTpl?.template_type, // New snapshot
         audience_id: campaignData.audienceId || undefined,
-        recipient_count: (campaignData.contactSource === 'existing' && campaignData.scheduleType === 'scheduled') 
-          ? campaignData.recipientCount 
-          : 0,
-        status: 'draft' as any, // Start as draft, update later if 'now'
+        recipient_count: 0, // uploadContacts will accurately increment this later
+        status: campaignData.scheduleType === 'scheduled' ? 'scheduled' as any : 'draft' as any, // Start as draft, update later if 'now'
         scheduled_at: campaignData.scheduleType === 'scheduled'
           ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
           : undefined,
-        variable_mapping: campaignData.fieldMapping // Map field mapping to backend
+        variable_mapping: campaignData.fieldMapping, // Map field mapping to backend
+        // Recurring scheduling fields
+        schedule_type: campaignData.scheduleType,
+        scheduling_mode: campaignData.schedulingMode,
+        frequency: campaignData.frequency,
+        repeat_days: campaignData.repeatDays,
+        end_date: (campaignData.schedulingMode === 'repeat' && campaignData.endDate) 
+          ? `${campaignData.endDate}T${campaignData.endTime || '23:59:00'}` 
+          : undefined
       };
 
       const createRes = await campaignService.createCampaign(campaignPayload);
@@ -317,34 +347,34 @@ export default function Campaigns() {
         await campaignService.uploadContacts(campaignId, campaignData.uploadedFile);
         toast({ title: 'Contacts Uploaded', description: 'File processed successfully.' });
 
-      } else if (campaignData.contactSource === 'manual') {
-        // Parse manual numbers
-        const mobileNumbers = campaignData.manualNumbers
-          .split(/[\n,\s]+/)
-          .map(n => n.trim())
-          .filter(n => n !== '')
-          .map(n => parseInt(n.replace(/\D/g, '')))
-          .filter(n => !isNaN(n));
+      } else if (campaignData.contactSource === 'manual' || campaignData.contactSource === 'existing') {
+        let mobileNumbers: string[] = [];
+        
+        if (campaignData.contactSource === 'manual') {
+          mobileNumbers = campaignData.manualNumbers
+            .split(/[\n,\s]+/)
+            .map(n => n.trim())
+            .filter(n => n !== '')
+            .map(n => n.replace(/\D/g, ''))
+            .filter(n => n.length >= 10);
+        } else {
+          const contactsList = await contactService.getContacts();
+          mobileNumbers = contactsList
+            .filter(c => campaignData.selectedContacts.includes(c.id))
+            .map(c => c.phone.replace(/\D/g, ''))
+            .filter(n => n.length >= 10);
+        }
 
-        if (mobileNumbers.length > 50) {
-          isLargeCampaign = true;
-          // Convert to CSV Blob for upload
+        if (mobileNumbers.length > 0) {
+          isLargeCampaign = true; // Use unified queue flow for all batches to support scheduling properly
+          
+          // Generate simple CSV for backend parser
           const csvContent = "phone\n" + mobileNumbers.join("\n");
           const blob = new Blob([csvContent], { type: 'text/csv' });
-          const file = new File([blob], "manual_upload.csv", { type: "text/csv" });
+          const file = new File([blob], campaignData.contactSource === 'manual' ? "manual_upload.csv" : "existing_contacts.csv", { type: "text/csv" });
 
           toast({ title: 'Uploading Contacts', description: `Processing ${mobileNumbers.length} numbers...` });
           await campaignService.uploadContacts(campaignId, file);
-        } else {
-          // Small batch - proceed with legacy/immediate flow handled by backend or frontend API
-          // Actually, since we already created the campaign, we should probably upload these too 
-          // OR send them in the start command if the API supports it.
-          // But my start command only creates... actually startCampaign uses /rcs/send-campaign.
-          // Let's just upload them too for consistency if > 0? 
-          // Or keep legacy flow?
-          // To be safe and compliant with new backend logic (which checks queue), let's upload even small batches 
-          // OR use the legacy flow passing 'contacts' array to startCampaign.
-          // We will pass contacts array to startCampaign for small batches.
         }
       }
 
@@ -356,48 +386,12 @@ export default function Campaigns() {
             title: '🚀 Campaign Started',
             description: 'Campaign is running in background.',
           });
-        } else {
-          // Legacy Small Batch / Existing Audience
-          // If existing audience, we need to fetch logic or let backend handle?
-          // Current rcs/send-campaign handles 'contacts' array.
-
-          let contactsToSend: string[] = [];
-          if (campaignData.contactSource === 'existing') {
-            const contactsList = await contactService.getContacts();
-            const selectedContacts = contactsList.filter(c => campaignData.selectedContacts.includes(c.id));
-            contactsToSend = selectedContacts.map(c => c.phone);
-          } else if (campaignData.contactSource === 'manual') {
-            contactsToSend = campaignData.manualNumbers.split(/[\n,\s]+/).map(n => n.trim()).filter(Boolean);
-          }
-
-          // We need to pass campaignId so backend updates the row we just created
-          // instead of creating a new one.
-          if (contactsToSend.length > 0) {
-            // Call API directly or via service depending on channel
-            // We need to pass campaignId to reuse it.
-            const payload = {
-              campaignId, // Backend should handle this
-              campaignName: campaignData.name,
-              templateName: templates.find(t => t.id === campaignData.templateId)?.name || campaignData.templateId,
-              contacts: contactsToSend
-            };
-
-            if (campaignData.channel === 'whatsapp') {
-              await whatsappService.sendCampaign(payload);
-            } else {
-              await rcsCampaignApi.sendCampaign(payload as any);
-            }
-
-            toast({
-              title: '🚀 Campaign Sent',
-              description: `Processed ${contactsToSend.length} contacts.`,
-            });
-          }
         }
       } else {
+        const scheduleLabel = campaignData.schedulingMode === 'repeat' ? 'Recurring campaign' : 'Campaign';
         toast({
-          title: '📅 Campaign Scheduled',
-          description: `Campaign scheduled for ${campaignData.scheduledDate}.`,
+          title: `📅 ${scheduleLabel} Scheduled`,
+          description: `Scheduled for ${campaignData.scheduledDate} at ${campaignData.scheduledTime}.`,
         });
       }
 
@@ -503,16 +497,7 @@ export default function Campaigns() {
           <p className="text-sm md:text-base text-muted-foreground">Create and manage your messaging campaigns</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 mr-4 bg-muted/50 px-3 py-1.5 rounded-lg border border-border/50">
-            <Label htmlFor="auto-refresh" className="text-xs font-medium cursor-pointer">Auto-Refresh</Label>
-            <input
-              id="auto-refresh"
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
-            />
-          </div>
+
           <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary w-full sm:w-auto shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-300 font-bold border-none">
@@ -527,44 +512,13 @@ export default function Campaigns() {
                 templates={templates.filter(t => t.status === 'approved') as any}
                 onComplete={handleCampaignComplete}
                 onCancel={() => setIsCreateOpen(false)}
-                onSmsSelect={() => {
-                  setIsCreateOpen(false);
-                  setIsSmsDialogOpen(true);
-                }}
-                onWhatsappSelect={() => {
-                  setIsCreateOpen(false);
-                  setIsWhatsappDialogOpen(true);
-                }}
               />
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      {/* SMS Specific Dialog Component */}
-      <SMSCampaignDialog
-        open={isSmsDialogOpen}
-        onOpenChange={setIsSmsDialogOpen}
-        onSuccess={() => {
-          fetchData();
-          toast({
-            title: "Success",
-            description: "SMS Campaign created and started successfully."
-          });
-        }}
-      />
 
-      <WhatsAppCampaignDialog
-        open={isWhatsappDialogOpen}
-        onOpenChange={setIsWhatsappDialogOpen}
-        onSuccess={() => {
-          fetchData();
-          toast({
-            title: "Success",
-            description: "WhatsApp Campaign created and started successfully."
-          });
-        }}
-      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">

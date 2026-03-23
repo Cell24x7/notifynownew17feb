@@ -29,8 +29,6 @@ interface CampaignCreationStepperProps {
    templates: MessageTemplate[];
    onComplete: (campaignData: CampaignData) => void;
    onCancel: () => void;
-   onSmsSelect?: () => void;
-   onWhatsappSelect?: () => void;
 }
 
 export interface CampaignData {
@@ -69,7 +67,7 @@ const channelOptions = [
    { value: 'rcs', label: 'RCS', icon: '💬', costPerMessage: 0.30 },
 ];
 
-export default function CampaignCreationStepper({ templates, onComplete, onCancel, onSmsSelect, onWhatsappSelect }: CampaignCreationStepperProps) {
+export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {
    const { user } = useAuth();
    const { toast } = useToast();
    const enabledChannels = user?.channels_enabled || [];
@@ -145,14 +143,25 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
       if (!textToScan) return [];
 
-      // Matches both {{1}}, {{var}}, [1], [var] patterns
-      const matches = textToScan.match(/\{\{\s*([^}\s]+)\s*\}\}|\[\s*([^\]\s]+)\s*\]/g);
-      const vars = matches ? Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]/g, '').trim()))) : [];
+      // Matches {{1}}, {{var}}, [1], [var], {#var#}, {#var_1#} patterns
+      const matches = textToScan.match(/\{\{\s*([^}\s]+)\s*\}\}|\[\s*([^\]\s]+)\s*\]|\{#\s*([^#\s]+)\s*#\}/g);
+      const vars = matches ? Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\[|\]|\{#|#\}/g, '').trim()))) : [];
 
       // Check if WhatsApp template has a media header
       const headerComp = meta.components?.find((c: any) => typeof c.type === 'string' && c.type.toUpperCase() === 'HEADER');
       if (headerComp && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
          vars.unshift('header_url');
+      }
+
+      // Special case: Dynamic URL Buttons for WhatsApp
+      const buttonComp = meta.components?.find((c: any) => typeof c.type === 'string' && c.type.toUpperCase() === 'BUTTONS');
+      if (buttonComp && buttonComp.buttons) {
+          buttonComp.buttons.forEach((btn: any, idx: number) => {
+              if (btn.type === 'URL' && btn.url?.includes('{{1}}')) {
+                  const btnVar = `button_${idx + 1}_url`;
+                  if (!vars.includes(btnVar)) vars.push(btnVar);
+              }
+          });
       }
 
       return vars;
@@ -623,13 +632,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        <button
                                           key={channel.value}
                                           onClick={() => {
-                                             if (channel.value === 'sms' && onSmsSelect) {
-                                                onSmsSelect();
-                                             } else if (channel.value === 'whatsapp' && onWhatsappSelect) {
-                                                onWhatsappSelect();
-                                             } else {
-                                                setCampaignData({ ...campaignData, channel: channel.value as Channel, templateId: '' });
-                                             }
+                                             setCampaignData({ ...campaignData, channel: channel.value as Channel, templateId: '' });
                                           }}
                                           className={cn(
                                              "p-4 rounded-lg border-2 text-center transition-all hover:border-primary hover:bg-primary/5",
@@ -1363,9 +1366,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
                {/* Right Column: Sticky Preview */}
                <div className="hidden lg:block w-[380px] border-l bg-muted/5 flex-shrink-0">
-                  <div className="sticky top-0 h-screen flex flex-col p-6">
+                  <div className="sticky top-0 h-full flex flex-col p-6">
                      <h3 className="font-semibold mb-6 text-center text-muted-foreground uppercase tracking-widest text-xs">Live Preview</h3>
-                     <div className="flex-1 flex items-start justify-center overflow-hidden">
+                     <div className="flex-1 flex items-start justify-center overflow-y-auto no-scrollbar">
                         <CampaignPreview
                            campaignData={campaignData}
                            template={selectedTemplate}

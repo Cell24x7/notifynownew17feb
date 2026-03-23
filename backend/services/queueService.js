@@ -87,6 +87,38 @@ const getOrderedVariables = (text, resolvedVars) => {
     return sorted.map(idx => resolvedVars[idx] || '');
 };
 
+const calculateNextRun = (currentRun, frequency, repeatDays) => {
+    if (!currentRun) return null;
+    const next = new Date(currentRun);
+    
+    if (frequency === 'daily') {
+        next.setDate(next.getDate() + 1);
+    } else if (frequency === 'weekly') {
+        if (!repeatDays || !Array.isArray(repeatDays) || repeatDays.length === 0) {
+            next.setDate(next.getDate() + 7); // Default to same day next week
+        } else {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const currentDayIdx = next.getDay();
+            
+            let minDiff = 8;
+            repeatDays.forEach(day => {
+                const targetIdx = days.findIndex(d => d.startsWith(day));
+                if (targetIdx !== -1) {
+                    let diff = targetIdx - currentDayIdx;
+                    if (diff <= 0) diff += 7;
+                    if (diff < minDiff) minDiff = diff;
+                }
+            });
+            next.setDate(next.getDate() + minDiff);
+        }
+    } else if (frequency === 'monthly') {
+        next.setMonth(next.getMonth() + 1);
+    } else {
+        return null;
+    }
+    return next;
+};
+
 /**
  * Core processor for any campaign queue
  */
@@ -99,15 +131,44 @@ const processBatch = async (tableConfig) => {
     } = tableConfig;
 
     try {
-        // Auto-start scheduled campaigns
+        // --- 1. Handle Recurring Campaigns Renewal (Resetting previously finished runs) ---
+        // Currently only supported for manual campaigns
+        if (campaignTable === 'campaigns') {
+            const [recurringCamps] = await query(`
+                SELECT * FROM ${campaignTable} 
+                WHERE scheduling_mode = 'repeat' 
+                AND status = 'sent' 
+                AND next_run_at <= NOW()
+                AND (end_date IS NULL OR end_date > NOW())
+            `);
+
+            for (const camp of recurringCamps) {
+                console.log(`♻️ [${processorName}] Renewing recurring campaign ${camp.id} (${camp.name})`);
+                
+                // Reset queue items to pending
+                await query(`UPDATE ${queueTable} SET status = "pending" WHERE campaign_id = ?`, [camp.id]);
+                
+                // Calculate next run
+                const nextRun = calculateNextRun(camp.next_run_at, camp.frequency, camp.repeat_days);
+                
+                // Set status back to 'running'
+                await query(
+                    `UPDATE ${campaignTable} SET status = "running", next_run_at = ?, last_run_at = NOW() WHERE id = ?`, 
+                    [nextRun, camp.id]
+                );
+            }
+        }
+
+        // --- 2. Auto-start scheduled/pending campaigns whose time has passed ---
         await query(`
             UPDATE ${campaignTable} 
-            SET status = 'running' 
-            WHERE status = 'scheduled' 
-            AND scheduled_at <= NOW()
+            SET status = 'running', last_run_at = NOW()
+            WHERE status IN ('scheduled', 'draft') 
+            AND next_run_at <= NOW()
+            AND status != 'running'
         `);
 
-        // 1. Fetch pending items
+        // 3. Fetch pending items
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(mt.name, c.template_name) as template_name,
@@ -335,4 +396,4 @@ const processApiQueue = () => processBatch({
     name: 'ApiWorker'
 });
 
-module.exports = { processQueue, processApiQueue };
+module.exports = { processQueue, processApiQueue, calculateNextRun };

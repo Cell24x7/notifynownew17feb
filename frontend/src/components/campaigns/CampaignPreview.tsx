@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { MessageTemplate } from '@/lib/mockData';
 import { CampaignData } from './CampaignCreationStepper';
-import { Shield, ChevronLeft, MoreVertical, Plus, Smile, Image as ImageIcon, Send, Link, Phone, FileText } from 'lucide-react';
+import { Shield, ChevronLeft, MoreVertical, Plus, Smile, Image as ImageIcon, Send, Link, Phone, FileText, Bot, Store } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CampaignPreviewProps {
   campaignData: CampaignData;
@@ -49,16 +50,22 @@ export function CampaignPreview({ campaignData, template, variables, csvPreview,
     return text;
   }, [template, variables, campaignData.fieldMapping, csvPreview, detectedColumns]);
 
+  const { user } = useAuth();
+  
   const channelColor = {
     whatsapp: 'bg-[#075E54]',
     sms: 'bg-[#007AFF]',
     rcs: 'bg-[#1A73E8]',
   }[campaignData.channel] || 'bg-slate-800';
 
+  const meta = (template as any)?.metadata || {};
+  const botName = meta.bot_name || meta.brand_name || meta.sender || user?.name || 'Business Account';
+  const botLogo = meta.bot_logo || meta.bot_image || null;
+
   return (
-    <div className="flex flex-col items-center justify-start h-full pb-10 overflow-y-auto no-scrollbar">
+    <div className="flex flex-col items-center justify-start min-h-full pt-4 pb-24 overflow-y-auto no-scrollbar w-full">
       <div
-        className="w-[300px] h-[600px] bg-[#000a14] rounded-[3rem] p-3 shadow-2xl relative transition-all duration-500 origin-top flex-shrink-0"
+        className="w-full max-w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[2.5rem] p-2.5 shadow-2xl relative transition-all duration-500 origin-top flex-shrink-0 flex flex-col mx-auto"
         style={{
           transform: 'scale(1)',
           boxShadow: '0 0 30px rgba(0, 114, 255, 0.3), inset 0 0 15px rgba(0, 114, 255, 0.1)',
@@ -78,17 +85,28 @@ export function CampaignPreview({ campaignData, template, variables, csvPreview,
 
         <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10">
           {/* Header */}
-          <div className={cn("px-4 pt-10 pb-3 text-white flex items-center gap-3 shadow-md border-b border-white/5", channelColor)}>
+          <div 
+            className={cn("px-4 pt-10 pb-3 text-white flex items-center gap-3 shadow-md border-b border-white/5", !meta.bot_color && channelColor)}
+            style={meta.bot_color ? { backgroundColor: meta.bot_color } : {}}
+          >
             <ChevronLeft className="h-5 w-5" />
-            <div className="w-9 h-9 rounded-full bg-blue-500/20 flex items-center justify-center text-[11px] font-bold border border-blue-400/20">
-              {campaignData.channel?.toUpperCase() || 'RCS'}
-            </div>
+            
+            {botLogo ? (
+              <img src={botLogo} alt="Bot DP" className="w-8 h-8 rounded-full object-cover border border-white/20 shadow-sm bg-white shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+                {campaignData.channel === 'whatsapp' ? <Store className="h-4 w-4 text-white/90" /> : <Bot className="h-4 w-4 text-white/90" />}
+              </div>
+            )}
+            
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
-                <span className="text-sm font-bold truncate tracking-tight">Business Profile</span>
-                {campaignData.channel === 'rcs' && <Shield className="h-3.5 w-3.5 text-blue-400 fill-blue-400/10" />}
+                <span className="text-sm font-bold truncate tracking-tight">{botName}</span>
+                {campaignData.channel === 'rcs' && <Shield className="h-3.5 w-3.5 text-blue-100 fill-blue-100/20" />}
               </div>
-              <p className="text-[10px] opacity-70 font-medium">Verified Official Business</p>
+              <p className="text-[10px] opacity-90 font-medium tracking-wide">
+                {campaignData.channel === 'rcs' ? 'Verified Application' : campaignData.channel === 'whatsapp' ? 'Verified Official Business' : 'SMS Sender'}
+              </p>
             </div>
             <MoreVertical className="h-4 w-4 opacity-70" />
           </div>
