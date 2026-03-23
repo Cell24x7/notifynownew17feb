@@ -239,8 +239,11 @@ const processBatch = async (tableConfig) => {
                                 }
                             });
                         }
-
                         if (payloadComponents.length > 0) payload.template.components = payloadComponents;
+                        
+                        console.log(`[WA-SEND] Endpoint: ${msgUrl}`);
+                        console.log(`[WA-SEND] Payload: ${JSON.stringify(payload, null, 2)}`);
+                        
                         const response = await axios.post(msgUrl, payload, { headers });
                         const respData = response.data;
                         result = { success: true, messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${mobile}` };
