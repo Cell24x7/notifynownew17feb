@@ -27,7 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
-import logo from '@/assets/logo.svg';
+import logo from '@/assets/logo-full.png';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard', permission: 'Dashboard - View' },

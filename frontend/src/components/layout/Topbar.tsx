@@ -1,6 +1,6 @@
 import { Wallet, Zap, ChevronDown, Sun, Moon, LogOut, Menu, User } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import logo from '@/assets/logo.svg';
+import logo from '@/assets/logo-full.png';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from 'next-themes';

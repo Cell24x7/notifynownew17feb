@@ -65,7 +65,7 @@ export default function TermsOfService() {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="NotifyNow" className="w-8 h-8 rounded-lg shadow-sm" />
+            <img src="/logo-full.png" alt="NotifyNow" className="w-8 h-8 rounded-lg shadow-sm" />
             <span className="font-bold text-xl tracking-tight">NotifyNow</span>
           </div>
         </div>

@@ -16,7 +16,7 @@ import { WelcomePopup } from '@/components/auth/WelcomePopup';
 import { useBranding } from '@/contexts/BrandingContext';
 import { FeedbackDialog } from '@/components/auth/FeedbackDialog';
 import { TestimonialSlider } from '@/components/auth/TestimonialSlider';
-import logo from '@/assets/logo.svg';
+import logo from '@/assets/logo-full.png';
 
 export default function Auth() {
   const [activeTab, setActiveTab] = useState('login');
