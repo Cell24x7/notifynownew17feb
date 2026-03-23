@@ -43,8 +43,18 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
         // Strategy 1: Mapping exists
         if (Object.keys(mapping).length > 0) {
             Object.keys(mapping).forEach(key => {
-                const csvColumnName = mapping[key];
-                resolved[key] = contactVars[csvColumnName] || '';
+                const mapEntry = mapping[key];
+                
+                if (mapEntry && typeof mapEntry === 'object' && mapEntry.type) {
+                    if (mapEntry.type === 'field') {
+                        resolved[key] = contactVars[mapEntry.value] || '';
+                    } else if (mapEntry.type === 'custom') {
+                        resolved[key] = mapEntry.value || '';
+                    }
+                } else if (typeof mapEntry === 'string') {
+                    // Fallback for simple string mapping
+                    resolved[key] = contactVars[mapEntry] || '';
+                }
             });
         } 
         
