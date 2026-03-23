@@ -32,7 +32,13 @@ router.post('/rcs/callback', async (req, res) => {
             // Update message_logs
             try {
                 // Check if message exists
-                const [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                let isApiLog = false;
+                
+                if (logs.length === 0) {
+                    [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                    if (logs.length > 0) isApiLog = true;
+                }
 
                 if (logs.length > 0) {
                     const log = logs[0];
@@ -41,31 +47,32 @@ router.post('/rcs/callback', async (req, res) => {
                     // Hierarchy: sent -> submitted -> delivered -> read
                     // Failure is separate
 
-                    await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
+                    const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                    const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+
+                    await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
 
                     // Update specific timestamps based on status
                     if (finalStatus === 'delivered') {
-                        await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
+                        await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
                     } else if (finalStatus === 'read') {
                         // If it's read, it must have been delivered. Set delivery_time if null.
-                        await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
+                        await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
                     } else if (finalStatus === 'failed') {
-                        await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [error || 'Unknown error', messageId]);
+                        await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
                     }
 
                     // Update campaign counts
                     if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
-                        await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                        await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
                     } else if (finalStatus === 'read' && log.status !== 'read') {
-                        // If it jumps straight to read, we should also count as delivered if not already? 
-                        // Usually read implies delivered.
                         if (log.status !== 'delivered') {
-                            await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                            await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                         } else {
-                            await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                            await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                         }
                     } else if (finalStatus === 'failed') {
-                        await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                        await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
                     }
 
                     console.log(`✅ Updated status for ${messageId} to ${finalStatus}`);
@@ -340,8 +347,14 @@ router.post('/dotgo', async (req, res) => {
         // 3. Update message_logs & Campaign counts
         if (messageId || contactPhone) {
             try {
-                // Try matching by message_id first
+                // Try matching by message_id first (checks both manual and API logs)
                 let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                let isApiLog = false;
+                
+                if (logs.length === 0) {
+                    [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                    if (logs.length > 0) isApiLog = true;
+                }
 
                 // Fallback: Match by contactPhone (last 10 digits) if message_id not found
                 if (logs.length === 0 && contactPhone) {
@@ -374,7 +387,10 @@ router.post('/dotgo', async (req, res) => {
 
                         console.log(`📝 Updating Log ${log.id}: ${oldStatus} -> ${finalStatus}`);
 
-                        await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE id = ?', [finalStatus, log.id]);
+                        const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                        const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+
+                        await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE id = ?`, [finalStatus, log.id]);
 
                         // 📡 REAL-TIME CHAT STATUS UPDATE
                         if (['delivered', 'read', 'displayed', 'failed'].includes(finalStatus) && req.io) {
@@ -390,29 +406,29 @@ router.post('/dotgo', async (req, res) => {
 
                         // Handle Timestamps
                         if (finalStatus === 'delivered') {
-                            await query('UPDATE message_logs SET delivery_time = NOW() WHERE id = ?', [log.id]);
+                            await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
                         } else if (finalStatus === 'read') {
-                            await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?', [log.id]);
+                            await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?`, [log.id]);
                         } else if (finalStatus === 'failed') {
                             const reason = decodedData.reason || decodedData.description || decodedData.error || 'Provider rejected (Check raw data)';
-                            await query('UPDATE message_logs SET failure_reason = ? WHERE id = ?', [reason, log.id]);
+                            await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
                         }
 
                         // Handle Campaign Counters (Real-time updates)
                         if (log.campaign_id) {
                             if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
                                 console.log(`📈 Campaign ${log.campaign_id}: Delivered count +1`);
                             } else if (finalStatus === 'read' && oldStatus !== 'read') {
                                 if (oldStatus !== 'delivered') {
-                                    await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                                     console.log(`📈 Campaign ${log.campaign_id}: Delivered & Read count +1`);
                                 } else {
-                                    await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                    await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                                     console.log(`📈 Campaign ${log.campaign_id}: Read count +1`);
                                 }
                             } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                                await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
                                 console.log(`📉 Campaign ${log.campaign_id}: Failed count +1`);
                             }
                         }
@@ -508,7 +524,15 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
-        let baseSql = ' FROM message_logs ml LEFT JOIN campaigns c ON ml.campaign_id = c.id WHERE 1=1';
+        let logsTable = 'message_logs';
+        let campaignsTable = 'campaigns';
+
+        if (req.query.source === 'api') {
+            logsTable = 'api_message_logs';
+            campaignsTable = 'api_campaigns';
+        }
+
+        let baseSql = ` FROM ${logsTable} ml LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id WHERE 1=1`;
         let params = [];
 
         // Filter by userId
@@ -529,14 +553,8 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         }
 
         if (req.query.channel && req.query.channel !== 'all') {
-            baseSql += ' AND c.channel = ?';
-            params.push(req.query.channel);
-        }
-
-        if (req.query.source === 'api') {
-            baseSql += " AND ml.campaign_id LIKE 'CAMP_API_%'";
-        } else if (req.query.source === 'manual') {
-            baseSql += " AND (ml.campaign_id NOT LIKE 'CAMP_API_%' OR ml.campaign_id IS NULL)";
+            baseSql += ' AND (c.channel = ? OR ml.channel = ?)';
+            params.push(req.query.channel, req.query.channel);
         }
 
         if (req.query.startDate && req.query.endDate) {

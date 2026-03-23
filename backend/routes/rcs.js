@@ -153,8 +153,13 @@ router.get('/reports', authenticateToken, async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
+    let tableName = 'campaigns';
+    if (req.query.source === 'api') {
+      tableName = 'api_campaigns';
+    }
+
     let sql = `
-      FROM campaigns c
+      FROM ${tableName} c
       WHERE 1=1
     `;
     const params = [];
@@ -162,12 +167,6 @@ router.get('/reports', authenticateToken, async (req, res) => {
     if (channel && channel !== 'all') {
       sql += ` AND c.channel = ?`;
       params.push(channel);
-    }
-
-    if (req.query.source === 'api') {
-      sql += ` AND c.id LIKE 'CAMP_API_%'`;
-    } else if (req.query.source === 'manual') {
-      sql += ` AND c.id NOT LIKE 'CAMP_API_%'`;
     }
 
     // Filter by userId. If provided and user is admin, use targetUserId.

@@ -261,6 +261,38 @@ async function updateSchema() {
             console.log('Error creating API campaign tables:', e.message);
         }
 
+        // 10. Ensure updated_at and message_content exist in all relevant tables
+        try {
+            const tableCols = [
+                { table: 'message_logs', cols: [
+                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
+                    { name: 'message_content', type: 'TEXT' }
+                ]},
+                { table: 'api_message_logs', cols: [
+                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
+                    { name: 'message_content', type: 'TEXT' }
+                ]},
+                { table: 'campaigns', cols: [
+                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' }
+                ]},
+                { table: 'api_campaigns', cols: [
+                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' }
+                ]}
+            ];
+
+            for (const item of tableCols) {
+                console.log(`Checking columns for ${item.table}...`);
+                const [cols] = await connection.execute(`DESCRIBE ${item.table}`);
+                for (const colDef of item.cols) {
+                    if (!cols.some(c => c.Field === colDef.name)) {
+                        console.log(`Adding ${colDef.name} to ${item.table}...`);
+                        await connection.execute(`ALTER TABLE ${item.table} ADD COLUMN ${colDef.name} ${colDef.type}`);
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('Error during extended schema updates:', e.message);
+        }
 
     } catch (err) {
         console.error('Error:', err.message);

@@ -1038,8 +1038,8 @@ router.post('/api/send-single', async (req, res) => {
 
         // Log to api_message_logs
         await query(
-            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
-            [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp']
+            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)',
+            [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp', `Template: ${templateName}`]
         );
 
         res.json({ success: true, messageId });
