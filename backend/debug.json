@@ -1,0 +1,57 @@
+{
+  "campaigns": [
+    {
+      "id": "CAMP1772625001371",
+      "status": "running",
+      "channel": "rcs",
+      "template_id": "TPL1772263452076",
+      "scheduled_at": "2026-03-04T11:52:00.000Z",
+      "recipient_count": 0
+    },
+    {
+      "id": "CAMP1774244314745",
+      "status": "running",
+      "channel": "rcs",
+      "template_id": "TPL1772263452076",
+      "scheduled_at": "2026-03-23T05:40:00.000Z",
+      "recipient_count": 0
+    }
+  ],
+  "queue": [
+    {
+      "status": "sent",
+      "count": 165
+    },
+    {
+      "status": "failed",
+      "count": 125
+    }
+  ],
+  "errors": [
+    {
+      "id": 650584,
+      "status": "failed",
+      "error_message": "{\"senderPhoneNumber\":\"+919004207813\",\"eventType\":\"FAILED\",\"reason\":\"Template code with bot doesn't exist.\",\"sendTime\":\"2026-03-20T10:13:09.056Z\",\"messageId\":\"e55320ca-c7b9-4958-85b1-1692cb519c28\",\"code\":409}"
+    },
+    {
+      "id": 650583,
+      "status": "failed",
+      "error_message": "{\"senderPhoneNumber\":\"+919004207813\",\"eventType\":\"FAILED\",\"reason\":\"Template code with bot doesn't exist.\",\"sendTime\":\"2026-03-20T10:12:44.835Z\",\"messageId\":\"0c2953ae-549a-4ac8-a0f6-820d8b231dcf\",\"code\":409}"
+    },
+    {
+      "id": 650582,
+      "status": "failed",
+      "error_message": "(#100) The parameter template['name'] is required."
+    },
+    {
+      "id": 650581,
+      "status": "failed",
+      "error_message": "(#100) The parameter template['name'] is required."
+    },
+    {
+      "id": 650580,
+      "status": "failed",
+      "error_message": "(#100) The parameter template['name'] is required."
+    }
+  ]
+}

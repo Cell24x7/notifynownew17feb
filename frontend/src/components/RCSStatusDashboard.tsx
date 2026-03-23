@@ -154,13 +154,7 @@ export default function RCSStatusDashboard() {
           <p className="text-gray-600">Track your onboarding progress and message analytics</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant={autoRefresh ? 'default' : 'outline'}
-            onClick={() => setAutoRefresh(!autoRefresh)}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-            Auto-refresh
-          </Button>
+          {/* Auto-refresh is mandatory and handled in background */}
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export

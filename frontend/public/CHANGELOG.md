@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-21]
+- fix: corrected Sidebar permission names for Templates and Plans to match database strings (541b6a1)
 - hotfix: resolved React Hooks error on Auth page and removed non-existent require causing 502 Bad Gateway (76d7d38)
 - fix: compressed JWT permissions payload to prevent header limits crash and enforced sidebar permission visibility (f40bf37)
 - Create Sandy super admin user and update deployment scripts (cae2d51)
@@ -334,20 +335,6 @@ This document is automatically updated based on development activity.
 ## [2026-02-21]
 - updated code (5a0930a)
 - updated code (dec6a5e)
-
----
-
-## [2026-02-20]
-- code (6f650c1)
-- code (f0a0b4e)
-- code (ccd9b05)
-- code (49bf72e)
-
----
-
-## [2026-02-19]
-- code (8428e45)
-- code (409f55d)
 
 ---
 
