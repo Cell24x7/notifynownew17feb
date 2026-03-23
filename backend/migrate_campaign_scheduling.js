@@ -1,19 +1,21 @@
-const mysql = require('mysql2/promise');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const dotenv = require('dotenv');
+
+// Smart env loading: prioritizes .env.production on servers
+const currentPath = __dirname;
+let envFile = '.env';
+if (currentPath.includes('notifynow.in') || process.env.NODE_ENV === 'production') {
+    envFile = '.env.production';
+}
+dotenv.config({ path: path.join(__dirname, envFile) });
+
+const { query } = require('./config/db');
 
 async function migrate() {
-    const connection = await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME
-    });
-
     try {
-        console.log('Starting migration for campaigns table...');
+        console.log(`🚀 Starting migration for Campaigns table [${process.env.DB_NAME}]...`);
 
-        const [existingCols] = await connection.query('DESCRIBE campaigns');
+        const [existingCols] = await query('DESCRIBE campaigns');
         const colNames = existingCols.map(c => c.Field);
 
         const newCols = [
@@ -28,18 +30,18 @@ async function migrate() {
 
         for (const col of newCols) {
             if (colNames.includes(col.name)) {
-                console.log(`Column ${col.name} already exists, skipping...`);
+                console.log(`✅ Column ${col.name} already exists, skipping...`);
             } else {
-                console.log(`Adding column ${col.name}...`);
-                await connection.query(col.query);
+                console.log(`➕ Adding column ${col.name}...`);
+                await query(col.query);
             }
         }
 
-        console.log('Migration completed successfully!');
+        console.log('✨ Migration completed successfully!');
     } catch (err) {
-        console.error('Migration failed:', err.message);
+        console.error('❌ Migration failed:', err.message);
     } finally {
-        await connection.end();
+        process.exit(0);
     }
 }
 
