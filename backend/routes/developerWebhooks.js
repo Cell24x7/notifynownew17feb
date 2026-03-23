@@ -198,24 +198,31 @@ router.post('/data', async (req, res) => {
 
         // 7. Send message using WhatsApp API
         let sendSuccess = false;
+        let realMessageId = `WH_${Date.now()}`;
         try {
             console.log('📡 Sending dynamic WhatsApp payload:', JSON.stringify(waPayload, null, 2));
+            let response;
             if (config.provider === 'vendor2') {
-                await axios.post(
+                response = await axios.post(
                     `${PINBOT_BASE}/${config.ph_no_id}/messages`,
                     waPayload,
                     { headers: { apikey: config.api_key, 'Content-Type': 'application/json' } }
                 );
             } else {
                 const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
-                await axios.post(
+                response = await axios.post(
                     `${GRAPH_BASE}/${config.ph_no_id}/messages`,
                     waPayload,
                     { headers: { Authorization: `Bearer ${config.api_key}`, 'Content-Type': 'application/json' } }
                 );
             }
             sendSuccess = true;
-            console.log(`✅ WhatsApp message sent automatically to ${phone}`);
+            if (response.data?.messages?.[0]?.id) {
+                realMessageId = response.data.messages[0].id;
+            } else if (response.data?.message_id) {
+                realMessageId = response.data.message_id;
+            }
+            console.log(`✅ WhatsApp message sent automatically to ${phone}. ID: ${realMessageId}`);
         } catch (sendErr) {
             console.error(`❌ Failed to send WhatsApp message to ${phone}:`, sendErr.response?.data || sendErr.message);
         }
@@ -232,7 +239,7 @@ router.post('/data', async (req, res) => {
 
             await query(
                 'INSERT INTO message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
-                [targetUserId, apiCampaignId, apiCampaignName, templateName, `WH_${Date.now()}`, phone, sendSuccess ? 'sent' : 'failed']
+                [targetUserId, apiCampaignId, apiCampaignName, templateName, realMessageId, phone, sendSuccess ? 'sent' : 'failed']
             );
         } catch (logErr) {
             console.error('❌ Error logging webhook message:', logErr.message);

@@ -690,35 +690,44 @@ router.post('/whatsapp/callback', async (req, res) => {
 
                             console.log(`📊 WA DLR Update: Msg ${messageId} is ${status} for ${recipientId}`);
 
-                            // Update logic based on messageId
+                            // Update logic based on messageId (checks both manual and API logs)
                             try {
-                                const [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                                let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                                let isApiLog = false;
+                                
+                                if (logs.length === 0) {
+                                    [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                                    if (logs.length > 0) isApiLog = true;
+                                }
+
                                 if (logs.length > 0) {
                                     const log = logs[0];
                                     let finalStatus = status.toLowerCase();
+                                    const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                                    const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
-                                    await query('UPDATE message_logs SET status = ?, updated_at = NOW() WHERE message_id = ?', [finalStatus, messageId]);
+                                    await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
 
                                     if (finalStatus === 'delivered') {
-                                        await query('UPDATE message_logs SET delivery_time = NOW() WHERE message_id = ?', [messageId]);
+                                        await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
                                     } else if (finalStatus === 'read') {
-                                        await query('UPDATE message_logs SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?', [messageId]);
+                                        await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
                                     } else if (finalStatus === 'failed') {
-                                        await query('UPDATE message_logs SET failure_reason = ? WHERE message_id = ?', [errorReason, messageId]);
+                                        await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
                                     }
 
                                     // Update Campaign Counts
                                     if (log.campaign_id) {
                                         if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
-                                            await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                                            await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
                                         } else if (finalStatus === 'read' && log.status !== 'read') {
                                             if (log.status !== 'delivered') {
-                                                await query('UPDATE campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                                             } else {
-                                                await query('UPDATE campaigns SET read_count = read_count + 1 WHERE id = ?', [log.campaign_id]);
+                                                await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                                             }
                                         } else if (finalStatus === 'failed') {
-                                            await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                                            await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
                                         }
                                     }
                                 } else {

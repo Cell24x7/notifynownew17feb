@@ -28,6 +28,10 @@ const authenticateApiKey = async (req, res, next) => {
         req.user = users[0];
         next();
     } catch (err) {
+        if (err.code === 'ER_BAD_FIELD_ERROR' && err.sqlMessage.includes('api_key')) {
+            console.error('⚠️ [API-AUTH] missing "api_key" column in users table. Please run migration.');
+            return res.status(500).json({ success: false, message: 'System configuration error: API Key support not initialized.' });
+        }
         console.error('API Key Auth Error:', err);
         res.status(500).json({ success: false, message: 'Authentication error' });
     }

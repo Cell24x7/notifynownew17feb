@@ -5,8 +5,8 @@ const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
 const { sendSMS } = require('../utils/smsService');
 
 const BATCH_SIZE = 200;
-const GRAPH_BASE = 'https://graph.facebook.com/v16.0';
-const PINBOT_BASE = 'https://api.pinbot.ai/v1/messages';
+const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
+const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
 
 /**
  * Normalizes RCS results from service
@@ -177,8 +177,12 @@ const processBatch = async (tableConfig) => {
                         result = { success: false, error: 'No WhatsApp configuration' };
                     } else {
                         const isPinbot = item.wa_provider === 'vendor2';
-                        const msgUrl = isPinbot ? `${PINBOT_BASE}/${item.wa_ph_no_id}/messages` : `${GRAPH_BASE}/${item.wa_ph_no_id}/messages`;
-                        const headers = isPinbot ? { apikey: item.wa_api_key, 'Content-Type': 'application/json' } : { Authorization: `Bearer ${item.wa_token}`, 'Content-Type': 'application/json' };
+                        
+                        if (!item.wa_ph_no_id) {
+                            result = { success: false, error: 'Missing Message ID (ph_no_id) for user config' };
+                        } else {
+                            const msgUrl = isPinbot ? `${PINBOT_BASE}/${item.wa_ph_no_id}/messages` : `${GRAPH_BASE}/${item.wa_ph_no_id}/messages`;
+                            const headers = isPinbot ? { apikey: item.wa_api_key, 'Content-Type': 'application/json' } : { Authorization: `Bearer ${item.wa_token}`, 'Content-Type': 'application/json' };
 
                         let mobile = item.mobile.replace(/\D/g, '');
                         if (mobile.length === 10) mobile = '91' + mobile;
@@ -240,6 +244,7 @@ const processBatch = async (tableConfig) => {
                         const response = await axios.post(msgUrl, payload, { headers });
                         const respData = response.data;
                         result = { success: true, messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${mobile}` };
+                        }
                     }
                 } else if (channelParsed === 'sms') {
                     const body = item.template_body || item.campaign_name;
@@ -260,8 +265,9 @@ const processBatch = async (tableConfig) => {
                 else stats[item.campaign_id].failed++;
 
             } catch (err) {
-                console.error(`[${processorName}] Item Error ${item.id}:`, err.message);
-                results.push({ ...item, success: false, error: err.message });
+                const errorDetail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+                console.error(`[${processorName}] Item Error ${item.id}:`, errorDetail);
+                results.push({ ...item, success: false, error: errorDetail });
                 stats[item.campaign_id].failed++;
             }
         }));

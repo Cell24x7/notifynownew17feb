@@ -37,6 +37,15 @@ async function updateSchema() {
             console.log('reseller_id already exists in users table.');
         }
 
+        // 1.1 Add api_key to users if it doesn't exist
+        const hasApiKey = userCols.some(col => col.Field === 'api_key');
+        if (!hasApiKey) {
+            console.log('Adding api_key to users table...');
+            await connection.execute('ALTER TABLE users ADD COLUMN api_key VARCHAR(100) UNIQUE AFTER api_password');
+        } else {
+            console.log('api_key already exists in users table.');
+        }
+
         // 2. Add branding columns to resellers if they don't exist
         const [resellerCols] = await connection.execute('DESCRIBE resellers');
         const brandingCols = [
@@ -71,6 +80,17 @@ async function updateSchema() {
             }
         } catch (e) {
             console.log('Error checking message_logs columns:', e.message);
+        }
+
+        // 3.1 WhatsApp Configs apikey
+        try {
+            const [wcCols] = await connection.execute('DESCRIBE whatsapp_configs');
+            if (!wcCols.some(col => col.Field === 'api_key')) {
+                console.log('Adding api_key to whatsapp_configs...');
+                await connection.execute('ALTER TABLE whatsapp_configs ADD COLUMN api_key TEXT AFTER wa_token');
+            }
+        } catch (e) {
+            console.log('Error modifying whatsapp_configs:', e.message);
         }
 
         // 4. Create missing chats table if not exists for stats fallback avoidance
