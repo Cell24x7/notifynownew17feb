@@ -165,7 +165,7 @@ export default function Dashboard() {
       const human = s.totalMessages - bot;
       return {
         ...c,
-        messages: s.totalMessages.toLocaleString(),
+        messages: s.totalMessages?.toLocaleString() || '0',
         delivery: s.deliveryRate + '%',
         bot,
         human

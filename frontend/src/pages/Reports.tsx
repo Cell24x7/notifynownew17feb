@@ -486,11 +486,11 @@ export default function Reports() {
                                                       <span className="text-[10px] text-slate-400 font-bold">{format(new Date(report.created_at), 'HH:mm')}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-black text-slate-900 text-[13px] border-r border-slate-100 px-4">{report.recipient_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-indigo-700 font-black text-[13px] border-r border-slate-100 px-4 bg-indigo-50/10">{report.sent_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-emerald-700 font-black text-[13px] border-r border-slate-100 px-4 bg-emerald-50/10">{report.delivered_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-purple-700 font-black text-[13px] border-r border-slate-100 px-4 bg-purple-50/10">{report.read_count.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right text-rose-700 font-black text-[13px] pr-6 bg-rose-50/10">{report.failed_count.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right font-black text-slate-900 text-[13px] border-r border-slate-100 px-4">{report.recipient_count?.toLocaleString() || 0}</TableCell>
+                                                <TableCell className="text-right text-indigo-700 font-black text-[13px] border-r border-slate-100 px-4 bg-indigo-50/10">{report.sent_count?.toLocaleString() || 0}</TableCell>
+                                                <TableCell className="text-right text-emerald-700 font-black text-[13px] border-r border-slate-100 px-4 bg-emerald-50/10">{report.delivered_count?.toLocaleString() || 0}</TableCell>
+                                                <TableCell className="text-right text-purple-700 font-black text-[13px] border-r border-slate-100 px-4 bg-purple-50/10">{report.read_count?.toLocaleString() || 0}</TableCell>
+                                                <TableCell className="text-right text-rose-700 font-black text-[13px] pr-6 bg-rose-50/10">{report.failed_count?.toLocaleString() || 0}</TableCell>
                                             </TableRow>
                                         ))
                                     )}

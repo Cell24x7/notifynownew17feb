@@ -51,7 +51,7 @@ router.get('/', authenticateToken, async (req, res) => {
         `, [userId, userId]);
 
         // Get paginated data (Manual + API)
-        const commonCols = "id, user_id, name, channel, template_id, status, created_at, recipient_count, sent_count, failed_count";
+        const commonCols = "id, user_id, name, channel, template_id, status, created_at, recipient_count, audience_count, sent_count, delivered_count, read_count, failed_count";
         const [campaignsResult] = await query(`
             SELECT * FROM (
                 SELECT ${commonCols} FROM campaigns WHERE user_id = ?
@@ -119,14 +119,15 @@ router.get('/admin', authenticateAdmin, async (req, res) => {
         const [[{ total }]] = await query(countSql, [...params, ...params]);
 
         // Get paginated data with user details (Manual + API)
+        const commonCols = "id, user_id, name, channel, template_id, status, created_at, recipient_count, audience_count, sent_count, delivered_count, read_count, failed_count";
         const sql = `
             SELECT * FROM (
-                SELECT c.id, c.user_id, c.name, c.channel, c.template_id, c.status, c.created_at, u.name as clientName, u.email as clientEmail 
+                SELECT c.${commonCols.split(', ').join(', c.')}, u.name as clientName, u.email as clientEmail 
                 FROM campaigns c 
                 JOIN users u ON c.user_id = u.id 
                 ${whereClause} 
                 UNION ALL
-                SELECT c.id, c.user_id, c.name, c.channel, c.template_id, c.status, c.created_at, u.name as clientName, u.email as clientEmail 
+                SELECT c.${commonCols.split(', ').join(', c.')}, u.name as clientName, u.email as clientEmail 
                 FROM api_campaigns c 
                 JOIN users u ON c.user_id = u.id 
                 ${whereClause}
