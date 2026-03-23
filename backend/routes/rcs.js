@@ -530,7 +530,7 @@ router.post('/api/send-bulk', async (req, res) => {
 
         // Perform Credit Check
         const { deductCampaignCredits } = require('../services/walletService');
-        const deductionResult = await deductCampaignCredits(campaignId);
+        const deductionResult = await deductCampaignCredits(campaignId, 'api_campaigns');
         
         if (!deductionResult.success) {
             console.warn(`[RCS Bulk API] Insufficient credits for user ${userId}. Campaign: ${campaignId}`);

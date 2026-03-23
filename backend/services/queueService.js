@@ -2,7 +2,7 @@ const axios = require('axios');
 const { query } = require('../config/db');
 const { deductCampaignCredits } = require('./walletService');
 const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
-const { sendSMS } = require('./smsService');
+const { sendSMS } = require('../utils/smsService');
 
 const BATCH_SIZE = 200;
 const GRAPH_BASE = 'https://graph.facebook.com/v16.0';
