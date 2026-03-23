@@ -2,6 +2,15 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-23]
+- feat: implemented new **notifyNow** branding across all frontend components (Auth, Sidebars, Topbar, Legal pages) (6be61f9)
+- fix: resolved "Missing Parameter" error in manual WhatsApp campaigns by updating variable mapping logic (2dca5a3)
+- fix: updated `migrate_campaign_scheduling.js` to automatically detect server environments (.env vs .env.production) (fdf47b3)
+- feat: added support for **Recurring Campaigns** (Daily, Weekly, Monthly) in the queue processor (0cd0dd9)
+- fix: corrected API logs report data source and delivery status synchronization (de8c27b)
+
+---
+
 ## [2026-03-21]
 - fix: corrected Sidebar permission names for Templates and Plans to match database strings (541b6a1)
 - hotfix: resolved React Hooks error on Auth page and removed non-existent require causing 502 Bad Gateway (76d7d38)
