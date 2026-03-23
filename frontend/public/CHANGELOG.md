@@ -3,11 +3,20 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-23]
-- feat: implemented new **notifyNow** branding across all frontend components (Auth, Sidebars, Topbar, Legal pages) (6be61f9)
-- fix: resolved "Missing Parameter" error in manual WhatsApp campaigns by updating variable mapping logic (2dca5a3)
-- fix: updated `migrate_campaign_scheduling.js` to automatically detect server environments (.env vs .env.production) (fdf47b3)
-- feat: added support for **Recurring Campaigns** (Daily, Weekly, Monthly) in the queue processor (0cd0dd9)
-- fix: corrected API logs report data source and delivery status synchronization (de8c27b)
+- **Module: Branding Refresh**
+  - Updated all frontend components (`Auth.tsx`, `AppSidebar.tsx`, `Topbar.tsx`, etc.) to use the new official **notifyNow** logo.
+  - Replaced legacy `/logo.svg` with high-quality `/logo-full.png` for a premium look. (6be61f9)
+
+- **Module: Queue Processor (`queueService.js`)**
+  - **Feature**: Added **Recurring Campaigns** support (Daily, Weekly, Monthly) with automated renewal logic.
+  - **Fix**: Resolved "Missing Parameter" (Code 131008) in manual WhatsApp campaigns by correcting the `resolveMappedVariables` logic to handle the new Excel-to-Variable mapping format. (2dca5a3, 0cd0dd9)
+
+- **Module: Webhooks & API Reports (`webhooks.js`, `rcs.js`)**
+  - **Fix**: Synchronized delivery status updates for API-driven campaigns to use the correct `api_message_logs` table.
+  - **Fix**: Updated API Report endpoint to correctly pull data from `api_message_logs`. (de8c27b)
+
+- **Module: Infrastructure / Deployment (`migrate_campaign_scheduling.js`)**
+  - **Fix**: Enhanced migration script with smart env-detection to seamlessly load `.env.production` on servers to prevent database authentication errors. (fdf47b3)
 
 ---
 
