@@ -15,7 +15,12 @@ This document is automatically updated based on development activity.
   - **Fix**: Synchronized delivery status updates for API-driven campaigns to use the correct `api_message_logs` table.
   - **Fix**: Updated API Report endpoint to correctly pull data from `api_message_logs`. (de8c27b)
 
-- **Module: Infrastructure / Deployment (`migrate_campaign_scheduling.js`)**
+- **Module: Documentation Portal**
+  - **Feature**: Re-branded the **Documentation Portal** (`docs.html`) to a clean light theme matching NotifyNow aesthetics.
+  - **Reference**: Overhauled `API_REFERENCE.md` with complete developer documentation for WhatsApp API, SMS API v1, and RCS API.
+  - Fix: Standardized code snippet styling and improved readability of help guides. (c0f4d6f)
+
+- **Module: Infrastructure / Deployment**
   - **Fix**: Enhanced migration script with smart env-detection to seamlessly load `.env.production` on servers to prevent database authentication errors. (fdf47b3)
 
 ---

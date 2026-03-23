@@ -1,70 +1,117 @@
 # NotifyNow API Reference 📡
 
-Base URL: `http://localhost:5000/api` (Local) or `https://your-domain.com/api` (Live)
+Base URL: `http://localhost:5000/api` (Local) or `https://notifynow.in/api` (Live)
 
 ---
 
 ## 🔑 Authentication
-All private routes require an Authorization header: `Bearer {TOKEN}`.
-
-### `POST /auth/login`
-Authenticates a user and returns a JWT.
-- **Request Body**: `{ "email": "user@example.com", "password": "..." }`
-- **Response**: `{ "success": true, "token": "...", "user": { ... } }`
+All developer APIs use your email as `username` and your specialized **API Password** (found in your Profile settings) for basic authentication within the JSON body.
 
 ---
 
-## 🤖 RCS Bots
+## 🟢 WhatsApp API
+High-performance WhatsApp Business API integration.
+
+### `POST /whatsapp/api/send-bulk`
+Send personalized bulk WhatsApp messages with dynamic variables and optional media.
+- **Request Body**: 
+```json
+{
+  "username": "user@example.com",
+  "password": "your_api_password",
+  "templateName": "promo_v1",
+  "campaignName": "Spring Sale",
+  "numbers": [
+    {
+      "to": "919004207813",
+      "variables": { "1": "Sandeep", "2": "SALE50" },
+      "mediaUrl": "https://assets.site.com/promo.png"
+    }
+  ]
+}
+```
+
+### `POST /whatsapp/api/send-single`
+Instant dispatch for transactional WhatsApp alerts (OTPs, notifications).
+- **Request Body**:
+```json
+{
+  "username": "user@example.com",
+  "password": "your_api_password",
+  "to": "919004207813",
+  "templateName": "transactional_otp",
+  "variables": { "1": "992105" }
+}
+```
+
+---
+
+## 🟠 SMS API v1
+Direct carrier-grade SMS routing.
+
+### `POST /sms-v1/send-bulk`
+Bulk personalized SMS campaigns.
+- **Request Body**:
+```json
+{
+  "username": "user@example.com",
+  "password": "your_api_password",
+  "templateId": "DLT_12345",
+  "campaignName": "Notification Burst",
+  "numbers": [
+    {
+      "to": "919004207813",
+      "variables": ["Sandeep", "Order #123"]
+    }
+  ]
+}
+```
+
+### `POST /sms-v1/send-single`
+Instant SMS dispatch.
+- **Request Body**: `{ "username": "...", "password": "...", "to": "...", "templateId": "...", "variables": ["..."] }`
+
+---
+
+## 🔵 RCS API
+Rich Communication Services with images and carousels.
+
+### `POST /rcs/api/send-bulk`
+Bulk RCS campaign for Android users.
+- **Request Body**:
+```json
+{
+  "username": "user@example.com",
+  "password": "your_api_password",
+  "templateName": "rcs_welcome",
+  "campaignName": "RCS Onboarding",
+  "numbers": ["919004207813", "919876543210"]
+}
+```
+
+### `POST /rcs/api/send-single`
+Single peer-to-peer RCS message.
+- **Request Body**:
+```json
+{
+  "username": "user@example.com",
+  "password": "your_api_password",
+  "to": "919004207813",
+  "templateName": "rcs_alert",
+  "params": ["Urgent Update"]
+}
+```
+
+---
+
+## 🤖 RCS Bot Onboarding
 Management of Dotgo-based RCS Bots.
 
 ### `POST /bots/submit`
-Submits initial bot details and media to Dotgo.
-- **Request**: `Multipart/form-data` with `creation_data` (JSON), `botLogoFile` (Image), and `bannerFile` (Image).
-- **Response**: `{ "success": true, "brand_id": "...", "bot_id": "..." }`
-
-### `POST /bots/verify`
-Submits the bot for final verification.
-- **Request**: `Multipart/form-data` with `data` (JSON) and verification images.
-
----
-
-## 📱 Message Templates
-Create and manage RCS/SMS message templates.
-
-### `POST /templates`
-Creates a new template in the local database.
-- **Request Body**: Template type, body, footer, and buttons array.
-- **Response**: `{ "success": true, "templateId": "..." }`
-
-### `POST /templates/dotgo/submit`
-Submits a template to Dotgo for carrier approval.
-
----
-
-## 🌀 Campaigns
-Sending bulk messages.
-
-### `POST /campaigns`
-Creates a new campaign.
-- **Request Body**: Name, Channel, Template ID.
-
-### `POST /campaigns/:id/upload-contacts`
-Uploads a CSV of recipients.
-- **Request**: File upload (CSV).
-- **Logic**: Automatically cleans numbers and stores variables for personalization.
-
----
-
-## 💰 Wallet & Transactions
-Manage credits and view payment history.
-
-### `GET /wallet/balance`
-Returns the current credit balance of the authenticated user.
-
-### `GET /wallet/transactions`
-Returns a paginated list of credit deductions and top-ups.
+Submits initial bot details to Dotgo.
+- **Request**: `Multipart/form-data` with `creation_data`, `botLogoFile`, and `bannerFile`.
 
 ---
 
 > [!NOTE]
-> All timestamps are in UTC and all currency values are represented in local credit units unless otherwise specified.
+> All timestamps are in UTC. Credits are deducted automatically based on your current plan pricing.
