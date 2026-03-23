@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Phone, Loader2, Star, Mail, Eye, EyeOff } from 'lucide-react';
+import { MessageSquare, Phone, Loader2, Star, Mail, Eye, EyeOff, Play } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmailSignup } from '@/components/auth/EmailSignup';
 import { OtpVerification } from '@/components/auth/OtpVerification';
 import { PasswordCreation } from '@/components/auth/PasswordCreation';
@@ -34,6 +35,7 @@ export default function Auth() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [showWelcome, setShowWelcome] = useState(false);
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -368,14 +370,22 @@ export default function Auth() {
             
             {/* Form Header */}
             <div className="bg-[#0052cc] rounded-[24px] p-5 lg:p-6 pt-6 pb-9 relative overflow-hidden shadow-lg border border-white/10 mb-[-32px] z-20">
-              <div className="absolute top-4 right-5">
-                <button 
-                  onClick={() => setIsFeedbackOpen(true)}
-                  className="flex items-center gap-1 text-[7px] font-black text-white/90 uppercase tracking-widest hover:text-white transition-all bg-white/10 px-2 py-0.5 rounded-full"
-                >
-                  <Star className="w-2 h-2 fill-yellow-400 text-yellow-400" />
-                  Give Feedback
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setIsFeedbackOpen(true)}
+                    className="flex items-center gap-1 text-[7px] font-black text-white/90 uppercase tracking-widest hover:text-white transition-all bg-white/10 px-2 py-0.5 rounded-full"
+                  >
+                    <Star className="w-2 h-2 fill-yellow-400 text-yellow-400" />
+                    Give Feedback
+                  </button>
+                  <button 
+                    onClick={() => setIsDemoOpen(true)}
+                    className="flex items-center gap-1 text-[7px] font-black text-white/90 uppercase tracking-widest hover:text-white transition-all bg-white/10 px-2 py-0.5 rounded-full"
+                  >
+                    <Play className="w-2 h-2 fill-white text-white" />
+                    Watch Demo
+                  </button>
+                </div>
               </div>
 
               <h2 className="text-lg font-black text-white mb-0.5 leading-tight tracking-tight">Welcome Back!</h2>
@@ -554,6 +564,21 @@ export default function Auth() {
         onClose={() => setIsFeedbackOpen(false)}
         onSuccess={() => setRefreshKey(prev => prev + 1)}
       />
+
+      <Dialog open={isDemoOpen} onOpenChange={setIsDemoOpen}>
+        <DialogContent className="max-w-[1280px] w-[95vw] p-0 overflow-hidden bg-black border-none rounded-[24px] shadow-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Product Walkthrough Demo</DialogTitle>
+          </DialogHeader>
+          <div className="relative aspect-video w-full bg-slate-900 flex items-center justify-center">
+            <img 
+               src="/assets/demo_walkthrough.webp" 
+               alt="Product Walkthough" 
+               className="w-full h-full object-contain"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
