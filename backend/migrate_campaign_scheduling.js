@@ -13,27 +13,31 @@ const { query } = require('./config/db');
 
 async function migrate() {
     try {
-        console.log(`🚀 Starting migration for Campaigns table [${process.env.DB_NAME}]...`);
+        const tables = ['campaigns', 'api_campaigns'];
+        
+        for (const table of tables) {
+            console.log(`🚀 Starting migration for ${table} table [${process.env.DB_NAME}]...`);
 
-        const [existingCols] = await query('DESCRIBE campaigns');
-        const colNames = existingCols.map(c => c.Field);
+            const [existingCols] = await query(`DESCRIBE ${table}`);
+            const colNames = existingCols.map(c => c.Field);
 
-        const newCols = [
-            { name: 'schedule_type', query: "ALTER TABLE campaigns ADD COLUMN schedule_type ENUM('now', 'scheduled') DEFAULT 'now'" },
-            { name: 'scheduling_mode', query: "ALTER TABLE campaigns ADD COLUMN scheduling_mode ENUM('one-time', 'repeat') DEFAULT 'one-time'" },
-            { name: 'frequency', query: "ALTER TABLE campaigns ADD COLUMN frequency ENUM('daily', 'weekly', 'monthly') NULL" },
-            { name: 'repeat_days', query: "ALTER TABLE campaigns ADD COLUMN repeat_days JSON NULL" },
-            { name: 'end_date', query: "ALTER TABLE campaigns ADD COLUMN end_date DATETIME NULL" },
-            { name: 'next_run_at', query: "ALTER TABLE campaigns ADD COLUMN next_run_at DATETIME NULL" },
-            { name: 'last_run_at', query: "ALTER TABLE campaigns ADD COLUMN last_run_at DATETIME NULL" }
-        ];
+            const newCols = [
+                { name: 'schedule_type', query: `ALTER TABLE ${table} ADD COLUMN schedule_type ENUM('now', 'scheduled') DEFAULT 'now'` },
+                { name: 'scheduling_mode', query: `ALTER TABLE ${table} ADD COLUMN scheduling_mode ENUM('one-time', 'repeat') DEFAULT 'one-time'` },
+                { name: 'frequency', query: `ALTER TABLE ${table} ADD COLUMN frequency ENUM('daily', 'weekly', 'monthly') NULL` },
+                { name: 'repeat_days', query: `ALTER TABLE ${table} ADD COLUMN repeat_days JSON NULL` },
+                { name: 'end_date', query: `ALTER TABLE ${table} ADD COLUMN end_date DATETIME NULL` },
+                { name: 'next_run_at', query: `ALTER TABLE ${table} ADD COLUMN next_run_at DATETIME NULL` },
+                { name: 'last_run_at', query: `ALTER TABLE ${table} ADD COLUMN last_run_at DATETIME NULL` }
+            ];
 
-        for (const col of newCols) {
-            if (colNames.includes(col.name)) {
-                console.log(`✅ Column ${col.name} already exists, skipping...`);
-            } else {
-                console.log(`➕ Adding column ${col.name}...`);
-                await query(col.query);
+            for (const col of newCols) {
+                if (colNames.includes(col.name)) {
+                    console.log(`✅ Table ${table}: Column ${col.name} already exists, skipping...`);
+                } else {
+                    console.log(`➕ Table ${table}: Adding column ${col.name}...`);
+                    await query(col.query);
+                }
             }
         }
 
