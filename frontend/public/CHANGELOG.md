@@ -2,26 +2,27 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-24]
+- Update migration script to include api_campaigns table (b49347a)
+- Add automated product demo video to Auth page (c3f7da1)
+
+---
+
 ## [2026-03-23]
-- **Module: Branding Refresh**
-  - Updated all frontend components (`Auth.tsx`, `AppSidebar.tsx`, `Topbar.tsx`, etc.) to use the new official **notifyNow** logo.
-  - Replaced legacy `/logo.svg` with high-quality `/logo-full.png` for a premium look. (6be61f9)
-
-- **Module: Queue Processor (`queueService.js`)**
-  - **Feature**: Added **Recurring Campaigns** support (Daily, Weekly, Monthly) with automated renewal logic.
-  - **Fix**: Resolved "Missing Parameter" (Code 131008) in manual WhatsApp campaigns by correcting the `resolveMappedVariables` logic to handle the new Excel-to-Variable mapping format. (2dca5a3, 0cd0dd9)
-
-- **Module: Webhooks & API Reports (`webhooks.js`, `rcs.js`)**
-  - **Fix**: Synchronized delivery status updates for API-driven campaigns to use the correct `api_message_logs` table.
-  - **Fix**: Updated API Report endpoint to correctly pull data from `api_message_logs`. (de8c27b)
-
-- **Module: Documentation Portal**
-  - **Feature**: Re-branded the **Documentation Portal** (`docs.html`) to a clean light theme matching NotifyNow aesthetics.
-  - **Reference**: Overhauled `API_REFERENCE.md` with complete developer documentation for WhatsApp API, SMS API v1, and RCS API.
-  - Fix: Standardized code snippet styling and improved readability of help guides. (c0f4d6f)
-
-- **Module: Infrastructure / Deployment**
-  - **Fix**: Enhanced migration script with smart env-detection to seamlessly load `.env.production` on servers to prevent database authentication errors. (fdf47b3)
+- Complete overhaul of Documentation Portal - Light Theme & Full API References for SMS, WhatsApp, RCS (f1eb2a3)
+- Refactor CHANGELOG for 2026-03-23 with module-specific details (b58288c)
+- Update CHANGELOG for 2026-03-23 (c0f4d6f)
+- Finalizing WhatsApp variable mapping fix and new branding deployment (6be61f9)
+- Fix database migration script to use correct environment config on server (fdf47b3)
+- Cleanup temporary scripts (0cd0dd9)
+- Implement Recurring Campaign Scheduling and Unified Creation Stepper (6e44f17)
+- Fix variable mapping for WhatsApp manual/upload campaigns (2dca5a3)
+- Add WhatsApp send logging to debug missing parameters (5a0726a)
+- Fix API logs report and status updates in webhooks (de8c27b)
+- Fix production WhatsApp DLR tracking, Developer Webhook logging, and Queue Worker 404 logging (e86bb16)
+- Fix toLocaleString crash and missing metrics in campaigns API (90347e0)
+- Fix require path and credit deduction parameters (b8b09e4)
+- Separate API and manual campaign tables and update workers (1cb29da)
 
 ---
 
@@ -352,12 +353,6 @@ This document is automatically updated based on development activity.
 - updated code rs (0f5268a)
 - updated code rs (67fabf9)
 - updated code rs (a060899)
-
----
-
-## [2026-02-21]
-- updated code (5a0930a)
-- updated code (dec6a5e)
 
 ---
 
