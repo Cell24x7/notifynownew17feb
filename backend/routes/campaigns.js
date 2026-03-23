@@ -42,18 +42,28 @@ router.get('/', authenticateToken, async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
-        // Get total count
-        const [[{ total }]] = await query('SELECT COUNT(*) as total FROM campaigns WHERE user_id = ?', [userId]);
+        // Get total count (Manual + API)
+        const [[{ total }]] = await query(`
+            SELECT (
+                (SELECT COUNT(*) FROM campaigns WHERE user_id = ?) + 
+                (SELECT COUNT(*) FROM api_campaigns WHERE user_id = ?)
+            ) as total
+        `, [userId, userId]);
 
-        // Get paginated data
-        const [campaigns] = await query(
-            'SELECT * FROM campaigns WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
-            [userId, limit, offset]
-        );
+        // Get paginated data (Manual + API)
+        const commonCols = "id, user_id, name, channel, template_id, status, created_at, recipient_count, sent_count, failed_count";
+        const [campaignsResult] = await query(`
+            SELECT * FROM (
+                SELECT ${commonCols} FROM campaigns WHERE user_id = ?
+                UNION ALL
+                SELECT ${commonCols} FROM api_campaigns WHERE user_id = ?
+            ) as combined_campaigns
+            ORDER BY created_at DESC LIMIT ? OFFSET ?
+        `, [userId, userId, limit, offset]);
 
         res.json({
             success: true,
-            campaigns,
+            campaigns: campaignsResult,
             pagination: {
                 total,
                 page,
@@ -98,24 +108,37 @@ router.get('/admin', authenticateAdmin, async (req, res) => {
             params.push(statusFilter);
         }
 
-        // Get total count
-        const countSql = `SELECT COUNT(*) as total FROM campaigns c JOIN users u ON c.user_id = u.id ${whereClause}`;
-        const [[{ total }]] = await query(countSql, params);
+        // Get total count (Manual + API)
+        const countSql = `
+            SELECT COUNT(*) as total FROM (
+                SELECT c.id FROM campaigns c JOIN users u ON c.user_id = u.id ${whereClause}
+                UNION ALL
+                SELECT c.id FROM api_campaigns c JOIN users u ON c.user_id = u.id ${whereClause}
+            ) as combined_total
+        `;
+        const [[{ total }]] = await query(countSql, [...params, ...params]);
 
-        // Get paginated data with user details
+        // Get paginated data with user details (Manual + API)
         const sql = `
-            SELECT c.*, u.name as clientName, u.email as clientEmail 
-            FROM campaigns c 
-            JOIN users u ON c.user_id = u.id 
-            ${whereClause} 
-            ORDER BY c.created_at DESC 
+            SELECT * FROM (
+                SELECT c.id, c.user_id, c.name, c.channel, c.template_id, c.status, c.created_at, u.name as clientName, u.email as clientEmail 
+                FROM campaigns c 
+                JOIN users u ON c.user_id = u.id 
+                ${whereClause} 
+                UNION ALL
+                SELECT c.id, c.user_id, c.name, c.channel, c.template_id, c.status, c.created_at, u.name as clientName, u.email as clientEmail 
+                FROM api_campaigns c 
+                JOIN users u ON c.user_id = u.id 
+                ${whereClause}
+            ) as combined_campaigns 
+            ORDER BY created_at DESC 
             LIMIT ? OFFSET ?
         `;
-        const [campaigns] = await query(sql, [...params, limit, offset]);
+        const [campaignsResult] = await query(sql, [...params, ...params, limit, offset]);
 
         res.json({
             success: true,
-            campaigns,
+            campaigns: campaignsResult,
             pagination: {
                 total,
                 page,

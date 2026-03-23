@@ -42,24 +42,46 @@ router.get('/summary', authenticateToken, async (req, res) => {
 
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
-        // 1. Overall Totals
+        // 1. Overall Totals (Manual + API)
         const [totals] = await query(`
             SELECT 
-                COALESCE(SUM(COALESCE(recipient_count, audience_count, 0)), 0) as sent,
-                COALESCE(SUM(CASE WHEN status = 'completed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END), 0) as delivered,
-                COALESCE(SUM(CASE WHEN status = 'failed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END), 0) as failed,
-                COALESCE(SUM(COALESCE(recipient_count, audience_count, 0) * 0.25), 0) as cost -- Estimated cost (0.25 per msg)
-            FROM campaigns c
-            ${whereClause}
-        `, params);
+                COALESCE(SUM(sent), 0) as sent,
+                COALESCE(SUM(delivered), 0) as delivered,
+                COALESCE(SUM(failed), 0) as failed,
+                COALESCE(SUM(cost), 0) as cost
+            FROM (
+                SELECT 
+                    COALESCE(recipient_count, audience_count, 0) as sent,
+                    CASE WHEN status = 'completed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as delivered,
+                    CASE WHEN status = 'failed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as failed,
+                    COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                FROM campaigns c
+                ${whereClause}
+                UNION ALL
+                SELECT 
+                    COALESCE(recipient_count, audience_count, 0) as sent,
+                    CASE WHEN status = 'completed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as delivered,
+                    CASE WHEN status = 'failed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as failed,
+                    COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                FROM api_campaigns c
+                ${whereClause}
+            ) as combined_totals
+        `, [...params, ...params]);
 
-        // 2. Group by Channel
+        // 2. Group by Channel (Manual + API)
         const [byChannel] = await query(`
-            SELECT channel as label, SUM(COALESCE(recipient_count, audience_count, 0)) as sent, 0 as delivered, 0 as failed, 0 as pending, SUM(COALESCE(recipient_count, audience_count, 0) * 0.25) as cost
-            FROM campaigns c
-            ${whereClause}
+            SELECT channel as label, SUM(sent) as sent, 0 as delivered, 0 as failed, 0 as pending, SUM(cost) as cost
+            FROM (
+                SELECT channel, COALESCE(recipient_count, audience_count, 0) as sent, COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                FROM campaigns c
+                ${whereClause}
+                UNION ALL
+                SELECT channel, COALESCE(recipient_count, audience_count, 0) as sent, COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                FROM api_campaigns c
+                ${whereClause}
+            ) as combined_channel
             GROUP BY channel
-        `, params);
+        `, [...params, ...params]);
 
         // 3. Group by User (Sender)
         const [byUser] = await query(`
@@ -132,21 +154,20 @@ router.get('/detail', authenticateToken, async (req, res) => {
         console.log('SQL:', `SELECT ... ${whereClause}`, params);
 
         const [rows] = await query(`
-            SELECT 
-                c.id,
-                c.name as campaign_name,
-                c.channel,
-                COALESCE(c.recipient_count, c.audience_count, 0) as recipient_count,
-                c.status,
-                c.created_at as timestamp,
-                u.company,
-                u.email as user_email
-            FROM campaigns c
-            LEFT JOIN users u ON c.user_id = u.id
-            ${whereClause}
-            ORDER BY c.created_at DESC
+            SELECT * FROM (
+                SELECT c.id, c.name as campaign_name, c.channel, COALESCE(c.recipient_count, c.audience_count, 0) as recipient_count, c.status, c.created_at as timestamp, u.company, u.email as user_email
+                FROM campaigns c
+                LEFT JOIN users u ON c.user_id = u.id
+                ${whereClause}
+                UNION ALL
+                SELECT c.id, c.name as campaign_name, c.channel, COALESCE(c.recipient_count, c.audience_count, 0) as recipient_count, c.status, c.created_at as timestamp, u.company, u.email as user_email
+                FROM api_campaigns c
+                LEFT JOIN users u ON c.user_id = u.id
+                ${whereClause}
+            ) as combined_detail
+            ORDER BY timestamp DESC
             LIMIT 100
-        `, params);
+        `, [...params, ...params]);
         console.log('Rows found:', rows.length);
 
         // Transform for frontend
@@ -202,20 +223,19 @@ router.get('/export', authenticateToken, async (req, res) => {
 
         // Fetch ALL matching records (no limit)
         const [rows] = await query(`
-            SELECT 
-                c.id,
-                c.name as campaign_name,
-                c.channel,
-                c.recipient_count,
-                c.status,
-                c.created_at as timestamp,
-                u.company,
-                u.email as user_email
-            FROM campaigns c
-            LEFT JOIN users u ON c.user_id = u.id
-            ${whereClause}
-            ORDER BY c.created_at DESC
-        `, params);
+            SELECT * FROM (
+                SELECT c.id, c.name as campaign_name, c.channel, c.recipient_count, c.sent_count, c.status, c.created_at as timestamp, u.company, u.email as user_email
+                FROM campaigns c
+                LEFT JOIN users u ON c.user_id = u.id
+                ${whereClause}
+                UNION ALL
+                SELECT c.id, c.name as campaign_name, c.channel, c.recipient_count, c.sent_count, c.status, c.created_at as timestamp, u.company, u.email as user_email
+                FROM api_campaigns c
+                LEFT JOIN users u ON c.user_id = u.id
+                ${whereClause}
+            ) as combined_export
+            ORDER BY timestamp DESC
+        `, [...params, ...params]);
 
         const data = rows.map(r => ({
             'MSISDN': r.recipient_count > 1 ? `Multiple (${r.recipient_count})` : 'Single',
@@ -311,13 +331,15 @@ router.post('/send-campaign-report', authenticateToken, async (req, res) => {
         }
 
         // 2. Fetch detailed logs for CSV
+        // Check both message_logs and api_message_logs since it could be from either
         const [logs] = await query(`
-            SELECT recipient as Mobile, status as Status, 
-                   send_time as Sent_Time, delivery_time as Delivery_Time, 
-                   read_time as Read_Time, failure_reason as Failure_Note
-            FROM message_logs 
-            WHERE campaign_id = ?
-        `, [campaignId]);
+            SELECT mobile as Mobile, status as Status, send_time as Sent_Time, delivery_time as Delivery_Time, read_time as Read_Time, failure_reason as Failure_Note
+            FROM (
+                SELECT recipient as mobile, status, send_time, delivery_time, read_time, failure_reason FROM message_logs WHERE campaign_id = ?
+                UNION ALL
+                SELECT recipient as mobile, status, send_time, delivery_time, read_time, failure_reason FROM api_message_logs WHERE campaign_id = ?
+            ) as combined_logs
+        `, [campaignId, campaignId]);
 
         // 3. Generate CSV & ZIP
         let zipLink = null;

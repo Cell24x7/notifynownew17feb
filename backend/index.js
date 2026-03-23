@@ -166,9 +166,12 @@ app.get('/api/check-system', (req, res) => {
 });
 
 // Queue Processor
-const { processQueue } = require('./services/queueService');
+const { processQueue, processApiQueue } = require('./services/queueService');
 const runQueue = async () => {
-  try { await processQueue(); } catch (err) { console.error('Queue error:', err); }
+  try { 
+    await processQueue(); 
+    await processApiQueue();
+  } catch (err) { console.error('Queue error:', err); }
   setTimeout(runQueue, 1000);
 };
 runQueue();

@@ -18,7 +18,7 @@ async function setupSuperAdmin() {
     const email = 'Sandy@gmail.com';
     const password = 'Sandy@1234';
     const name = 'Sandy';
-    const role = 'superadmin'; // We will update the UI to handle this
+    const role = 'admin'; // Changed from superadmin because of DB column limitation
     
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -35,7 +35,7 @@ async function setupSuperAdmin() {
         } else {
             console.log(`Creating new super admin: ${email}`);
             await query(
-                'INSERT INTO users (email, password, role, name, status, is_verified, wallet_balance, created_at) VALUES (?, ?, ?, ?, "active", 1, 9999, NOW())',
+                'INSERT INTO users (email, password, role, name, status, is_verified, wallet_balance, created_at) VALUES (?, ?, ?, ?, "active", 1, 999999, NOW())',
                 [email, hashedPassword, role, name]
             );
         }

@@ -517,9 +517,9 @@ router.post('/api/send-bulk', async (req, res) => {
         const cName = campaignName || `RCS_BULK_API_${Date.now()}`;
         const campaignId = `CAMP_API_${Date.now()}`;
 
-        // Create Campaign initially as checking_credits to prevent worker from picking it up
+        // Create Campaign initially as checking_credits in api_campaigns
         await query(
-            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, template_type, recipient_count, audience_count, status, template_metadata, template_body)
+            `INSERT INTO api_campaigns (id, user_id, name, channel, template_id, template_name, template_type, recipient_count, audience_count, status, template_metadata, template_body)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'checking_credits', ?, ?)`,
             [
                 campaignId, userId, cName, 'RCS', templateName, templateName, 
@@ -534,7 +534,7 @@ router.post('/api/send-bulk', async (req, res) => {
         
         if (!deductionResult.success) {
             console.warn(`[RCS Bulk API] Insufficient credits for user ${userId}. Campaign: ${campaignId}`);
-            await query('UPDATE campaigns SET status = "paused" WHERE id = ?', [campaignId]);
+            await query('UPDATE api_campaigns SET status = "paused" WHERE id = ?', [campaignId]);
             return res.status(402).json({ 
                 success: false, 
                 message: deductionResult.message || 'Insufficient wallet balance' 
@@ -549,11 +549,11 @@ router.post('/api/send-bulk', async (req, res) => {
 
         const BATCH = 1000;
         for (let i = 0; i < queueValues.length; i += BATCH) {
-            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
+            await query('INSERT INTO api_campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
         }
 
-        // Mark as running so worker processes it
-        await query('UPDATE campaigns SET status = "running" WHERE id = ?', [campaignId]);
+        // Mark as running in api_campaigns
+        await query('UPDATE api_campaigns SET status = "running" WHERE id = ?', [campaignId]);
 
         res.json({ success: true, campaignId, queued: contacts.length });
     } catch (error) {
@@ -610,9 +610,9 @@ router.post('/api/send-single', async (req, res) => {
             const apiCampaignId = `CAMP_API_RCS_${Date.now()}`;
             const apiCampaignName = `API Send (RCS)`;
 
-            // Main Message Log (For Reports/API Logs)
+            // Main Message Log (For Reports/API Logs) in api_message_logs
             await query(
-                `INSERT INTO message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
+                `INSERT INTO api_message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
                  VALUES (?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
                 [user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
             );
@@ -653,11 +653,23 @@ router.get('/api/status/:id', async (req, res) => {
         const userId = users[0].id;
 
         if (id.startsWith('CAMP_')) {
-            const [camps] = await query('SELECT id, name, status, recipient_count, audience_count, sent_count, failed_count, created_at FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+            const [camps] = await query(`
+                SELECT * FROM (
+                    SELECT id, name, status, recipient_count, audience_count, sent_count, failed_count, created_at FROM campaigns WHERE id = ? AND user_id = ?
+                    UNION ALL
+                    SELECT id, name, status, recipient_count, audience_count, sent_count, failed_count, created_at FROM api_campaigns WHERE id = ? AND user_id = ?
+                ) as combined_camps
+            `, [id, userId, id, userId]);
             if (camps.length) return res.json({ success: true, type: 'campaign', data: camps[0] });
         }
 
-        const [logs] = await query('SELECT * FROM message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?', [id, id, userId]);
+        const [logs] = await query(`
+            SELECT * FROM (
+                SELECT * FROM message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?
+                UNION ALL
+                SELECT * FROM api_message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?
+            ) as combined_logs
+        `, [id, id, userId, id, id, userId]);
         if (logs.length) return res.json({ success: true, type: 'message', data: logs[0] });
 
         res.status(404).json({ success: false, message: 'Record not found' });
@@ -715,7 +727,7 @@ router.post('/send', async (req, res) => {
             const apiCampaignName = `API Send (RCS)`;
 
             await query(
-                `INSERT INTO message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
+                `INSERT INTO api_message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
                  VALUES (?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
                 [user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
             );

@@ -936,9 +936,9 @@ router.post('/api/send-bulk', async (req, res) => {
         const cName = campaignName || `BULK_API_${Date.now()}`;
         const campaignId = `CAMP_API_${Date.now()}`;
 
-        // Create Campaign initially as checking_credits to prevent worker from picking it up
+        // Create Campaign initially as checking_credits in api_campaigns
         await query(
-            `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, audience_count, status, template_metadata, template_body)
+            `INSERT INTO api_campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, audience_count, status, template_metadata, template_body)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'checking_credits', ?, ?)`,
             [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length, contacts.length, template?.metadata, template?.body]
         );
@@ -949,7 +949,7 @@ router.post('/api/send-bulk', async (req, res) => {
         
         if (!deductionResult.success) {
             console.warn(`[Bulk API] Insufficient credits for user ${userId}. Campaign: ${campaignId}`);
-            await query('UPDATE campaigns SET status = "paused" WHERE id = ?', [campaignId]);
+            await query('UPDATE api_campaigns SET status = "paused" WHERE id = ?', [campaignId]);
             return res.status(402).json({ 
                 success: false, 
                 message: deductionResult.message || 'Insufficient wallet balance' 
@@ -965,11 +965,11 @@ router.post('/api/send-bulk', async (req, res) => {
 
         const BATCH = 1000;
         for (let i = 0; i < queueValues.length; i += BATCH) {
-            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
+            await query('INSERT INTO api_campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
         }
 
-        // Mark as running so worker processes it
-        await query('UPDATE campaigns SET status = "running" WHERE id = ?', [campaignId]);
+        // Mark as running in api_campaigns so worker processes it
+        await query('UPDATE api_campaigns SET status = "running" WHERE id = ?', [campaignId]);
 
         res.json({ success: true, campaignId, queued: contacts.length });
     } catch (error) {
@@ -1034,7 +1034,15 @@ router.post('/api/send-single', async (req, res) => {
         }
 
         const response = await axios.post(getMessagesUrl(config), payload, { headers: getHeaders(config) });
-        res.json({ success: true, messageId: response.data.messages?.[0]?.id || response.data.message_id });
+        const messageId = response.data.messages?.[0]?.id || response.data.message_id;
+
+        // Log to api_message_logs
+        await query(
+            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
+            [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp']
+        );
+
+        res.json({ success: true, messageId });
     } catch (error) {
         res.status(500).json({ success: false, error: error.response?.data || error.message });
     }
@@ -1060,14 +1068,26 @@ router.get('/api/status/:id', async (req, res) => {
 
         const userId = users[0].id;
 
-        // 1. Check if it's a Campaign
+        // 1. Check if it's a Campaign (Manual or API)
         if (id.startsWith('CAMP_')) {
-            const [camps] = await query('SELECT id, name, status, recipient_count, sent_count, failed_count, created_at FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+            const [camps] = await query(`
+                SELECT * FROM (
+                    SELECT id, name, status, recipient_count, sent_count, failed_count, created_at FROM campaigns WHERE id = ? AND user_id = ?
+                    UNION ALL
+                    SELECT id, name, status, recipient_count, audience_count as recipient_count, sent_count, failed_count, created_at FROM api_campaigns WHERE id = ? AND user_id = ?
+                ) as combined_camps
+            `, [id, userId, id, userId]);
             if (camps.length) return res.json({ success: true, type: 'campaign', data: camps[0] });
         }
 
-        // 2. Check if it's a Single Message
-        const [logs] = await query('SELECT * FROM message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?', [id, id, userId]);
+        // 2. Check if it's a Single Message (Manual or API)
+        const [logs] = await query(`
+            SELECT * FROM (
+                SELECT * FROM message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?
+                UNION ALL
+                SELECT * FROM api_message_logs WHERE (message_id = ? OR id = ?) AND user_id = ?
+            ) as combined_logs
+        `, [id, id, userId, id, id, userId]);
         if (logs.length) return res.json({ success: true, type: 'message', data: logs[0] });
 
         res.status(404).json({ success: false, message: 'Record not found' });

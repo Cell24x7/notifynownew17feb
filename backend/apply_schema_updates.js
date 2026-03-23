@@ -165,6 +165,82 @@ async function updateSchema() {
             console.log('Error modifying dlt_templates table:', e.message);
         }
 
+        // 9. API Tables (Separating API from Manual Campaigns)
+        try {
+            console.log('Ensuring API campaign tables exist...');
+            
+            // api_campaigns
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS api_campaigns (
+                    id VARCHAR(100) PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    name VARCHAR(255),
+                    channel VARCHAR(50),
+                    template_id VARCHAR(100),
+                    template_name VARCHAR(255),
+                    template_type VARCHAR(50),
+                    recipient_count INT DEFAULT 0,
+                    audience_count INT DEFAULT 0,
+                    sent_count INT DEFAULT 0,
+                    delivered_count INT DEFAULT 0,
+                    read_count INT DEFAULT 0,
+                    failed_count INT DEFAULT 0,
+                    credits_deducted TINYINT(1) DEFAULT 0,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    template_metadata JSON,
+                    template_body TEXT,
+                    variable_mapping JSON,
+                    scheduled_at TIMESTAMP NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_user_channel (user_id, channel)
+                )
+            `);
+
+            // api_campaign_queue
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS api_campaign_queue (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    campaign_id VARCHAR(100) NOT NULL,
+                    user_id INT NOT NULL,
+                    mobile VARCHAR(20) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    variables JSON,
+                    message_id VARCHAR(255),
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_campaign_status (campaign_id, status)
+                )
+            `);
+
+            // api_message_logs
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS api_message_logs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    campaign_id VARCHAR(100),
+                    campaign_name VARCHAR(255),
+                    template_name VARCHAR(255),
+                    message_id VARCHAR(255),
+                    recipient VARCHAR(20) NOT NULL,
+                    status VARCHAR(50),
+                    send_time TIMESTAMP NULL,
+                    delivery_time TIMESTAMP NULL,
+                    read_time TIMESTAMP NULL,
+                    failure_reason TEXT,
+                    channel VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_campaign (campaign_id),
+                    INDEX idx_recipient (recipient),
+                    INDEX idx_message (message_id)
+                )
+            `);
+            
+            console.log('API campaign tables ready.');
+        } catch (e) {
+            console.log('Error creating API campaign tables:', e.message);
+        }
+
 
     } catch (err) {
         console.error('Error:', err.message);

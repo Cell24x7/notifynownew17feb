@@ -109,10 +109,10 @@ const handleSendSms = async (req, res) => {
             hashId: finalHashId
         });
 
-        // 4. Log to message_logs
+        // 4. Log to api_message_logs
         const internalMsgId = `API_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         await query(
-            'INSERT INTO message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
+            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
             [req.user.id, 'API_V1', 'Direct SMS API', templateId || 'Direct SMS', internalMsgId, mobile, 'sent', 'SMS']
         );
 

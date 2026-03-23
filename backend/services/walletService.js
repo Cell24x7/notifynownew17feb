@@ -2,18 +2,18 @@ const { query } = require('../config/db');
 
 /**
  * Deducts credits for a campaign upfront.
- * This prevents multiple transaction entries for the same campaign.
  * @param {string} campaignId 
+ * @param {string} campaignTable Defaults to 'campaigns'
  * @returns {Promise<{success: boolean, message: string}>}
  */
-const deductCampaignCredits = async (campaignId) => {
+const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') => {
     try {
         // 1. Fetch campaign and user details
         const [campaigns] = await query(
             `SELECT c.*, u.credits_available, u.wallet_balance, 
                     u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
                     u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price
-             FROM campaigns c 
+             FROM ${campaignTable} c 
              JOIN users u ON c.user_id = u.id 
              WHERE c.id = ?`,
             [campaignId]
@@ -141,7 +141,7 @@ const deductCampaignCredits = async (campaignId) => {
 
         // MARK campaign as deducted
         await query(
-            `UPDATE campaigns SET credits_deducted = 1 WHERE id = ?`,
+            `UPDATE ${campaignTable} SET credits_deducted = 1 WHERE id = ?`,
             [campaignId]
         );
 
