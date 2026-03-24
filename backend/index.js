@@ -105,6 +105,7 @@ app.use('/api/sms', require('./routes/sms'));
 app.use('/api/sms-gateways', require('./routes/smsGateways'));
 app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/queue-manager', require('./routes/queueManagement'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/dlt-templates', require('./routes/dltTemplates'));
 app.use('/api/contacts', require('./routes/contacts'));
