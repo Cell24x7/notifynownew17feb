@@ -410,4 +410,12 @@ const processApiQueue = () => processBatch({
     name: 'ApiWorker'
 });
 
-module.exports = { processQueue, processApiQueue, calculateNextRun };
+module.exports = { 
+    processQueue, 
+    processApiQueue, 
+    calculateNextRun, 
+    resolveMappedVariables, 
+    getOrderedVariables,
+    replaceVariables,
+    normalizeRcsResult
+};

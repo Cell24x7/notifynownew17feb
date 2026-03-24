@@ -18,19 +18,9 @@ const campaignWorker = new Worker(queueName, async (job) => {
     let result = { success: false, error: 'Unknown' };
 
     try {
-        // 1. Process Message (WhatsApp/RCS/SMS logic)
-        // Here we integrate the provider calls (Dotgo/Bot/API)
-        // For demonstration, we use a generic sender from statsService or similar if available
-        // But for high speed, we call the provider API directly.
-
-        // Example: Dotgo RCS Send
-        if (item.channel === 'rcs') {
-            const { sendRcsMessage } = require('../services/rcsService');
-            result = await sendRcsMessage(item);
-        } else if (item.channel === 'whatsapp') {
-            const { sendWhatsappMessage } = require('../services/whatsappService');
-            result = await sendWhatsappMessage(item);
-        }
+        // 1. Process Message (High-Volume Universal Sending Service)
+        const { sendUniversalMessage } = require('../services/sendingService');
+        result = await sendUniversalMessage(item);
 
         // 2. Update Status and Populate Detailed Logs (Strict Schema Alignment)
         const now = new Date();
@@ -74,10 +64,10 @@ const campaignWorker = new Worker(queueName, async (job) => {
     }
 }, {
     connection: redisConnection,
-    concurrency: 50, // Process 50 messages in parallel per worker instance
+    concurrency: 100, // Process 100 messages in parallel for max speed
     limiter: {
-        max: 500,
-        duration: 1000, // Max 500 requests per second to stay within API limits
+        max: 1000,
+        duration: 1000, // Max 1000 requests per second
     }
 });
 
