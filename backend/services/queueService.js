@@ -4,7 +4,7 @@ const { deductCampaignCredits } = require('./walletService');
 const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
 const { sendSMS } = require('../utils/smsService');
 
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 10000;
 const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
 const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
 
@@ -220,6 +220,16 @@ const processBatch = async (tableConfig) => {
         }));
         
         await campaignQueue.addBulk(jobs);
+
+        // SYNC Redis Counters for High-Speed Completion tracking
+        const Redis = require('ioredis');
+        // Use the same Redis connection as BullMQ for consistency and efficiency
+        const redisClient = new Redis(campaignQueue.opts.connection);
+        for (const campId of uniqueCampaigns) {
+            const countForCamp = items.filter(i => i.campaign_id == campId).length;
+            await redisClient.incrby(`camp_progress:${campId}`, countForCamp);
+        }
+        await redisClient.quit();
 
         // MARK AS PROCESSING IN SQL
         const itemIds = items.map(i => i.id);
