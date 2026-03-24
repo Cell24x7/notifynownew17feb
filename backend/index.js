@@ -105,6 +105,7 @@ app.use('/api/sms', require('./routes/sms'));
 app.use('/api/sms-gateways', require('./routes/smsGateways'));
 app.use('/api/affiliates', require('./routes/affiliates'));
 app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/queue-manager', require('./routes/queueManagement'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/dlt-templates', require('./routes/dltTemplates'));
 app.use('/api/contacts', require('./routes/contacts'));
@@ -166,7 +167,7 @@ app.get('/api/check-system', (req, res) => {
 });
 
 // High-Volume Queue Processor (BullMQ 1Cr+ Engine)
-require('./queues/campaignWorker');
+// require('./queues/campaignWorker');
 
 // Classic Queue Processor (Backup/SQL)
 const { processQueue, processApiQueue } = require('./services/queueService');

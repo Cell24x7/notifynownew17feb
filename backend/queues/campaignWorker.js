@@ -66,8 +66,11 @@ const redisConnection = new Redis({
     maxRetriesPerRequest: null,
 });
 
-// CREATE THE WORKER
-const campaignWorker = new Worker('campaign-sending', async (job) => {
+// CREATE THE WORKER WITH ENVIRONMENT ISOLATION
+const envSuffix = process.env.APP_NAME || 'notifynow-production';
+const queueName = `campaign-sending-${envSuffix}`;
+
+const campaignWorker = new Worker(queueName, async (job) => {
     const { item, tableConfig } = job.data;
     const { queueTable, campaignTable, logsTable } = tableConfig;
     let result = { success: false, error: 'Unknown' };
