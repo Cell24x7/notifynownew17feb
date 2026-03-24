@@ -39,15 +39,15 @@ const campaignWorker = new Worker(queueName, async (job) => {
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
             await query(`UPDATE ${campaignTable} SET sent_count = COALESCE(sent_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
             
-            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, mobile, recipient, status, message_id, channel, template_name, content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-            [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', item.content || 'N/A', now]);
+            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+            [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', item.content || 'N/A', now]);
         } else {
             // Failed: Update counters and Detailed Log
             await query(`UPDATE ${queueTable} SET status = "failed", error_message = ?, updated_at = NOW() WHERE id = ?`, [result.error || 'Provider rejected', item.id]);
             await query(`UPDATE ${campaignTable} SET failed_count = COALESCE(failed_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
             
-            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, mobile, recipient, status, error_message, channel, template_name, content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-            [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, item.mobile, 'failed', result.error || 'Failed', item.channel, item.template_name || 'N/A', item.content || 'N/A', now]);
+            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, error_message, channel, template_name, content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+            [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'failed', result.error || 'Failed', item.channel, item.template_name || 'N/A', item.content || 'N/A', now]);
         }
 
         // 3. Finalize Campaign Status if finished
