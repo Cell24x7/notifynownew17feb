@@ -181,11 +181,13 @@ const { ensureChatFlowsTable } = require('./services/chatflowService');
 const { ensureWhatsAppPricingColumns } = require('./services/pricingService');
 const { ensureAutomationsTable } = require('./services/automationService');
 const { ensureEnquiryColumns } = require('./services/enquiryService');
+const { ensureFeedbacksTable } = require('./services/feedbackService');
 
 ensureChatFlowsTable().catch(err => console.error('ChatFlow table init error:', err));
 ensureWhatsAppPricingColumns().catch(err => console.error('Pricing columns init error:', err));
 ensureAutomationsTable().catch(err => console.error('Automations table init error:', err));
 ensureEnquiryColumns().catch(err => console.error('Enquiry columns init error:', err));
+ensureFeedbacksTable().catch(err => console.error('Feedbacks table init error:', err));
 
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');

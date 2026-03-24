@@ -47,6 +47,7 @@ const menuItems = [
   { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
   { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
   { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
+  { icon: FileText, label: 'Usage Ledger', path: '/super-admin/ledger', permission: 'Reports - View' },
   { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
   { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'Vendors - View' },

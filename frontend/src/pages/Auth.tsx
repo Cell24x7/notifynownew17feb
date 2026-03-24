@@ -16,7 +16,7 @@ import { WelcomePopup } from '@/components/auth/WelcomePopup';
 import { useBranding } from '@/contexts/BrandingContext';
 import { FeedbackDialog } from '@/components/auth/FeedbackDialog';
 import { TestimonialSlider } from '@/components/auth/TestimonialSlider';
-import logo from '@/assets/logo-full.png';
+import logo from '@/assets/logo.svg';
 
 export default function Auth() {
   const [activeTab, setActiveTab] = useState('login');
@@ -44,7 +44,12 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(true);
 
-
+  if (isAuthenticated && !showWelcome) {
+    if (user?.role === 'admin' || user?.role === 'reseller' || user?.role === 'superadmin') {
+      return <Navigate to="/super-admin/dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -96,7 +101,7 @@ export default function Auth() {
           const token = localStorage.getItem('authToken');
           if (token) {
             const currentUser = JSON.parse(atob(token.split('.')[1] || '{}'));
-            if (currentUser.role === 'admin' || currentUser.role === 'reseller') {
+            if (currentUser.role === 'admin' || currentUser.role === 'reseller' || currentUser.role === 'superadmin') {
               navigate('/super-admin/dashboard', { replace: true });
             } else {
               navigate('/dashboard', { replace: true });
@@ -164,7 +169,7 @@ export default function Auth() {
           
           // Small delay for the welcome popup before redirecting
           setTimeout(() => {
-            if (data.user.role === 'admin' || data.user.role === 'reseller') {
+            if (data.user.role === 'admin' || data.user.role === 'reseller' || data.user.role === 'superadmin') {
               navigate('/super-admin/dashboard', { replace: true });
             } else {
               navigate('/dashboard', { replace: true });
@@ -236,7 +241,7 @@ export default function Auth() {
         authenticateWithToken(data.token, data.user);
         setShowWelcome(true);
         setTimeout(() => {
-          if (data.user.role === 'admin' || data.user.role === 'reseller') {
+          if (data.user.role === 'admin' || data.user.role === 'reseller' || data.user.role === 'superadmin') {
             navigate('/super-admin/dashboard', { replace: true });
           } else {
             navigate('/dashboard', { replace: true });
@@ -277,16 +282,9 @@ export default function Auth() {
     setSignupOtp('');
   };
 
-  if (isAuthenticated && !showWelcome) {
-    if (user?.role === 'admin' || user?.role === 'reseller' || user?.role === 'superadmin') {
-      return <Navigate to="/super-admin/dashboard" replace />;
-    }
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return (
-    <div className="min-h-screen w-full bg-[#f8faff] flex items-center justify-center p-0 font-['Inter',_sans-serif] overflow-y-auto py-0">
-      {/* Decorative Circles Background with Heavy Blur */}
+    <div className="lg:h-screen w-full bg-[#f8faff] flex flex-col lg:flex-row overflow-x-hidden lg:overflow-hidden font-['Inter',_sans-serif]">
+      {/* Decorative Circles Background - Stays behind everything */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[5%] left-[-5%] w-[400px] h-[400px] bg-[#0052cc]/10 rounded-full blur-[80px]"></div>
         <div className="absolute bottom-[-10%] left-[10%] w-[500px] h-[500px] bg-[#0052cc]/15 rounded-full blur-[100px]"></div>
@@ -294,19 +292,19 @@ export default function Auth() {
         <div className="absolute top-[-5%] right-[15%] w-[350px] h-[350px] bg-[#0052cc]/10 rounded-full blur-[70px]"></div>
       </div>
 
-      {/* Main Container - Optimized for 100% Zoom & Mobile */}
-      <div className="relative z-10 w-full lg:max-w-none lg:min-h-screen bg-white overflow-hidden flex flex-col lg:flex-row shadow-none border-none">
+      {/* Main Container */}
+      <div className="relative z-10 w-full flex flex-col lg:flex-row shadow-none border-none">
         
-        {/* Left Interactive Section */}
-        <div className="w-full lg:w-[50%] bg-[#0052cc] p-8 lg:p-12 flex flex-col relative overflow-hidden shrink-0 min-h-[500px] lg:min-h-screen">
+        {/* Left Interactive Section - Fixed on Desktop, Compact on Mobile */}
+        <div className="w-full lg:w-[50%] bg-[#0052cc] p-6 lg:p-12 flex flex-col relative overflow-hidden shrink-0 h-auto lg:h-screen lg:sticky lg:top-0">
           {/* Logo */}
-          <div className="flex items-center gap-2.5 mb-6 lg:mb-8">
-            <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg shadow-lg" />
-            <span className="text-lg font-black text-white tracking-tight">{settings?.brand_name || "NotifyNow"}</span>
+          <div className="flex items-center gap-2.5 mb-4 lg:mb-8 relative z-10">
+            <img src={logo} alt="Logo" className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg shadow-lg" />
+            <span className="text-base lg:text-lg font-black text-white tracking-tight">{settings?.brand_name || "NotifyNow"}</span>
           </div>
 
           {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#34D399]/20 border border-[#34D399]/30 text-[#34D399] font-bold text-[9px] mb-2 w-fit uppercase tracking-wider">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#34D399]/20 border border-[#34D399]/30 text-[#34D399] font-bold text-[8px] lg:text-[9px] mb-4 w-fit uppercase tracking-wider relative z-10">
             <div className="relative w-1 h-1">
               <span className="absolute inset-0 bg-[#34D399] rounded-full animate-ping"></span>
               <span className="relative block w-1 h-1 bg-[#34D399] rounded-full"></span>
@@ -315,7 +313,7 @@ export default function Auth() {
           </div>
 
           {/* Main Titles */}
-          <div className="flex-grow flex flex-col justify-center">
+          <div className="flex-grow flex flex-col justify-center relative z-10 mb-6 lg:mb-0">
             <h1 className="text-xl lg:text-3xl font-extrabold text-white leading-tight mb-2">
               Intelligent Messaging Across<br />
               <span className="text-white">SMS | </span>
@@ -323,20 +321,20 @@ export default function Auth() {
               <span className="text-white"> | RCS</span>
             </h1>
 
-            <p className="text-sm lg:text-base font-bold text-white mb-2">
+            <p className="text-xs lg:text-base font-bold text-white mb-2">
               Drive Business Growth with <span className="text-[#34D399]">AI-Powered</span> Conversations
             </p>
 
-            <p className="text-[11px] lg:text-xs text-blue-50/80 max-w-sm mb-4 leading-relaxed">
+            <p className="text-[10px] lg:text-xs text-blue-50/80 max-w-sm mb-4 leading-relaxed">
               Engage customers faster with official WhatsApp API, 
               bulk campaigns, and seamless automations in one powerful platform.
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-2.5 mb-4">
+            <div className="flex flex-wrap gap-2 mb-2">
               <a
                 href="tel:+919892975484"
-                className="px-5 py-2.5 rounded-xl bg-[#00C853] text-white font-black text-[12px] shadow-[0_8px_20px_-6px_rgba(0,200,83,0.4)] hover:bg-[#00B248] transition-all flex items-center gap-2"
+                className="px-4 py-2 rounded-xl bg-[#00C853] text-white font-black text-[10px] shadow-lg hover:bg-[#00B248] transition-all flex items-center gap-2"
               >
                 <Phone className="w-3.5 h-3.5 fill-white text-white" />
                 Call Now
@@ -344,7 +342,7 @@ export default function Auth() {
 
               <a
                 href="mailto:notify@notifynow.in"
-                className="px-5 py-2.5 rounded-xl bg-white text-[#0052cc] font-black text-[12px] shadow-lg hover:bg-blue-50 transition-all flex items-center gap-2"
+                className="px-4 py-2 rounded-xl bg-white text-[#0052cc] font-black text-[10px] shadow-lg hover:bg-blue-50 transition-all flex items-center gap-2"
               >
                 <Mail className="w-3.5 h-3.5" />
                 Email Now
@@ -352,8 +350,8 @@ export default function Auth() {
             </div>
           </div>
 
-          {/* Testimonial Box */}
-          <div className="mt-auto">
+          {/* Testimonial Box - Optional/Hidden on small mobile if space is tight */}
+          <div className="mt-auto hidden sm:block lg:block relative z-10">
             <TestimonialSlider />
           </div>
 
@@ -361,12 +359,13 @@ export default function Auth() {
           <div className="absolute bottom-[-100px] right-[-80px] w-[280px] h-[280px] bg-white/5 rounded-full pointer-events-none"></div>
         </div>
 
-        {/* Right Form Section */}
-        <div className="w-full lg:w-[50%] bg-white p-6 lg:p-12 flex flex-col items-center justify-center relative shrink-0 min-h-screen">
+        {/* Right Form Section - Scrollable on Desktop, Natural on Mobile */}
+        <div className="w-full lg:w-[50%] bg-white flex flex-col items-center justify-start lg:justify-center relative shrink-0 min-h-0 lg:h-screen lg:overflow-y-auto py-8 lg:py-10">
           
-          <div className="w-full max-w-[420px] flex flex-col justify-center">
+          <div className="w-full max-w-[420px] flex flex-col justify-center px-4 lg:px-0">
             
             {/* Form Header */}
+            <div className="bg-[#0052cc] rounded-[24px] p-5 lg:p-6 pt-6 pb-9 relative overflow-hidden shadow-lg border border-white/10 mb-[-32px] z-20">
               <div className="absolute top-4 right-5">
                 <button 
                   onClick={() => setIsFeedbackOpen(true)}
@@ -460,9 +459,10 @@ export default function Auth() {
                         id="terms-check"
                         checked={agreedToTerms}
                         onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                        required
                         className="w-4 h-4 mt-0.5 rounded border-2 border-slate-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-all"
                       />
-                      <Label htmlFor="terms-check" className="text-[11px] text-slate-500 font-medium leading-relaxed cursor-pointer select-none">
+                      <Label htmlFor="terms-check" className="text-[11px] text-slate-500 font-normal leading-relaxed cursor-pointer select-none">
                         By signing in, I agree to the <a href="/terms" className="text-[#0052cc] font-bold hover:underline">Terms of Service</a> and <a href="/privacy" className="text-[#0052cc] font-bold hover:underline">Privacy Policy</a>
                       </Label>
                     </div>
@@ -539,6 +539,7 @@ export default function Auth() {
             </div>
           </div>
         </div>
+      </div>
 
       <WelcomePopup
         isOpen={showWelcome}

@@ -435,4 +435,97 @@ router.get('/stats', authenticate, async (req, res) => {
     }
 });
 
+// --- Usage Ledger for Finance/Billing with Pagination ---
+router.get('/usage-ledger', authenticate, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const month = req.query.month || (new Date().getMonth() + 1);
+        const year = req.query.year || new Date().getFullYear();
+        const entityId = req.query.entityId; // Combined ID from frontend
+        const entityType = req.query.entityType; // 'reseller' or 'user'
+        const search = req.query.search;
+        
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        let conditions = ["u.role IN ('client', 'user')"];
+        let params = [month, year];
+
+        if (entityType === 'reseller' && entityId && entityId !== 'all') {
+            conditions.push("u.reseller_id = ?");
+            params.push(entityId);
+        } else if (entityType === 'user' && entityId && entityId !== 'all') {
+            conditions.push("u.id = ?");
+            params.push(entityId);
+        }
+
+        if (search) {
+            conditions.push("(u.name LIKE ? OR u.email LIKE ? OR u.company LIKE ?)");
+            const searchParam = `%${search}%`;
+            params.push(searchParam, searchParam, searchParam);
+        }
+
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+        // 1. Get Total Count for Pagination
+        const countParams = params.slice(2); 
+        const countSql = `SELECT COUNT(DISTINCT u.id) as total FROM users u ${whereClause}`;
+        
+        console.log('[UsageLedger] Count SQL:', countSql, 'Params:', countParams);
+        const [countResult] = await query(countSql, countParams);
+        const totalRecords = countResult[0]?.total || 0;
+
+        const sql = `
+            SELECT 
+                u.id, 
+                u.name, 
+                u.email, 
+                u.company,
+                u.wallet_balance,
+                r.name as reseller_name,
+                SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE 0 END) as total_spent,
+                SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE 0 END) as total_added,
+                MAX(t.created_at) as last_activity
+            FROM users u
+            LEFT JOIN resellers r ON u.reseller_id = r.id
+            LEFT JOIN transactions t ON u.id = t.user_id 
+                AND MONTH(t.created_at) = ? 
+                AND YEAR(t.created_at) = ?
+            ${whereClause}
+            GROUP BY u.id
+            ORDER BY total_spent DESC
+            LIMIT ? OFFSET ?
+        `;
+
+        const finalParams = [...params, limit, offset];
+        console.log('[UsageLedger] Rows SQL Params:', finalParams);
+        
+        const [rows] = await query(sql, finalParams);
+
+        res.json({
+            success: true,
+            ledger: rows.map(r => ({
+                ...r,
+                total_spent: Number(r.total_spent || 0),
+                total_added: Number(r.total_added || 0),
+                wallet_balance: Number(r.wallet_balance || 0)
+            })),
+            pagination: {
+                total: totalRecords,
+                page,
+                limit,
+                totalPages: Math.max(1, Math.ceil(totalRecords / limit))
+            }
+        });
+
+    } catch (err) {
+        console.error('Usage Ledger Error:', err);
+        res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+    }
+});
+
 module.exports = router;
