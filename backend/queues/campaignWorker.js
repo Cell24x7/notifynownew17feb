@@ -32,22 +32,33 @@ const campaignWorker = new Worker(queueName, async (job) => {
             result = await sendWhatsappMessage(item);
         }
 
-        // 2. Update Status and Populate Detailed Logs
+        // 2. Update Status and Populate Detailed Logs (Strict Schema Alignment)
         const now = new Date();
         if (result.success) {
-            // Success: Update counters and Detailed Log (using 'recipient' and 'send_time')
+            // Success Branch
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
             await query(`UPDATE ${campaignTable} SET sent_count = COALESCE(sent_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
             
-            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-            [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', item.content || 'N/A', now]);
+            // INSERT into message_logs (Matches queueService.js schema exactly)
+            const [inserted] = await query(
+                `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', now]
+            );
         } else {
-            // Failed: Update counters and Detailed Log
-            await query(`UPDATE ${queueTable} SET status = "failed", error_message = ?, updated_at = NOW() WHERE id = ?`, [result.error || 'Provider rejected', item.id]);
+            // Failure Branch
+            await query(`UPDATE ${queueTable} SET status = "failed", updated_at = NOW() WHERE id = ?`, [item.id]);
             await query(`UPDATE ${campaignTable} SET failed_count = COALESCE(failed_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
             
-            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, error_message, channel, template_name, content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-            [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'failed', result.error || 'Failed', item.channel, item.template_name || 'N/A', item.content || 'N/A', now]);
+            // INSERT with base fields first
+            const [inserted] = await query(
+                `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+                [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'failed', item.channel, item.template_name || 'N/A', now]
+            );
+
+            // UPDATE failure_reason (as per Step 991 in system logic)
+            if (inserted && inserted.insertId) {
+                await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [result.error || 'Failed', inserted.insertId]);
+            }
         }
 
         // 3. Finalize Campaign Status if finished
