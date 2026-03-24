@@ -6,36 +6,36 @@ const { campaignQueue } = require('../queues/campaignQueue');
 
 router.get('/status', async (req, res) => {
     try {
-        /*
-        const [waiting, active, completed, failed, delayed] = await Promise.all([
-            campaignQueue.getJobCountByTypes('waiting'),
-            campaignQueue.getJobCountByTypes('active'),
-            campaignQueue.getJobCountByTypes('completed'),
-            campaignQueue.getJobCountByTypes('failed'),
-            campaignQueue.getJobCountByTypes('delayed')
-        ]);
+        const counts = await campaignQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed');
         
-        const recentJobs = await campaignQueue.getJobs(['completed', 'failed'], 0, 4, false);
-        */
-        const feed = [];
-        const waiting=0, active=0, completed=0, failed=0, delayed=0;
+        // Fetch 5-10 recent jobs for the live feed
+        const jobs = await campaignQueue.getJobs(['completed', 'failed'], 0, 9, false);
+        const feed = jobs.map(j => ({
+            id: j.id,
+            status: j.finishedOn ? (j.failedReason ? 'failed' : 'completed') : 'active',
+            recipient: j.data?.item?.mobile || 'N/A',
+            channel: j.data?.item?.channel || 'Unknown',
+            time: j.finishedOn ? new Date(j.finishedOn).toLocaleTimeString() : new Date(j.timestamp).toLocaleTimeString(),
+            error: j.failedReason || null
+        }));
 
         res.json({
             success: true,
             counts: {
-                waiting,
-                active,
-                completed,
-                failed,
-                delayed,
-                total: waiting + active + completed + failed + delayed
+                waiting: counts.waiting || 0,
+                active: counts.active || 0,
+                completed: counts.completed || 0,
+                failed: counts.failed || 0,
+                delayed: counts.delayed || 0,
+                total: (counts.waiting + counts.active + counts.completed + counts.failed + counts.delayed) || 0
             },
             feed,
-            engine: 'BullMQ 1Cr+ Redis Engine',
+            engine: 'BullMQ 1Cr+ Redis Engine cluster',
             serverStatus: 'Online',
             lastCheck: new Date()
         });
     } catch (err) {
+        console.error('[QueueManager] Error fetching status:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
