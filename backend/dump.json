@@ -1,0 +1,393 @@
+[
+  {
+    "nodes": [
+      {
+        "id": "trigger-1",
+        "data": {
+          "label": "Trigger",
+          "channel": "whatsapp",
+          "conditions": [
+            {
+              "id": "cond-1774335259936",
+              "type": "exact_match_keywords",
+              "keywords": [
+                "hii",
+                "hi",
+                "hello",
+                "hey",
+                "help",
+                "start"
+              ],
+              "isCaseSensitive": false
+            }
+          ],
+          "triggerType": "new_message"
+        },
+        "type": "trigger",
+        "width": 278,
+        "height": 109,
+        "dragging": false,
+        "position": {
+          "x": -720,
+          "y": -180
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": -720,
+          "y": -180
+        }
+      },
+      {
+        "id": "action-1774335512204",
+        "data": {
+          "label": "Action",
+          "rules": [],
+          "config": {
+            "body": "Hello 👋 Welcome to our support desk. Please choose an option below.\t",
+            "buttons": [
+              {
+                "id": "btn_1774335667470",
+                "label": "Services"
+              },
+              {
+                "id": "btn_1774335687975",
+                "label": "Support"
+              }
+            ],
+            "messageType": "button_flow"
+          },
+          "keywords": [],
+          "actionType": "auto_reply_buttons",
+          "conditions": [],
+          "isCaseSensitive": false
+        },
+        "type": "action",
+        "width": 280,
+        "height": 198,
+        "dragging": false,
+        "position": {
+          "x": -525,
+          "y": -30
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": -525,
+          "y": -30
+        }
+      },
+      {
+        "id": "action-1774335746211",
+        "data": {
+          "label": "Action",
+          "rules": [],
+          "config": {
+            "body": "Thank you for choosing Services. What would you like to know?\t",
+            "buttons": [
+              {
+                "id": "btn_1774335779243",
+                "label": "Pricing"
+              },
+              {
+                "id": "btn_1774335783145",
+                "label": "Features"
+              }
+            ],
+            "messageType": "button_flow"
+          },
+          "keywords": [],
+          "actionType": "auto_reply_buttons",
+          "conditions": [],
+          "isCaseSensitive": false
+        },
+        "type": "action",
+        "width": 280,
+        "height": 198,
+        "dragging": false,
+        "position": {
+          "x": -165,
+          "y": -210
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": -165,
+          "y": -210
+        }
+      },
+      {
+        "id": "action-1774335931669",
+        "data": {
+          "label": "Action",
+          "rules": [],
+          "config": {
+            "body": "Our plans start from ₹999/month. Please choose the next step.\t",
+            "buttons": [
+              {
+                "id": "btn_1774335976376",
+                "label": "Get Quote"
+              },
+              {
+                "id": "btn_1774335986286",
+                "label": "Main Menu"
+              }
+            ],
+            "messageType": "button_flow"
+          },
+          "keywords": [],
+          "actionType": "auto_reply_buttons",
+          "conditions": [],
+          "isCaseSensitive": false
+        },
+        "type": "action",
+        "width": 280,
+        "height": 198,
+        "dragging": false,
+        "position": {
+          "x": 210,
+          "y": -315
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": 210,
+          "y": -315
+        }
+      },
+      {
+        "id": "action-1774336528453",
+        "data": {
+          "label": "Action",
+          "rules": [],
+          "config": {
+            "body": "Please choose the type of support you need.\t",
+            "buttons": [
+              {
+                "id": "btn_1774336594875",
+                "label": "Technical Issue"
+              },
+              {
+                "id": "btn_1774336611575",
+                "label": "Sales Team"
+              }
+            ],
+            "messageType": "button_flow"
+          },
+          "keywords": [],
+          "actionType": "auto_reply_buttons",
+          "conditions": [],
+          "isCaseSensitive": false
+        },
+        "type": "action",
+        "width": 280,
+        "height": 198,
+        "dragging": false,
+        "position": {
+          "x": -180,
+          "y": 195
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": -180,
+          "y": 195
+        }
+      },
+      {
+        "id": "action-1774336693145",
+        "data": {
+          "label": "Action",
+          "rules": [],
+          "config": {
+            "body": "Our service includes: - Easy dashboard - Fast delivery - Real-time reports\t",
+            "buttons": [
+              {
+                "id": "btn_1774336716376",
+                "label": "Demo Request"
+              },
+              {
+                "id": "btn_1774336729439",
+                "label": "Main Menu"
+              }
+            ],
+            "messageType": "button_flow"
+          },
+          "keywords": [],
+          "actionType": "auto_reply_buttons",
+          "conditions": [],
+          "isCaseSensitive": false
+        },
+        "type": "action",
+        "width": 280,
+        "height": 198,
+        "dragging": false,
+        "position": {
+          "x": 210,
+          "y": -105
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": 210,
+          "y": -105
+        }
+      },
+      {
+        "id": "action-1774336803497",
+        "data": {
+          "label": "Action",
+          "rules": [],
+          "config": {
+            "body": "Please describe your technical issue in one message. Our team will contact you soon.\t",
+            "buttons": [
+              {
+                "id": "btn_1774336822976",
+                "label": "Main Menu"
+              }
+            ],
+            "messageType": "button_flow"
+          },
+          "keywords": [],
+          "actionType": "auto_reply_buttons",
+          "conditions": [],
+          "isCaseSensitive": false
+        },
+        "type": "action",
+        "width": 280,
+        "height": 161,
+        "dragging": false,
+        "position": {
+          "x": 210,
+          "y": 120
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": 210,
+          "y": 120
+        }
+      },
+      {
+        "id": "action-1774336860117",
+        "data": {
+          "label": "Action",
+          "rules": [],
+          "config": {
+            "body": "Please share your name and mobile number. Our sales team will contact you shortly.\t",
+            "buttons": [
+              {
+                "id": "btn_1774336876201",
+                "label": "Main Menu\t"
+              }
+            ],
+            "messageType": "button_flow"
+          },
+          "keywords": [],
+          "actionType": "auto_reply_buttons",
+          "conditions": [],
+          "isCaseSensitive": false
+        },
+        "type": "action",
+        "width": 280,
+        "height": 177,
+        "dragging": false,
+        "position": {
+          "x": 210,
+          "y": 300
+        },
+        "selected": false,
+        "positionAbsolute": {
+          "x": 210,
+          "y": 300
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reactflow__edge-trigger-1-action-1774335512204",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#6366f1",
+          "strokeWidth": 2
+        },
+        "source": "trigger-1",
+        "target": "action-1774335512204",
+        "animated": false,
+        "sourceHandle": null,
+        "targetHandle": null
+      },
+      {
+        "id": "reactflow__edge-action-1774335512204btn_1774335667470-action-1774335746211",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#6366f1",
+          "strokeWidth": 2
+        },
+        "source": "action-1774335512204",
+        "target": "action-1774335746211",
+        "animated": false,
+        "sourceHandle": "btn_1774335667470",
+        "targetHandle": null
+      },
+      {
+        "id": "reactflow__edge-action-1774335512204btn_1774335687975-action-1774336528453",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#6366f1",
+          "strokeWidth": 2
+        },
+        "source": "action-1774335512204",
+        "target": "action-1774336528453",
+        "animated": false,
+        "sourceHandle": "btn_1774335687975",
+        "targetHandle": null
+      },
+      {
+        "id": "reactflow__edge-action-1774335746211btn_1774335779243-action-1774335931669",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#6366f1",
+          "strokeWidth": 2
+        },
+        "source": "action-1774335746211",
+        "target": "action-1774335931669",
+        "animated": false,
+        "sourceHandle": "btn_1774335779243",
+        "targetHandle": null
+      },
+      {
+        "id": "reactflow__edge-action-1774335746211btn_1774335783145-action-1774336693145",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#6366f1",
+          "strokeWidth": 2
+        },
+        "source": "action-1774335746211",
+        "target": "action-1774336693145",
+        "animated": false,
+        "sourceHandle": "btn_1774335783145",
+        "targetHandle": null
+      },
+      {
+        "id": "reactflow__edge-action-1774336528453btn_1774336594875-action-1774336803497",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#6366f1",
+          "strokeWidth": 2
+        },
+        "source": "action-1774336528453",
+        "target": "action-1774336803497",
+        "animated": false,
+        "sourceHandle": "btn_1774336594875",
+        "targetHandle": null
+      },
+      {
+        "id": "reactflow__edge-action-1774336528453btn_1774336611575-action-1774336860117",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#6366f1",
+          "strokeWidth": 2
+        },
+        "source": "action-1774336528453",
+        "target": "action-1774336860117",
+        "animated": false,
+        "sourceHandle": "btn_1774336611575",
+        "targetHandle": null
+      }
+    ]
+  }
+]

@@ -42,12 +42,16 @@ async function ensureAutomationsTable() {
  */
 async function processAutomation(userId, triggerType, channel, payload, io) {
     try {
+        console.log(`🤖 [AutomationService] Processing for User ${userId}, Type: ${triggerType}, Channel: ${channel}`);
         const [automations] = await query(
             "SELECT * FROM automations WHERE user_id = ? AND status = 'active' AND channel = ?",
             [userId, channel]
         );
 
-        if (!automations || automations.length === 0) return;
+        if (!automations || automations.length === 0) {
+            console.log(`🤖 [AutomationService] No active ${channel} automations found for user ${userId}`);
+            return;
+        }
 
         for (const automation of automations) {
             const nodes = typeof automation.nodes === 'string' ? JSON.parse(automation.nodes) : automation.nodes;
@@ -70,18 +74,19 @@ async function processAutomation(userId, triggerType, channel, payload, io) {
             if (!entryNode && triggerType === automation.trigger_type) {
                 const triggerNode = nodes.find(n => n.type === 'trigger');
                 if (triggerNode) {
-                    // Check conditions if it's a message trigger
-                    if (triggerType === 'new_message') {
-                        const matched = checkTriggerConditions(triggerNode, payload.message_content);
-                        if (matched) entryNode = triggerNode;
-                    } else {
+                    console.log(`🤖 [AutomationService] Checking trigger conditions for automation: ${automation.name}`);
+                    const matched = checkTriggerConditions(triggerNode, payload.message_content);
+                    if (matched) {
+                        console.log(`🤖 [AutomationService] Trigger matched! Starting flow.`);
                         entryNode = triggerNode;
+                    } else {
+                        console.log(`🤖 [AutomationService] Conditions NOT matched for trigger.`);
                     }
                 }
             }
 
             if (entryNode) {
-                console.log(`🤖 [AutomationService] Running flow: ${automation.name} for ${payload.sender}`);
+                console.log(`🚀 [AutomationService] Executing entryNode: ${entryNode.id} for ${payload.sender}`);
                 await executeNode(userId, entryNode, nodes, edges, channel, payload, io);
                 await query("UPDATE automations SET trigger_count = trigger_count + 1, last_triggered = CURRENT_TIMESTAMP WHERE id = ?", [automation.id]);
             }
@@ -91,71 +96,88 @@ async function processAutomation(userId, triggerType, channel, payload, io) {
     }
 }
 
+/**
+ * checkTriggerConditions
+ * Extract keywords from data.keywords OR data.conditions[0].keywords
+ */
 function checkTriggerConditions(node, messageText) {
-    if (!node.data || !node.data.keywords || node.data.keywords.length === 0) return true;
-    
+    let keywords = [];
+    if (node.data.keywords && Array.isArray(node.data.keywords)) {
+        keywords = node.data.keywords;
+    } else if (node.data.conditions && Array.isArray(node.data.conditions) && node.data.conditions[0]?.keywords) {
+        keywords = node.data.conditions[0].keywords;
+    }
+
+    if (keywords.length === 0) return true; // Empty means catch-all
+
     const text = (messageText || '').toLowerCase().trim();
-    const keywords = node.data.keywords.map(kw => kw.toLowerCase().trim());
-    return keywords.some(kw => text === kw || text.includes(kw));
+    const cleanKeywords = keywords.map(kw => String(kw).toLowerCase().trim());
+    console.log(`🛠️ [AutomationService] Matching "${text}" against: [${cleanKeywords.join(', ')}]`);
+    return cleanKeywords.some(kw => text === kw || (text.includes(kw) && kw.length > 2));
 }
 
 async function executeNode(userId, currentNode, allNodes, allEdges, channel, payload, io) {
+    console.log(`🔍 [AutomationService] Executing Node: ${currentNode.id} (Type: ${currentNode.type})`);
     const nextEdges = allEdges.filter(e => e.source === currentNode.id);
     
     if (currentNode.type === 'trigger') {
-        // Trigger just passes through to next
         for (const edge of nextEdges) {
             const nextNode = allNodes.find(n => n.id === edge.target);
             if (nextNode) await executeNode(userId, nextNode, allNodes, allEdges, channel, payload, io);
         }
     } else if (currentNode.type === 'condition') {
-        // ... (Condition logic stays same as before, but ensure it uses the central logic)
         const matched = checkTriggerConditions(currentNode, payload.message_content); 
         if (matched) {
             for (const edge of nextEdges) {
                 const nextNode = allNodes.find(n => n.id === edge.target);
                 if (nextNode) {
-                    // Small delay for natural flow
                     await new Promise(r => setTimeout(r, 800));
                     await executeNode(userId, nextNode, allNodes, allEdges, channel, payload, io);
                 }
             }
         }
+    } else if (currentNode.type === 'action') {
+        const actionType = currentNode.data.subType || currentNode.data.actionType;
+        const config = currentNode.data.config || {};
+        const mobile = (payload.sender || '').replace(/\D/g, '');
+        let text = config.message || config.body || currentNode.data.label;
+
+        console.log(`⚙️ [AutomationService] Action: ${actionType}`);
+
         if (actionType === 'auto_reply' || actionType === 'auto_reply_buttons' || actionType === 'send_message' || actionType === 'auto_reply_template') {
             
             if (actionType === 'auto_reply_template' && config.templateId) {
                 text = `[Template: ${config.templateId}]`; 
             }
 
-            // 1. Variable Replacement (e.g. {{name}})
             text = await replaceVariables(userId, mobile, text);
 
-            // 2. Credit Deduction
             const templateName = config.templateId || 'automation_reply';
+            console.log(`💳 [AutomationService] Deducting credit for ${templateName}...`);
             const deduction = await deductSingleMessageCredit(userId, channel, templateName);
             if (!deduction.success) {
-                console.warn(`🛑 [AutomationService] Insufficient credits for user ${userId}. Skipping message.`);
+                console.warn(`🛑 [AutomationService] Insufficient credits for user ${userId}.`);
                 return;
             }
 
-            // 3. Send Message
+            console.log(`📤 [AutomationService] Sending ${channel} reply to ${payload.sender}...`);
+            let sent = false;
             if (channel === 'whatsapp') {
-                await sendWhatsAppReply(userId, payload.sender, text, config);
+                sent = await sendWhatsAppReply(userId, payload.sender, text, config);
             } else if (channel === 'rcs') {
-                await sendRcsReply(userId, payload.sender, text);
+                sent = await sendRcsReply(userId, payload.sender, text);
             }
 
-            // Log & Notify
-            await logWebhook(userId, payload.sender, text, channel, io);
+            if (sent) {
+                await logWebhook(userId, payload.sender, text, channel, io);
+            }
 
-            // 🛑 STOP RECURSION if this node has buttons (Wait for next click)
             const hasButtons = config.messageType === 'button_flow' && config.buttons && config.buttons.length > 0;
             if (hasButtons) {
-                console.log(`🛑 [AutomationService] Flow paused at Interactive Node ${currentNode.id}. Waiting for button click.`);
+                console.log(`🛑 [AutomationService] Paused at Buttons node.`);
                 return; 
             }
             
-            // Wait slightly before next message if sequential
             await new Promise(r => setTimeout(r, 1200));
         } else if (actionType === 'add_to_campaign') {
             if (config.campaignId) await addToCampaign(userId, mobile, config.campaignId);
@@ -169,9 +191,7 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
             if (config.listId) await query('UPDATE contacts SET category = ? WHERE user_id = ? AND (phone = ? OR phone = ?)', [config.listId, userId, mobile, payload.sender]);
         }
 
-        // Standard recursion for non-interactive action nodes
         for (const edge of nextEdges) {
-            // Important: Don't execute branch edges here, they should only be triggered by button clicks
             if (edge.sourceHandle) continue; 
             const nextNode = allNodes.find(n => n.id === edge.target);
             if (nextNode) await executeNode(userId, nextNode, allNodes, allEdges, channel, payload, io);
@@ -180,23 +200,26 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
 }
 
 async function logWebhook(userId, recipient, text, channel, io, status = 'sent') {
-    await query(
-        'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
-        [userId, 'System', recipient, text, status, channel]
-    );
-    if (io) {
-        io.to(`user_${userId}`).emit('new_message', {
-            sender: 'System',
-            recipient: recipient,
-            message_content: text,
-            created_at: new Date(),
-            status: status,
-            type: channel
-        });
-    }
+    try {
+        await query(
+            'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
+            [userId, 'System', recipient, text, status, channel]
+        );
+        if (io) {
+            io.to(`user_${userId}`).emit('new_message', {
+                sender: 'System',
+                recipient: recipient,
+                message_content: text,
+                created_at: new Date(),
+                status: status,
+                type: channel
+            });
+        }
+    } catch (e) { console.error('Log error:', e); }
 }
 
 async function addToCampaign(userId, mobile, campaignId) {
+    console.log(`📝 [AutomationService] Adding ${mobile} to campaign ${campaignId}`);
     const [existing] = await query('SELECT id FROM campaign_queue WHERE campaign_id = ? AND mobile = ?', [campaignId, mobile]);
     if (existing.length === 0) {
         await query(
@@ -207,11 +230,13 @@ async function addToCampaign(userId, mobile, campaignId) {
 }
 
 async function removeFromCampaign(mobile, campaignId) {
+    console.log(`📝 [AutomationService] Removing ${mobile} from campaign ${campaignId}`);
     await query('DELETE FROM campaign_queue WHERE campaign_id = ? AND mobile = ?', [campaignId, mobile]);
 }
 
 async function handleTags(userId, mobile, sender, action, tagName) {
     if (!tagName) return;
+    console.log(`🏷️ [AutomationService] Tag action: ${action} tag: ${tagName}`);
     const [contacts] = await query('SELECT id, labels FROM contacts WHERE user_id = ? AND (phone = ? OR phone = ?)', [userId, mobile, sender]);
     if (contacts.length > 0) {
         let labels = [];
@@ -240,7 +265,10 @@ async function sendWhatsAppReply(userId, to, text, config = {}) {
             'SELECT wc.* FROM users u JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id WHERE u.id = ?',
             [userId]
         );
-        if (!configs || configs.length === 0) return false;
+        if (!configs || configs.length === 0) {
+            console.error('❌ [AutomationService] No WhatsApp config found for user', userId);
+            return false;
+        }
         const cfg = configs[0];
         const isPinbot = cfg.provider === 'vendor2';
         const mobile = to.replace(/\D/g, '');
@@ -253,7 +281,6 @@ async function sendWhatsAppReply(userId, to, text, config = {}) {
             to: mobile
         };
 
-        // Determine message type (interactive vs text)
         if (config.messageType === 'button_flow' && config.buttons && config.buttons.length > 0) {
             payload.type = 'interactive';
             payload.interactive = {
@@ -271,10 +298,12 @@ async function sendWhatsAppReply(userId, to, text, config = {}) {
             payload.text = { body: text };
         }
 
-        await axios.post(msgUrl, payload, { headers: { ...headers, 'Content-Type': 'application/json' } });
+        console.log(`📡 [AutomationService] API Payload:`, JSON.stringify(payload));
+        const res = await axios.post(msgUrl, payload, { headers: { ...headers, 'Content-Type': 'application/json' } });
+        console.log(`✅ [AutomationService] Message sent successfully! API ID:`, res.data?.messages?.[0]?.id);
         return true;
     } catch (err) {
-        console.error('[AutomationService] WA send error:', err.response?.data || err.message);
+        console.error('❌ [AutomationService] WA send error:', err.response?.data || err.message);
         return false;
     }
 }
@@ -290,7 +319,7 @@ async function sendRcsReply(userId, to, text) {
         await sendRcsMessage(to, text, rcsConfig);
         return true;
     } catch (err) {
-        console.error('[AutomationService] RCS send error:', err.message);
+        console.error('❌ [AutomationService] RCS send error:', err.message);
         return false;
     }
 }
