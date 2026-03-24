@@ -167,7 +167,7 @@ app.get('/api/check-system', (req, res) => {
 });
 
 // High-Volume Queue Processor (BullMQ 1Cr+ Engine)
-// require('./queues/campaignWorker');
+require('./queues/campaignWorker');
 
 // Classic Queue Processor (Backup/SQL)
 const { processQueue, processApiQueue } = require('./services/queueService');

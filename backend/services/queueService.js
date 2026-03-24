@@ -210,7 +210,7 @@ const processBatch = async (tableConfig) => {
         if (items.length === 0) return;
 
         console.log(`[${processorName}] Offloading ${items.length} items to BullMQ 1Cr+ Engine...`);
-        // const { campaignQueue } = require('../queues/campaignQueue');
+        const { campaignQueue } = require('../queues/campaignQueue');
 
         // PUSH TO REDIS (FAST)
         const jobs = items.map(item => ({
@@ -219,7 +219,7 @@ const processBatch = async (tableConfig) => {
             opts: { jobId: `${processorName}-${item.id}` } // Avoid duplicate sends
         }));
         
-        // await campaignQueue.addBulk(jobs);
+        await campaignQueue.addBulk(jobs);
 
         // MARK AS PROCESSING IN SQL
         const itemIds = items.map(i => i.id);
