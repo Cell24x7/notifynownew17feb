@@ -191,49 +191,57 @@ const processBatch = async (tableConfig) => {
             LIMIT ?
         `;
 
-        let [items] = await query(sql, [BATCH_SIZE]);
-        if (items.length === 0) return;
+        let totalOffloaded = 0;
+        while (true) {
+            let [batchItems] = await query(sql, [BATCH_SIZE]);
+            if (batchItems.length === 0) break;
 
-        // Safety Deduct Credits
-        const uniqueCampaigns = [...new Set(items.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
-        const failedCampaigns = new Set();
-        for (const campId of uniqueCampaigns) {
-            const result = await deductCampaignCredits(campId, campaignTable);
-            if (!result.success) {
-                console.error(`[${processorName}] Credit deduction failed for ${campId}: ${result.message}`);
-                await query(`UPDATE ${campaignTable} SET status = "paused" WHERE id = ?`, [campId]);
-                failedCampaigns.add(campId);
+            // Safety Deduct Credits (Only for campaigns that haven't been deducted yet)
+            const uniqueCampaigns = [...new Set(batchItems.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
+            const failedCampaigns = new Set();
+            for (const campId of uniqueCampaigns) {
+                const result = await deductCampaignCredits(campId, campaignTable);
+                if (!result.success) {
+                    console.error(`[${processorName}] Credit deduction failed for ${campId}: ${result.message}`);
+                    await query(`UPDATE ${campaignTable} SET status = "paused" WHERE id = ?`, [campId]);
+                    failedCampaigns.add(campId);
+                }
             }
+
+            if (failedCampaigns.size > 0) batchItems = batchItems.filter(i => !failedCampaigns.has(i.campaign_id));
+            if (batchItems.length === 0) break;
+
+            console.log(`[${processorName}] Offloading batch of ${batchItems.length} items to BullMQ cluster...`);
+            const { campaignQueue } = require('../queues/campaignQueue');
+
+            const jobs = batchItems.map(item => ({
+                name: `sending-${item.mobile}`,
+                data: { item, tableConfig },
+                opts: { jobId: `${processorName}-${item.id}` }
+            }));
+            
+            await campaignQueue.addBulk(jobs);
+
+            // SYNC Redis Counters
+            const Redis = require('ioredis');
+            const redisClient = new Redis(campaignQueue.opts.connection);
+            for (const campId of uniqueCampaigns) {
+                const countForCamp = batchItems.filter(i => i.campaign_id == campId).length;
+                await redisClient.incrby(`camp_progress:${campId}`, countForCamp);
+            }
+            await redisClient.quit();
+
+            // MARK AS PROCESSING
+            const itemIds = batchItems.map(i => i.id);
+            await query(`UPDATE ${queueTable} SET status = "processing" WHERE id IN (?)`, [itemIds]);
+            
+            totalOffloaded += batchItems.length;
+            if (batchItems.length < BATCH_SIZE) break; // Finished draining
         }
 
-        if (failedCampaigns.size > 0) items = items.filter(i => !failedCampaigns.has(i.campaign_id));
-        if (items.length === 0) return;
-
-        console.log(`[${processorName}] Offloading ${items.length} items to BullMQ 1Cr+ Engine...`);
-        const { campaignQueue } = require('../queues/campaignQueue');
-
-        // PUSH TO REDIS (FAST)
-        const jobs = items.map(item => ({
-            name: `sending-${item.mobile}`,
-            data: { item, tableConfig },
-            opts: { jobId: `${processorName}-${item.id}` } // Avoid duplicate sends
-        }));
-        
-        await campaignQueue.addBulk(jobs);
-
-        // SYNC Redis Counters for High-Speed Completion tracking
-        const Redis = require('ioredis');
-        // Use the same Redis connection as BullMQ for consistency and efficiency
-        const redisClient = new Redis(campaignQueue.opts.connection);
-        for (const campId of uniqueCampaigns) {
-            const countForCamp = items.filter(i => i.campaign_id == campId).length;
-            await redisClient.incrby(`camp_progress:${campId}`, countForCamp);
+        if (totalOffloaded > 0) {
+            console.log(`[${processorName}] Total Drain Complete: ${totalOffloaded} items pushed.`);
         }
-        await redisClient.quit();
-
-        // MARK AS PROCESSING IN SQL
-        const itemIds = items.map(i => i.id);
-        await query(`UPDATE ${queueTable} SET status = "processing" WHERE id IN (?)`, [itemIds]);
         return;
 
         // --- OLD IN-THREAD LOGIC (Bypassed by Redis) ---
