@@ -52,7 +52,7 @@ module.exports = {
         NODE_ENV: 'development',
         ...devEnv
       },
-      instances: appName === 'notifynow-developer' ? 2 : 1,
+      instances: 1,
       exec_mode: 'cluster',
       autorestart: true,
       watch: false,
