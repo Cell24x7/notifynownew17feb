@@ -127,7 +127,7 @@ cd "$PROJECT_DIR"
 fuser -k 5050/tcp || true
 # Delete ONLY this specific production instance
 pm2 delete notifynow-production 2>/dev/null || true
-pm2 start ecosystem.config.js --env production
+APP_NAME=notifynow-production pm2 start ecosystem.config.js --env production
 pm2 save --force
 ok "Instance 'notifynow-production' is active on Production Port (5050)"
 
