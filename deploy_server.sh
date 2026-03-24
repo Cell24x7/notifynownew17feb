@@ -131,7 +131,7 @@ cd "$PROJECT_DIR"
 fuser -k 5000/tcp || true
 # Delete ONLY this specific developer instance
 pm2 delete notifynow-developer 2>/dev/null || true
-pm2 start ecosystem.config.js --env production
+APP_NAME=notifynow-developer pm2 start ecosystem.config.js --env production
 pm2 save --force
 ok "Instance 'notifynow-developer' is active on Developer Port (5000)"
 

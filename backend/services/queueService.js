@@ -209,10 +209,24 @@ const processBatch = async (tableConfig) => {
         if (failedCampaigns.size > 0) items = items.filter(i => !failedCampaigns.has(i.campaign_id));
         if (items.length === 0) return;
 
+        console.log(`[${processorName}] Offloading ${items.length} items to BullMQ 1Cr+ Engine...`);
+        const { campaignQueue } = require('../queues/campaignQueue');
+
+        // PUSH TO REDIS (FAST)
+        const jobs = items.map(item => ({
+            name: `sending-${item.mobile}`,
+            data: { item, tableConfig },
+            opts: { jobId: `${processorName}-${item.id}` } // Avoid duplicate sends
+        }));
+        
+        await campaignQueue.addBulk(jobs);
+
+        // MARK AS PROCESSING IN SQL
         const itemIds = items.map(i => i.id);
         await query(`UPDATE ${queueTable} SET status = "processing" WHERE id IN (?)`, [itemIds]);
+        return;
 
-        console.log(`[${processorName}] Processing ${items.length} items...`);
+        // --- OLD IN-THREAD LOGIC (Bypassed by Redis) ---
         const stats = {};
         const results = [];
 

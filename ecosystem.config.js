@@ -5,8 +5,8 @@ const folderName = path.basename(currentPath);
 const parentName = path.basename(path.dirname(currentPath));
 
 // Unique App Name - Strictly separate production from dev
-let appName = 'notifynow-production';
-if (currentPath.includes('developer.notifynow.in')) {
+let appName = process.env.APP_NAME || 'notifynow-production';
+if (!process.env.APP_NAME && currentPath.includes('developer.notifynow.in')) {
     appName = 'notifynow-developer';
 }
 
@@ -52,10 +52,11 @@ module.exports = {
         NODE_ENV: 'development',
         ...devEnv
       },
-      instances: 1,
+      instances: appName === 'notifynow-developer' ? 2 : 1,
+      exec_mode: 'cluster',
       autorestart: true,
       watch: false,
-      max_memory_restart: '500M',
+      max_memory_restart: '800M',
       error_file: './logs/pm2-error.log',
       out_file: './logs/pm2-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss'

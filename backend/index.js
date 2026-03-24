@@ -165,14 +165,17 @@ app.get('/api/check-system', (req, res) => {
   });
 });
 
-// Queue Processor
+// High-Volume Queue Processor (BullMQ 1Cr+ Engine)
+require('./queues/campaignWorker');
+
+// Classic Queue Processor (Backup/SQL)
 const { processQueue, processApiQueue } = require('./services/queueService');
 const runQueue = async () => {
   try { 
     await processQueue(); 
     await processApiQueue();
   } catch (err) { console.error('Queue error:', err); }
-  setTimeout(runQueue, 1000);
+  setTimeout(runQueue, 15000); // Slooooow down SQL queue, Redis takes the heat
 };
 runQueue();
 
