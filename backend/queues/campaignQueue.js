@@ -9,8 +9,11 @@ const redisConnection = new Redis({
   maxRetriesPerRequest: null, // Critical for BullMQ
 });
 
-// Create the High-Volume Campaign Queue
-const campaignQueue = new Queue('campaign-sending', {
+// Create the High-Volume Campaign Queue with Environment Isolation
+const envSuffix = process.env.APP_NAME || 'notifynow-production';
+const queueName = `campaign-sending-${envSuffix}`;
+
+const campaignQueue = new Queue(queueName, {
   connection: redisConnection,
   defaultJobOptions: {
     attempts: 3, // Auto-retry 3 times if API fails
