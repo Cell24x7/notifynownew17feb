@@ -115,15 +115,14 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
             }
         }
     } else if (currentNode.type === 'action') {
-        const actionType = currentNode.data.actionType;
+        const actionType = currentNode.type === 'action' ? (currentNode.data.subType || currentNode.data.actionType) : currentNode.type;
         const config = currentNode.data.config || {};
+        const mobile = (payload.sender || '').replace(/\D/g, '');
         let text = config.message || config.body || currentNode.data.label;
 
         if (actionType === 'auto_reply' || actionType === 'auto_reply_buttons' || actionType === 'send_message' || actionType === 'auto_reply_template') {
             // Handle template specifically if needed
             if (actionType === 'auto_reply_template' && config.templateId) {
-                // In a real system, we'd fetch the template body here. 
-                // For now, we'll use the template name as the message or a placeholder.
                 text = `[Template: ${config.templateId}]`; 
             }
 
@@ -149,6 +148,56 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
                     status: 'sent',
                     type: channel
                 });
+            }
+        } else if (actionType === 'add_to_campaign') {
+            if (config.campaignId) {
+                const [existing] = await query('SELECT id FROM campaign_queue WHERE campaign_id = ? AND mobile = ?', [config.campaignId, mobile]);
+                if (existing.length === 0) {
+                    await query(
+                        'INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status) VALUES (?, ?, ?, ?, ?)',
+                        [config.campaignId, userId, mobile, JSON.stringify({ source: 'automation' }), 'pending']
+                    );
+                }
+            }
+        } else if (actionType === 'remove_from_campaign') {
+            if (config.campaignId) {
+                await query('DELETE FROM campaign_queue WHERE campaign_id = ? AND mobile = ?', [config.campaignId, mobile]);
+            }
+        } else if (actionType === 'add_tags' || actionType === 'remove_tags') {
+            const tagName = config.tagName;
+            if (tagName) {
+                const [contacts] = await query('SELECT id, labels FROM contacts WHERE user_id = ? AND (phone = ? OR phone = ?)', [userId, mobile, payload.sender]);
+                if (contacts.length > 0) {
+                    let labels = [];
+                    try {
+                        const rawLabels = contacts[0].labels;
+                        labels = typeof rawLabels === 'string' ? JSON.parse(rawLabels || '[]') : (rawLabels || []);
+                    } catch (e) { labels = []; }
+                    
+                    if (actionType === 'add_tags') {
+                        if (!labels.includes(tagName)) {
+                            labels.push(tagName);
+                            await query('UPDATE contacts SET labels = ? WHERE id = ?', [JSON.stringify(labels), contacts[0].id]);
+                        }
+                    } else {
+                        const newLabels = labels.filter(l => l !== tagName);
+                        if (newLabels.length !== labels.length) {
+                            await query('UPDATE contacts SET labels = ? WHERE id = ?', [JSON.stringify(newLabels), contacts[0].id]);
+                        }
+                    }
+                }
+            }
+        } else if (actionType === 'set_conversation_status') {
+             // For now, log the status change in webhook_logs as a system note
+             await query(
+                'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, ?, ?)',
+                [userId, 'System', payload.sender, `Status updated to: ${config.status || 'Open'}`, 'notified', channel]
+            );
+        } else if (actionType === 'add_contact_to_list') {
+            // Implementation depends on contact_list_members table which might be missing, 
+            // but we can log intent or use a general 'category' field in 'contacts'
+            if (config.listId) {
+                await query('UPDATE contacts SET category = ? WHERE user_id = ? AND (phone = ? OR phone = ?)', [config.listId, userId, mobile, payload.sender]);
             }
         }
 
@@ -205,4 +254,4 @@ async function sendRcsReply(userId, to, text) {
     }
 }
 
-module.exports = { ensureAutomationsTable, processAutomation };
+module.exports = { ensureAutomationsTable, processAutomation, executeNode };

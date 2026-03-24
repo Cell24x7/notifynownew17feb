@@ -110,4 +110,50 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * POST /api/automations/:id/test
+ * Manually trigger the automation for testing
+ */
+const { executeNode } = require('../services/automationService');
+
+router.post('/:id/test', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        const { testPhone } = req.body;
+
+        if (!testPhone) {
+            return res.status(400).json({ success: false, message: 'Test phone number is required' });
+        }
+
+        const [rows] = await query('SELECT * FROM automations WHERE id = ? AND user_id = ?', [id, userId]);
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Automation not found' });
+        }
+
+        const automation = rows[0];
+        const nodes = typeof automation.nodes === 'string' ? JSON.parse(automation.nodes) : automation.nodes;
+        const edges = typeof automation.edges === 'string' ? JSON.parse(automation.edges) : automation.edges;
+
+        const triggerNode = nodes.find(n => n.type === 'trigger');
+        if (!triggerNode) {
+            return res.status(400).json({ success: false, message: 'No trigger node found in this automation' });
+        }
+
+        const payload = {
+            sender: testPhone,
+            message_content: 'TEST_TRIGGER',
+            isTest: true
+        };
+
+        // Execute the flow
+        await executeNode(userId, triggerNode, nodes, edges, automation.channel || 'whatsapp', payload, null);
+
+        res.json({ success: true, message: 'Test triggered successfully. Check your phone!' });
+    } catch (error) {
+        console.error('❌ Test Automation Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;

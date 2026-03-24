@@ -21,6 +21,17 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save, Play, X, Undo, Redo, ZoomIn, ZoomOut, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2 } from 'lucide-react';
 import TriggerNode, { triggerEvents } from './nodes/TriggerNode';
 import ConditionNode from './nodes/ConditionNode';
 import ActionNode from './nodes/ActionNode';
@@ -68,13 +79,16 @@ const defaultNodes: Node[] = [
 
 const defaultEdges: Edge[] = [];
 
-function AutomationBuilderContent({ automationName, initialNodes, initialEdges, onClose, onSave }: AutomationBuilderProps) {
+function AutomationBuilderContent({ automationId, automationName, initialNodes, initialEdges, onClose, onSave }: AutomationBuilderProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes && initialNodes.length > 0 ? initialNodes : defaultNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges && initialEdges.length > 0 ? initialEdges : defaultEdges);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [name, setName] = useState(automationName);
   const [channel, setChannel] = useState('whatsapp');
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
   const { toast } = useToast();
 
   const updateNodeData = useCallback((nodeId: string, newData: Partial<any>) => {
@@ -183,16 +197,45 @@ function AutomationBuilderContent({ automationName, initialNodes, initialEdges, 
   };
 
   const handleTest = () => {
-    toast({
-      title: 'Testing automation',
-      description: 'Running test with mock event...',
-    });
-    setTimeout(() => {
+    setIsTestDialogOpen(true);
+  };
+
+  const handleRealTest = async () => {
+    if (!testPhone) {
       toast({
-        title: 'Test completed',
-        description: 'Automation executed successfully!',
+        variant: 'destructive',
+        title: 'Phone number required',
+        description: 'Please enter a phone number with country code (e.g., 919876543210)',
       });
-    }, 2000);
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.post(
+        `${API_BASE_URL}/api/automations/${automationId || 'new'}/test`,
+        { testPhone },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: 'Test Triggered',
+          description: 'A real test message has been sent to your WhatsApp.',
+        });
+        setIsTestDialogOpen(false);
+      }
+    } catch (error: any) {
+      console.error('Test error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Test Failed',
+        description: error.response?.data?.message || 'Failed to trigger test. Make sure your WhatsApp is connected.',
+      });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const handleDeleteSelected = useCallback(() => {
@@ -290,6 +333,45 @@ function AutomationBuilderContent({ automationName, initialNodes, initialEdges, 
             </Panel>
           </ReactFlow>
         </div>
+
+        {/* Real Test Dialog */}
+        <Dialog open={isTestDialogOpen} onOpenChange={setIsTestDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Test Your Automation</DialogTitle>
+              <DialogDescription>
+                This will send a real test message to the specified number using your connected WhatsApp channel.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="test-phone">Test Phone Number (with Country Code)</Label>
+                <Input
+                  id="test-phone"
+                  placeholder="e.g. 919876543210"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Make sure you have a connected WhatsApp instance before testing.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsTestDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleRealTest} 
+                className="gradient-primary"
+                disabled={isTesting}
+              >
+                {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                Run Real Test
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

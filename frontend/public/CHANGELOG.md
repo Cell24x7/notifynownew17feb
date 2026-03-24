@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-24]
+- Fix syntax error on Auth page and restore JSX hierarchy (204c6f3)
 - Update migration script to include api_campaigns table (b49347a)
 - Add automated product demo video to Auth page (c3f7da1)
 

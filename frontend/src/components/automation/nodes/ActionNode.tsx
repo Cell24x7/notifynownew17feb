@@ -20,17 +20,15 @@ import { Switch } from '@/components/ui/switch';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
-// Mock templates data - in real app this would come from an API
-const mockTemplates = [
-  { id: 'tpl_1', name: 'Welcome Message', channel: 'whatsapp', status: 'approved' },
-  { id: 'tpl_2', name: 'Order Confirmation', channel: 'whatsapp', status: 'approved' },
-  { id: 'tpl_3', name: 'Appointment Reminder', channel: 'whatsapp', status: 'approved' },
-  { id: 'tpl_4', name: 'Payment Receipt', channel: 'whatsapp', status: 'pending' },
-  { id: 'tpl_5', name: 'Feedback Request', channel: 'whatsapp', status: 'approved' },
-];
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+
+// Real services
+import { campaignService, Campaign } from '@/services/campaignService';
+import { templateService, MessageTemplate } from '@/services/templateService';
+import { contactService } from '@/services/contactService';
+import { useEffect } from 'react';
 
 export const actionCategories = [
   {
@@ -165,14 +163,45 @@ interface ActionNodeData {
   onUpdate: (data: Partial<ActionNodeData>) => void;
 }
 
-const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
+const ActionNode = ({ data, selected, isConnectable }: NodeProps) => {
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [realTemplates, setRealTemplates] = useState<MessageTemplate[]>([]);
+  const [realCampaigns, setRealCampaigns] = useState<Campaign[]>([]);
+  const [realLists, setRealLists] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isSheetOpen) {
+      loadRealData();
+    }
+  }, [isSheetOpen]);
+
+  const loadRealData = async () => {
+    setIsLoading(true);
+    try {
+      const [tplRes, campRes, contacts] = await Promise.all([
+        templateService.getTemplates(1, 100),
+        campaignService.getCampaigns(1, 100),
+        contactService.getContacts()
+      ]);
+      setRealTemplates(tplRes.templates || []);
+      setRealCampaigns(campRes.campaigns || []);
+      
+      // Extract unique categories as lists
+      const categories = Array.from(new Set(contacts.map((c: any) => c.category).filter(Boolean))) as string[];
+      setRealLists(categories.length > 0 ? categories : ['guest', 'lead', 'customer', 'vip']);
+    } catch (err) {
+      console.error('Failed to load automation node data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const navigate = useNavigate();
   const selectedAction = allActions.find((a) => a.value === data.actionType);
   const Icon = selectedAction?.icon || Play;
 
   const handleCreateTemplate = () => {
-    setIsEditorOpen(false);
+    setIsSheetOpen(false);
     navigate('/campaigns?createTemplate=true');
   };
 
@@ -189,10 +218,10 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
                 onValueChange={(value) => data.onUpdate({ config: { ...data.config, templateId: value } })}
               >
                 <SelectTrigger className="border-primary">
-                  <SelectValue placeholder="Select a template" />
+                  <SelectValue placeholder={isLoading ? "Loading..." : "Select a template"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockTemplates.map((template) => (
+                  {realTemplates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
                       <div className="flex items-center gap-2">
                         <span>{template.name}</span>
@@ -205,6 +234,7 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
                       </div>
                     </SelectItem>
                   ))}
+                  {realTemplates.length === 0 && !isLoading && <SelectItem value="none" disabled>No templates found</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -225,7 +255,7 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
             {data.config?.templateId && (
               <div className="p-3 bg-muted rounded-lg space-y-1">
                 <p className="text-sm font-medium">
-                  {mockTemplates.find(t => t.id === data.config?.templateId)?.name}
+                  {realTemplates.find(t => t.id === data.config?.templateId)?.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   This template will be sent when the automation triggers.
@@ -406,27 +436,187 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
               </div>
             )}
 
+            {/* Buttons for Button/Flow type */}
+            {data.config?.messageType === 'button_flow' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-semibold">Buttons (Max 3)</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>WhatsApp officially allows a maximum of 3 buttons. To offer more options (up to 10), please use the 'List' message type above.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  {(data.config?.buttons?.length || 0) < 3 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        const config = data.config || {};
+                        const btns = [...(config.buttons || [])];
+                        btns.push({ id: `btn_${Date.now()}`, label: `Button ${btns.length + 1}` });
+                        data.onUpdate({ config: { ...config, buttons: btns } });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Button
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {(data.config?.buttons || []).map((btn: any, index: number) => (
+                    <div key={btn.id || index} className="flex gap-2">
+                      <Input
+                        placeholder="Button Label"
+                        value={btn.label || ''}
+                        onChange={(e) => {
+                          const config = data.config || {};
+                          const btns = [...(config.buttons || [])];
+                          btns[index] = { ...btns[index], label: e.target.value };
+                          data.onUpdate({ config: { ...config, buttons: btns } });
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive h-9 w-9"
+                        onClick={() => {
+                          const config = data.config || {};
+                          const btns = (config.buttons || []).filter((_: any, i: number) => i !== index);
+                          data.onUpdate({ config: { ...config, buttons: btns } });
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {(data.config?.buttons?.length || 0) === 0 && (
+                    <p className="text-xs text-muted-foreground italic">No buttons added yet. Click 'Add Button' above.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Sections for List type */}
             {data.config?.messageType === 'list' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Section 1 Title (Optional)</Label>
-                  <Button variant="ghost" size="sm" className="h-6">+</Button>
+                  <Label>List Options (Max 10)</Label>
+                  {(data.config?.listOptions?.length || 0) < 10 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        const config = data.config || {};
+                        const options = [...(config.listOptions || [])];
+                        options.push({ 
+                          id: `opt_${Date.now()}`, 
+                          title: `Option ${options.length + 1}`, 
+                          description: '', 
+                          callbackId: `cb_${Date.now()}` 
+                        });
+                        data.onUpdate({ config: { ...config, listOptions: options } });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Option
+                    </Button>
+                  )}
                 </div>
-                <Input placeholder="Section Title" />
-                
-                {[1, 2, 3, 4].map((row) => (
-                  <div key={row} className="grid grid-cols-3 gap-2">
-                    <Input placeholder={`Section 1 Row ${row} Title *`} />
-                    <Input placeholder={`Section 1 Row ${row} Description`} />
-                    <div className="flex gap-1">
-                      <Input placeholder="Callback ID *" className="flex-1" />
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                <div className="space-y-4">
+                  {(data.config?.listOptions || []).map((opt: any, index: number) => (
+                    <div key={opt.id || index} className="p-3 border rounded-lg space-y-2 relative bg-muted/20">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 text-destructive"
+                        onClick={() => {
+                          const config = data.config || {};
+                          const options = (config.listOptions || []).filter((_: any, i: number) => i !== index);
+                          data.onUpdate({ config: { ...config, listOptions: options } });
+                        }}
+                      >
                         <X className="h-4 w-4" />
                       </Button>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Title *</Label>
+                          <Input
+                            placeholder="Option Title"
+                            value={opt.title || ''}
+                            onChange={(e) => {
+                              const config = data.config || {};
+                              const options = [...(config.listOptions || [])];
+                              options[index] = { ...options[index], title: e.target.value };
+                              data.onUpdate({ config: { ...config, listOptions: options } });
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Callback ID *</Label>
+                          <Input
+                            placeholder="ID"
+                            value={opt.callbackId || ''}
+                            onChange={(e) => {
+                              const config = data.config || {};
+                              const options = [...(config.listOptions || [])];
+                              options[index] = { ...options[index], callbackId: e.target.value };
+                              data.onUpdate({ config: { ...config, listOptions: options } });
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">Description (Optional)</Label>
+                        <Input
+                          placeholder="Description"
+                          value={opt.description || ''}
+                          onChange={(e) => {
+                            const config = data.config || {};
+                            const options = [...(config.listOptions || [])];
+                            options[index] = { ...options[index], description: e.target.value };
+                            data.onUpdate({ config: { ...config, listOptions: options } });
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                  {(data.config?.listOptions?.length || 0) === 0 && (
+                    <p className="text-xs text-muted-foreground italic">No list options added yet. Click 'Add Option' above.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Collect Input Configuration */}
+            {data.actionType === 'auto_reply_collect_inputs' && (
+              <div className="space-y-2 pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-semibold">Save Response To Attribute *</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>The user's reply will be saved to this contact attribute (e.g., user_hobbies) for later use.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Input
+                  placeholder="e.g., user_interest, lead_score"
+                  value={data.config?.saveToAttribute || ''}
+                  onChange={(e) => data.onUpdate({ config: { ...data.config, saveToAttribute: e.target.value } })}
+                />
               </div>
             )}
 
@@ -476,6 +666,168 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
                   </>
                 )}
               </div>
+            </div>
+          </div>
+        );
+
+      case 'criteria_router':
+        return (
+          <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-semibold">Branches (Criteria)</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Define multiple branches (max 10). Each branch will have its own output point on the right of the node.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {(data.config?.branches?.length || 0) < 10 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    const config = data.config || {};
+                    const branches = [...(config.branches || [])];
+                    branches.push({ id: `branch_${Date.now()}`, name: `Branch ${branches.length + 1}`, criteria: 'contains', value: '' });
+                    data.onUpdate({ config: { ...config, branches } });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add Branch
+                </Button>
+              )}
+            <div className="space-y-3">
+              {(data.config?.branches || []).map((branch: any, index: number) => (
+                <div key={branch.id || index} className="p-3 border rounded-lg space-y-2 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <Input
+                      placeholder="Branch Name (e.g., Sales, Support)"
+                      value={branch.name || ''}
+                      onChange={(e) => {
+                        const config = data.config || {};
+                        const branches = [...(config.branches || [])];
+                        branches[index] = { ...branches[index], name: e.target.value };
+                        data.onUpdate({ config: { ...config, branches } });
+                      }}
+                      className="h-8 font-medium bg-transparent border-none focus-visible:ring-0 p-0"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive"
+                      onClick={() => {
+                          const config = data.config || {};
+                          const branches = (config.branches || []).filter((_: any, i: number) => i !== index);
+                          data.onUpdate({ config: { ...config, branches } });
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={branch.criteria || 'contains'}
+                      onValueChange={(val) => {
+                        const config = data.config || {};
+                        const branches = [...(config.branches || [])];
+                        branches[index] = { ...branches[index], criteria: val };
+                        data.onUpdate({ config: { ...config, branches } });
+                      }}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contains">Contains</SelectItem>
+                        <SelectItem value="exact">Exact Match</SelectItem>
+                        <SelectItem value="starts_with">Starts With</SelectItem>
+                        <SelectItem value="exists">Is Set</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Value to match"
+                      value={branch.value || ''}
+                      onChange={(e) => {
+                        const config = data.config || {};
+                        const branches = [...(config.branches || [])];
+                        branches[index] = { ...branches[index], value: e.target.value };
+                        data.onUpdate({ config: { ...config, branches } });
+                      }}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              ))}
+              {(data.config?.branches?.length || 0) === 0 && (
+                <p className="text-xs text-muted-foreground italic">No branches added yet. Routes based on message content.</p>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'jump_to_automation':
+        return (
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold">Select Target Automation</Label>
+            <Select
+              value={data.config?.targetAutomationId || ''}
+              onValueChange={(val) => data.onUpdate({ config: { ...data.config, targetAutomationId: val } })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoading ? "Loading..." : "Select an automation"} />
+              </SelectTrigger>
+              <SelectContent>
+                {realCampaigns.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+                {realCampaigns.length === 0 && !isLoading && <SelectItem value="none" disabled>No automations found</SelectItem>}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground italic">
+              When this node is reached, the contact will be moved to the start of the selected automation.
+            </p>
+          </div>
+        );
+
+      case 'create_whatsapp_payment':
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Amount *</Label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={data.config?.amount || ''}
+                onChange={(e) => data.onUpdate({ config: { ...data.config, amount: e.target.value } })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Currency</Label>
+              <Select
+                value={data.config?.currency || 'INR'}
+                onValueChange={(val) => data.onUpdate({ config: { ...data.config, currency: val } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INR">INR (₹)</SelectItem>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Description</Label>
+              <Input
+                placeholder="Payment for services..."
+                value={data.config?.description || ''}
+                onChange={(e) => data.onUpdate({ config: { ...data.config, description: e.target.value } })}
+              />
             </div>
           </div>
         );
@@ -704,6 +1056,70 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
           </div>
         );
 
+      case 'add_to_campaign':
+      case 'remove_from_campaign':
+        return (
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold">Select Campaign</Label>
+            <Select 
+              value={data.config?.campaignId || ''} 
+              onValueChange={(val) => data.onUpdate({ config: { ...data.config, campaignId: val } })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoading ? "Loading..." : "Select Campaign"} />
+              </SelectTrigger>
+              <SelectContent>
+                {realCampaigns.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+                {realCampaigns.length === 0 && !isLoading && <SelectItem value="none" disabled>No campaigns found</SelectItem>}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
+      case 'add_contact_to_list':
+        return (
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold">Select Contact List</Label>
+            <Select 
+              value={data.config?.listId || ''} 
+              onValueChange={(val) => data.onUpdate({ config: { ...data.config, listId: val } })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoading ? "Loading..." : "Select List"} />
+              </SelectTrigger>
+              <SelectContent>
+                {realLists.map(l => (
+                  <SelectItem key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</SelectItem>
+                ))}
+                {realLists.length === 0 && !isLoading && <SelectItem value="none" disabled>No lists found</SelectItem>}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
+      case 'set_conversation_status':
+        return (
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold">Set Status To</Label>
+            <Select
+              value={data.config?.status || 'open'}
+              onValueChange={(val) => data.onUpdate({ config: { ...data.config, status: val } })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
       default:
         return (
           <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
@@ -728,48 +1144,51 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
                 {config.body}
               </div>
             )}
-            
             {/* Buttons Preview */}
             {config.buttons && config.buttons.length > 0 && (
               <div className="space-y-1.5">
                 {config.buttons.slice(0, 3).map((btn: any, idx: number) => (
                   <div 
                     key={idx} 
-                    className="flex items-center justify-between bg-indigo-500 text-white px-3 py-2 rounded-md text-xs font-medium"
+                    className="flex items-center justify-between bg-indigo-500 text-white px-3 py-2 rounded-md text-[10px] font-medium"
                   >
-                    <span>{btn.label || btn.text || `Button ${idx + 1}`}</span>
-                    <Plus className="h-3.5 w-3.5" />
+                    <span>{btn.label || `Button ${idx + 1}`}</span>
+                    <ChevronRight className="h-3 w-3" />
                   </div>
                 ))}
               </div>
             )}
-            
-            {/* Fallback Preview */}
-            {config.enableFallback && (
-              <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-100 mt-2">
-                <span>If contact has not responded in {config.fallbackAfter || 20} {config.fallbackUnit || 'minutes'}</span>
-                <Plus className="h-3.5 w-3.5" />
-              </div>
-            )}
           </div>
         );
-      case 'delay':
-        return config.duration ? (
-          <div className="p-2.5 bg-gray-50 rounded-lg text-xs text-gray-700 border border-gray-100">
-            Wait for {config.duration} {config.unit || 'minutes'}
-          </div>
-        ) : null;
-      case 'add_tags':
-      case 'remove_tags':
-        return config.tags && config.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {config.tags.map((tag: string, idx: number) => (
-              <Badge key={idx} variant="secondary" className="text-xs">
-                {tag}
-              </Badge>
+
+      case 'criteria_router':
+        return config.branches && config.branches.length > 0 ? (
+          <div className="space-y-1.5">
+            {config.branches.slice(0, 3).map((branch: any, idx: number) => (
+              <div 
+                key={idx} 
+                className="flex items-center justify-between bg-purple-500 text-white px-3 py-2 rounded-md text-[10px] font-medium"
+              >
+                <span>{branch.name || `Branch ${idx + 1}`}</span>
+                <ChevronRight className="h-3 w-3" />
+              </div>
             ))}
+            {config.branches.length > 3 && (
+              <p className="text-[10px] text-center text-muted-foreground">+{config.branches.length - 3} more branches</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground italic">No branches configured</p>
+        );
+
+      case 'create_whatsapp_payment':
+        return config.amount ? (
+          <div className="p-2.5 bg-green-50 rounded-lg text-xs text-green-700 border border-green-100 flex items-center justify-between">
+            <span>Payment: {config.currency || 'INR'} {config.amount}</span>
+            <CreditCard className="h-3 w-3" />
           </div>
         ) : null;
+
       default:
         return null;
     }
@@ -788,7 +1207,7 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
         className={`min-w-[220px] max-w-[280px] bg-white rounded-lg shadow-md transition-all cursor-pointer ${
           selected ? 'ring-2 ring-primary/50 shadow-lg border-2 border-primary' : 'border-2 border-primary/30'
         }`}
-        onDoubleClick={() => setIsEditorOpen(true)}
+        onDoubleClick={() => setIsSheetOpen(true)}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
@@ -800,7 +1219,7 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              setIsEditorOpen(true);
+              setIsSheetOpen(true);
             }}
             className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
           >
@@ -816,14 +1235,39 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
         </div>
       </div>
       
-      {/* Bottom handle */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!bg-green-500 !w-2.5 !h-2.5 !border-2 !border-white !shadow-md"
-      />
+      {/* Bottom handle for single flow */}
+      {!(data.actionType === 'criteria_router' || (data.actionType === 'auto_reply_buttons' && data.config?.messageType === 'button_flow')) && (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="!bg-green-500 !w-2.5 !h-2.5 !border-2 !border-white !shadow-md"
+        />
+      )}
 
-      <Sheet open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+      {/* Right handles for branching */}
+      {data.actionType === 'criteria_router' && data.config?.branches?.map((branch: any, idx: number) => (
+        <Handle
+          key={branch.id}
+          type="source"
+          position={Position.Right}
+          id={branch.id}
+          style={{ top: `${(idx + 1) * (100 / (data.config.branches.length + 1))}%` }}
+          className="!bg-purple-500 !w-2.5 !h-2.5 !border-2 !border-white !shadow-md"
+        />
+      ))}
+
+      {data.actionType === 'auto_reply_buttons' && data.config?.messageType === 'button_flow' && data.config?.buttons?.map((btn: any, idx: number) => (
+        <Handle
+          key={btn.id}
+          type="source"
+          position={Position.Right}
+          id={btn.id}
+          style={{ top: `${(idx + 1) * (100 / (data.config.buttons.length + 1))}%` }}
+          className="!bg-indigo-500 !w-2.5 !h-2.5 !border-2 !border-white !shadow-md"
+        />
+      ))}
+
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="w-[600px] sm:max-w-[600px] p-0">
           <SheetHeader className="p-6 border-b">
             <SheetTitle className="flex items-center gap-2">
@@ -871,10 +1315,10 @@ const ActionNode = ({ data, selected }: NodeProps<ActionNodeData>) => {
 
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
             <div className="flex gap-2 justify-end">
-              <Button variant="ghost" className="text-destructive" onClick={() => setIsEditorOpen(false)}>
+              <Button variant="ghost" className="text-destructive" onClick={() => setIsSheetOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setIsEditorOpen(false)}>
+              <Button onClick={() => setIsSheetOpen(false)}>
                 Update Node
               </Button>
             </div>
