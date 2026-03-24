@@ -1,14 +1,16 @@
 const { Worker } = require('bullmq');
 const { redisConnection } = require('./campaignQueue');
 const { query } = require('../config/db');
-const axios = require('axios');
+const Redis = require('ioredis');
+
+// CREATE REUSABLE REDIS FOR COUNTERS
+const redis = new Redis(redisConnection);
 
 /**
  * BullMQ Worker for High-Volume Messaging (1 Crore Scaling)
- * Handles parallel processing with rate limiting.
+ * Optimized for high-throughput with minimized DB overhead.
  */
 
-// CREATE THE WORKER WITH ENVIRONMENT ISOLATION
 const envSuffix = process.env.APP_NAME || 'notifynow-production';
 const queueName = `campaign-sending-${envSuffix}`;
 
@@ -18,69 +20,66 @@ const campaignWorker = new Worker(queueName, async (job) => {
     let result = { success: false, error: 'Unknown' };
 
     try {
-        // 1. Process Message (High-Volume Universal Sending Service)
+        // 1. Process Message
         const { sendUniversalMessage } = require('../services/sendingService');
         result = await sendUniversalMessage(item);
 
-        // 2. Update Status and Detailed Logs (Optimized Column mapping)
         const now = new Date();
+        const campId = item.campaign_id;
+
+        // 2. DB Log & Queue Update (Combined if possible, but separate tables)
         if (result.success) {
-            // SUCCESS - One combined update if possible? No, we need stats and logs.
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
-            await query(`UPDATE ${campaignTable} SET sent_count = COALESCE(sent_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
+            await redis.hincrby(`stats:${campId}`, 'sent', 1);
             
             await query(
                 `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', now]
+                [item.user_id, campId, item.campaign_name || 'Manual', item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', now]
             );
         } else {
-            // FAILURE
             await query(`UPDATE ${queueTable} SET status = "failed", updated_at = NOW() WHERE id = ?`, [item.id]);
-            await query(`UPDATE ${campaignTable} SET failed_count = COALESCE(failed_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
+            await redis.hincrby(`stats:${campId}`, 'failed', 1);
             
-            const [inserted] = await query(
-                `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
-                [item.user_id, item.campaign_id, item.campaign_name || 'Manual', item.mobile, 'failed', item.channel, item.template_name || 'N/A', now]
+            await query(
+                `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time, failure_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                [item.user_id, campId, item.campaign_name || 'Manual', item.mobile, 'failed', item.channel, item.template_name || 'N/A', now, result.error || 'Failed']
             );
-
-            if (inserted && inserted.insertId) {
-                await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [result.error || 'Failed', inserted.insertId]);
-            }
         }
 
-        // 3. FINAL COMPLETION CHECK (Rocket Speed Redis DECR Strategy)
-        // Eliminates 1,00,000 extra SQL SELECTs per batch
-        const Redis = require('ioredis');
-        const redisClient = new Redis(redisConnection);
-        const remains = await redisClient.decr(`camp_progress:${item.campaign_id}`);
-        
+        // 3. PERIODIC DB SYNC (Avoid Row Contention)
+        // Every 50 messages, sync counts from Redis to DB to show progress gracefully
+        const processedTotal = await redis.hincrby(`stats:${campId}`, 'total_processed', 1);
+        if (processedTotal % 50 === 0) {
+            const stats = await redis.hgetall(`stats:${campId}`);
+            await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [parseInt(stats.sent || 0), parseInt(stats.failed || 0), campId]);
+        }
+
+        // 4. COMPLETION CHECK
+        const remains = await redis.decr(`camp_progress:${campId}`);
         if (remains <= 0) {
-            await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [item.campaign_id]);
-            await redisClient.del(`camp_progress:${item.campaign_id}`);
-            console.log(`[Engine] Campaign ${item.campaign_id} fully COMPLETED (Redis Counter Synced).`);
+            // Final Sync
+            const finalStats = await redis.hgetall(`stats:${campId}`);
+            await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
+                [parseInt(finalStats.sent || 0), parseInt(finalStats.failed || 0), campId]);
+            
+            // Cleanup Redis
+            await redis.del(`camp_progress:${campId}`);
+            await redis.del(`stats:${campId}`);
+            console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
         }
-        await redisClient.quit();
 
     } catch (err) {
         console.error(`[Worker Error] Job ${job.id}:`, err.message);
-        throw err; // Trigger retry
+        throw err;
     }
 }, {
     connection: redisConnection,
-    concurrency: 500, // Process 500 messages in parallel for maximum throughput
+    concurrency: 500, // Process 500 messages in parallel
     limiter: {
         max: 2000,
-        duration: 1000, // Max 2000 requests per second
+        duration: 1000,
     }
 });
 
-// Event Listeners
-campaignWorker.on('completed', job => {
-    console.debug(`[Job Completed] ${job.id}`);
-});
-
-campaignWorker.on('failed', (job, err) => {
-    console.error(`[Job Failed] ${job.id}:`, err.message);
-});
-
 module.exports = campaignWorker;
+

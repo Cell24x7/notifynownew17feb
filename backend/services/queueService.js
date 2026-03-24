@@ -223,11 +223,18 @@ const processBatch = async (tableConfig) => {
             await campaignQueue.addBulk(jobs);
 
             // SYNC Redis Counters
+            const { redisConnection } = require('../queues/campaignQueue');
             const Redis = require('ioredis');
-            const redisClient = new Redis(campaignQueue.opts.connection);
-            for (const campId of uniqueCampaigns) {
-                const countForCamp = batchItems.filter(i => i.campaign_id == campId).length;
-                await redisClient.incrby(`camp_progress:${campId}`, countForCamp);
+            const redisClient = new Redis(redisConnection);
+            
+            // Batch process increments for Redis efficiency
+            const counts = {};
+            for (const item of batchItems) {
+                counts[item.campaign_id] = (counts[item.campaign_id] || 0) + 1;
+            }
+            
+            for (const campId in counts) {
+                await redisClient.incrby(`camp_progress:${campId}`, counts[campId]);
             }
             await redisClient.quit();
 
