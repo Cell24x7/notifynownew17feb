@@ -273,10 +273,22 @@ async function updateSchema() {
                     { name: 'message_content', type: 'TEXT' }
                 ]},
                 { table: 'campaigns', cols: [
-                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' }
+                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
+                    { name: 'next_run_at', type: 'TIMESTAMP NULL' },
+                    { name: 'last_run_at', type: 'TIMESTAMP NULL' },
+                    { name: 'frequency', type: 'VARCHAR(50) DEFAULT "once"' },
+                    { name: 'repeat_days', type: 'JSON' },
+                    { name: 'end_date', type: 'TIMESTAMP NULL' },
+                    { name: 'scheduling_mode', type: 'VARCHAR(50) DEFAULT "once"' }
                 ]},
                 { table: 'api_campaigns', cols: [
-                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' }
+                    { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
+                    { name: 'next_run_at', type: 'TIMESTAMP NULL' },
+                    { name: 'last_run_at', type: 'TIMESTAMP NULL' },
+                    { name: 'frequency', type: 'VARCHAR(50) DEFAULT "once"' },
+                    { name: 'repeat_days', type: 'JSON' },
+                    { name: 'end_date', type: 'TIMESTAMP NULL' },
+                    { name: 'scheduling_mode', type: 'VARCHAR(50) DEFAULT "once"' }
                 ]}
             ];
 
