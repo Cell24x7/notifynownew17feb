@@ -32,15 +32,23 @@ const campaignWorker = new Worker(queueName, async (job) => {
             result = await sendWhatsappMessage(item);
         }
 
-        // 2. Update Status and Move to Logs
+        // 2. Update Status and Populate Detailed Logs
         if (result.success) {
-            // Success: Move to logs and update sent counter
+            // Success: Update counters and Detailed Log
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, created_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
             await query(`UPDATE ${campaignTable} SET sent_count = COALESCE(sent_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
+            
+            // Insert into detailed logsTable
+            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, mobile, status, message_id, channel, template_name, content, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`, 
+            [item.user_id, item.campaign_id, item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', item.content || 'N/A']);
         } else {
-            // Failed
+            // Failed: Update counters and Detailed Log
             await query(`UPDATE ${queueTable} SET status = "failed", error_message = ? WHERE id = ?`, [result.error || 'Provider rejected', item.id]);
             await query(`UPDATE ${campaignTable} SET failed_count = COALESCE(failed_count, 0) + 1 WHERE id = ?`, [item.campaign_id]);
+            
+            // Log the failure in detailed report
+            await query(`INSERT INTO ${logsTable} (user_id, campaign_id, mobile, status, error_message, channel, template_name, content, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`, 
+            [item.user_id, item.campaign_id, item.mobile, 'failed', result.error || 'Failed', item.channel, item.template_name || 'N/A', item.content || 'N/A']);
         }
 
     } catch (err) {
