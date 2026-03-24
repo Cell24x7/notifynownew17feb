@@ -766,15 +766,21 @@ router.post('/whatsapp/callback', async (req, res) => {
                             const msgId = msg.id;
                             let text = '';
 
+                            let buttonId = null;
+                            let listId = null;
+
                             if (msg.type === 'text') {
                                 text = msg.text.body;
                             } else if (msg.type === 'button') {
                                 text = msg.button.text;
+                                buttonId = msg.button.payload; // Optional: Some vendors use payload
                             } else if (msg.type === 'interactive') {
                                 if (msg.interactive.type === 'button_reply') {
-                                    text = msg.interactive.button_reply.id || msg.interactive.button_reply.title;
+                                    text = msg.interactive.button_reply.title;
+                                    buttonId = msg.interactive.button_reply.id;
                                 } else if (msg.interactive.type === 'list_reply') {
-                                    text = msg.interactive.list_reply.id || msg.interactive.list_reply.title;
+                                    text = msg.interactive.list_reply.title;
+                                    listId = msg.interactive.list_reply.id;
                                 }
                             } else {
                                 text = `[Received ${msg.type} message]`;
@@ -843,6 +849,8 @@ router.post('/whatsapp/callback', async (req, res) => {
                                         sender, 
                                         message_content: text, 
                                         messageId: msgId,
+                                        buttonId,
+                                        listId,
                                         metadata: value.metadata 
                                     }, req.io).catch(e => console.error('[AutomationService] WA trigger error:', e.message));
                                 }

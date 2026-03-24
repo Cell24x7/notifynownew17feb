@@ -3,6 +3,10 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-24]
+- chore: add explicit app name to production deploy script for safety (d252df4)
+- feat: implement Financial Usage Ledger v2.0 and restore stable Auth UI layout with responsive fixes (ea0102b)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (be7d9b8)
+- feat: finalize automation builder with real testing, database fixes, and dynamic data integration (01f7a85)
 - Remove video demo feature and cleanup Auth page structure (a913177)
 - Fix syntax error on Auth page and restore JSX hierarchy (204c6f3)
 - Update migration script to include api_campaigns table (b49347a)
