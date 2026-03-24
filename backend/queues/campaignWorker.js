@@ -32,10 +32,19 @@ const campaignWorker = new Worker(queueName, async (job) => {
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
             await redis.hincrby(`stats:${campId}`, 'sent', 1);
             
+            // Detailed Logs for Reports
             await query(
                 `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
                 [item.user_id, campId, item.campaign_name || 'Manual', item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', now]
             );
+
+            // Webhook Logs for Chat UI History
+            await query(
+                `INSERT INTO webhook_logs (user_id, recipient, message_id, status, event_type, type, message_content, raw_payload, created_at) 
+                 VALUES (?, ?, ?, 'sent', 'SENT', ?, ?, ?, NOW())`,
+                [item.user_id, item.mobile, result.messageId, (item.channel || 'rcs').toLowerCase(), item.template_body || item.campaign_name, JSON.stringify({ note: 'Campaign Message' })]
+            ).catch(err => console.error('Error logging to webhook_logs:', err.message));
+
         } else {
             await query(`UPDATE ${queueTable} SET status = "failed", updated_at = NOW() WHERE id = ?`, [item.id]);
             await redis.hincrby(`stats:${campId}`, 'failed', 1);

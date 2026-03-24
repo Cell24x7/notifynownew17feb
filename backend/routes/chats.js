@@ -22,7 +22,9 @@ router.get('/conversations', authenticateToken, async (req, res) => {
             FROM (
                 SELECT 
                     CASE 
-                        WHEN sender REGEXP '^[0-9]+$' THEN sender
+                        WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                        WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                        WHEN sender REGEXP '^[0-9+]+$' THEN sender
                         ELSE recipient 
                     END as contact_phone,
                     created_at as last_message_time,
@@ -31,7 +33,9 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                     type,
                     ROW_NUMBER() OVER(
                         PARTITION BY CASE 
-                            WHEN sender REGEXP '^[0-9]+$' THEN sender
+                            WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                            WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                            WHEN sender REGEXP '^[0-9+]+$' THEN sender
                             ELSE recipient 
                         END 
                         ORDER BY created_at DESC
@@ -40,7 +44,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                 WHERE user_id = ?
             ) as t
             LEFT JOIN contacts c 
-                ON (c.phone = t.contact_phone OR c.phone = CONCAT('+', t.contact_phone) OR CONCAT('+', c.phone) = t.contact_phone)
+                ON (REPLACE(REPLACE(c.phone, '+', ''), ' ', '') = REPLACE(REPLACE(t.contact_phone, '+', ''), ' ', ''))
                 AND c.user_id = ?
             WHERE t.rn = 1
             ORDER BY t.last_message_time DESC
@@ -69,8 +73,8 @@ router.get('/messages/:phone', authenticateToken, async (req, res) => {
         const sql = `
             SELECT * FROM webhook_logs 
             WHERE user_id = ? AND (
-                REPLACE(sender, '+', '') = ? OR 
-                REPLACE(recipient, '+', '') = ? OR
+                REPLACE(REPLACE(sender, '+', ''), ' ', '') = ? OR 
+                REPLACE(REPLACE(recipient, '+', ''), ' ', '') = ? OR
                 sender = ? OR recipient = ?
             )
             ORDER BY created_at ASC

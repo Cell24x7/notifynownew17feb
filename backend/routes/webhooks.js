@@ -436,78 +436,45 @@ router.post('/dotgo', async (req, res) => {
                         console.log(`ℹ️ Status for Log ${log.id} is already ${oldStatus}. No update needed.`);
                     }
 
-                    // 📡 REAL-TIME CHAT UPDATE (Socket.io)
-                    // If it's a new received message (not just a status update)
-                    if (finalStatus === 'received' && messageContent && req.io) {
-                        const targetUserId = userId || log.user_id;
-                        if (targetUserId) {
-                            req.io.to(`user_${targetUserId}`).emit('new_message', {
-                                id: messageId || log.id,
-                                sender: sender || recipient,
-                                message_content: messageContent,
-                                created_at: new Date(),
-                                status: 'received',
-                                type: 'rcs'
-                            });
-                            console.log(`📡 Emitted RCS new_message to user_${targetUserId}`);
+                    // 📡 REAL-TIME CHAT STATUS UPDATE (Moved to final block)
+                } 
+            } catch (dbErr) {
+                console.error('❌ Failed to update RCS DLR in DB:', dbErr.message);
+            }
+        }
 
-                            // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
-                            triggerChatflow(targetUserId, sender || recipient, messageContent, 'rcs', req.io).catch(e =>
-                                console.error('[ChatFlow] RCS trigger error:', e.message)
-                            );
+        // 4. Final Real-time Emission (Work for both Status Update & New Received Message)
+        if (finalStatus === 'received' && messageContent && req.io && userId) {
+            req.io.to(`user_${userId}`).emit('new_message', {
+                id: messageId,
+                sender: cleanSender,
+                recipient: cleanRecipient || 'System',
+                message_content: messageContent,
+                created_at: new Date(),
+                status: 'received',
+                type: 'rcs'
+            });
+            console.log(`📡 Emitted RCS new_message to user_${userId} for ${cleanSender}`);
 
-                            // 🤖 CHECK AUTOMATIONS — graph-based logic
-                            processAutomation(targetUserId, 'new_message', 'rcs', {
-                                sender: sender || recipient,
-                                message_content: messageContent,
-                                messageId: messageId || log.message_id
-                            }, req.io).catch(e =>
-                                console.error('[AutomationService] RCS trigger error:', e.message)
-                            );
-                        }
-                    }
-                } else {
-                    console.log(`ℹ️ No matching log for MsgID: ${messageId}. Checking if incoming...`);
+            // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
+            if (typeof triggerChatflow === 'function') {
+                triggerChatflow(userId, cleanSender, messageContent, 'rcs', req.io).catch(e =>
+                    console.error('[ChatFlow] RCS trigger error:', e.message)
+                );
+            }
 
-                    // 📡 If it's a NEW incoming message, insert into message_logs so it shows in reports
-                    if (finalStatus === 'received' && messageContent) {
-                        try {
-                            // Only insert if not already there as a 'sent' message being replied to
-                            // (Actually, replies should always be new entries in message_logs for full history)
-                            await query(
-                                `INSERT INTO message_logs (user_id, message_id, recipient, message_content, status, created_at) 
-                                 VALUES (?, ?, ?, ?, 'received', NOW())`,
-                                [userId, messageId, contactPhone, messageContent]
-                            );
-                            console.log(`✅ Created NEW message_log entry for incoming message from ${contactPhone}`);
-                        } catch (insErr) {
-                            console.error('❌ Failed to create incoming message_log:', insErr.message);
-                        }
-                    }
-
-                    // 📡 Fallback Socket Emit for unsolicited incoming messages
-                    if (finalStatus === 'received' && messageContent && req.io && cleanSender) {
-                        const targetUserId = userId;
-                        if (targetUserId) {
-                            req.io.to(`user_${targetUserId}`).emit('new_message', {
-                                id: messageId || 'N/A',
-                                sender: cleanSender,
-                                message_content: messageContent,
-                                created_at: new Date(),
-                                status: 'received',
-                                type: 'rcs'
-                            });
-                            console.log(`📡 Emitted RCS new_message (Fallback) to user_${targetUserId}`);
-                        }
-                    }
-                }
-            } catch (statusErr) {
-                console.error('❌ Error updating message status:', statusErr.message);
+            // 🤖 CHECK AUTOMATIONS — graph-based logic
+            if (typeof processAutomation === 'function') {
+                processAutomation(userId, 'new_message', 'rcs', {
+                    sender: cleanSender,
+                    message_content: messageContent,
+                    messageId: messageId,
+                    metadata: decodedData
+                }, req.io).catch(e => console.error('[AutomationService] RCS trigger error:', e.message));
             }
         }
 
         res.status(200).json({ success: true, message: 'Dotgo webhook processed' });
-
     } catch (error) {
         console.error('❌ Dotgo Webhook Error:', error.message);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
@@ -795,12 +762,13 @@ router.post('/whatsapp/callback', async (req, res) => {
 
                                 // Try to find who last chatted with this person on this phone ID
                                 if (phoneId) {
+                                    const cleanSender = String(sender).slice(-10); // Match last 10 digits
                                     const [lastChat] = await query(
                                         `SELECT user_id FROM message_logs 
-                                         WHERE recipient = ? 
+                                         WHERE recipient LIKE ? 
                                          AND user_id IN (SELECT id FROM users WHERE whatsapp_config_id = (SELECT id FROM whatsapp_configs WHERE ph_no_id = ? LIMIT 1))
                                          ORDER BY created_at DESC LIMIT 1`,
-                                        [sender, phoneId]
+                                        [`%${cleanSender}`, phoneId]
                                     );
                                     if (lastChat.length > 0) {
                                         userId = lastChat[0].user_id;
