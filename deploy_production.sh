@@ -65,14 +65,14 @@ DB_NAME=notifynow_db
 PORT=5050
 API_BASE_URL=https://notifynow.in
 JWT_SECRET=notifynow_prod_secret_key_secure
-JWT_EXPIRES_IN=30d
+JWT_EXPIRES_IN=20m
 EOF
 else
     sed -i '/^DB_HOST=/c\DB_HOST=localhost' "$BACKEND_DIR/.env.production"
     sed -i '/^DB_NAME=/c\DB_NAME=notifynow_db' "$BACKEND_DIR/.env.production"
     sed -i '/^PORT=/c\PORT=5050' "$BACKEND_DIR/.env.production"
     sed -i '/^API_BASE_URL=/c\API_BASE_URL=https://notifynow.in' "$BACKEND_DIR/.env.production"
-    if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production"; then echo "JWT_EXPIRES_IN=30d" >> "$BACKEND_DIR/.env.production"; else sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=30d' "$BACKEND_DIR/.env.production"; fi
+    if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production"; then echo "JWT_EXPIRES_IN=20m" >> "$BACKEND_DIR/.env.production"; else sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=20m' "$BACKEND_DIR/.env.production"; fi
     if ! grep -q "JWT_SECRET=" "$BACKEND_DIR/.env.production"; then echo "JWT_SECRET=notifynow_prod_secret_key_secure" >> "$BACKEND_DIR/.env.production"; fi
 fi
 
@@ -119,6 +119,7 @@ cd "$BACKEND_DIR"
 NODE_ENV=production node apply_schema_updates.js || true
 NODE_ENV=production node scripts/add_api_key.js || true
 NODE_ENV=production node scripts/setup_admin.js || true
+NODE_ENV=production node optimize_db.js || true
 
 # ── Step 7: Restart Clean ─────────────────────────────
 log "♻️  [7/7] Starting clean PM2 instance..."
