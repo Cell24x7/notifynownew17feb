@@ -235,6 +235,7 @@ router.get('/export', authenticateToken, async (req, res) => {
                 ${whereClause}
             ) as combined_export
             ORDER BY timestamp DESC
+            LIMIT 5000
         `, [...params, ...params]);
 
         const data = rows.map(r => ({

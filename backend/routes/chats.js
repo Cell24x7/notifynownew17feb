@@ -71,12 +71,16 @@ router.get('/messages/:phone', authenticateToken, async (req, res) => {
 
         const cleanPhone = phone.replace(/\D/g, '');
         const sql = `
-            SELECT * FROM webhook_logs 
-            WHERE user_id = ? AND (
-                REPLACE(REPLACE(sender, '+', ''), ' ', '') = ? OR 
-                REPLACE(REPLACE(recipient, '+', ''), ' ', '') = ? OR
-                sender = ? OR recipient = ?
-            )
+            SELECT * FROM (
+                SELECT * FROM webhook_logs 
+                WHERE user_id = ? AND (
+                    REPLACE(REPLACE(sender, '+', ''), ' ', '') = ? OR 
+                    REPLACE(REPLACE(recipient, '+', ''), ' ', '') = ? OR
+                    sender = ? OR recipient = ?
+                )
+                ORDER BY created_at DESC
+                LIMIT 100
+            ) as recent_msgs
             ORDER BY created_at ASC
         `;
 
