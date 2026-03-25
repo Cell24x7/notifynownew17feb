@@ -606,11 +606,6 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
     }
 });
 
-    } catch (error) {
-        console.error('Upload contacts error:', error);
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).json({ success: false, message: 'Failed to upload contacts' });
-    }
-});
+module.exports = router;
 
 module.exports = router;
