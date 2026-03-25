@@ -233,8 +233,9 @@ const processBatch = async (tableConfig) => {
                 counts[item.campaign_id] = (counts[item.campaign_id] || 0) + 1;
             }
             
+            const envSuffix = process.env.APP_NAME || 'notifynow-production';
             for (const campId in counts) {
-                await redisClient.incrby(`camp_progress:${campId}`, counts[campId]);
+                await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, counts[campId]);
             }
             await redisClient.quit();
 

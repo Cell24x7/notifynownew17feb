@@ -40,7 +40,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         // 2. DB Log & Queue Update
         if (result.success) {
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ? WHERE id = ?`, [result.messageId, item.id]);
-            await redis.hincrby(`stats:${campId}`, 'sent', 1);
+            await redis.hincrby(`${envSuffix}:stats:${campId}`, 'sent', 1);
             
             // Detailed Logs for Reports
             await query(
@@ -68,7 +68,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
 
         } else {
             await query(`UPDATE ${queueTable} SET status = "failed" WHERE id = ?`, [item.id]);
-            await redis.hincrby(`stats:${campId}`, 'failed', 1);
+            await redis.hincrby(`${envSuffix}:stats:${campId}`, 'failed', 1);
             
             await query(
                 `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time, failure_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
@@ -78,23 +78,24 @@ const campaignWorker = new Worker(queueName, async (job) => {
 
         // 3. PERIODIC DB SYNC (Avoid Row Contention)
         // Every 50 messages, sync counts from Redis to DB to show progress gracefully
-        const processedTotal = await redis.hincrby(`stats:${campId}`, 'total_processed', 1);
+        // Every 50 messages, sync counts from Redis to DB to show progress gracefully
+        const processedTotal = await redis.hincrby(`${envSuffix}:stats:${campId}`, 'total_processed', 1);
         if (processedTotal % 50 === 0) {
-            const stats = await redis.hgetall(`stats:${campId}`);
+            const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [parseInt(stats.sent || 0), parseInt(stats.failed || 0), campId]);
         }
 
         // 4. COMPLETION CHECK
-        const remains = await redis.decr(`camp_progress:${campId}`);
+        const remains = await redis.decr(`${envSuffix}:camp_progress:${campId}`);
         if (remains <= 0) {
             // Final Sync
-            const finalStats = await redis.hgetall(`stats:${campId}`);
+            const finalStats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
                 [parseInt(finalStats.sent || 0), parseInt(finalStats.failed || 0), campId]);
             
             // Cleanup Redis
-            await redis.del(`camp_progress:${campId}`);
-            await redis.del(`stats:${campId}`);
+            await redis.del(`${envSuffix}:camp_progress:${campId}`);
+            await redis.del(`${envSuffix}:stats:${campId}`);
             console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
         }
 
