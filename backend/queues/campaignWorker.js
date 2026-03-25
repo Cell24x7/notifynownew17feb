@@ -39,7 +39,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
 
         // 2. DB Log & Queue Update
         if (result.success) {
-            await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
+            await query(`UPDATE ${queueTable} SET status = "sent", message_id = ? WHERE id = ?`, [result.messageId, item.id]);
             await redis.hincrby(`stats:${campId}`, 'sent', 1);
             
             // Detailed Logs for Reports
@@ -67,7 +67,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
             ).catch(err => console.error('Error logging to webhook_logs:', err.message));
 
         } else {
-            await query(`UPDATE ${queueTable} SET status = "failed", updated_at = NOW() WHERE id = ?`, [item.id]);
+            await query(`UPDATE ${queueTable} SET status = "failed" WHERE id = ?`, [item.id]);
             await redis.hincrby(`stats:${campId}`, 'failed', 1);
             
             await query(
