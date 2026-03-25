@@ -5,6 +5,15 @@ async function optimize() {
     try {
         console.log("🚀 Starting database optimization...");
 
+        // 0. Increase Global Server Connections (Crucial for 500+ workers)
+        console.log("Increasing MySQL max_connections limit to 2000...");
+        try {
+            await query("SET GLOBAL max_connections = 2000");
+            console.log("✅ MySQL max_connections increased.");
+        } catch (e) {
+            console.warn("⚠️ [Skip] Could not set max_connections (No SUPER privilege):", e.message);
+        }
+
         // 1. WEBHOOK_LOGS Indexes (Crucial for Chat UI)
         console.log("Adding indexes to webhook_logs...");
         try {

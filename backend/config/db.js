@@ -11,7 +11,7 @@ const pool = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 100,
+  connectionLimit: 1200, // Matching 500+ workers with overhead
   queueLimit: 0
 });
 
