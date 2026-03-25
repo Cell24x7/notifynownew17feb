@@ -11,55 +11,42 @@ router.get('/conversations', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Optimization: Use a simpler query with a limit for high performance
-        // We look for unique contacts that the user has interacted with Recently.
+        // Step 1: Get the LAST 1000 logs for this user (Very fast with idx_user_id_created_at)
+        // Step 2: From those 1000, extract the UNIQUE contacts
         const sql = `
-            WITH RecentContacts AS (
-                SELECT DISTINCT 
-                    CASE 
-                        WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
-                        WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
-                        ELSE sender 
-                    END as contact_phone
-                FROM webhook_logs
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-                LIMIT 100
-            )
             SELECT 
-                rc.contact_phone,
-                logs.created_at as last_message_time,
-                logs.message_content as last_message,
-                logs.status,
-                logs.type as channel,
-                COALESCE(c.name, rc.contact_phone) as name
-            FROM RecentContacts rc
-            INNER JOIN webhook_logs logs ON logs.user_id = ? AND (logs.sender = rc.contact_phone OR logs.recipient = rc.contact_phone)
-            LEFT JOIN contacts c ON c.user_id = ? AND c.phone = rc.contact_phone
-            GROUP BY rc.contact_phone
-            ORDER BY last_message_time DESC
-            LIMIT 50
-        `;
-
-        // FALLBACK: If the above complex query is too slow for 1Cr, we use a simpler one
-        const simpleSql = `
-            SELECT 
-                recipient as contact_phone, 
+                contact_phone,
                 MAX(created_at) as last_message_time,
                 ANY_VALUE(message_content) as last_message,
                 ANY_VALUE(status) as status,
                 ANY_VALUE(type) as channel,
-                recipient as name
-            FROM webhook_logs 
-            WHERE user_id = ? 
-            GROUP BY recipient 
+                contact_phone as name
+            FROM (
+                SELECT 
+                    CASE 
+                        WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                        WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                        ELSE sender 
+                    END as contact_phone,
+                    created_at,
+                    message_content,
+                    status,
+                    type
+                FROM webhook_logs 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 1000
+            ) as recent_logs
+            WHERE contact_phone IS NOT NULL AND contact_phone != 'System'
+            GROUP BY contact_phone 
             ORDER BY last_message_time DESC 
             LIMIT 50
         `;
 
-        console.log(`🔍 Fetching optimized conversations for user: ${userId}`);
-        const [conversations] = await query(simpleSql, [userId]);
+        console.log(`🔍 Fetching smart-optimized conversations for user: ${userId}`);
+        const [conversations] = await query(sql, [userId]);
         
+        console.log(`✅ Loaded ${conversations.length} distinct chats from recent history.`);
         res.json({ success: true, data: conversations });
     } catch (error) {
         console.error('❌ Error fetching conversations:', error);
