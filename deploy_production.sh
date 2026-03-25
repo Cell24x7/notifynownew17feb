@@ -102,6 +102,7 @@ fi
 
 # Sync .env with .env.production
 cp "$FRONTEND_DIR/.env.production" "$FRONTEND_DIR/.env"
+cp "$BACKEND_DIR/.env.production" "$BACKEND_DIR/.env"
 ok "Environment files updated (API: $API_URL)"
 
 # ── Step 5: Build Frontend ────────────────────────────

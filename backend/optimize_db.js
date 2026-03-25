@@ -1,4 +1,13 @@
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Load environment-specific file if it exists
+if (process.env.NODE_ENV === 'production' && fs.existsSync('.env.production')) {
+    require('dotenv').config({ path: '.env.production' });
+} else {
+    require('dotenv').config();
+}
+
 const { query } = require('./config/db');
 
 async function optimize() {
