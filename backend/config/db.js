@@ -11,8 +11,9 @@ const pool = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 1200, // Matching 500+ workers with overhead
-  queueLimit: 0
+  connectionLimit: 600, // Reduced to 600 for safer resource usage (ulimit)
+  queueLimit: 0,
+  connectTimeout: 10000 // 10s wait for DB
 });
 
 // Global error holder for debugging
