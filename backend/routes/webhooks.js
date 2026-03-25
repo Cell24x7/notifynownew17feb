@@ -392,15 +392,15 @@ router.post('/dotgo', async (req, res) => {
 
                         await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE id = ?`, [finalStatus, log.id]);
 
-                        // 📡 REAL-TIME CHAT STATUS UPDATE
-                        if (['delivered', 'read', 'displayed', 'failed'].includes(finalStatus) && req.io) {
+                        // 📡 REAL-TIME CHAT STATUS UPDATE (ONLY for manual messages to prevent browser hang during 1Cr campaigns)
+                        if (['delivered', 'read', 'displayed', 'failed'].includes(finalStatus) && req.io && !log.campaign_id) {
                             const socketUser = userId || log.user_id;
                             if (socketUser) {
                                 req.io.to(`user_${socketUser}`).emit('message_status_update', {
                                     message_id: messageId || log.message_id,
                                     status: finalStatus
                                 });
-                                console.log(`📡 Emitted Status Update (${finalStatus}) for ${messageId} to user_${socketUser}`);
+                                console.log(`📡 Emitted Status Update (${finalStatus}) for manual msg ${messageId} to user_${socketUser}`);
                             }
                         }
 
@@ -715,9 +715,14 @@ router.post('/whatsapp/callback', async (req, res) => {
                                             await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
                                         }
                                     }
+                                    // 📡 REAL-TIME CHAT STATUS UPDATE (Manual only)
+                                    if (['delivered', 'read', 'failed'].includes(finalStatus) && req.io && !log.campaign_id) {
+                                        req.io.to(`user_${log.user_id}`).emit('message_status_update', {
+                                            message_id: messageId,
+                                            status: finalStatus
+                                        });
+                                    }
                                 } else {
-                                    // Sometimes messageId doesn't exactly match if it's external, or they come back slightly differently.
-                                    // You could add logic here to match by recipient and time if needed.
                                     console.warn(`⚠️ WA Message ID ${messageId} not found in logs.`);
                                 }
                             } catch (error) {
@@ -962,8 +967,8 @@ const handleSmsCallback = async (req, res) => {
                             }
                         }
 
-                        // Emit socket status update if user is active
-                        if (req.io && (userId || log.user_id)) {
+                        // Emit socket status update if user is active (Manual only)
+                        if (req.io && (userId || log.user_id) && !log.campaign_id) {
                             req.io.to(`user_${userId || log.user_id}`).emit('message_status_update', {
                                 message_id: messageId || log.message_id,
                                 status: finalStatus

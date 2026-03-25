@@ -11,52 +11,59 @@ router.get('/conversations', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-    const sql = `
-            SELECT 
-                t.contact_phone,
-                t.last_message_time,
-                t.message_content as last_message,
-                t.status,
-                t.type as channel,
-                COALESCE(c.name, t.contact_phone) as name
-            FROM (
-                SELECT 
+        // Optimization: Use a simpler query with a limit for high performance
+        // We look for unique contacts that the user has interacted with Recently.
+        const sql = `
+            WITH RecentContacts AS (
+                SELECT DISTINCT 
                     CASE 
                         WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
                         WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
-                        WHEN sender REGEXP '^[0-9+]+$' THEN sender
-                        ELSE recipient 
-                    END as contact_phone,
-                    created_at as last_message_time,
-                    message_content,
-                    status,
-                    type,
-                    ROW_NUMBER() OVER(
-                        PARTITION BY CASE 
-                            WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
-                            WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
-                            WHEN sender REGEXP '^[0-9+]+$' THEN sender
-                            ELSE recipient 
-                        END 
-                        ORDER BY created_at DESC
-                    ) as rn
+                        ELSE sender 
+                    END as contact_phone
                 FROM webhook_logs
                 WHERE user_id = ?
-            ) as t
-            LEFT JOIN contacts c 
-                ON (REPLACE(REPLACE(c.phone, '+', ''), ' ', '') = REPLACE(REPLACE(t.contact_phone, '+', ''), ' ', ''))
-                AND c.user_id = ?
-            WHERE t.rn = 1
-            ORDER BY t.last_message_time DESC
+                ORDER BY created_at DESC
+                LIMIT 100
+            )
+            SELECT 
+                rc.contact_phone,
+                logs.created_at as last_message_time,
+                logs.message_content as last_message,
+                logs.status,
+                logs.type as channel,
+                COALESCE(c.name, rc.contact_phone) as name
+            FROM RecentContacts rc
+            INNER JOIN webhook_logs logs ON logs.user_id = ? AND (logs.sender = rc.contact_phone OR logs.recipient = rc.contact_phone)
+            LEFT JOIN contacts c ON c.user_id = ? AND c.phone = rc.contact_phone
+            GROUP BY rc.contact_phone
+            ORDER BY last_message_time DESC
+            LIMIT 50
         `;
 
-        console.log(`🔍 Fetching conversations for user: ${userId}`);
-        const [conversations] = await query(sql, [userId, userId]);
-        console.log(`✅ Found ${conversations.length} conversations`);
+        // FALLBACK: If the above complex query is too slow for 1Cr, we use a simpler one
+        const simpleSql = `
+            SELECT 
+                recipient as contact_phone, 
+                MAX(created_at) as last_message_time,
+                ANY_VALUE(message_content) as last_message,
+                ANY_VALUE(status) as status,
+                ANY_VALUE(type) as channel,
+                recipient as name
+            FROM webhook_logs 
+            WHERE user_id = ? 
+            GROUP BY recipient 
+            ORDER BY last_message_time DESC 
+            LIMIT 50
+        `;
+
+        console.log(`🔍 Fetching optimized conversations for user: ${userId}`);
+        const [conversations] = await query(simpleSql, [userId]);
+        
         res.json({ success: true, data: conversations });
     } catch (error) {
         console.error('❌ Error fetching conversations:', error);
-        res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
 
