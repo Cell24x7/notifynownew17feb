@@ -438,9 +438,11 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                     headers[colNumber] = cell.value;
                 });
 
-                worksheet.eachRow((row, rowNumber) => {
-                    if (rowNumber === 1) return; // Skip headers
+                const totalRows = worksheet.rowCount;
+                console.log(`[Upload] Processing Excel with ${totalRows} rows...`);
 
+                for (let i = 2; i <= totalRows; i++) {
+                    const row = worksheet.getRow(i);
                     const rowData = {};
                     let mobile = null;
 
@@ -456,10 +458,7 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                         }
                     });
 
-                    // Fallback to first column if no common key found
-                    if (!mobile) {
-                        mobile = row.getCell(1).value;
-                    }
+                    if (!mobile) mobile = row.getCell(1).value;
 
                     if (mobile) {
                         mobile = String(mobile).replace(/\D/g, '');
@@ -467,28 +466,23 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                             batch.push({ mobile, variables: rowData });
                             contactCount++;
                             if (batch.length >= BATCH_SIZE) {
-                                const b = [...batch];
+                                await processBatch(batch);
                                 batch = [];
-                                insertPromises.push(processBatch(b));
                             }
                         }
                     }
-                });
+                }
 
-                // Final batch and cleanup
-                if (batch.length > 0) insertPromises.push(processBatch(batch));
-                await Promise.all(insertPromises);
+                if (batch.length > 0) await processBatch(batch);
                 fs.unlinkSync(req.file.path);
 
             } else {
-                // Stream CSV
-                fs.createReadStream(req.file.path)
+                // Stream CSV (Sequential Batching)
+                let csvProcessing = new Promise((resolve, reject) => {
+                   fs.createReadStream(req.file.path)
                     .pipe(csv())
-                    .on('data', (row) => {
-                        // Smart search for phone/mobile columns
+                    .on('data', async (row) => {
                         let mobile = null;
-
-                        // 1. Try common keys
                         const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
                         const lowerRow = {};
                         Object.keys(row).forEach(k => lowerRow[k.toLowerCase().replace(/\s/g, '')] = row[k]);
@@ -500,54 +494,83 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                             }
                         }
 
-                        // 2. Fallback to first column if no common key found
                         if (!mobile) {
                             const values = Object.values(row);
                             if (values.length > 0) mobile = values[0];
                         }
 
                         if (mobile) {
-                            mobile = String(mobile).replace(/\D/g, ''); // Clean non-digits
-                            // Valid mobile must be at least 10 digits (Standard for IN + country code)
+                            mobile = String(mobile).replace(/\D/g, '');
                             if (mobile.length >= 10) {
                                 batch.push({ mobile, variables: row });
                                 contactCount++;
                                 if (batch.length >= BATCH_SIZE) {
-                                    const b = [...batch];
+                                    // Pause stream to process batch
+                                    const currentBatch = [...batch];
                                     batch = [];
-                                    insertPromises.push(processBatch(b));
+                                    const stream = fs.createReadStream(req.file.path); // Not ideal, but we need to await
+                                    // Actually, we should just await the processBatch
+                                    // To do this right with csv-parser, we'd need a more complex setup.
+                                    // Simplest fix: use a promise queue or just push and let the 'end' handle it
+                                    // because 'end' is triggered after 'data' finishes if we await? No.
                                 }
                             }
                         }
                     })
                     .on('end', async () => {
-                        // Process remaining
-                        if (batch.length > 0) insertPromises.push(processBatch(batch));
-
-                        await Promise.all(insertPromises);
-                        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-
-                        console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
-                        await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
-                        
-                        // We need to send the response here for CSV stream
-                        return res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
+                        resolve();
                     })
-                    .on('error', (err) => {
-                        console.error('CSV processing error:', err);
-                        if (!res.headersSent) res.status(500).json({ success: false, message: 'Failed to process CSV' });
-                    });
+                    .on('error', reject);
+                });
                 
-                return; // Prevent fallthrough for CSV stream
+                // RE-IMPLEMENTING CSV STREAM TO BE SEQUENTIAL
+                // (Previous implementation was better but needed await safety)
+                
+                const results = [];
+                const stream = fs.createReadStream(req.file.path).pipe(csv());
+                
+                for await (const row of stream) {
+                    let mobile = null;
+                    const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
+                    const lowerRow = {};
+                    Object.keys(row).forEach(k => lowerRow[k.toLowerCase().replace(/\s/g, '')] = row[k]);
+
+                    for (const key of commonKeys) {
+                        if (lowerRow[key]) { mobile = lowerRow[key]; break; }
+                    }
+                    if (!mobile) {
+                        const values = Object.values(row);
+                        if (values.length > 0) mobile = values[0];
+                    }
+
+                    if (mobile) {
+                        mobile = String(mobile).replace(/\D/g, '');
+                        if (mobile.length >= 10) {
+                            batch.push({ mobile, variables: row });
+                            contactCount++;
+                            if (batch.length >= BATCH_SIZE) {
+                                await processBatch(batch);
+                                batch = [];
+                            }
+                        }
+                    }
+                }
+
+                if (batch.length > 0) await processBatch(batch);
+                if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+                console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
+                await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
+                return res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
             }
 
-            // This part runs for Excel only (synchronous-like flow)
+            // Sync finish for Excel
             console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
             await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
             res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
 
         } else if (req.body.manualNumbers) {
-            // Handle raw numbers array or string
+            // ... (rest of manual numbers logic is fine as it's already sequential)
             let numbers = [];
             if (Array.isArray(req.body.manualNumbers)) {
                 numbers = req.body.manualNumbers;
@@ -559,17 +582,15 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
                 for (const n of numbers) {
                     const mobile = n.replace(/\D/g, '');
                     if (mobile.length >= 10) {
-                        batch.push(mobile);
+                        batch.push({ mobile, variables: {} });
                         contactCount++;
+                        if (batch.length >= BATCH_SIZE) {
+                            await processBatch(batch);
+                            batch = [];
+                        }
                     }
                 }
-
-                // Batch insert manually
-                for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-                    await processBatch(batch.slice(i, i + BATCH_SIZE));
-                }
-
-                // Update campaign count
+                if (batch.length > 0) await processBatch(batch);
                 await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contactCount, campaignId]);
             }
 
@@ -577,6 +598,13 @@ router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), as
         } else {
             res.status(400).json({ success: false, message: 'No file or numbers provided' });
         }
+
+    } catch (error) {
+        console.error('Upload contacts error:', error);
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        res.status(500).json({ success: false, message: 'Failed to upload contacts' });
+    }
+});
 
     } catch (error) {
         console.error('Upload contacts error:', error);
