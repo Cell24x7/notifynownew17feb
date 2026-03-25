@@ -11,15 +11,14 @@ router.get('/conversations', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Step 1: Get the LAST 1000 logs for this user (Very fast with idx_user_id_created_at)
-        // Step 2: From those 1000, extract the UNIQUE contacts
+        // Optimized for Standard MySQL compatibility (removed ANY_VALUE for older versions)
         const sql = `
             SELECT 
                 contact_phone,
                 MAX(created_at) as last_message_time,
-                ANY_VALUE(message_content) as last_message,
-                ANY_VALUE(status) as status,
-                ANY_VALUE(type) as channel,
+                MAX(message_content) as last_message,
+                MAX(status) as status,
+                MAX(type) as channel,
                 contact_phone as name
             FROM (
                 SELECT 
@@ -43,10 +42,10 @@ router.get('/conversations', authenticateToken, async (req, res) => {
             LIMIT 50
         `;
 
-        console.log(`🔍 Fetching smart-optimized conversations for user: ${userId}`);
+        console.log(`🔍 Fetching fixed smart-optimized conversations for user: ${userId}`);
         const [conversations] = await query(sql, [userId]);
         
-        console.log(`✅ Loaded ${conversations.length} distinct chats from recent history.`);
+        console.log(`✅ Loaded ${conversations.length} distinct chats.`);
         res.json({ success: true, data: conversations });
     } catch (error) {
         console.error('❌ Error fetching conversations:', error);
