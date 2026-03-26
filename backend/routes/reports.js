@@ -51,18 +51,18 @@ router.get('/summary', authenticate, async (req, res) => {
                 COALESCE(SUM(cost), 0) as cost
             FROM (
                 SELECT 
-                    COALESCE(recipient_count, audience_count, 0) as sent,
-                    CASE WHEN status = 'completed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as delivered,
-                    CASE WHEN status = 'failed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as failed,
-                    COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                    COALESCE(sent_count, recipient_count, audience_count, 0) as sent,
+                    CASE WHEN status = 'completed' OR status = 'sent' THEN COALESCE(sent_count, recipient_count, audience_count, 0) ELSE 0 END as delivered,
+                    COALESCE(failed_count, 0) as failed,
+                    COALESCE(sent_count, recipient_count, audience_count, 0) * 0.25 as cost
                 FROM campaigns c
                 ${whereClause}
                 UNION ALL
                 SELECT 
-                    COALESCE(recipient_count, audience_count, 0) as sent,
-                    CASE WHEN status = 'completed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as delivered,
-                    CASE WHEN status = 'failed' THEN COALESCE(recipient_count, audience_count, 0) ELSE 0 END as failed,
-                    COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                    COALESCE(sent_count, recipient_count, audience_count, 0) as sent,
+                    CASE WHEN status = 'completed' OR status = 'sent' THEN COALESCE(sent_count, recipient_count, audience_count, 0) ELSE 0 END as delivered,
+                    COALESCE(failed_count, 0) as failed,
+                    COALESCE(sent_count, recipient_count, audience_count, 0) * 0.25 as cost
                 FROM api_campaigns c
                 ${whereClause}
             ) as combined_totals

@@ -192,9 +192,23 @@ const processBatch = async (tableConfig) => {
         `;
 
         let totalOffloaded = 0;
+        const envSuffix = process.env.APP_NAME || 'notifynow-production';
+
         while (true) {
-            let [batchItems] = await query(sql, [BATCH_SIZE]);
-            if (batchItems.length === 0) break;
+            // A. Fetch potential candidate IDs
+            const [candidates] = await query(`SELECT id FROM ${queueTable} q JOIN ${campaignTable} c ON q.campaign_id = c.id WHERE q.status = 'pending' AND c.status = 'running' LIMIT ?`, [BATCH_SIZE]);
+            if (candidates.length === 0) break;
+
+            const candidateIds = candidates.map(c => c.id);
+            const batchToken = `proc-${process.pid}-${Date.now()}`;
+
+            // B. Atomically mark them with a unique batch token
+            const [markResult] = await query(`UPDATE ${queueTable} SET status = ? WHERE id IN (?) AND status = 'pending'`, [batchToken, candidateIds]);
+            if (markResult.affectedRows === 0) continue; // All were stolen by another worker process
+
+            // C. Fetch the full data for ONLY the items we successfully claimed
+            const [batchItems] = await query(sql.replace("q.status = 'pending'", "q.status = ?"), [batchToken, batchToken]);
+            if (batchItems.length === 0) continue;
 
             // Safety Deduct Credits (Only for campaigns that haven't been deducted yet)
             const uniqueCampaigns = [...new Set(batchItems.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
@@ -208,13 +222,18 @@ const processBatch = async (tableConfig) => {
                 }
             }
 
-            if (failedCampaigns.size > 0) batchItems = batchItems.filter(i => !failedCampaigns.has(i.campaign_id));
-            if (batchItems.length === 0) break;
+            let workItems = batchItems;
+            if (failedCampaigns.size > 0) workItems = batchItems.filter(i => !failedCampaigns.has(i.campaign_id));
+            if (workItems.length === 0) {
+                // Return failed ones to pending or mark as failed
+                await query(`UPDATE ${queueTable} SET status = 'pending' WHERE status = ?`, [batchToken]);
+                continue;
+            }
 
-            console.log(`[${processorName}] Offloading batch of ${batchItems.length} items to BullMQ cluster...`);
+            console.log(`[${processorName}] Offloading claimed batch of ${workItems.length} items to BullMQ...`);
             const { campaignQueue } = require('../queues/campaignQueue');
 
-            const jobs = batchItems.map(item => ({
+            const jobs = workItems.map(item => ({
                 name: `sending-${item.mobile}`,
                 data: { item, tableConfig },
                 opts: { jobId: `${processorName}-${item.id}` }
@@ -222,29 +241,27 @@ const processBatch = async (tableConfig) => {
             
             await campaignQueue.addBulk(jobs);
 
-            // SYNC Redis Counters
+            // SYNC Redis Counters for only the items we added
             const { redisConnection } = require('../queues/campaignQueue');
             const Redis = require('ioredis');
             const redisClient = new Redis(redisConnection);
             
-            // Batch process increments for Redis efficiency
             const counts = {};
-            for (const item of batchItems) {
+            for (const item of workItems) {
                 counts[item.campaign_id] = (counts[item.campaign_id] || 0) + 1;
             }
             
-            const envSuffix = process.env.APP_NAME || 'notifynow-production';
             for (const campId in counts) {
                 await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, counts[campId]);
             }
             await redisClient.quit();
 
-            // MARK AS PROCESSING
-            const itemIds = batchItems.map(i => i.id);
-            await query(`UPDATE ${queueTable} SET status = "processing" WHERE id IN (?)`, [itemIds]);
+            // MARK AS PROCESSING (Final state for queue)
+            const claimedIds = workItems.map(i => i.id);
+            await query(`UPDATE ${queueTable} SET status = "processing" WHERE id IN (?)`, [claimedIds]);
             
-            totalOffloaded += batchItems.length;
-            if (batchItems.length < BATCH_SIZE) break; // Finished draining
+            totalOffloaded += workItems.length;
+            if (batchItems.length < BATCH_SIZE) break; 
         }
 
         if (totalOffloaded > 0) {

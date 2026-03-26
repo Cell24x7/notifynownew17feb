@@ -131,22 +131,26 @@ const sendUniversalMessage = async (item) => {
                 ? `${PINBOT_BASE}/${waConfig.ph_no_id}/messages`
                 : `${GRAPH_BASE}/${waConfig.ph_no_id}/messages`;
 
+            // Extract language from metadata if available
+            let langCode = 'en_US';
+            let meta = {};
+            try { 
+                meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {}); 
+                if (meta.language) langCode = meta.language;
+                else if (meta.languageCode) langCode = meta.languageCode;
+            } catch(e) {}
+
             const payload = {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',
-                to: item.mobile,
+                to: item.mobile.replace(/\D/g, ''), // Ensure clean numeric mobile
                 type: 'template',
                 template: {
                     name: item.template_name,
-                    language: { code: 'en_US' } // Fallback
+                    language: { code: langCode } 
                 }
             };
 
-            // Enhanced Template Processing
-            const payloadComponents = [];
-            let meta = {};
-            try { meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {}); } catch(e) {}
-            
             const mtComponents = meta.components || [];
             const bodyComp = mtComponents.find(c => c.type === 'BODY' || c.type === 'body');
             const waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
