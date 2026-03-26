@@ -151,6 +151,7 @@ const sendUniversalMessage = async (item) => {
                 }
             };
 
+            const payloadComponents = [];
             const mtComponents = meta.components || [];
             const bodyComp = mtComponents.find(c => c.type === 'BODY' || c.type === 'body');
             const waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
