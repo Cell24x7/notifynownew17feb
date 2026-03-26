@@ -29,7 +29,8 @@ router.get('/admin', authenticateToken, async (req, res) => {
         const offset = (page - 1) * limit;
 
         // Get total count
-        const [[{ total }]] = await query('SELECT COUNT(*) as total FROM message_templates');
+        const [totalResult] = await query('SELECT COUNT(*) as total FROM message_templates');
+        const total = totalResult[0]?.total || 0;
 
         const [templates] = await query(`
             SELECT mt.*, u.email as user_email, u.name as user_name 
@@ -73,7 +74,7 @@ router.get('/', authenticateToken, async (req, res) => {
         const userConfig = users[0] || { whatsapp_config_id: null, rcs_config_id: null };
 
         // Get total count
-        const [[{ total }]] = await query(`
+        const [totalResult] = await query(`
             SELECT COUNT(*) as total FROM message_templates 
             WHERE user_id = ? 
             AND (
@@ -82,6 +83,7 @@ router.get('/', authenticateToken, async (req, res) => {
                 (channel NOT IN ('whatsapp', 'rcs'))
             )
         `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id]);
+        const total = totalResult[0]?.total || 0;
 
         const [templates] = await query(`
             SELECT * FROM message_templates 

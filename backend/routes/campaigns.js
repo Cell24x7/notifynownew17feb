@@ -44,12 +44,13 @@ router.get('/', authenticateToken, async (req, res) => {
         const offset = (page - 1) * limit;
 
         // Get total count (Manual + API)
-        const [[{ total }]] = await query(`
+        const [totalResult] = await query(`
             SELECT (
                 (SELECT COUNT(*) FROM campaigns WHERE user_id = ?) + 
                 (SELECT COUNT(*) FROM api_campaigns WHERE user_id = ?)
             ) as total
         `, [userId, userId]);
+        const total = totalResult[0]?.total || 0;
 
         // Get paginated data (Manual + API)
         const commonCols = "id, user_id, name, channel, template_id, status, created_at, recipient_count, audience_count, sent_count, delivered_count, read_count, failed_count";
@@ -117,7 +118,8 @@ router.get('/admin', authenticateAdmin, async (req, res) => {
                 SELECT c.id FROM api_campaigns c JOIN users u ON c.user_id = u.id ${whereClause}
             ) as combined_total
         `;
-        const [[{ total }]] = await query(countSql, [...params, ...params]);
+        const [countResult] = await query(countSql, [...params, ...params]);
+        const total = countResult[0]?.total || 0;
 
         // Get paginated data with user details (Manual + API)
         const commonCols = "id, user_id, name, channel, template_id, status, created_at, recipient_count, audience_count, sent_count, delivered_count, read_count, failed_count";
