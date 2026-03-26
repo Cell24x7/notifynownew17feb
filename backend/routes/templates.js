@@ -200,7 +200,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // UPDATE template
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -240,7 +240,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 
 // ADMIN: Update template status (Approve/Reject)
-router.patch('/:id/status', authenticateToken, async (req, res) => {
+router.patch('/:id/status', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         const { status, rejection_reason } = req.body;
@@ -290,7 +290,7 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 
 
 // DELETE template
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -314,7 +314,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 // SYNC template status (RCS only) - Disabled as Vi RBM is removed
-router.post('/:id/sync', authenticateToken, async (req, res) => {
+router.post('/:id/sync', authenticate, async (req, res) => {
     res.status(410).json({ success: false, message: 'Vi RBM sync is no longer available. Template status is managed via Dotgo.' });
 });
 
@@ -322,7 +322,7 @@ router.post('/:id/sync', authenticateToken, async (req, res) => {
  * @route POST /api/templates/dotgo/submit
  * @desc Submit a template to Dotgo from local DB or directly
  */
-router.post('/dotgo/submit', authenticateToken, async (req, res) => {
+router.post('/dotgo/submit', authenticate, async (req, res) => {
     try {
         const { templateData } = req.body;
         if (!templateData || !templateData.name) {
@@ -346,7 +346,7 @@ router.post('/dotgo/submit', authenticateToken, async (req, res) => {
  * @route GET /api/templates/dotgo/status/:name
  * @desc Check template approval status on Dotgo
  */
-router.get('/dotgo/status/:name', authenticateToken, async (req, res) => {
+router.get('/dotgo/status/:name', authenticate, async (req, res) => {
     try {
         const { name } = req.params;
         const result = await getDotgoTemplateStatus(name);

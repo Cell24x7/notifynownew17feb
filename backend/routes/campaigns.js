@@ -135,7 +135,7 @@ router.get('/admin', authenticate, async (req, res) => {
 });
 
 // GET single campaign
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -149,7 +149,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // CREATE campaign
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const {
@@ -379,7 +379,7 @@ const upload = require('../middleware/upload');
 const fs = require('fs');
 const csv = require('csv-parser');
 
-router.post('/:id/upload-contacts', authenticateToken, upload.single('file'), async (req, res) => {
+router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (req, res) => {
     const campaignId = req.params.id;
     const userId = req.user.id;
 
