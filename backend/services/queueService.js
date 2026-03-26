@@ -196,7 +196,7 @@ const processBatch = async (tableConfig) => {
 
         while (true) {
             // A. Fetch potential candidate IDs
-            const [candidates] = await query(`SELECT id FROM ${queueTable} q JOIN ${campaignTable} c ON q.campaign_id = c.id WHERE q.status = 'pending' AND c.status = 'running' LIMIT ?`, [BATCH_SIZE]);
+            const [candidates] = await query(`SELECT q.id FROM ${queueTable} q JOIN ${campaignTable} c ON q.campaign_id = c.id WHERE q.status = 'pending' AND c.status = 'running' LIMIT ?`, [BATCH_SIZE]);
             if (candidates.length === 0) break;
 
             const candidateIds = candidates.map(c => c.id);
@@ -207,7 +207,7 @@ const processBatch = async (tableConfig) => {
             if (markResult.affectedRows === 0) continue; // All were stolen by another worker process
 
             // C. Fetch the full data for ONLY the items we successfully claimed
-            const [batchItems] = await query(sql.replace("q.status = 'pending'", "q.status = ?"), [batchToken, batchToken]);
+            const [batchItems] = await query(sql.replace("q.status = 'pending'", "q.status = ?"), [batchToken, BATCH_SIZE]);
             if (batchItems.length === 0) continue;
 
             // Safety Deduct Credits (Only for campaigns that haven't been deducted yet)
