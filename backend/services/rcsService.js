@@ -143,11 +143,12 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = []) 
       contentMessage: {
         templateMessage: {
           templateCode: templateCode,
-          customParams: (Array.isArray(customParams) && customParams.length > 0) ? customParams : undefined
+          customParams: (Array.isArray(customParams) && customParams.length > 0) ? customParams : []
         }
       }
     };
 
+    console.log(`📤 Sending Dotgo RCS Payload:`, JSON.stringify(payload, null, 2));
     console.log(`📤 Sending Dotgo RCS (Config: ${config?.name || 'Default'}) to ${formattedMobile} (Template: ${templateCode})`);
 
     const response = await axios.post(url, payload, {
