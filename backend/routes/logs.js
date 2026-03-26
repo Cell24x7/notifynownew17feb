@@ -4,32 +4,50 @@ const authenticate = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Get logs (Super Admin Only)
+// Get logs (Super Admin or Reseller)
 router.get('/', authenticate, async (req, res) => {
-    // Ensure only admin can access
-    if (req.user.role !== 'admin') {
+    // Ensure only admin or reseller can access
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'reseller') {
         return res.status(403).json({ success: false, message: 'Unauthorized' });
     }
 
-    const { type, severity, search, page = 1, limit = 50 } = req.query;
+    const { type, severity, search, startDate, endDate, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
 
     try {
         let whereConditions = ['1=1'];
         let params = [];
+        let joinClause = '';
+
+        // Reseller Isolation
+        if (req.user.role === 'reseller') {
+            joinClause = 'LEFT JOIN users u ON system_logs.user_id = u.id';
+            whereConditions.push('u.reseller_id = ?');
+            params.push(req.user.actual_reseller_id);
+        }
 
         if (type && type !== 'all') {
-            whereConditions.push('type = ?');
+            whereConditions.push('system_logs.type = ?');
             params.push(type);
         }
 
         if (severity && severity !== 'all') {
-            whereConditions.push('severity = ?');
+            whereConditions.push('system_logs.severity = ?');
             params.push(severity);
         }
 
+        if (startDate) {
+            whereConditions.push('system_logs.created_at >= ?');
+            params.push(startDate);
+        }
+
+        if (endDate) {
+            whereConditions.push('system_logs.created_at <= ?');
+            params.push(endDate);
+        }
+
         if (search) {
-            whereConditions.push('(action LIKE ? OR details LIKE ? OR user_name LIKE ? OR client_name LIKE ?)');
+            whereConditions.push('(system_logs.action LIKE ? OR system_logs.details LIKE ? OR system_logs.user_name LIKE ? OR system_logs.client_name LIKE ?)');
             const searchParam = `%${search}%`;
             params.push(searchParam, searchParam, searchParam, searchParam);
         }
@@ -37,25 +55,33 @@ router.get('/', authenticate, async (req, res) => {
         const whereClause = whereConditions.join(' AND ');
 
         // Get Total Count
-        const [countRows] = await query(`SELECT COUNT(*) as total FROM system_logs WHERE ${whereClause}`, params);
+        const countSql = `SELECT COUNT(*) as total FROM system_logs ${joinClause} WHERE ${whereClause}`;
+        const [countRows] = await query(countSql, params);
         const totalLogs = countRows[0].total;
 
         // Get Logs
-        const [logs] = await query(
-            `SELECT * FROM system_logs WHERE ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-            [...params, parseInt(limit), parseInt(offset)]
-        );
+        const logsSql = `
+            SELECT system_logs.* 
+            FROM system_logs 
+            ${joinClause} 
+            WHERE ${whereClause} 
+            ORDER BY system_logs.created_at DESC 
+            LIMIT ? OFFSET ?
+        `;
+        const [logs] = await query(logsSql, [...params, parseInt(limit), parseInt(offset)]);
 
-        // Get Stats (Counts by severity) - independent of filters, usually for dashboard cards
-        // Or we can make it respect filters if desired. For now, global stats are usually expected.
-        const [statsRows] = await query(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN severity = 'error' THEN 1 ELSE 0 END) as errors,
-        SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warnings,
-        SUM(CASE WHEN severity = 'info' THEN 1 ELSE 0 END) as info
-      FROM system_logs
-    `);
+        // Get Stats (Counts by severity) - Respecting filters
+        const statsSql = `
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN severity = 'error' THEN 1 ELSE 0 END) as errors,
+                SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warnings,
+                SUM(CASE WHEN severity = 'info' THEN 1 ELSE 0 END) as info
+            FROM system_logs
+            ${joinClause}
+            WHERE ${whereClause}
+        `;
+        const [statsRows] = await query(statsSql, params);
 
         res.json({
             success: true,
@@ -68,6 +94,8 @@ router.get('/', authenticate, async (req, res) => {
                 clientName: log.client_name,
                 ipAddress: log.ip_address,
                 severity: log.severity,
+                deviceInfo: log.device_info,
+                location: log.location,
                 createdAt: log.created_at
             })),
             stats: {

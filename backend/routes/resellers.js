@@ -1,20 +1,29 @@
 const express = require('express');
-const bcrypt = require('bcryptjs'); // Import bcrypt
+const bcrypt = require('bcryptjs'); 
+const jwt = require('jsonwebtoken');
 const { query } = require('../config/db');
+const authenticate = require('../middleware/authMiddleware'); // Moved to top
 
 const router = express.Router();
 
-// GET all resellers
-router.get('/', async (req, res) => {
+// GET all resellers (Admin only)
+router.get('/', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Unauthorized' });
+  }
   try {
     const [rows] = await query(`
       SELECT 
-        id, name, email, phone, domain, api_base_url,
-        commission_percent, status, revenue_generated,
-        clients_managed, payout_pending, created_at,
-        plan_id, channels_enabled, permissions
-      FROM resellers
-      ORDER BY created_at DESC
+        r.id, r.name, r.email, r.phone, r.domain, r.api_base_url,
+        r.commission_percent, r.status, r.revenue_generated,
+        r.clients_managed, r.payout_pending, r.created_at,
+        r.plan_id, r.channels_enabled, r.permissions,
+        r.brand_name, r.logo_url, r.favicon_url, r.primary_color, r.secondary_color,
+        r.support_email, r.support_phone,
+        u.wallet_balance as credits_available, u.credits_used as credits_spent
+      FROM resellers r
+      LEFT JOIN users u ON r.email = u.email
+      ORDER BY r.created_at DESC
     `);
 
     const resellers = rows.map(r => ({
@@ -72,11 +81,8 @@ router.get('/whitelabel', async (req, res) => {
 router.post('/', async (req, res) => {
   console.log('RESELLER POST BODY:', req.body);
   const {
-    name, email, phone = null, domain = null, api_base_url = null,
-    commission_percent = 10, status = 'active',
-    plan_id = null, channels_enabled = [],
-    password,
-    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
+    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
+    credits_available = 0
   } = req.body;
 
   if (!name || !email) {
@@ -108,9 +114,9 @@ router.post('/', async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const [userResult] = await query(`
-            INSERT INTO users (name, email, password, role, plan_id, status)
-            VALUES (?, ?, ?, 'reseller', ?, ?)
-        `, [name, email, hashedPassword, plan_id, status]);
+            INSERT INTO users (name, email, password, role, plan_id, status, wallet_balance, credits_available)
+            VALUES (?, ?, ?, 'reseller', ?, ?, ?, ?)
+        `, [name, email, hashedPassword, plan_id, status, credits_available, credits_available]);
 
       userId = userResult.insertId;
       console.log('Created User for Reseller:', userId);
@@ -138,22 +144,33 @@ router.post('/', async (req, res) => {
       id: result.insertId,
       message: 'Reseller added successfully'
     });
+
+    // Log Initial Transaction for Reseller
+    if (credits_available > 0) {
+      await query(`
+        INSERT INTO transactions (user_id, type, amount, credits, description, status)
+        VALUES (?, 'credit', ?, ?, 'Initial Reseller Credits', 'completed')
+      `, [userId, credits_available, credits_available]);
+    }
   } catch (err) {
     console.error('ADD RESELLER ERROR:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// UPDATE reseller
-router.put('/:id', async (req, res) => {
+// UPDATE reseller (Admin only)
+router.put('/:id', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Unauthorized' });
+  }
   console.log(`RESELLER PUT/${req.params.id} BODY:`, req.body);
   const resellerId = req.params.id;
   const {
-    name, email, phone, domain, api_base_url,
-    commission_percent, status,
-    plan_id, channels_enabled, permissions,
+    name, email, phone, domain, api_base_url, commission_percent, status, plan_id, 
+    channels_enabled, permissions,
     password,
-    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
+    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
+    credits_available
   } = req.body;
 
   const fields = [];
@@ -238,6 +255,24 @@ router.put('/:id', async (req, res) => {
           if (status) { userFields.push('status = ?'); userValues.push(status); }
           if (plan_id) { userFields.push('plan_id = ?'); userValues.push(plan_id); }
 
+          if (credits_available !== undefined) {
+            const [oldUser] = await query('SELECT credits_available FROM users WHERE id = ?', [existingUser[0].id]);
+            const diff = parseFloat(credits_available) - parseFloat(oldUser[0]?.credits_available || 0);
+            
+            if (diff !== 0) {
+              userFields.push('credits_available = ?');
+              userValues.push(credits_available);
+              userFields.push('wallet_balance = ?');
+              userValues.push(credits_available);
+              
+              // Log Admin Adjustment for Reseller
+              await query(`
+                INSERT INTO transactions (user_id, type, amount, credits, description, status)
+                VALUES (?, ?, ?, ?, 'Admin Adjustment for Reseller', 'completed')
+              `, [existingUser[0].id, diff > 0 ? 'credit' : 'debit', Math.abs(diff), Math.abs(diff)]);
+            }
+          }
+
           // Sync Permissions to User Table
           if (permissions !== undefined) {
             userFields.push('permissions = ?');
@@ -287,7 +322,6 @@ router.put('/:id', async (req, res) => {
 });
 
 // GET logged-in reseller's own branding
-const authenticate = require('../middleware/authMiddleware');
 router.get('/my-branding', authenticate, async (req, res) => {
   if (req.user.role !== 'reseller') {
     return res.status(403).json({ success: false, message: 'Only resellers can access this' });
@@ -346,6 +380,81 @@ router.put('/my-branding', authenticate, async (req, res) => {
   } catch (err) {
     console.error('MY BRANDING UPDATE ERROR:', err.message);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// IMPERSONATE reseller (Admin only)
+router.post('/:id/impersonate', authenticate, async (req, res) => {
+  const resellerId = req.params.id;
+
+  // Security: Only superadmin/admin can impersonate
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+  }
+
+  try {
+    // 1. Get reseller email and details
+    const [resellers] = await query('SELECT email, name FROM resellers WHERE id = ?', [resellerId]);
+    if (resellers.length === 0) {
+      return res.status(404).json({ success: false, message: 'Reseller not found' });
+    }
+
+    const resellerEmail = resellers[0].email;
+
+    // 2. Get the associated user from the users table
+    const [users] = await query('SELECT * FROM users WHERE email = ? AND role = "reseller"', [resellerEmail]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'Associated reseller user account not found' });
+    }
+
+    const user = users[0];
+
+    // 3. Prepare payload (Sync with auth system)
+    const payload = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: 'reseller',
+      actual_reseller_id: resellerId,
+      impersonatedBy: req.user.role,
+      company: user.company || resellers[0].name,
+      channels_enabled: user.channels_enabled ? (typeof user.channels_enabled === 'string' ? JSON.parse(user.channels_enabled) : user.channels_enabled) : [],
+      permissions: user.permissions ? (typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions) : [],
+      wallet_balance: user.wallet_balance,
+      credits_available: user.credits_available,
+      rcs_text_price: user.rcs_text_price,
+      rcs_rich_card_price: user.rcs_rich_card_price,
+      rcs_carousel_price: user.rcs_carousel_price,
+      wa_marketing_price: user.wa_marketing_price,
+      wa_utility_price: user.wa_utility_price,
+      wa_authentication_price: user.wa_authentication_price,
+      iat: Math.floor(Date.now() / 1000)
+    };
+
+    // Compress permissions if that helper exists or manually
+    if (payload.permissions && Array.isArray(payload.permissions)) {
+       // Filter features where admin is true and map to strings if that's what frontend expects
+       // Or just keep as objects if that's what they expect. 
+       // Auth.js uses compressPermissions which converts objects to strings.
+       payload.permissions = payload.permissions.filter(p => p.admin).map(p => p.feature);
+    }
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
+    const impersonateToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    console.log(`[IMPERSONATE] Admin ${req.user.email} logged in as Reseller ${resellerEmail}`);
+
+    res.json({
+      success: true,
+      token: impersonateToken,
+      redirectTo: '/dashboard'
+    });
+  } catch (err) {
+    console.error('IMPERSONATE RESELLER ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to impersonate reseller' });
   }
 });
 

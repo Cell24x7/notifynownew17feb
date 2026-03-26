@@ -9,6 +9,8 @@ export interface SystemLog {
     clientName?: string;
     ipAddress?: string;
     severity: 'info' | 'warning' | 'error';
+    deviceInfo?: string;
+    location?: string;
     createdAt: string;
 }
 
@@ -36,6 +38,8 @@ export const logsApi = {
         type?: string;
         severity?: string;
         search?: string;
+        startDate?: string;
+        endDate?: string;
         page?: number;
         limit?: number
     } = {}) => {
@@ -43,6 +47,8 @@ export const logsApi = {
         if (params.type && params.type !== 'all') queryParams.append('type', params.type);
         if (params.severity && params.severity !== 'all') queryParams.append('severity', params.severity);
         if (params.search) queryParams.append('search', params.search);
+        if (params.startDate) queryParams.append('startDate', params.startDate);
+        if (params.endDate) queryParams.append('endDate', params.endDate);
         if (params.page) queryParams.append('page', params.page.toString());
         if (params.limit) queryParams.append('limit', params.limit.toString());
 

@@ -102,7 +102,11 @@ export default function Wallet() {
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 <p className="text-primary-foreground/80 text-sm font-medium">Available Balance</p>
-                <div className="text-4xl font-bold">{"\u20B9"}{(user?.wallet_balance || 0).toLocaleString()}</div>
+                <div className="text-4xl font-bold">
+                  {(user?.role === 'admin' || user?.role === 'superadmin') 
+                    ? 'Unlimited' 
+                    : `₹${(user?.wallet_balance || 0).toLocaleString()}`}
+                </div>
               </div>
               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
                 <WalletIcon className="w-6 h-6 text-white" />

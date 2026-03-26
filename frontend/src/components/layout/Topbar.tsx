@@ -43,7 +43,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                     <div>
                         <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
                         <p className="text-sm font-black text-slate-800 dark:text-zinc-100 leading-tight">
-                            ₹{Number(user?.wallet_balance || 0).toFixed(2)}
+                            {(user?.role === 'admin' || user?.role === 'superadmin') 
+                                ? 'Unlimited' 
+                                : `₹${Number(user?.wallet_balance || 0).toFixed(2)}`}
                         </p>
                     </div>
                     <button className="ml-1 p-1 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700 hidden sm:flex">
