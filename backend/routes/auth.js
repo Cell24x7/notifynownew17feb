@@ -8,8 +8,12 @@ const { sendSMS } = require('../utils/smsService');
 
 const compressPermissions = (perms) => {
   if (!Array.isArray(perms)) return [];
-  if (perms.length > 0 && typeof perms[0] === 'string') return perms;
-  return perms.filter(p => p.admin).map(p => p.feature);
+  // If already objects or strings, let's normalize to objects with admin: true
+  if (perms.length > 0 && typeof perms[0] === 'string') {
+    return perms.map(p => ({ feature: p, admin: true }));
+  }
+  // Filter for admin permissions but keep the object structure
+  return perms.filter(p => p.admin || p.manager || p.agent);
 };
 
 const router = express.Router();

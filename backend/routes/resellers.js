@@ -412,13 +412,15 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
     // 3. Prepare payload (Sync with auth system)
     const rawPermissions = user.permissions ? (typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions) : [];
     
-    // Robust compression: Handle both string arrays and object arrays
-    let compressedPermissions = [];
+    // Maintain object structure: Filter for admin permissions but KEEP as objects
+    let finalPermissions = [];
     if (Array.isArray(rawPermissions)) {
         if (rawPermissions.length > 0 && typeof rawPermissions[0] === 'string') {
-            compressedPermissions = rawPermissions;
+            // Convert legacy strings to objects
+            finalPermissions = rawPermissions.map(p => ({ feature: p, admin: true }));
         } else {
-            compressedPermissions = rawPermissions.filter(p => p.admin).map(p => p.feature);
+            // Keep existing objects that have any role access
+            finalPermissions = rawPermissions.filter(p => p.admin || p.manager || p.agent);
         }
     }
 
@@ -431,7 +433,7 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
       impersonatedBy: req.user.role,
       company: user.company || resellers[0].name,
       channels_enabled: user.channels_enabled ? (typeof user.channels_enabled === 'string' ? JSON.parse(user.channels_enabled) : user.channels_enabled) : [],
-      permissions: compressedPermissions,
+      permissions: finalPermissions,
       wallet_balance: user.wallet_balance,
       credits_available: user.credits_available,
       rcs_text_price: user.rcs_text_price,

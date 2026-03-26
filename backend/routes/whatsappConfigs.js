@@ -13,8 +13,13 @@ const isAdmin = (req, res, next) => {
         return next();
     }
 
-    if (role === 'reseller' && (permissions.includes('WhatsApp Configs - View') || permissions.includes('WhatsApp Configs - Edit'))) {
-        return next();
+    if (role === 'reseller') {
+        const hasViewPerm = permissions.some(p => p.feature === 'WhatsApp Configs - View' && (p.admin === true || p.admin === 1));
+        const hasEditPerm = permissions.some(p => p.feature === 'WhatsApp Configs - Edit' && (p.admin === true || p.admin === 1));
+        
+        if (hasViewPerm || hasEditPerm) {
+            return next();
+        }
     }
 
     return res.status(403).json({ success: false, message: 'Unauthorized. Admin access required.' });

@@ -13,8 +13,13 @@ const requireAdmin = (req, res, next) => {
         return next();
     }
 
-    if (role === 'reseller' && (permissions.includes('SMS Gateways - View') || permissions.includes('SMS Gateways - Edit'))) {
-        return next();
+    if (role === 'reseller') {
+        const hasViewPerm = permissions.some(p => p.feature === 'SMS Gateways - View' && (p.admin === true || p.admin === 1));
+        const hasEditPerm = permissions.some(p => p.feature === 'SMS Gateways - Edit' && (p.admin === true || p.admin === 1));
+        
+        if (hasViewPerm || hasEditPerm) {
+            return next();
+        }
     }
 
     return res.status(403).json({ success: false, message: 'Admin access required' });
