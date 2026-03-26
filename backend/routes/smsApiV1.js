@@ -170,6 +170,15 @@ const handleSendSms = async (req, res) => {
     }
 };
 
+router.get('/debug-templates', authenticateApiKey, async (req, res) => {
+    try {
+        const [templates] = await query('SELECT id, name, body, metadata FROM message_templates WHERE user_id = ?', [req.user.id]);
+        res.json({ success: true, user: req.user.id, templates });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 router.get('/send', authenticateApiKey, handleSendSms);
 router.post('/send', authenticateApiKey, handleSendSms);
 
