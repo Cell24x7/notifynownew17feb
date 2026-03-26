@@ -24,6 +24,63 @@ if (!JWT_SECRET) {
   console.error('JWT_SECRET missing in .env file! Authentication will fail.');
 }
 
+// Robust Default Permissions for Different Roles
+const DEFAULT_CLIENT_PERMISSIONS = [
+  { feature: 'Dashboard - View', admin: true },
+  { feature: 'Template - View', admin: true },
+  { feature: 'Template - Create', admin: true },
+  { feature: 'Template - Edit', admin: true },
+  { feature: 'Template - Delete', admin: true },
+  { feature: 'Campaigns - View', admin: true },
+  { feature: 'Campaigns - Create', admin: true },
+  { feature: 'Campaigns - Edit', admin: true },
+  { feature: 'Campaigns - Delete', admin: true },
+  { feature: 'Campaigns - Report', admin: true },
+  { feature: 'Contacts - View', admin: true },
+  { feature: 'Contacts - Create', admin: true },
+  { feature: 'Contacts - Edit', admin: true },
+  { feature: 'Contacts - Delete', admin: true },
+  { feature: 'Contacts - Export', admin: true },
+  { feature: 'Contacts - Import', admin: true },
+  { feature: 'Chat - View', admin: true },
+  { feature: 'Chat - Reply', admin: true },
+  { feature: 'Chat - Assign', admin: true },
+  { feature: 'Chat - Close', admin: true },
+  { feature: 'API & Webhooks - View', admin: true },
+  { feature: 'API & Webhooks - Manage', admin: true },
+  { feature: 'Automations - View', admin: true },
+  { feature: 'Automations - Create', admin: true },
+  { feature: 'Automations - Edit', admin: true },
+  { feature: 'Automations - Delete', admin: true },
+  { feature: 'Chatflows - View', admin: true },
+  { feature: 'Chatflows - Create', admin: true },
+  { feature: 'Chatflows - Edit', admin: true },
+  { feature: 'Chatflows - Delete', admin: true },
+  { feature: 'DLT Templates - View', admin: true },
+  { feature: 'DLT Templates - Create', admin: true },
+  { feature: 'DLT Templates - Edit', admin: true },
+  { feature: 'DLT Templates - Delete', admin: true },
+  { feature: 'Reports - View', admin: true },
+  { feature: 'Wallet - View', admin: true },
+  { feature: 'Settings - View', admin: true }
+];
+
+const DEFAULT_RESELLER_PERMISSIONS = [
+  { feature: 'Dashboard - View', admin: true },
+  { feature: 'Clients - View', admin: true },
+  { feature: 'Clients - Create', admin: true },
+  { feature: 'Templates - View', admin: true },
+  { feature: 'Templates - Create', admin: true },
+  { feature: 'Plans - View', admin: true },
+  { feature: 'Roles - View', admin: true },
+  { feature: 'Affiliates - View', admin: true },
+  { feature: 'Wallet - View', admin: true },
+  { feature: 'Reports - View', admin: true },
+  { feature: 'Vendors - View', admin: true },
+  { feature: 'Numbers - View', admin: true },
+  { feature: 'System Logs - View', admin: true }
+];
+
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -178,43 +235,33 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
-    // Logic: User-specific permissions override Plan permissions
+    // 1. Priority: User-specific overrides
     let finalPermissions = [];
     if (user.permissions) {
-      // If user has specific overrides
       try {
-        finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
-      } catch (e) {
-        console.error('Error parsing permissions:', e);
-        finalPermissions = [];
-      }
-    } else if (user.plan_permissions) {
-      // Fallback to plan permissions
-      try {
-        finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
-      } catch (e) {
-        console.error('Error parsing plan permissions:', e);
-        finalPermissions = [];
-      }
+        const parsed = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+        if (Array.isArray(parsed) && parsed.length > 0) finalPermissions = parsed;
+      } catch (e) { console.error('Error parsing permissions:', e); }
     }
 
-    // Default Reseller Permissions if none exist (Fix for blank sidebar)
-    if (user.role === 'reseller' && (!finalPermissions || finalPermissions.length === 0)) {
-      finalPermissions = [
-        { feature: 'Dashboard - View', admin: true },
-        { feature: 'Clients - View', admin: true },
-        { feature: 'Clients - Create', admin: true },
-        { feature: 'Templates - View', admin: true },
-        { feature: 'Templates - Create', admin: true },
-        { feature: 'Plans - View', admin: true },
-        { feature: 'Roles - View', admin: true },
-        { feature: 'Affiliates - View', admin: true },
-        { feature: 'Wallet - View', admin: true },
-        { feature: 'Reports - View', admin: true },
-        { feature: 'Vendors - View', admin: true },
-        { feature: 'Numbers - View', admin: true },
-        { feature: 'System Logs - View', admin: true }
-      ];
+    // 2. Fallback: Plan permissions
+    if (finalPermissions.length === 0 && user.plan_permissions) {
+      try {
+        const parsed = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+        if (Array.isArray(parsed) && parsed.length > 0) finalPermissions = parsed;
+      } catch (e) { console.error('Error parsing plan permissions:', e); }
+    }
+
+    // 3. Last Resort: Global Defaults by Role (Prevents blank sidebar)
+    if (finalPermissions.length === 0) {
+      if (user.role === 'reseller') {
+        finalPermissions = DEFAULT_RESELLER_PERMISSIONS;
+      } else if (user.role === 'client' || user.role === 'user') {
+        finalPermissions = DEFAULT_CLIENT_PERMISSIONS;
+      } else if (user.role === 'admin' || user.role === 'superadmin') {
+          // Admins get everything anyway, but we can set a robust list
+          finalPermissions = DEFAULT_CLIENT_PERMISSIONS.concat(DEFAULT_RESELLER_PERMISSIONS);
+      }
     }
 
     const token = jwt.sign(
@@ -327,59 +374,12 @@ router.post('/google', async (req, res) => {
     if (rows.length > 0) {
       user = rows[0];
     } else {
-      const defaultPermissions = [
-        { feature: 'Dashboard - View', admin: true },
-        { feature: 'Template - View', admin: true },
-        { feature: 'Template - Create', admin: true },
-        { feature: 'Template - Edit', admin: true },
-        { feature: 'Template - Delete', admin: true },
-        { feature: 'Campaigns - View', admin: true },
-        { feature: 'Campaigns - Create', admin: true },
-        { feature: 'Campaigns - Edit', admin: true },
-        { feature: 'Campaigns - Delete', admin: true },
-        { feature: 'Campaigns - Report', admin: true },
-        { feature: 'Contacts - View', admin: true },
-        { feature: 'Contacts - Create', admin: true },
-        { feature: 'Contacts - Edit', admin: true },
-        { feature: 'Contacts - Delete', admin: true },
-        { feature: 'Contacts - Export', admin: true },
-        { feature: 'Contacts - Import', admin: true },
-        { feature: 'Chat - View', admin: true },
-        { feature: 'Chat - Reply', admin: true },
-        { feature: 'Chat - Assign', admin: true },
-        { feature: 'Chat - Close', admin: true },
-        { feature: 'API & Webhooks - View', admin: true },
-        { feature: 'API & Webhooks - Manage', admin: true },
-        { feature: 'Automations - View', admin: true },
-        { feature: 'Automations - Create', admin: true },
-        { feature: 'Automations - Edit', admin: true },
-        { feature: 'Automations - Delete', admin: true },
-        { feature: 'Chatflows - View', admin: true },
-        { feature: 'Chatflows - Create', admin: true },
-        { feature: 'Chatflows - Edit', admin: true },
-        { feature: 'Chatflows - Delete', admin: true },
-        { feature: 'Available Plans - View', admin: true },
-        { feature: 'Integrations - View', admin: true },
-        { feature: 'Integrations - Manage', admin: true },
-        { feature: 'User Plans - View', admin: true },
-        { feature: 'DLT Templates - View', admin: true },
-        { feature: 'DLT Templates - Create', admin: true },
-        { feature: 'DLT Templates - Edit', admin: true },
-        { feature: 'DLT Templates - Delete', admin: true },
-        { feature: 'Marketplace - View', admin: true },
-        { feature: 'Reports - View', admin: true },
-        { feature: 'Reports - Export', admin: true },
-        { feature: 'Wallet - View', admin: true },
-        { feature: 'Wallet - Manage', admin: true },
-        { feature: 'Settings - View', admin: true },
-        { feature: 'Settings - Edit', admin: true }
-      ];
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
       const [insertResult] = await query(`
         INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password, is_social_signup, is_read)
         VALUES (?, ?, 'user', 1, 'pending', 'google', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD', 1, 0)
-      `, [payload.email, payload.name || 'Google User', JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
+      `, [payload.email, payload.name || 'Google User', JSON.stringify(DEFAULT_CLIENT_PERMISSIONS), JSON.stringify(defaultChannels)]);
       
       const insertId = insertResult.insertId;
       
@@ -477,53 +477,6 @@ router.post('/linkedin', async (req, res) => {
     if (rows.length > 0) {
       user = rows[0];
     } else {
-      const defaultPermissions = [
-        { feature: 'Dashboard - View', admin: true },
-        { feature: 'Template - View', admin: true },
-        { feature: 'Template - Create', admin: true },
-        { feature: 'Template - Edit', admin: true },
-        { feature: 'Template - Delete', admin: true },
-        { feature: 'Campaigns - View', admin: true },
-        { feature: 'Campaigns - Create', admin: true },
-        { feature: 'Campaigns - Edit', admin: true },
-        { feature: 'Campaigns - Delete', admin: true },
-        { feature: 'Campaigns - Report', admin: true },
-        { feature: 'Contacts - View', admin: true },
-        { feature: 'Contacts - Create', admin: true },
-        { feature: 'Contacts - Edit', admin: true },
-        { feature: 'Contacts - Delete', admin: true },
-        { feature: 'Contacts - Export', admin: true },
-        { feature: 'Contacts - Import', admin: true },
-        { feature: 'Chat - View', admin: true },
-        { feature: 'Chat - Reply', admin: true },
-        { feature: 'Chat - Assign', admin: true },
-        { feature: 'Chat - Close', admin: true },
-        { feature: 'API & Webhooks - View', admin: true },
-        { feature: 'API & Webhooks - Manage', admin: true },
-        { feature: 'Automations - View', admin: true },
-        { feature: 'Automations - Create', admin: true },
-        { feature: 'Automations - Edit', admin: true },
-        { feature: 'Automations - Delete', admin: true },
-        { feature: 'Chatflows - View', admin: true },
-        { feature: 'Chatflows - Create', admin: true },
-        { feature: 'Chatflows - Edit', admin: true },
-        { feature: 'Chatflows - Delete', admin: true },
-        { feature: 'Available Plans - View', admin: true },
-        { feature: 'Integrations - View', admin: true },
-        { feature: 'Integrations - Manage', admin: true },
-        { feature: 'User Plans - View', admin: true },
-        { feature: 'DLT Templates - View', admin: true },
-        { feature: 'DLT Templates - Create', admin: true },
-        { feature: 'DLT Templates - Edit', admin: true },
-        { feature: 'DLT Templates - Delete', admin: true },
-        { feature: 'Marketplace - View', admin: true },
-        { feature: 'Reports - View', admin: true },
-        { feature: 'Reports - Export', admin: true },
-        { feature: 'Wallet - View', admin: true },
-        { feature: 'Wallet - Manage', admin: true },
-        { feature: 'Settings - View', admin: true },
-        { feature: 'Settings - Edit', admin: true }
-      ];
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
       const fullName = `${payload.given_name || ''} ${payload.family_name || ''}`.trim() || 'LinkedIn User';
@@ -531,7 +484,7 @@ router.post('/linkedin', async (req, res) => {
       const [insertResult] = await query(`
         INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password, is_social_signup, is_read)
         VALUES (?, ?, 'user', 1, 'pending', 'linkedin', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD', 1, 0)
-      `, [payload.email, fullName, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
+      `, [payload.email, fullName, JSON.stringify(DEFAULT_CLIENT_PERMISSIONS), JSON.stringify(defaultChannels)]);
       
       const insertId = insertResult.insertId;
       
@@ -611,59 +564,12 @@ router.post('/facebook', async (req, res) => {
     if (rows.length > 0) {
       user = rows[0];
     } else {
-      const defaultPermissions = [
-        { feature: 'Dashboard - View', admin: true },
-        { feature: 'Template - View', admin: true },
-        { feature: 'Template - Create', admin: true },
-        { feature: 'Template - Edit', admin: true },
-        { feature: 'Template - Delete', admin: true },
-        { feature: 'Campaigns - View', admin: true },
-        { feature: 'Campaigns - Create', admin: true },
-        { feature: 'Campaigns - Edit', admin: true },
-        { feature: 'Campaigns - Delete', admin: true },
-        { feature: 'Campaigns - Report', admin: true },
-        { feature: 'Contacts - View', admin: true },
-        { feature: 'Contacts - Create', admin: true },
-        { feature: 'Contacts - Edit', admin: true },
-        { feature: 'Contacts - Delete', admin: true },
-        { feature: 'Contacts - Export', admin: true },
-        { feature: 'Contacts - Import', admin: true },
-        { feature: 'Chat - View', admin: true },
-        { feature: 'Chat - Reply', admin: true },
-        { feature: 'Chat - Assign', admin: true },
-        { feature: 'Chat - Close', admin: true },
-        { feature: 'API & Webhooks - View', admin: true },
-        { feature: 'API & Webhooks - Manage', admin: true },
-        { feature: 'Automations - View', admin: true },
-        { feature: 'Automations - Create', admin: true },
-        { feature: 'Automations - Edit', admin: true },
-        { feature: 'Automations - Delete', admin: true },
-        { feature: 'Chatflows - View', admin: true },
-        { feature: 'Chatflows - Create', admin: true },
-        { feature: 'Chatflows - Edit', admin: true },
-        { feature: 'Chatflows - Delete', admin: true },
-        { feature: 'Available Plans - View', admin: true },
-        { feature: 'Integrations - View', admin: true },
-        { feature: 'Integrations - Manage', admin: true },
-        { feature: 'User Plans - View', admin: true },
-        { feature: 'DLT Templates - View', admin: true },
-        { feature: 'DLT Templates - Create', admin: true },
-        { feature: 'DLT Templates - Edit', admin: true },
-        { feature: 'DLT Templates - Delete', admin: true },
-        { feature: 'Marketplace - View', admin: true },
-        { feature: 'Reports - View', admin: true },
-        { feature: 'Reports - Export', admin: true },
-        { feature: 'Wallet - View', admin: true },
-        { feature: 'Wallet - Manage', admin: true },
-        { feature: 'Settings - View', admin: true },
-        { feature: 'Settings - Edit', admin: true }
-      ];
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
       const [insertResult] = await query(`
         INSERT INTO users (email, name, role, is_verified, status, provider, permissions, channels_enabled, password, is_social_signup, is_read)
         VALUES (?, ?, 'user', 1, 'pending', 'facebook', ?, ?, 'SOCIAL_LOGIN_NO_PASSWORD', 1, 0)
-      `, [payload.email, payload.name || 'Facebook User', JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels)]);
+      `, [payload.email, payload.name || 'Facebook User', JSON.stringify(DEFAULT_CLIENT_PERMISSIONS), JSON.stringify(defaultChannels)]);
       
       const insertId = insertResult.insertId;
       
@@ -757,61 +663,11 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const hash = await bcrypt.hash(password, 10);
 
-    const defaultPermissions = [
-      { feature: 'Dashboard - View', admin: true },
-      { feature: 'Template - View', admin: true },
-      { feature: 'Template - Create', admin: true },
-      { feature: 'Template - Edit', admin: true },
-      { feature: 'Template - Delete', admin: true },
-      { feature: 'Campaigns - View', admin: true },
-      { feature: 'Campaigns - Create', admin: true },
-      { feature: 'Campaigns - Edit', admin: true },
-      { feature: 'Campaigns - Delete', admin: true },
-      { feature: 'Campaigns - Report', admin: true },
-      { feature: 'Contacts - View', admin: true },
-      { feature: 'Contacts - Create', admin: true },
-      { feature: 'Contacts - Edit', admin: true },
-      { feature: 'Contacts - Delete', admin: true },
-      { feature: 'Contacts - Export', admin: true },
-      { feature: 'Contacts - Import', admin: true },
-      { feature: 'Chat - View', admin: true },
-      { feature: 'Chat - Reply', admin: true },
-      { feature: 'Chat - Assign', admin: true },
-      { feature: 'Chat - Close', admin: true },
-      { feature: 'API & Webhooks - View', admin: true },
-      { feature: 'API & Webhooks - Manage', admin: true },
-      { feature: 'Automations - View', admin: true },
-      { feature: 'Automations - Create', admin: true },
-      { feature: 'Automations - Edit', admin: true },
-      { feature: 'Automations - Delete', admin: true },
-      { feature: 'Chatflows - View', admin: true },
-      { feature: 'Chatflows - Create', admin: true },
-      { feature: 'Chatflows - Edit', admin: true },
-      { feature: 'Chatflows - Delete', admin: true },
-      { feature: 'Available Plans - View', admin: true },
-      { feature: 'Integrations - View', admin: true },
-      { feature: 'Integrations - Manage', admin: true },
-      { feature: 'User Plans - View', admin: true },
-      { feature: 'DLT Templates - View', admin: true },
-      { feature: 'DLT Templates - Create', admin: true },
-      { feature: 'DLT Templates - Edit', admin: true },
-      { feature: 'DLT Templates - Delete', admin: true },
-      { feature: 'Marketplace - View', admin: true },
-      { feature: 'Reports - View', admin: true },
-      { feature: 'Reports - Export', admin: true },
-      { feature: 'Wallet - View', admin: true },
-      { feature: 'Wallet - Manage', admin: true },
-      { feature: 'Settings - View', admin: true },
-      { feature: 'Settings - Edit', admin: true }
-    ];
-
     const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
-
-
 
     // Dynamic Update Logic
     const updates = ['password = ?', 'name = ?', 'company = ?', 'is_verified = 1', 'otp = NULL', 'permissions = ?', 'channels_enabled = ?', 'status = ?', 'is_read = ?'];
-    const params = [hash, name || 'User', company || null, JSON.stringify(defaultPermissions), JSON.stringify(defaultChannels), 'pending', 0];
+    const params = [hash, name || 'User', company || null, JSON.stringify(DEFAULT_CLIENT_PERMISSIONS), JSON.stringify(defaultChannels), 'pending', 0];
 
     // Handle Secondary Identifier
     if (identifier.includes('@')) {
