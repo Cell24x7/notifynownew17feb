@@ -30,24 +30,23 @@ const morgan = require('morgan');
 const app = express();
 
 /* ==================================
-   CORS CONFIG (SMART + SAFE)
+   GLOBAL LOGGING & CORS
 ================================== */
-app.use(cors({
+app.use((req, res, next) => {
+    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+    next();
+});
+
+const corsOptions = {
   origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: '*', // Relax for troubleshooting
+  exposedHeaders: '*'
+};
 
-app.options('*', cors());
-
-/* ==================================
-   MIDDLEWARE
-================================== */
-app.use((req, res, next) => {
-    console.log(`[REQ] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
-    next();
-});
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
