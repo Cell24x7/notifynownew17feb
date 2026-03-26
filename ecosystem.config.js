@@ -42,8 +42,8 @@ module.exports = {
   apps: [
     {
       name: appName,
-      script: './backend/index.js',
-      // Pass the entire env file to PM2
+      script: path.join(currentPath, 'backend', 'index.js'),
+      cwd: currentPath,
       env_production: {
         NODE_ENV: 'production',
         ...prodEnv
@@ -56,9 +56,9 @@ module.exports = {
       exec_mode: 'cluster',
       autorestart: true,
       watch: false,
-      max_memory_restart: '800M',
-      error_file: './logs/pm2-error.log',
-      out_file: './logs/pm2-out.log',
+      max_memory_restart: '1G',
+      error_file: path.join(currentPath, 'logs', `pm2-${appName}-error.log`),
+      out_file: path.join(currentPath, 'logs', `pm2-${appName}-out.log`),
       log_date_format: 'YYYY-MM-DD HH:mm:ss'
     }
   ]

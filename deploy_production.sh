@@ -125,12 +125,13 @@ NODE_ENV=production node optimize_db.js || true
 # ── Step 7: Restart Clean ─────────────────────────────
 log "♻️  [7/7] Starting clean PM2 instance..."
 cd "$PROJECT_DIR"
-# Force kill anything on port 5050
+# Force kill anything on port 5050 (Production Port)
 fuser -k 5050/tcp || true
 # Delete ONLY this specific production instance
 pm2 delete notifynow-production 2>/dev/null || true
+# Standard PM2 start for production
 APP_NAME=notifynow-production pm2 start ecosystem.config.js --env production
-pm2 save --force
+# Success! 
 ok "Instance 'notifynow-production' is active on Production Port (5050)"
 
 echo "✨ PRODUCTION DEPLOYMENT COMPLETE!"

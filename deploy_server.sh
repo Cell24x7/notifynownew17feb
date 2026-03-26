@@ -129,12 +129,13 @@ NODE_ENV=production node optimize_db.js || true
 # ── Step 7: Restart Clean ─────────────────────────────
 log "♻️  [7/7] Starting clean PM2 instance..."
 cd "$PROJECT_DIR"
-# Force kill anything on port 5000
+# Force kill anything on port 5000 (Developer Port)
 fuser -k 5000/tcp || true
-# Delete ONLY this specific developer instance
+# Delete ONLY this specific developer instance to avoid touching production
 pm2 delete notifynow-developer 2>/dev/null || true
+# Standard PM2 start for developer
 APP_NAME=notifynow-developer pm2 start ecosystem.config.js --env production
-pm2 save --force
+# Inform user, but skip "pm2 save" to avoid clearing other processes from dump
 ok "Instance 'notifynow-developer' is active on Developer Port (5000)"
 
 echo "✨ DEVELOPER DEPLOYMENT COMPLETE!"
