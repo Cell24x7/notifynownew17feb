@@ -2,6 +2,20 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-26]
+- Fix: Reseller Impersonation Permissions, Config Access, and Enhanced Logging (31448a0)
+- Enhance: Absolute path isolation for PM2 to prevent Developer deployments from stopping Production (fdf3831)
+- Fix: Final verbose auto-detection with explicit dlt_templates fallback and extensive logging (ce72152)
+- Fix: set executable permissions for all .sh scripts (2bf4e04)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (12426b9)
+- Fix: Final robust template detection with punctuation-insensitive matching and DLT table cross-reference (4427596)
+- System Logs Optimization: Date filtering, CSV Export, Device & Location Tracking, and Security overhaul (2dc34ee)
+- Fix: Add debug-templates endpoint for troubleshooting auto-detection (eafe689)
+- Fix: expand template auto-detection for all variable formats including {dynamic} (6f78d22)
+- Fix: add template auto-detection for SMS API and fix broken heredoc in deploy script (e997d40)
+
+---
+
 ## [2026-03-25]
 - Fix Chat List: Removed MySQL ANY_VALUE function for better compatibility with older server versions (6b69056)
 - Fix Chat Visibility: Updated optimized query to correctly identify contacts from both sender and recipient columns while maintaining sub-millisecond performance (84e2773)

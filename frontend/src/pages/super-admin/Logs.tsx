@@ -195,9 +195,7 @@ export default function SuperAdminLogs() {
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="lg:col-span-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <div className="flex gap-2"> {/* Changed structure to accommodate button */}
+              <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -214,7 +212,7 @@ export default function SuperAdminLogs() {
                     disabled={loading}
                     title="Refresh Logs"
                 >
-                    <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </div>
