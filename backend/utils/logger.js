@@ -10,18 +10,19 @@ const { query } = require('../config/db');
  * @param {string|null} clientName - Client/Company name (optional)
  * @param {string|null} ipAddress - IP Address (optional)
  * @param {string} severity - 'info', 'warning', 'error'
+ * @param {string|null} deviceInfo - Device/UA info (optional)
+ * @param {string|null} location - Geo location (optional)
  */
-const logSystem = async (type, action, details, userId = null, userName = null, clientName = null, ipAddress = null, severity = 'info') => {
+const logSystem = async (type, action, details, userId = null, userName = null, clientName = null, ipAddress = null, severity = 'info', deviceInfo = null, location = null) => {
     try {
         const queryStr = `
       INSERT INTO system_logs 
-      (type, action, details, user_id, user_name, client_name, ip_address, severity) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (type, action, details, user_id, user_name, client_name, ip_address, severity, device_info, location) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-        await query(queryStr, [type, action, details, userId, userName, clientName, ipAddress, severity]);
+        await query(queryStr, [type, action, details, userId, userName, clientName, ipAddress, severity, deviceInfo, location]);
     } catch (err) {
         console.error('❌ Failed to write system log:', err.message);
-        // Don't throw, just log to console so app flow isn't interrupted
     }
 };
 

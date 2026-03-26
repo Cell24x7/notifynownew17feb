@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/db');
 const { logSystem } = require('../utils/logger');
+const { getDeviceFriendlyName, formatIP, getLocation } = require('../utils/deviceDetector');
 const { sendSMS } = require('../utils/smsService');
 
 const compressPermissions = (perms) => {
@@ -265,21 +266,31 @@ router.post('/login', async (req, res) => {
     });
 
     // Log Successful Login
+    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
+    const ip = formatIP(req.ip);
+    const location = await getLocation(req.ip);
+
     await logSystem(
       'login',
       'User Login',
-      `User ${user.email} (Phone: ${user.contact_phone}) logged in successfully`,
+      `User ${user.role} ${user.email} logged in successfully`,
       user.id,
       user.name,
       user.company,
-      req.ip,
-      'info'
+      ip,
+      'info',
+      deviceInfo,
+      location
     );
 
   } catch (err) {
     console.error(err);
+    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
+    const ip = formatIP(req.ip);
+    const location = await getLocation(req.ip);
+    
     // Log Login Error
-    await logSystem('error', 'Login Failed', `Error: ${err.message}`, null, null, null, req.ip, 'error');
+    await logSystem('error', 'Login Failed', `Error: ${err.message}`, null, null, null, ip, 'error', deviceInfo, location);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

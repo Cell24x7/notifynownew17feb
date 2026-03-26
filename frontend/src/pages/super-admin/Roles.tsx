@@ -11,14 +11,23 @@ import { useToast } from '@/hooks/use-toast';
 import { Plan } from '@/types/plan';
 import { Permission, PlanPermissions, USER_PERMISSIONS, RESELLER_PERMISSIONS } from '@/types/permissions';
 import { API_BASE_URL } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SuperAdminRoles() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   
   // Role Selection State
   const [selectedRoleType, setSelectedRoleType] = useState<'user' | 'reseller' | null>(null);
+
+  // Set default role type for resellers
+  useEffect(() => {
+    if (user?.role === 'reseller' && !selectedRoleType) {
+      setSelectedRoleType('user');
+    }
+  }, [user, selectedRoleType]);
   const [entities, setEntities] = useState<any[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
 
@@ -74,9 +83,11 @@ export default function SuperAdminRoles() {
            setEntities(filtered);
         } else {
            const resellers = data.resellers || [];
+           // Prevent reseller from seeing self 
+           const baseResellers = resellers.filter((r: any) => r.email !== user?.email);
            const filtered = selectedPlanId 
-             ? resellers.filter((r: any) => String(r.plan_id) === String(selectedPlanId)) 
-             : resellers;
+             ? baseResellers.filter((r: any) => String(r.plan_id) === String(selectedPlanId)) 
+             : baseResellers;
            setEntities(filtered);
         }
       } catch (error) {
@@ -126,6 +137,11 @@ export default function SuperAdminRoles() {
 
 
   const handleTogglePermission = (feature: string, role: 'admin' | 'manager' | 'agent') => {
+    // SECURITY: If reseller is managing roles, prevent editing self
+    if (user?.role === 'reseller' && selectedEntityId === user?.id) {
+       toast({ title: 'Security', description: 'You cannot edit your own permissions', variant: 'destructive' });
+       return;
+    }
     setPermissions(prev => prev.map(p => 
       p.feature === feature ? { ...p, [role]: !p[role] } : p
     ));
@@ -267,13 +283,17 @@ export default function SuperAdminRoles() {
              <CardTitle className="text-sm font-medium">2. Select Role Type</CardTitle>
            </CardHeader>
            <CardContent>
-              <Select value={selectedRoleType || ''} onValueChange={(v: any) => { setSelectedRoleType(v); setSelectedEntityId(''); }}>
+              <Select 
+                value={selectedRoleType || ''} 
+                onValueChange={(v: any) => { setSelectedRoleType(v); setSelectedEntityId(''); }}
+                disabled={user?.role === 'reseller'}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="User or Reseller" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="reseller">Reseller</SelectItem>
+                  {user?.role !== 'reseller' && <SelectItem value="reseller">Reseller</SelectItem>}
                 </SelectContent>
               </Select>
            </CardContent>
@@ -471,7 +491,7 @@ export default function SuperAdminRoles() {
                               <Switch 
                                 checked={allAdmin}
                                 onCheckedChange={(c) => handleMasterToggle('admin', c)}
-                                className="scale-75 data-[state=checked]:bg-primary"
+                                className="scale-75 data-[state=checked]:bg-blue-600 border border-muted-foreground/20"
                               />
                             </div>
                           </TableHead>
@@ -491,7 +511,7 @@ export default function SuperAdminRoles() {
                               <Switch 
                                 checked={allAgent}
                                 onCheckedChange={(c) => handleMasterToggle('agent', c)}
-                                className="scale-75"
+                                className="scale-75 data-[state=checked]:bg-slate-600 border border-muted-foreground/20"
                               />
                             </div>
                           </TableHead>
@@ -513,7 +533,7 @@ export default function SuperAdminRoles() {
                               <Switch 
                                 checked={perm.admin} 
                                 onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
-                                className="scale-90 data-[state=checked]:bg-primary"
+                                className="scale-90 data-[state=checked]:bg-blue-600 border border-muted-foreground/20 shadow-sm"
                               />
                             </div>
                           </TableCell>
@@ -524,7 +544,7 @@ export default function SuperAdminRoles() {
                                 <Switch 
                                   checked={perm.admin} 
                                   onCheckedChange={() => handleTogglePermission(perm.feature, 'admin')}
-                                  className="scale-90 data-[state=checked]:bg-primary"
+                                  className="scale-90 data-[state=checked]:bg-blue-600 border border-muted-foreground/20 shadow-sm"
                                 />
                               </div>
                             </TableCell>
@@ -533,7 +553,7 @@ export default function SuperAdminRoles() {
                                 <Switch 
                                   checked={perm.manager} 
                                   onCheckedChange={() => handleTogglePermission(perm.feature, 'manager')}
-                                  className="scale-90 data-[state=checked]:bg-secondary"
+                                  className="scale-90 data-[state=checked]:bg-indigo-600 border border-muted-foreground/20 shadow-sm"
                                 />
                               </div>
                             </TableCell>
@@ -542,7 +562,7 @@ export default function SuperAdminRoles() {
                                 <Switch 
                                   checked={perm.agent} 
                                   onCheckedChange={() => handleTogglePermission(perm.feature, 'agent')}
-                                  className="scale-90"
+                                  className="scale-90 data-[state=checked]:bg-slate-600 border border-muted-foreground/20 shadow-sm"
                                 />
                               </div>
                             </TableCell>

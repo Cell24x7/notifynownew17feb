@@ -48,13 +48,13 @@ const menuItems = [
   { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
   { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
   { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
-  { icon: FileText, label: 'Usage Ledger', path: '/super-admin/ledger', permission: 'Reports - View' },
-  { icon: Rocket, label: 'System Engine', path: '/super-admin/engine', permission: 'Dashboard - View' },
+  { icon: FileText, label: 'Usage Ledger', path: '/super-admin/ledger', permission: 'Usage Ledger - View' },
+  { icon: Rocket, label: 'System Engine', path: '/super-admin/engine', permission: 'System Engine - View' },
   { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
-  { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'Vendors - View' },
-  { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'Vendors - View' },
-  { icon: Send, label: 'SMS Gateways', path: '/super-admin/sms-gateways', permission: 'Vendors - View' },
+  { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'RCS Configs - View' },
+  { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'WhatsApp Configs - View' },
+  { icon: Send, label: 'SMS Gateways', path: '/super-admin/sms-gateways', permission: 'SMS Gateways - View' },
   { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
 ];
@@ -96,7 +96,9 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
             <img src={logo} alt="NotifyNow" className="w-8 h-8 rounded-lg" />
             <div className="flex flex-col">
               <span className="font-bold text-sm">NotifyNow</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Super Admin</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {user?.role === 'admin' || user?.role === 'superadmin' ? 'Super Admin' : 'Business Owner'}
+              </span>
             </div>
           </div>
         )}
@@ -186,7 +188,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
         {!collapsed && (
           <div className="mb-3 px-2">
             <div className="text-xs text-muted-foreground">Logged in as</div>
-            <div className="text-sm font-medium truncate">Platform Owner</div>
+            <div className="text-sm font-medium truncate">{user?.name || 'Owner'}</div>
           </div>
         )}
 

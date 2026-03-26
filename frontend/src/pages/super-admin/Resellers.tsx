@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Pencil, Users, Percent, MoreVertical, Loader2, CreditCard } from 'lucide-react';
+import { Search, Plus, Eye, Pencil, Users, Percent, MoreVertical, Loader2, CreditCard, LogIn } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
+import { DialogDescription } from '@/components/ui/dialog'; // Added
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -37,6 +38,7 @@ export default function SuperAdminResellers() {
     api_base_url: '',
     commission_percent: 10,
     credits_available: 0,
+    credits_spent: 0,
     plan_id: '',
     status: 'active' as 'active' | 'inactive' | 'pending',
     channels_enabled: [] as string[],
@@ -52,6 +54,13 @@ export default function SuperAdminResellers() {
     support_email: '',
     support_phone: '',
   });
+
+  const cleanNumber = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const cleaned = String(val).replace(/[^0-9.-]+/g, '');
+    return parseFloat(cleaned) || 0;
+  };
 
   // Fetch plans
   const fetchPlans = async () => {
@@ -227,7 +236,19 @@ export default function SuperAdminResellers() {
   };
 
   const handleView = (reseller: any) => {
-    setCurrentReseller(reseller);
+    setCurrentReseller({
+      ...reseller,
+      brand_name: reseller.brand_name || '',
+      logo_url: reseller.logo_url || '',
+      favicon_url: reseller.favicon_url || '',
+      primary_color: reseller.primary_color || '#3b82f6',
+      secondary_color: reseller.secondary_color || '#1d4ed8',
+      support_email: reseller.support_email || '',
+      support_phone: reseller.support_phone || '',
+      api_base_url: reseller.api_base_url || '',
+      domain: reseller.domain || '',
+      password: '',
+    });
     setModalMode('view');
     setIsModalOpen(true);
   };
@@ -252,19 +273,44 @@ export default function SuperAdminResellers() {
     setCurrentReseller({
       ...reseller,
       channels_enabled: channels,
-      password: '', // Fixed: Initialize password to avoid uncontrolled input warning
+      brand_name: reseller.brand_name || '',
+      logo_url: reseller.logo_url || '',
+      favicon_url: reseller.favicon_url || '',
+      primary_color: reseller.primary_color || '#3b82f6',
+      secondary_color: reseller.secondary_color || '#1d4ed8',
+      support_email: reseller.support_email || '',
+      support_phone: reseller.support_phone || '',
+      api_base_url: reseller.api_base_url || '',
+      domain: reseller.domain || '',
+      password: '', 
     });
     setModalMode('edit');
     setIsModalOpen(true);
   };
 
-  const handleProcessPayout = (reseller: any) => {
-    // Abhi simple toast, future mein backend call add kar sakte ho
-    toast({
-      title: 'Payout Processed',
-      description: `{"\u20B9"}${(reseller.payout_pending || 0).toLocaleString()} paid to ${reseller.name}.`,
-    });
-    // Optional: Backend call to reset payout_pending to 0
+  const handleLoginAsReseller = async (resellerId: number | string) => {
+    const token = localStorage.getItem('authToken');
+    try {
+      const response = await axios.post(`${API_URL}/resellers/${resellerId}/impersonate`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { success, token: impToken, redirectTo } = response.data;
+
+      if (success && impToken) {
+        localStorage.setItem('authToken', impToken);
+        toast({
+          title: "Success",
+          description: "Successfully logged in as reseller",
+        });
+        window.location.href = redirectTo || '/dashboard';
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Impersonate Failed",
+        description: err.response?.data?.message || 'Failed to login as reseller.',
+      });
+    }
   };
 
   const resetForm = () => {
@@ -277,6 +323,7 @@ export default function SuperAdminResellers() {
       api_base_url: '',
       commission_percent: 10,
       credits_available: 0,
+      credits_spent: 0,
       plan_id: '',
       status: 'active',
       channels_enabled: [],
@@ -306,9 +353,10 @@ export default function SuperAdminResellers() {
     return [];
   };
 
-  const totalRevenue = resellers.reduce((acc, r) => acc + (r.revenue_generated || 0), 0);
-  const totalClients = resellers.reduce((acc, r) => acc + (r.clients_managed || 0), 0);
-  const totalPending = resellers.reduce((acc, r) => acc + (r.payout_pending || 0), 0);
+  const totalRevenue = resellers.reduce((acc, r) => acc + cleanNumber(r.revenue_generated), 0);
+  const totalClients = resellers.reduce((acc, r) => acc + (parseInt(r.clients_managed) || 0), 0);
+  const totalResellerPool = resellers.reduce((acc, r) => acc + cleanNumber(r.credits_available), 0);
+  const totalPending = resellers.reduce((acc, r) => acc + cleanNumber(r.payout_pending), 0);
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -367,7 +415,7 @@ export default function SuperAdminResellers() {
               </div>
               <div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Revenue Generated</p>
-                <p className="text-lg sm:text-2xl font-bold">{"\u20B9"}{totalRevenue.toLocaleString()}</p>
+                <p className="text-lg sm:text-2xl font-bold">{"\u20B9"}{Number(totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
             </div>
           </CardContent>
@@ -375,12 +423,12 @@ export default function SuperAdminResellers() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                <span className="text-warning">{"\u20B9"}</span>
+              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Pending Payouts</p>
-                <p className="text-lg sm:text-2xl font-bold">{"\u20B9"}{totalPending.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Credit Pool</p>
+                <p className="text-lg sm:text-2xl font-bold">{totalResellerPool.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -407,14 +455,13 @@ export default function SuperAdminResellers() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[140px]">Reseller Name</TableHead>
-              <TableHead className="min-w-[180px]">Email</TableHead>
+              <TableHead className="min-w-[140px]">Reseller</TableHead>
+              <TableHead className="min-w-[180px]">Account</TableHead>
               <TableHead className="min-w-[120px]">Plan</TableHead>
-              <TableHead className="min-w-[150px] text-center">Channels</TableHead>
+              <TableHead className="text-right min-w-[110px]">Pool Available</TableHead>
+              <TableHead className="text-right min-w-[110px]">Credits Spent</TableHead>
               <TableHead className="text-right min-w-[90px]">Clients</TableHead>
-              <TableHead className="text-right min-w-[110px]">Commission %</TableHead>
               <TableHead className="text-right min-w-[110px]">Revenue</TableHead>
-              <TableHead className="text-right min-w-[130px]">Pending Payout</TableHead>
               <TableHead className="min-w-[90px]">Status</TableHead>
               <TableHead className="min-w-[100px]">Joined</TableHead>
               <TableHead className="text-right min-w-[80px]">Actions</TableHead>
@@ -437,45 +484,35 @@ export default function SuperAdminResellers() {
             ) : (
               filteredResellers.map((reseller) => (
                 <TableRow key={reseller.id}>
-                  <TableCell className="font-medium">{reseller.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{reseller.email}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                      <span>{reseller.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{reseller.domain || 'no domain'}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="capitalize font-normal">
+                    <div className="flex flex-col text-xs">
+                      <span className="text-muted-foreground">{reseller.email}</span>
+                      <span className="text-[10px] text-slate-400">{reseller.phone}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize font-normal text-[10px]">
                       {plans.find(p => String(p.id) === String(reseller.plan_id))?.name || reseller.plan_id || 'N/A'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
-                      {(() => {
-                        // Source channels directly from the current plan definition to ensure accuracy
-                        const resellerPlan = plans.find(p => String(p.id) === String(reseller.plan_id));
-                        const channelsToShow = resellerPlan?.channelsAllowed || parseChannels(reseller.channels_enabled);
-
-                        return channelsToShow.slice(0, 6).map((ch: any) => (
-                          <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
-                            <div className="bg-background rounded-full p-0.5 shadow-sm border">
-                              <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
+                  <TableCell className="text-right font-bold text-emerald-600">
+                    {Number(reseller.credits_available || 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-slate-500">
+                    {Number(reseller.credits_spent || 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">{reseller.clients_managed?.toLocaleString() || 0}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Percent className="w-3 h-3" />
-                      {reseller.commission_percent || 0}
-                    </div>
-                  </TableCell>
                   <TableCell className="text-right font-medium text-primary">
-                    {"\u20B9"}{(reseller.revenue_generated || 0).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right font-medium text-warning">
-                    {"\u20B9"}{(reseller.payout_pending || 0).toLocaleString()}
+                    {"\u20B9"}{cleanNumber(reseller.revenue_generated).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn('text-xs', getStatusColor(reseller.status))}>
+                    <Badge className={cn('text-[10px] px-2 py-0', getStatusColor(reseller.status))}>
                       {reseller.status}
                     </Badge>
                   </TableCell>
@@ -498,9 +535,9 @@ export default function SuperAdminResellers() {
                           <Pencil className="w-4 h-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleProcessPayout(reseller)}>
-                          <span className="w-4 h-4 mr-2">{"\u20B9"}</span>
-                          Process Payout
+                        <DropdownMenuItem onClick={() => handleLoginAsReseller(reseller.id)} className="text-blue-600 font-medium">
+                          <LogIn className="w-4 h-4 mr-2" />
+                          Login as Reseller
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -520,6 +557,9 @@ export default function SuperAdminResellers() {
               <Users className="w-5 h-5" />
               {modalMode === 'add' ? 'Add New Reseller' : modalMode === 'edit' ? 'Edit Reseller' : 'View Reseller'}
             </DialogTitle>
+            <DialogDescription>
+              {modalMode === 'view' ? 'View details for this reseller partner.' : 'Fill in the information below to manage the reseller.'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 sm:space-y-6 py-4">
@@ -578,26 +618,16 @@ export default function SuperAdminResellers() {
 
             <div className="h-px bg-border" />
 
-            {/* Domain & API */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Domain</Label>
-                <Input
-                  placeholder="example.com"
-                  value={currentReseller.domain || ''}
-                  onChange={(e) => setCurrentReseller(prev => ({ ...prev, domain: e.target.value }))}
-                  disabled={modalMode === 'view'}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>API Base URL</Label>
-                <Input
-                  placeholder="https://api.example.com"
-                  value={currentReseller.api_base_url || ''}
-                  onChange={(e) => setCurrentReseller(prev => ({ ...prev, api_base_url: e.target.value }))}
-                  disabled={modalMode === 'view'}
-                />
-              </div>
+            {/* Domain */}
+            <div className="space-y-2">
+              <Label>Reseller Domain (White-label URL)</Label>
+              <Input
+                placeholder="e.g. smartsms.com"
+                value={currentReseller.domain || ''}
+                onChange={(e) => setCurrentReseller(prev => ({ ...prev, domain: e.target.value }))}
+                disabled={modalMode === 'view'}
+              />
+              <p className="text-[10px] text-muted-foreground italic">Custom domain where the reseller's clients will login.</p>
             </div>
 
             {/* White Labeling Settings */}
@@ -700,7 +730,7 @@ export default function SuperAdminResellers() {
             {/* Commission & Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Commission %</Label>
+                <Label>Commission (%)</Label>
                 <Input
                   type="number"
                   min="0"
@@ -711,53 +741,73 @@ export default function SuperAdminResellers() {
                   disabled={modalMode === 'view'}
                 />
               </div>
-              {/* Password */}
-              <div className={`grid grid-cols-1 ${modalMode === 'add' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'} gap-4`}>
-                {(modalMode === 'add' || modalMode === 'edit') && (
-                  <div className="space-y-2">
-                    <Label>
-                      Password {modalMode === 'add' && <span className="text-destructive">*</span>}
-                      {modalMode === 'edit' && <span className="text-xs text-muted-foreground ml-2">(Leave blank to keep current)</span>}
-                    </Label>
-                    <Input
-                      type="password"
-                      placeholder={modalMode === 'add' ? "Enter password" : "Enter new password"}
-                      value={currentReseller.password || ''}
-                      onChange={(e) => setCurrentReseller(prev => ({ ...prev, password: e.target.value }))}
-                    />
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={currentReseller.status}
-                    onValueChange={(v) => setCurrentReseller(prev => ({ ...prev, status: v as any }))}
-                    disabled={modalMode === 'view'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={currentReseller.status}
+                  onValueChange={(v) => setCurrentReseller(prev => ({ ...prev, status: v as any }))}
+                  disabled={modalMode === 'view'}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Credits */}
-            <div className="space-y-2">
-              <Label>Initial Credits</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={currentReseller.credits_available}
-                onChange={e => setCurrentReseller(prev => ({ ...prev, credits_available: parseInt(e.target.value) || 0 }))}
-                disabled={modalMode === 'view'}
-              />
+            {/* Credits Section */}
+            <div className="h-px bg-border" />
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <CreditCard className="w-4 h-4" /> Credit Management
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{modalMode === 'add' ? 'Initial Credits' : 'Current Balance'}</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={currentReseller.credits_available}
+                  onChange={e => setCurrentReseller(prev => ({ ...prev, credits_available: parseInt(e.target.value) || 0 }))}
+                  disabled={modalMode === 'view'}
+                />
+                <p className="text-[10px] text-muted-foreground">Admin can recharge reseller by updating this value.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Credits Spent (Lifetime)</Label>
+                <Input
+                  type="text"
+                  value={Number(currentReseller.credits_spent || 0).toLocaleString()}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-[10px] text-muted-foreground">Read-only: Lifetime usage by clients.</p>
+              </div>
             </div>
+
+            {/* Password Section (Lowered priority) */}
+            {(modalMode === 'add' || modalMode === 'edit') && (
+              <>
+                <div className="h-px bg-border" />
+                <div className="space-y-2">
+                  <Label>
+                    Change Password {modalMode === 'add' && <span className="text-destructive">*</span>}
+                    {modalMode === 'edit' && <span className="text-xs text-muted-foreground ml-2">(Only if you want to reset it)</span>}
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder={modalMode === 'add' ? "Enter password" : "Enter new password"}
+                    value={currentReseller.password || ''}
+                    onChange={(e) => setCurrentReseller(prev => ({ ...prev, password: e.target.value }))}
+                  />
+                </div>
+              </>
+            )}
 
             {/* View Mode Stats */}
             {modalMode === 'view' && (

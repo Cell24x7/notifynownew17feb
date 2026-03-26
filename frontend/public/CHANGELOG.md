@@ -2,7 +2,47 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-25]
+- Fix Chat List: Removed MySQL ANY_VALUE function for better compatibility with older server versions (6b69056)
+- Fix Chat Visibility: Updated optimized query to correctly identify contacts from both sender and recipient columns while maintaining sub-millisecond performance (84e2773)
+- Performance Fix: Throttled socket.io status updates during campaigns to prevent browser freezing and optimized chat conversations list (0a339cb)
+- CRITICAL SYNTAX FIX: Removed duplicated catch/brace block in campaigns.js that caused server crash (4eef541)
+- Stability Fix: Reduced DB pool to 600 and added Redis connection timeout to resolve high CPU and hang issues (ab405f5)
+- Environment Isolation Fix: Added APP_NAME prefix to all Redis keys to prevent conflict between Production and Developer environments (39e2e03)
+- Automation Fix: Correctly sync backend .env during deploy to prevent Access Denied errors in migrations (1a7ce8e)
+- Scalability Fix: Increased DB pool to 1200 and max_connections to 2000 to support 500-concurrency workers (580eb93)
+- Performance Fix: Optimized contact upload for 1 Lakh+ records using sequential batching (dd65ab0)
+- Updated developer deploy script to align with 20m timeout and DB optimization (7f20aa8)
+- Critical Fix: Removed manual updated_at from worker to prevent crash on tables with different schema (61de520)
+- Cleanup: Removed temporary debugging scripts (e222bf2)
+- Updated deploy script to enforce 20m timeout and run DB optimization migrations (9e427b3)
+- Fix API Logging: Added CAMP_API prefix detection and full metadata logging to webhook_logs (5ccb0dd)
+- Performance stabilization: Added DB indexes, chat limits, and set 20min session timeout (bc30b83)
+
+---
+
 ## [2026-03-24]
+- Optimized messaging engine for high-volume 1Cr+ records and fixed chat/webhook visibility for RCS and WhatsApp (dc97bc3)
+- Optimize High-Volume Engine: Batch DB Counter updates and persistent Redis connections (ae3b1b0)
+- feat(engine): FINAL Buffered Batching Strategy for maximum 1Cr+ throughput (Drains non-stop) (db2da50)
+- feat(engine): FINAL Rocket Optimization for 1Cr+ traffic (Concurrency 500, Redis Counters, Batch size 10000) (da0becb)
+- fix(dashboard): activate real-time BullMQ monitoring in System Engine dashboard (b8687bf)
+- feat(engine): unified sending service with auto-config fallback and high-speed concurrency (100) (aa1542d)
+- fix(engine): absolute and final correction for detailed reporting schema and auto-completion logic (994fee6)
+- fix: absolute fix for detailed log columns and campaign auto-completion logic (15f5137)
+- fix: resolve SQL column name mismatch and add auto-completion logic for 1Cr engine reports (b13273f)
+- fix: restore Detailed Report logging in BullMQ v2.5 worker (f151577)
+- fix(frontend): corrected build error in SystemEngine by fixing API import path and pattern (ee809c4)
+- feat: full restoration of 1Cr+ BullMQ engine and production-grade queueing (fixing inadvertent pull-related wipe) (e0ae3e8)
+- feat: re-enable BullMQ 1Cr+ engine (restoring from pull-related bypass) (037f0de)
+- chore: bypass redis for stable startup and sync with latest codes (0628ced)
+- fix: automation keyword matching and structural hotfixes (dce046e)
+- feat: implement high-performance System Engine Monitoring Dashboard for 1Cr+ traffic visibility (e6974a7)
+- fix: isolate BullMQ queues by environment to prevent cross-server job processing and fix report sync issues (6bc6a68)
+- fix: add missing scheduling columns to campaign tables in migration script (004b5a1)
+- Fix automation flow delays, add interactive wait logic, credit deduction and variables support (846fd76)
+- chore: reset instances to 1 for cleaner pm2 status view (b5c7c5f)
+- feat: implement high-volume BullMQ 1Cr+ messaging engine and enable PM2 clustering for developer (d43e528)
 - chore: add explicit app name to production deploy script for safety (d252df4)
 - feat: implement Financial Usage Ledger v2.0 and restore stable Auth UI layout with responsive fixes (ea0102b)
 - Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (be7d9b8)

@@ -16,6 +16,7 @@ import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
 
 const API_URL = `${API_BASE_URL}/api`;
@@ -24,6 +25,7 @@ const allChannels = ['whatsapp', 'rcs', 'sms'] as const;
 
 export default function SuperAdminClients() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth(); // Logged in user info
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -522,8 +524,10 @@ export default function SuperAdminClients() {
           bg="bg-red-500/10"
         />
         <StatsCard
-          title="Available Credits"
-          value="Unlimited"
+          title={currentUser?.role === 'reseller' ? "My Credit Pool" : "Available Credits"}
+          value={(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') 
+            ? "Unlimited" 
+            : (currentUser?.wallet_balance || 0).toLocaleString()}
           icon={CreditCard}
           color="text-blue-600"
           bg="bg-blue-500/10"
@@ -854,14 +858,27 @@ export default function SuperAdminClients() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Initial Credits</Label>
+                  <div className="flex justify-between items-center">
+                    <Label>Initial Credits</Label>
+                    {currentUser?.role === 'reseller' && (
+                       <span className="text-[10px] font-bold text-emerald-600">Pool: {Number(currentUser.wallet_balance).toLocaleString()}</span>
+                    )}
+                  </div>
                   <Input
                     type="number"
                     min="0"
                     value={currentClient.credits_available}
                     onChange={e => setCurrentClient(prev => ({ ...prev, credits_available: parseInt(e.target.value) || 0 }))}
                     disabled={modalMode === 'view'}
+                    className={cn(
+                      currentUser?.role === 'reseller' && 
+                      currentClient.credits_available > (currentUser?.wallet_balance || 0) && 
+                      "border-red-500 focus-visible:ring-red-500"
+                    )}
                   />
+                  {currentUser?.role === 'reseller' && currentClient.credits_available > (currentUser?.wallet_balance || 0) && (
+                    <p className="text-[10px] text-red-500 font-medium">Warning: Exceeds your available pool.</p>
+                  )}
                 </div>
               </div>
             </div>

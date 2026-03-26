@@ -81,6 +81,27 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
   }
 
   try {
+    // --- Reseller Credit Check (Multi-tier Security) ---
+    if (req.user.role === 'reseller' && credits_available > 0) {
+      const [reseller] = await query('SELECT wallet_balance FROM users WHERE id = ?', [req.user.id]);
+      if (!reseller.length || parseFloat(reseller[0].wallet_balance) < parseFloat(credits_available)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Insufficient credits in your pool (Available: ${reseller[0]?.wallet_balance || 0})` 
+        });
+      }
+      
+      // Deduct from Reseller
+      await query('UPDATE users SET wallet_balance = wallet_balance - ?, credits_available = credits_available - ?, credits_used = credits_used + ? WHERE id = ?', 
+        [credits_available, credits_available, credits_available, req.user.id]);
+      
+      // Log Reseller Transaction
+      await query(`
+        INSERT INTO transactions (user_id, type, amount, credits, description, status)
+        VALUES (?, 'debit', ?, ?, ?, 'completed')
+      `, [req.user.id, credits_available, credits_available, `Allocated to client: ${email}`]);
+    }
+
     const [exists] = await query('SELECT id FROM users WHERE email = ?', [email]);
     if (exists.length) return res.status(409).json({ success: false, message: 'Email already exists' });
 
@@ -167,9 +188,34 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
     // If credits_available is being updated, we should log a transaction
     if (credits_available !== undefined) {
       const [oldUser] = await query('SELECT credits_available FROM users WHERE id = ?', [clientId]);
-      const diff = credits_available - (oldUser[0]?.credits_available || 0);
+      const diff = parseFloat(credits_available) - parseFloat(oldUser[0]?.credits_available || 0);
 
       if (diff !== 0) {
+        // --- START Multi-tier Reseller Check ---
+        if (req.user.role === 'reseller') {
+          if (diff > 0) {
+            // Need to deduct from reseller
+            const [reseller] = await query('SELECT wallet_balance FROM users WHERE id = ?', [req.user.id]);
+            if (!reseller.length || parseFloat(reseller[0].wallet_balance) < diff) {
+              return res.status(400).json({ success: false, message: `Insufficient credits in your pool to add ${diff} more.` });
+            }
+            await query('UPDATE users SET wallet_balance = wallet_balance - ?, credits_available = credits_available - ?, credits_used = credits_used + ? WHERE id = ?', 
+              [diff, diff, diff, req.user.id]);
+          } else {
+            // Refund to reseller (diff is negative)
+            const refundAmount = Math.abs(diff);
+            await query('UPDATE users SET wallet_balance = wallet_balance + ?, credits_available = credits_available + ?, credits_used = credits_used - ? WHERE id = ?', 
+              [refundAmount, refundAmount, refundAmount, req.user.id]);
+          }
+
+          // Log Reseller Side Transaction
+          await query(`
+            INSERT INTO transactions (user_id, type, amount, credits, description, status)
+            VALUES (?, ?, ?, ?, ?, 'completed')
+          `, [req.user.id, diff > 0 ? 'debit' : 'credit', Math.abs(diff), Math.abs(diff), `Adjustment for client ID ${clientId}`]);
+        }
+        // --- END Multi-tier Reseller Check ---
+
         await query(`
           INSERT INTO transactions (user_id, type, amount, credits, description, status)
           VALUES (?, ?, ?, ?, 'Admin Adjustment', 'completed')

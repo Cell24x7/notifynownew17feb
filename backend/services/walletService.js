@@ -10,7 +10,7 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
     try {
         // 1. Fetch campaign and user details
         const [campaigns] = await query(
-            `SELECT c.*, u.credits_available, u.wallet_balance, 
+            `SELECT c.*, u.credits_available, u.wallet_balance, u.role, 
                     u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
                     u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price
              FROM ${campaignTable} c 
@@ -24,6 +24,11 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
         }
 
         const campaign = campaigns[0];
+
+        // 2. Admin Check: Unlimited Credits
+        if (campaign.role === 'admin' || campaign.role === 'superadmin') {
+            return { success: true, message: 'Admin: Unlimited credits' };
+        }
 
         // 2. Check if already deducted
         if (campaign.credits_deducted) {
@@ -165,7 +170,7 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
 const deductSingleMessageCredit = async (userId, channel, templateName, templateType = 'standard') => {
     try {
         const [users] = await query(
-            `SELECT id, wallet_balance, 
+            `SELECT id, wallet_balance, role, 
                     rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
                     wa_marketing_price, wa_utility_price, wa_authentication_price
              FROM users WHERE id = ?`, 
@@ -174,6 +179,11 @@ const deductSingleMessageCredit = async (userId, channel, templateName, template
 
         if (users.length === 0) return { success: false, message: 'User not found' };
         const user = users[0];
+
+        // Admin Check: Unlimited Credits
+        if (user.role === 'admin' || user.role === 'superadmin') {
+            return { success: true, message: 'Admin: Unlimited credits', cost: 0 };
+        }
 
         let cost = 1.0;
         const chan = (channel || '').toLowerCase();
