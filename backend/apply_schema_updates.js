@@ -302,6 +302,39 @@ async function updateSchema() {
                     }
                 }
             }
+            // 11. System Logs Table & Column Expansion (Device Info & Location)
+            try {
+                console.log('Ensuring system_logs table exists...');
+                await connection.execute(`
+                    CREATE TABLE IF NOT EXISTS system_logs (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        type VARCHAR(50) NOT NULL,
+                        action VARCHAR(100) NOT NULL,
+                        details TEXT,
+                        user_id INT,
+                        user_name VARCHAR(100),
+                        client_name VARCHAR(100),
+                        ip_address VARCHAR(50),
+                        severity VARCHAR(20) DEFAULT 'info',
+                        device_info TEXT,
+                        location VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+                
+                const [slCols] = await connection.execute('DESCRIBE system_logs');
+                if (!slCols.some(col => col.Field === 'device_info')) {
+                    console.log('Adding device_info to system_logs...');
+                    await connection.execute('ALTER TABLE system_logs ADD COLUMN device_info TEXT AFTER severity');
+                }
+                if (!slCols.some(col => col.Field === 'location')) {
+                    console.log('Adding location to system_logs...');
+                    await connection.execute('ALTER TABLE system_logs ADD COLUMN location VARCHAR(255) AFTER device_info');
+                }
+                console.log('system_logs table ready.');
+            } catch (e) {
+                console.log('Error during system_logs schema updates:', e.message);
+            }
         } catch (e) {
             console.log('Error during extended schema updates:', e.message);
         }

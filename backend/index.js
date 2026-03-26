@@ -44,6 +44,11 @@ app.options('*', cors());
 /* ==================================
    MIDDLEWARE
 ================================== */
+app.use((req, res, next) => {
+    console.log(`[REQ] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+    next();
+});
+
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
