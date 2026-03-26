@@ -410,6 +410,18 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
     const user = users[0];
 
     // 3. Prepare payload (Sync with auth system)
+    const rawPermissions = user.permissions ? (typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions) : [];
+    
+    // Robust compression: Handle both string arrays and object arrays
+    let compressedPermissions = [];
+    if (Array.isArray(rawPermissions)) {
+        if (rawPermissions.length > 0 && typeof rawPermissions[0] === 'string') {
+            compressedPermissions = rawPermissions;
+        } else {
+            compressedPermissions = rawPermissions.filter(p => p.admin).map(p => p.feature);
+        }
+    }
+
     const payload = {
       id: user.id,
       email: user.email,
@@ -419,7 +431,7 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
       impersonatedBy: req.user.role,
       company: user.company || resellers[0].name,
       channels_enabled: user.channels_enabled ? (typeof user.channels_enabled === 'string' ? JSON.parse(user.channels_enabled) : user.channels_enabled) : [],
-      permissions: user.permissions ? (typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions) : [],
+      permissions: compressedPermissions,
       wallet_balance: user.wallet_balance,
       credits_available: user.credits_available,
       rcs_text_price: user.rcs_text_price,
@@ -430,14 +442,6 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
       wa_authentication_price: user.wa_authentication_price,
       iat: Math.floor(Date.now() / 1000)
     };
-
-    // Compress permissions if that helper exists or manually
-    if (payload.permissions && Array.isArray(payload.permissions)) {
-       // Filter features where admin is true and map to strings if that's what frontend expects
-       // Or just keep as objects if that's what they expect. 
-       // Auth.js uses compressPermissions which converts objects to strings.
-       payload.permissions = payload.permissions.filter(p => p.admin).map(p => p.feature);
-    }
 
     if (!process.env.JWT_SECRET) {
       throw new Error('JWT_SECRET is not configured');

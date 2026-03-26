@@ -4,12 +4,20 @@ const { query } = require('../config/db');
 const authenticate = require('../middleware/authMiddleware');
 const axios = require('axios');
 
-// Only admin can manage gateways
+// Middleware to ensure user is admin or authorized reseller
 const requireAdmin = (req, res, next) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-        return res.status(403).json({ success: false, message: 'Admin access required' });
+    const role = req.user.role;
+    const permissions = req.user.permissions || [];
+
+    if (role === 'admin' || role === 'superadmin') {
+        return next();
     }
-    next();
+
+    if (role === 'reseller' && (permissions.includes('SMS Gateways - View') || permissions.includes('SMS Gateways - Edit'))) {
+        return next();
+    }
+
+    return res.status(403).json({ success: false, message: 'Admin access required' });
 };
 
 // ============================================================

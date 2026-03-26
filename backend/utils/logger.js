@@ -20,9 +20,11 @@ const logSystem = async (type, action, details, userId = null, userName = null, 
       (type, action, details, user_id, user_name, client_name, ip_address, severity, device_info, location) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-        await query(queryStr, [type, action, details, userId, userName, clientName, ipAddress, severity, deviceInfo, location]);
+        const result = await query(queryStr, [type, action, details, userId, userName, clientName, ipAddress, severity, deviceInfo, location]);
+        console.log(`✅ System Log Written: [${type}] ${action} (User: ${userName || 'System'})`);
     } catch (err) {
         console.error('❌ Failed to write system log:', err.message);
+        console.error('Log Data:', { type, action, userId, userName });
     }
 };
 

@@ -4,12 +4,20 @@ const authenticate = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Middleware to ensure user is admin
+// Middleware to ensure user is admin or authorized reseller
 const isAdmin = (req, res, next) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-        return res.status(403).json({ success: false, message: 'Unauthorized. Admin access required.' });
+    const role = req.user.role;
+    const permissions = req.user.permissions || [];
+
+    if (role === 'admin' || role === 'superadmin') {
+        return next();
     }
-    next();
+
+    if (role === 'reseller' && (permissions.includes('RCS Configs - View') || permissions.includes('RCS Configs - Edit'))) {
+        return next();
+    }
+
+    return res.status(403).json({ success: false, message: 'Unauthorized. Admin access required.' });
 };
 
 /**

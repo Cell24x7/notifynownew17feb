@@ -406,7 +406,11 @@ router.post('/google', async (req, res) => {
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
     );
 
-    await logSystem('login', 'User Google Login', `User ${user.email} logged in via Google`, user.id, user.name, user.company, req.ip, 'info');
+    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
+    const ip = formatIP(req.ip);
+    const location = await getLocation(req.ip);
+
+    await logSystem('login', 'User Google Login', `User ${user.email} logged in via Google`, user.id, user.name, user.company, ip, 'info', deviceInfo, location);
 
     res.json({
       success: true, token,
@@ -554,7 +558,11 @@ router.post('/linkedin', async (req, res) => {
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
     );
 
-    await logSystem('login', 'User LinkedIn Login', `User ${user.email} logged in via LinkedIn`, user.id, user.name, user.company, req.ip, 'info');
+    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
+    const ip = formatIP(req.ip);
+    const location = await getLocation(req.ip);
+
+    await logSystem('login', 'User LinkedIn Login', `User ${user.email} logged in via LinkedIn`, user.id, user.name, user.company, ip, 'info', deviceInfo, location);
 
     res.json({
       success: true, token,
@@ -682,7 +690,11 @@ router.post('/facebook', async (req, res) => {
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
     );
 
-    await logSystem('login', 'User Facebook Login', `User ${user.email} logged in via Facebook`, user.id, user.name, user.company, req.ip, 'info');
+    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
+    const ip = formatIP(req.ip);
+    const location = await getLocation(req.ip);
+
+    await logSystem('login', 'User Facebook Login', `User ${user.email} logged in via Facebook`, user.id, user.name, user.company, ip, 'info', deviceInfo, location);
 
     res.json({
       success: true, token,
@@ -876,6 +888,10 @@ router.post('/signup', async (req, res) => {
     });
 
     // Log Signup
+    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
+    const ip = formatIP(req.ip);
+    const location = await getLocation(req.ip);
+
     await logSystem(
       'login',
       'User Signup',
@@ -883,8 +899,10 @@ router.post('/signup', async (req, res) => {
       finalUser.id,
       finalUser.name,
       finalUser.company,
-      req.ip,
-      'info'
+      ip,
+      'info',
+      deviceInfo,
+      location
     );
 
     // Notify Admins
@@ -1139,6 +1157,18 @@ router.post('/users', authenticate, async (req, res) => {
     );
 
     res.status(201).json({ success: true, id: result.insertId, message: 'User created successfully' });
+
+    // Log User Creation
+    await logSystem(
+      'admin_action',
+      'Create User',
+      `Created user ${email} with role ${role}`,
+      req.user.id,
+      req.user.name,
+      req.user.company,
+      formatIP(req.ip),
+      'info'
+    );
   } catch (err) {
     console.error('CREATE USER ERROR:', err.message);
     if (err.code === 'ER_DUP_ENTRY') {
