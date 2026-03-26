@@ -92,6 +92,37 @@ const handleSendSms = async (req, res) => {
                     console.log(`[SMS-API] Resolved metadata from dlt_templates for "${templateId}"`);
                 }
             }
+        } 
+        // 1b. AUTO-DETECTION: If no templateId provided, try matching message body against user templates
+        else if (finalMessage && !templateId) {
+            console.log(`[SMS-API] No templateId provided, attempting auto-detection for user ${req.user.id}`);
+            const [userTemplates] = await query(
+                'SELECT id, name, body, metadata FROM message_templates WHERE user_id = ?',
+                [req.user.id]
+            );
+
+            for (const tmpl of userTemplates) {
+                if (!tmpl.body) continue;
+                
+                // Robust matching: Mask placeholders, escape regex chars, then apply wildcards
+                let regexStr = tmpl.body;
+                regexStr = regexStr.replace(/\{#[^#]+#\}|\{\{[^}]+\}\}/g, '___WILDCARD___');
+                regexStr = regexStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                regexStr = regexStr.replace(/___WILDCARD___/g, '.*');
+                
+                const matcher = new RegExp(`^${regexStr}$`, 's');
+                if (matcher.test(finalMessage)) {
+                    try {
+                        const meta = typeof tmpl.metadata === 'string' ? JSON.parse(tmpl.metadata) : (tmpl.metadata || {});
+                        finalTemplateId = meta.templateId || meta.dlt_template_id || tmpl.id;
+                        finalPeId = meta.peId || meta.pe_id || '';
+                        finalHashId = meta.hashId || meta.hash_id || '';
+                        templateResolved = true;
+                        console.log(`[SMS-API] Auto-detected template "${tmpl.name}" for message`);
+                        break;
+                    } catch (e) {}
+                }
+            }
         }
 
         if (!finalMessage) {
