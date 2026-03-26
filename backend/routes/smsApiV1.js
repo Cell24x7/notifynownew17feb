@@ -104,24 +104,59 @@ const handleSendSms = async (req, res) => {
             for (const tmpl of userTemplates) {
                 if (!tmpl.body) continue;
                 
-                // Robust matching: Mask placeholders of various styles, escape regex chars, then apply wildcards
+                // --- SMART ROBUST MATCHING ---
+                // 1. Mask variables in template body
                 let regexStr = tmpl.body.trim();
-                // Match {#var#}, {{var}}, {var}, %var%, or [var]
                 regexStr = regexStr.replace(/\{#[^#]+#\}|\{\{[^}]+\}\}|\{[^}]+\}|%[^%]+%|\[[^\]]+\]/g, '___WILDCARD___');
+                
+                // 2. Escape regex special chars
                 regexStr = regexStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                
+                // 3. Make punctuation and whitespace agnostic (treat every non-alphanumeric as flexible)
+                regexStr = regexStr.replace(/[^A-Za-z0-9_\\s]/g, '[\\s\\W]*');
+                
+                // 4. Put wildcards back
                 regexStr = regexStr.replace(/___WILDCARD___/g, '.*');
                 
                 const matcher = new RegExp(`^${regexStr}$`, 's');
+                
+                // Match against trimmed and potentially normalized message
                 if (matcher.test(finalMessage.trim())) {
                     try {
-                        const meta = typeof tmpl.metadata === 'string' ? JSON.parse(tmpl.metadata) : (tmpl.metadata || {});
-                        finalTemplateId = meta.templateId || meta.dlt_template_id || tmpl.id;
-                        finalPeId = meta.peId || meta.pe_id || '';
-                        finalHashId = meta.hashId || meta.hash_id || '';
+                        let meta = {};
+                        try {
+                            meta = typeof tmpl.metadata === 'string' ? JSON.parse(tmpl.metadata) : (tmpl.metadata || {});
+                        } catch (e) { meta = {}; }
+
+                        finalTemplateId = meta.templateId || meta.dlt_template_id;
+                        finalPeId = meta.peId || meta.pe_id;
+                        finalHashId = meta.hashId || meta.hash_id;
+
+                        // --- DEEP DLT LOOKUP ---
+                        // If metadata is empty or missing IDs, cross-reference dlt_templates table
+                        if (!finalTemplateId || !finalPeId) {
+                            console.log(`[SMS-API] IDs missing in metadata for "${tmpl.name}", checking dlt_templates...`);
+                            const [dltRows] = await query(
+                                'SELECT temp_id, pe_id, hash_id FROM dlt_templates WHERE temp_name = ? OR temp_id = ? LIMIT 1',
+                                [tmpl.name, finalTemplateId || tmpl.id]
+                            );
+                            
+                            if (dltRows.length > 0) {
+                                finalTemplateId = dltRows[0].temp_id || finalTemplateId;
+                                finalPeId = dltRows[0].pe_id || finalPeId;
+                                finalHashId = dltRows[0].hash_id || finalHashId;
+                                console.log(`[SMS-API] Found DLT IDs from cross-reference for "${tmpl.name}"`);
+                            }
+                        }
+
+                        // Last fallback to internal ID if still no DLT ID found
+                        finalTemplateId = finalTemplateId || tmpl.id;
                         templateResolved = true;
-                        console.log(`[SMS-API] Auto-detected template "${tmpl.name}" for message`);
+                        console.log(`[SMS-API] Auto-detected template "${tmpl.name}" (DLT ID: ${finalTemplateId})`);
                         break;
-                    } catch (e) {}
+                    } catch (e) {
+                        console.error('[SMS-API] Error during template meta resolution:', e.message);
+                    }
                 }
             }
         }
