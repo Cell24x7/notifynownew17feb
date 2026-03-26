@@ -363,5 +363,63 @@ router.get('/dotgo/status/:name', authenticate, async (req, res) => {
     }
 });
 
+// GET /api/templates/:id/sample - Download sample file for template variables
+router.get('/:id/sample', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { format = 'csv' } = req.query;
+
+        const [templates] = await query('SELECT * FROM message_templates WHERE id = ?', [id]);
+        if (templates.length === 0) return res.status(404).json({ success: false, message: 'Template not found' });
+
+        const t = templates[0];
+        
+        // Extract variables from body and header
+        const combinedText = (t.header_content || '') + ' ' + (t.body || '');
+        const varMatches = combinedText.match(/{{([^}]+)}}/g) || [];
+        const uniqueVars = [...new Set(varMatches.map(v => v.replace(/{{|}}/g, '').trim()))];
+        
+        // Sort variables: numbered variables (1, 2, 3) first, then named ones
+        uniqueVars.sort((a, b) => {
+            const numA = parseInt(a);
+            const numB = parseInt(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            if (!isNaN(numA)) return -1;
+            if (!isNaN(numB)) return 1;
+            return a.localeCompare(b);
+        });
+
+        // Prepare headers: mobile + variables
+        const headers = ['mobile', ...uniqueVars];
+        const sampleRow = { mobile: '91xxxxxxxxxx' };
+        uniqueVars.forEach(v => {
+            sampleRow[v] = isNaN(parseInt(v)) ? `[Value for ${v}]` : `[Value ${v}]`;
+        });
+
+        if (format === 'csv') {
+            const { Parser } = require('json2csv');
+            const parser = new Parser({ fields: headers });
+            const csv = parser.parse([sampleRow]);
+            res.header('Content-Type', 'text/csv');
+            res.attachment(`Sample_${t.name.replace(/\s+/g, '_')}.csv`);
+            return res.send(csv);
+        } else {
+            const ExcelJS = require('exceljs');
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Sample');
+            worksheet.addRow(headers);
+            worksheet.addRow(Object.values(sampleRow));
+            
+            res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.attachment(`Sample_${t.name.replace(/\s+/g, '_')}.xlsx`);
+            return await workbook.xlsx.write(res);
+        }
+
+    } catch (error) {
+        console.error('Sample download error:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate sample file' });
+    }
+});
+
 module.exports = router;
 

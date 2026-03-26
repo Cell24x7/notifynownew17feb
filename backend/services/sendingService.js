@@ -18,29 +18,47 @@ const replaceVariables = (text, vars) => {
 };
 
 /**
- * Maps variable_mapping JSON to values from contacts variables JSON
+ * Maps variable_mapping JSON to values from contacts variables JSON (Smarter Fuzzy Mapping)
  */
 const resolveMappedVariables = (mappingStr, contactVarsStr) => {
     try {
         const mapping = typeof mappingStr === 'string' ? JSON.parse(mappingStr || '{}') : (mappingStr || {});
         const contactVars = typeof contactVarsStr === 'string' ? JSON.parse(contactVarsStr || '{}') : (contactVarsStr || {});
         const resolved = {};
+
+        // 1. Create a normalized lookup map for contact variables (lowercase + no spaces)
+        const normalize = (s) => String(s).toLowerCase().replace(/[\s_-]/g, '');
+        const normalizedVars = {};
+        Object.keys(contactVars).forEach(k => {
+            normalizedVars[normalize(k)] = contactVars[k];
+        });
         
-        if (Object.keys(mapping).length > 0) {
-            Object.keys(mapping).forEach(key => {
-                const mapEntry = mapping[key];
-                if (mapEntry && typeof mapEntry === 'object' && mapEntry.type) {
-                    if (mapEntry.type === 'field') {
-                        resolved[key] = contactVars[mapEntry.value] || '';
-                    } else if (mapEntry.type === 'custom') {
-                        resolved[key] = mapEntry.value || '';
-                    }
-                } else if (typeof mapEntry === 'string') {
-                    resolved[key] = contactVars[mapEntry] || '';
+        // 2. Resolve explicitly mapped variables
+        Object.keys(mapping).forEach(key => {
+            const mapEntry = mapping[key];
+            if (mapEntry && typeof mapEntry === 'object' && mapEntry.type) {
+                if (mapEntry.type === 'field') {
+                    resolved[key] = contactVars[mapEntry.value] || normalizedVars[normalize(mapEntry.value)] || '';
+                } else if (mapEntry.type === 'custom') {
+                    resolved[key] = mapEntry.value || '';
                 }
-            });
-        } 
-        Object.assign(resolved, contactVars);
+            } else {
+                const val = typeof mapEntry === 'string' ? mapEntry : key;
+                resolved[key] = contactVars[val] || normalizedVars[normalize(val)] || '';
+            }
+        });
+
+        // 3. Auto-fallback for common patterns (e.g. {{1}} looks for VAR1, 1, var_1)
+        Object.assign(resolved, contactVars); // Keep original keys
+        
+        // Try filling numbered gaps if missing
+        for (let i = 1; i <= 20; i++) {
+            if (!resolved[i]) {
+                const fuzzyVal = normalizedVars[normalize(`var${i}`)] || normalizedVars[normalize(i)] || normalizedVars[normalize(`variable${i}`)];
+                if (fuzzyVal) resolved[i] = fuzzyVal;
+            }
+        }
+
         return resolved;
     } catch (e) {
         return {};
@@ -48,20 +66,32 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
 };
 
 /**
- * Scans text for {{1}}, {{2}}... and returns an array of values in that order.
+ * Scans text for {{1}}, {{name}}... and returns an array of values in that order.
  */
 const getOrderedVariables = (text, resolvedVars) => {
     const vars = [];
     if (!text) return vars;
-    const regex = /\[(\d+)\]|\{\{(\d+)\}\}/g;
+    // Regex for both [[X]], [X], {{X}}
+    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}/g;
     let match;
-    const foundIndices = new Set();
+    const foundKeys = [];
+    const seen = new Set();
+    
     while ((match = regex.exec(text)) !== null) {
-        const idx = match[1] || match[2];
-        if (idx) foundIndices.add(idx);
+        const key = (match[1] || match[2] || match[3]).trim();
+        if (key && !seen.has(key)) {
+            foundKeys.push(key);
+            seen.add(key);
+        }
     }
-    const sorted = Array.from(foundIndices).sort((a, b) => parseInt(a) - parseInt(b));
-    return sorted.map(idx => resolvedVars[idx] || '');
+
+    // If all keys are numeric, sort them numerically. Else maintain appearance order.
+    const allNumeric = foundKeys.every(k => !isNaN(parseInt(k)));
+    if (allNumeric) {
+        foundKeys.sort((a, b) => parseInt(a) - parseInt(b));
+    }
+
+    return foundKeys.map(k => resolvedVars[k] || '');
 };
 
 /**
