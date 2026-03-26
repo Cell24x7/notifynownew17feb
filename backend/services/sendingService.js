@@ -85,10 +85,16 @@ const getOrderedVariables = (text, resolvedVars) => {
         }
     }
 
-    // If all keys are numeric, sort them numerically. Else maintain appearance order.
+    // If all keys are numeric, return a continuous array [1..maxIndex]
     const allNumeric = foundKeys.every(k => !isNaN(parseInt(k)));
-    if (allNumeric) {
-        foundKeys.sort((a, b) => parseInt(a) - parseInt(b));
+    if (allNumeric && foundKeys.length > 0) {
+        const indices = foundKeys.map(k => parseInt(k));
+        const maxIdx = Math.max(...indices);
+        const result = [];
+        for (let i = 1; i <= maxIdx; i++) {
+            result.push(resolvedVars[i] || '');
+        }
+        return result;
     }
 
     return foundKeys.map(k => resolvedVars[k] || '');
