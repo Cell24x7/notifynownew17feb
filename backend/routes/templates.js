@@ -5,20 +5,55 @@ const { v1: uuidv4 } = require('uuid'); // Added uuid for consistency if needed,
 const jwt = require('jsonwebtoken');
 const { submitDotgoTemplate, getDotgoTemplateStatus } = require('../services/rcsService');
 
-// Middleware to authenticate token (using common pattern in project)
-const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+const authenticate = require('../middleware/authMiddleware');
 
-    jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123', (err, decoded) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
-        req.user = decoded;
-        next();
-    });
-};
+// Auto-create table
+(async () => {
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS message_templates (
+                id VARCHAR(100) PRIMARY KEY,
+                user_id INT NOT NULL,
+                whatsapp_config_id INT DEFAULT NULL,
+                rcs_config_id INT DEFAULT NULL,
+                name VARCHAR(255) NOT NULL,
+                language VARCHAR(50) DEFAULT 'en',
+                category VARCHAR(100) DEFAULT 'Marketing',
+                channel VARCHAR(50) NOT NULL,
+                template_type VARCHAR(50) DEFAULT 'text_message',
+                header_type VARCHAR(50) DEFAULT 'none',
+                header_content TEXT,
+                body TEXT NOT NULL,
+                footer TEXT,
+                status VARCHAR(50) DEFAULT 'pending',
+                rejection_reason TEXT,
+                usage_count INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_user_id (user_id),
+                INDEX idx_channel (channel),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        await query(`
+            CREATE TABLE IF NOT EXISTS template_buttons (
+                id VARCHAR(100) PRIMARY KEY,
+                template_id VARCHAR(100) NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                label VARCHAR(255) NOT NULL,
+                value TEXT,
+                position INT DEFAULT 0,
+                INDEX idx_template_id (template_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✓ message_templates table ready');
+    } catch (err) {
+        console.error('Error creating message_templates table:', err.message);
+    }
+})();
 
 // GET all templates for ADMIN (all users) - with pagination
-router.get('/admin', authenticateToken, async (req, res) => {
+router.get('/admin', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
             return res.status(403).json({ success: false, message: 'Admin access required' });
@@ -62,7 +97,7 @@ router.get('/admin', authenticateToken, async (req, res) => {
 });
 
 // GET all templates for current user (Filtered by active config) - with pagination
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const page = parseInt(req.query.page) || 1;
@@ -119,7 +154,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // CREATE new template
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const {

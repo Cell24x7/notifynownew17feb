@@ -8,35 +8,10 @@ const ExcelJS = require('exceljs');
 const path = require('path');
 
 
-// Middleware to authenticate token and check admin role
-const authenticateAdmin = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
-
-    jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123', (err, decoded) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
-        if (decoded.role !== 'admin' && decoded.role !== 'superadmin') {
-            return res.status(403).json({ error: 'Access denied. Admin role required.' });
-        }
-        req.user = decoded;
-        next();
-    });
-};
-
-// Middleware to authenticate token
-const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
-
-    jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123', (err, decoded) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
-        req.user = decoded;
-        next();
-    });
-};
+const authenticate = require('../middleware/authMiddleware');
 
 // GET all campaigns for current user (with pagination)
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const page = parseInt(req.query.page) || 1;
@@ -80,7 +55,10 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // GET all campaigns for admin (cross-user pagination)
-router.get('/admin', authenticateAdmin, async (req, res) => {
+router.get('/admin', authenticate, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -286,7 +264,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
 
 // UPDATE campaign status (Pause/Resume/Complete)
-router.put('/:id/status', authenticateToken, async (req, res) => {
+router.put('/:id/status', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -316,7 +294,7 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
 });
 
 // DUPLICATE campaign
-router.post('/:id/duplicate', authenticateToken, async (req, res) => {
+router.post('/:id/duplicate', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -347,7 +325,7 @@ router.post('/:id/duplicate', authenticateToken, async (req, res) => {
 });
 
 // TEST SEND campaign
-router.post('/test-send', authenticateToken, async (req, res) => {
+router.post('/test-send', authenticate, async (req, res) => {
     try {
         const { channel, template_id, destination, variables } = req.body;
 
@@ -379,7 +357,7 @@ router.post('/test-send', authenticateToken, async (req, res) => {
 });
 
 // DELETE campaign
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;

@@ -6,27 +6,21 @@ const { getExternalTemplates } = require('../services/rcsService');
 
 const router = express.Router();
 
-// Middleware to authenticate token
-const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-
-  const jwt = require('jsonwebtoken');
-  jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123', (err, decoded) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
-    req.user = decoded;
-    next();
-  });
-};
+const authenticate = require('../middleware/authMiddleware');
 
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit for rich media
+
+// Get all RCS campaigns
+router.get('/', authenticate, async (req, res) => {
+    res.status(200).json({ success: true, message: 'RCS Route Alive' });
+});
 
 /**
  * @route GET /api/rcs/templates/external
  * @desc Get list of external templates (Now returns Dotgo hardcoded template)
  */
-router.get('/templates/external', authenticateToken, async (req, res) => {
+router.get('/templates/external', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -59,7 +53,7 @@ router.get('/templates/external', authenticateToken, async (req, res) => {
  * @route POST /api/rcs/templates
  * @desc Create or Update an RCS template on Dotgo
  */
-router.post('/templates', authenticateToken, upload.array('multimedia_files'), async (req, res) => {
+router.post('/templates', authenticate, upload.array('multimedia_files'), async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -110,7 +104,7 @@ router.post('/templates', authenticateToken, upload.array('multimedia_files'), a
  * @route GET /api/rcs/templates/:name/status
  * @desc Sync/Fetch RCS template status from Dotgo
  */
-router.get('/templates/:name/status', authenticateToken, async (req, res) => {
+router.get('/templates/:name/status', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
     const templateName = req.params.name;
@@ -146,7 +140,7 @@ router.get('/templates/:name/status', authenticateToken, async (req, res) => {
  * @route GET /api/rcs/reports
  * @desc Get aggregated RCS reports
  */
-router.get('/reports', authenticateToken, async (req, res) => {
+router.get('/reports', authenticate, async (req, res) => {
   try {
     const { startDate, endDate, status, channel } = req.query;
     const page = parseInt(req.query.page) || 1;
@@ -234,7 +228,7 @@ router.get('/reports', authenticateToken, async (req, res) => {
  * @route POST /api/rcs/send-campaign
  * @desc Send RCS Campaign (Using Dotgo)
  */
-router.post('/send-campaign', authenticateToken, async (req, res) => {
+router.post('/send-campaign', authenticate, async (req, res) => {
   try {
     const { campaignName, contacts, templateName } = req.body;
     const userId = req.user.id;
@@ -351,7 +345,7 @@ router.post('/send-campaign', authenticateToken, async (req, res) => {
  * @route GET /api/rcs/templates/external/:name/sync
  * @desc Get details from Dotgo and save/update in local DB
  */
-router.get('/templates/external/:name/sync', authenticateToken, async (req, res) => {
+router.get('/templates/external/:name/sync', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
     const templateName = req.params.name;
@@ -441,7 +435,7 @@ router.get('/templates/external/:name/sync', authenticateToken, async (req, res)
   }
 });
 
-router.delete('/templates/external/:name', authenticateToken, async (req, res) => {
+router.delete('/templates/external/:name', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
     const templateName = req.params.name;
@@ -747,4 +741,3 @@ router.post('/send', async (req, res) => {
 });
 
 module.exports = router;
-

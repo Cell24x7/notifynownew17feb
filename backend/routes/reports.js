@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
-const authenticateToken = require('../middleware/authMiddleware');
+const authenticate = require('../middleware/authMiddleware');
 const { sendEmail } = require('../utils/emailService');
 const fs = require('fs');
 const path = require('path');
@@ -9,7 +9,7 @@ const AdmZip = require('adm-zip');
 const { Parser } = require('json2csv');
 
 // GET /api/reports/summary
-router.get('/summary', authenticateToken, async (req, res) => {
+router.get('/summary', authenticate, async (req, res) => {
     try {
         const { from, to, channel, status, userId } = req.query;
 
@@ -120,7 +120,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
 });
 
 // GET /api/reports/detail
-router.get('/detail', authenticateToken, async (req, res) => {
+router.get('/detail', authenticate, async (req, res) => {
     try {
         const { from, to, channel, status, userId } = req.query;
 
@@ -193,7 +193,7 @@ router.get('/detail', authenticateToken, async (req, res) => {
 });
 
 // GET /api/reports/export
-router.get('/export', authenticateToken, async (req, res) => {
+router.get('/export', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { from, to, channel, status, format } = req.query;
@@ -307,7 +307,7 @@ router.get('/export', authenticateToken, async (req, res) => {
 });
 
 // POST /api/reports/send-campaign-report
-router.post('/send-campaign-report', authenticateToken, async (req, res) => {
+router.post('/send-campaign-report', authenticate, async (req, res) => {
     try {
         const { campaignId } = req.body;
         if (!campaignId) return res.status(400).json({ success: false, message: 'Campaign ID required' });

@@ -3,20 +3,10 @@ const router = express.Router();
 const { query } = require('../config/db');
 const jwt = require('jsonwebtoken');
 
-// Middleware to authenticate token
-const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
-
-    jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123', (err, decoded) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
-        req.user = decoded;
-        next();
-    });
-};
+const authenticate = require('../middleware/authMiddleware');
 
 // GET /api/contacts - List all contacts
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { search, category, channel, status, view } = req.query;
@@ -71,7 +61,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // POST /api/contacts - Add contact
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { name, phone, email, category, channel, labels, starred, status } = req.body;
@@ -118,7 +108,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/contacts/:id - Update contact
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -157,7 +147,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // DELETE /api/contacts/:id - Delete contact
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -176,7 +166,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 // POST /api/contacts/bulk - Bulk Import
-router.post('/bulk', authenticateToken, async (req, res) => {
+router.post('/bulk', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { contacts } = req.body; // Expects array of { name, phone, email, ... }
