@@ -408,149 +408,90 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
             const ext = path.extname(req.file.originalname).toLowerCase();
             
             if (ext === '.xlsx' || ext === '.xls') {
-                // Process Excel
                 const workbook = new ExcelJS.Workbook();
                 await workbook.xlsx.readFile(req.file.path);
                 const worksheet = workbook.getWorksheet(1);
                 const headers = [];
 
                 worksheet.getRow(1).eachCell((cell, colNumber) => {
-                    headers[colNumber] = cell.value;
+                    const val = String(cell.value || '').trim();
+                    if (val) headers[colNumber] = val;
                 });
 
                 const totalRows = worksheet.rowCount;
-                console.log(`[Upload] Processing Excel with ${totalRows} rows...`);
-
                 for (let i = 2; i <= totalRows; i++) {
                     const row = worksheet.getRow(i);
                     const rowData = {};
                     let mobile = null;
 
-                    row.eachCell((cell, colNumber) => {
+                    row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
                         const header = headers[colNumber];
                         if (header) {
                             rowData[header] = cell.value;
-                            const lowerHeader = String(header).toLowerCase().replace(/\s/g, '');
+                            const lowerH = header.toLowerCase().replace(/\s/g, '').replace(/_/g, '');
                             const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
-                            if (commonKeys.includes(lowerHeader)) {
-                                mobile = cell.value;
+                            if (commonKeys.includes(lowerH)) {
+                                const m = String(cell.value || '').replace(/\D/g, '');
+                                if (m.length >= 10) mobile = m;
                             }
                         }
                     });
 
-                    if (!mobile) mobile = row.getCell(1).value;
+                    if (!mobile) {
+                       const first = String(row.getCell(1).value || '').replace(/\D/g, '');
+                       if (first.length >= 10) mobile = first;
+                    }
 
                     if (mobile) {
-                        mobile = String(mobile).replace(/\D/g, '');
-                        if (mobile.length >= 10) {
-                            batch.push({ mobile, variables: rowData });
-                            contactCount++;
-                            if (batch.length >= BATCH_SIZE) {
-                                await processBatch(batch);
-                                batch = [];
-                            }
+                        batch.push({ mobile, variables: rowData });
+                        contactCount++;
+                        if (batch.length >= 1000) {
+                            await processBatch(batch);
+                            batch = [];
                         }
                     }
                 }
-
-                if (batch.length > 0) await processBatch(batch);
-                fs.unlinkSync(req.file.path);
-
             } else {
-                // Stream CSV (Sequential Batching)
-                let csvProcessing = new Promise((resolve, reject) => {
-                   fs.createReadStream(req.file.path)
-                    .pipe(csv())
-                    .on('data', async (row) => {
-                        let mobile = null;
-                        const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
-                        const lowerRow = {};
-                        Object.keys(row).forEach(k => lowerRow[k.toLowerCase().replace(/\s/g, '')] = row[k]);
-
-                        for (const key of commonKeys) {
-                            if (lowerRow[key]) {
-                                mobile = lowerRow[key];
-                                break;
-                            }
-                        }
-
-                        if (!mobile) {
-                            const values = Object.values(row);
-                            if (values.length > 0) mobile = values[0];
-                        }
-
-                        if (mobile) {
-                            mobile = String(mobile).replace(/\D/g, '');
-                            if (mobile.length >= 10) {
-                                batch.push({ mobile, variables: row });
-                                contactCount++;
-                                if (batch.length >= BATCH_SIZE) {
-                                    // Pause stream to process batch
-                                    const currentBatch = [...batch];
-                                    batch = [];
-                                    const stream = fs.createReadStream(req.file.path); // Not ideal, but we need to await
-                                    // Actually, we should just await the processBatch
-                                    // To do this right with csv-parser, we'd need a more complex setup.
-                                    // Simplest fix: use a promise queue or just push and let the 'end' handle it
-                                    // because 'end' is triggered after 'data' finishes if we await? No.
-                                }
-                            }
-                        }
-                    })
-                    .on('end', async () => {
-                        resolve();
-                    })
-                    .on('error', reject);
-                });
-                
-                // RE-IMPLEMENTING CSV STREAM TO BE SEQUENTIAL
-                // (Previous implementation was better but needed await safety)
-                
-                const results = [];
+                // Sequential CSV Processing (Stream-based)
                 const stream = fs.createReadStream(req.file.path).pipe(csv());
-                
                 for await (const row of stream) {
                     let mobile = null;
                     const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
-                    const lowerRow = {};
-                    Object.keys(row).forEach(k => lowerRow[k.toLowerCase().replace(/\s/g, '')] = row[k]);
-
-                    for (const key of commonKeys) {
-                        if (lowerRow[key]) { mobile = lowerRow[key]; break; }
+                    const rowData = row;
+                    
+                    // Case-insensitive lookup for mobile
+                    const keys = Object.keys(row);
+                    for (const k of keys) {
+                        const lowK = k.toLowerCase().replace(/\s/g, '').replace(/_/g, '');
+                        if (commonKeys.includes(lowK)) {
+                            const m = String(row[k] || '').replace(/\D/g, '');
+                            if (m.length >= 10) { mobile = m; break; }
+                        }
                     }
+
                     if (!mobile) {
-                        const values = Object.values(row);
-                        if (values.length > 0) mobile = values[0];
+                        const first = String(Object.values(row)[0] || '').replace(/\D/g, '');
+                        if (first.length >= 10) mobile = first;
                     }
 
                     if (mobile) {
-                        mobile = String(mobile).replace(/\D/g, '');
-                        if (mobile.length >= 10) {
-                            batch.push({ mobile, variables: row });
-                            contactCount++;
-                            if (batch.length >= BATCH_SIZE) {
-                                await processBatch(batch);
-                                batch = [];
-                            }
+                        batch.push({ mobile, variables: rowData });
+                        contactCount++;
+                        if (batch.length >= 1000) {
+                            await processBatch(batch);
+                            batch = [];
                         }
                     }
                 }
-
-                if (batch.length > 0) await processBatch(batch);
-                if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-
-                console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
-                await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
-                return res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
             }
 
-            // Sync finish for Excel
-            console.log(`[Upload] Completed for ${campaignId}. Total contacts: ${contactCount}`);
+            if (batch.length > 0) await processBatch(batch);
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
             await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
-            res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
+            return res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
 
         } else if (req.body.manualNumbers) {
-            // ... (rest of manual numbers logic is fine as it's already sequential)
             let numbers = [];
             if (Array.isArray(req.body.manualNumbers)) {
                 numbers = req.body.manualNumbers;
@@ -558,25 +499,22 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
                 numbers = req.body.manualNumbers.split(/[\n,\s]+/).map(n => n.trim()).filter(Boolean);
             }
 
-            if (numbers.length > 0) {
-                for (const n of numbers) {
-                    const mobile = n.replace(/\D/g, '');
-                    if (mobile.length >= 10) {
-                        batch.push({ mobile, variables: {} });
-                        contactCount++;
-                        if (batch.length >= BATCH_SIZE) {
-                            await processBatch(batch);
-                            batch = [];
-                        }
+            for (const n of numbers) {
+                const mobile = n.replace(/\D/g, '');
+                if (mobile.length >= 10) {
+                    batch.push({ mobile, variables: {} });
+                    contactCount++;
+                    if (batch.length >= 1000) {
+                        await processBatch(batch);
+                        batch = [];
                     }
                 }
-                if (batch.length > 0) await processBatch(batch);
-                await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contactCount, campaignId]);
             }
-
-            res.json({ success: true, message: `Added ${contactCount} contacts`, count: contactCount });
+            if (batch.length > 0) await processBatch(batch);
+            await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contactCount, campaignId]);
+            return res.json({ success: true, message: `Added ${contactCount} contacts`, count: contactCount });
         } else {
-            res.status(400).json({ success: false, message: 'No file or numbers provided' });
+            return res.status(400).json({ success: false, message: 'No file or numbers provided' });
         }
 
     } catch (error) {
@@ -585,7 +523,5 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
         res.status(500).json({ success: false, message: 'Failed to upload contacts' });
     }
 });
-
-module.exports = router;
 
 module.exports = router;

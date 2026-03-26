@@ -51,18 +51,18 @@ router.get('/summary', authenticate, async (req, res) => {
                 COALESCE(SUM(cost), 0) as cost
             FROM (
                 SELECT 
-                    COALESCE(sent_count, recipient_count, audience_count, 0) as sent,
-                    CASE WHEN status = 'completed' OR status = 'sent' THEN COALESCE(sent_count, recipient_count, audience_count, 0) ELSE 0 END as delivered,
+                    COALESCE(sent_count, 0) as sent,
+                    COALESCE(delivered_count, 0) as delivered,
                     COALESCE(failed_count, 0) as failed,
-                    COALESCE(sent_count, recipient_count, audience_count, 0) * 0.25 as cost
+                    (COALESCE(sent_count, 0) + COALESCE(failed_count, 0)) * 0.25 as cost
                 FROM campaigns c
                 ${whereClause}
                 UNION ALL
                 SELECT 
-                    COALESCE(sent_count, recipient_count, audience_count, 0) as sent,
-                    CASE WHEN status = 'completed' OR status = 'sent' THEN COALESCE(sent_count, recipient_count, audience_count, 0) ELSE 0 END as delivered,
+                    COALESCE(sent_count, 0) as sent,
+                    COALESCE(delivered_count, 0) as delivered,
                     COALESCE(failed_count, 0) as failed,
-                    COALESCE(sent_count, recipient_count, audience_count, 0) * 0.25 as cost
+                    (COALESCE(sent_count, 0) + COALESCE(failed_count, 0)) * 0.25 as cost
                 FROM api_campaigns c
                 ${whereClause}
             ) as combined_totals
@@ -70,13 +70,13 @@ router.get('/summary', authenticate, async (req, res) => {
 
         // 2. Group by Channel (Manual + API)
         const [byChannel] = await query(`
-            SELECT channel as label, SUM(sent) as sent, 0 as delivered, 0 as failed, 0 as pending, SUM(cost) as cost
+            SELECT channel as label, SUM(sent) as sent, SUM(delivered) as delivered, SUM(failed) as failed, 0 as pending, SUM(cost) as cost
             FROM (
-                SELECT channel, COALESCE(recipient_count, audience_count, 0) as sent, COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                SELECT channel, COALESCE(sent_count, 0) as sent, COALESCE(delivered_count, 0) as delivered, COALESCE(failed_count, 0) as failed, (COALESCE(sent_count, 0) + COALESCE(failed_count, 0)) * 0.25 as cost
                 FROM campaigns c
                 ${whereClause}
                 UNION ALL
-                SELECT channel, COALESCE(recipient_count, audience_count, 0) as sent, COALESCE(recipient_count, audience_count, 0) * 0.25 as cost
+                SELECT channel, COALESCE(sent_count, 0) as sent, COALESCE(delivered_count, 0) as delivered, COALESCE(failed_count, 0) as failed, (COALESCE(sent_count, 0) + COALESCE(failed_count, 0)) * 0.25 as cost
                 FROM api_campaigns c
                 ${whereClause}
             ) as combined_channel
