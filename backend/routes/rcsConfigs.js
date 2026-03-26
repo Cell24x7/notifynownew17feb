@@ -7,7 +7,11 @@ const router = express.Router();
 // Middleware to ensure user is admin or authorized reseller
 const isAdmin = (req, res, next) => {
     const role = req.user.role;
-    const permissions = req.user.permissions || [];
+    let permissions = req.user.permissions || [];
+    if (typeof permissions === 'string') {
+        try { permissions = JSON.parse(permissions); } catch (e) { permissions = []; }
+    }
+    if (!Array.isArray(permissions)) permissions = [];
 
     if (role === 'admin' || role === 'superadmin') {
         return next();
