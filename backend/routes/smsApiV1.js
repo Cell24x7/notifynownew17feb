@@ -95,33 +95,32 @@ const handleSendSms = async (req, res) => {
         } 
         // 1b. AUTO-DETECTION: If no templateId provided, try matching message body against user templates
         else if (finalMessage && !templateId) {
-            console.log(`[SMS-API] No templateId provided, attempting auto-detection for user ${req.user.id}`);
+            console.log(`[SMS-API] DEBUG: Attempting auto-detection for user ${req.user.id}. Message: "${finalMessage.substring(0, 30)}..."`);
             const [userTemplates] = await query(
                 'SELECT id, name, body, metadata FROM message_templates WHERE user_id = ?',
                 [req.user.id]
             );
+            
+            console.log(`[SMS-API] DEBUG: Found ${userTemplates.length} templates for user ${req.user.id}`);
 
             for (const tmpl of userTemplates) {
                 if (!tmpl.body) continue;
                 
                 // --- SMART ROBUST MATCHING ---
-                // 1. Mask variables in template body
                 let regexStr = tmpl.body.trim();
+                // Mask all variable types
                 regexStr = regexStr.replace(/\{#[^#]+#\}|\{\{[^}]+\}\}|\{[^}]+\}|%[^%]+%|\[[^\]]+\]/g, '___WILDCARD___');
-                
-                // 2. Escape regex special chars
+                // Escape regex
                 regexStr = regexStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                
-                // 3. Make punctuation and whitespace agnostic (treat every non-alphanumeric as flexible)
+                // Punctuation and whitespace agnostic
                 regexStr = regexStr.replace(/[^A-Za-z0-9_\\s]/g, '[\\s\\W]*');
-                
-                // 4. Put wildcards back
+                // Wildcards
                 regexStr = regexStr.replace(/___WILDCARD___/g, '.*');
                 
                 const matcher = new RegExp(`^${regexStr}$`, 's');
                 
-                // Match against trimmed and potentially normalized message
                 if (matcher.test(finalMessage.trim())) {
+                    console.log(`[SMS-API] ✅ MATCH FOUND: "${tmpl.name}"`);
                     try {
                         let meta = {};
                         try {
@@ -132,10 +131,9 @@ const handleSendSms = async (req, res) => {
                         finalPeId = meta.peId || meta.pe_id;
                         finalHashId = meta.hashId || meta.hash_id;
 
-                        // --- DEEP DLT LOOKUP ---
-                        // If metadata is empty or missing IDs, cross-reference dlt_templates table
+                        // --- DEEP DLT LOOKUP FALLBACK ---
                         if (!finalTemplateId || !finalPeId) {
-                            console.log(`[SMS-API] IDs missing in metadata for "${tmpl.name}", checking dlt_templates...`);
+                            console.log(`[SMS-API] ⚠️ IDs missing in metadata for "${tmpl.name}", checking dlt_templates table...`);
                             const [dltRows] = await query(
                                 'SELECT temp_id, pe_id, hash_id FROM dlt_templates WHERE temp_name = ? OR temp_id = ? LIMIT 1',
                                 [tmpl.name, finalTemplateId || tmpl.id]
@@ -145,19 +143,23 @@ const handleSendSms = async (req, res) => {
                                 finalTemplateId = dltRows[0].temp_id || finalTemplateId;
                                 finalPeId = dltRows[0].pe_id || finalPeId;
                                 finalHashId = dltRows[0].hash_id || finalHashId;
-                                console.log(`[SMS-API] Found DLT IDs from cross-reference for "${tmpl.name}"`);
+                                console.log(`[SMS-API] 🎯 Found DLT IDs from dlt_templates: ${finalTemplateId}`);
                             }
                         }
 
-                        // Last fallback to internal ID if still no DLT ID found
-                        finalTemplateId = finalTemplateId || tmpl.id;
-                        templateResolved = true;
-                        console.log(`[SMS-API] Auto-detected template "${tmpl.name}" (DLT ID: ${finalTemplateId})`);
-                        break;
+                        if (finalTemplateId) {
+                            templateResolved = true;
+                            console.log(`[SMS-API] 🚀 Resolved Final IDs: Template=${finalTemplateId}, PE=${finalPeId}`);
+                            break;
+                        }
                     } catch (e) {
-                        console.error('[SMS-API] Error during template meta resolution:', e.message);
+                        console.error('[SMS-API] Error during resolution:', e.message);
                     }
                 }
+            }
+            
+            if (!templateResolved) {
+                console.log(`[SMS-API] ❌ No template matched for user ${req.user.id}`);
             }
         }
 
