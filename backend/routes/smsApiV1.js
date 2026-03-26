@@ -104,14 +104,15 @@ const handleSendSms = async (req, res) => {
             for (const tmpl of userTemplates) {
                 if (!tmpl.body) continue;
                 
-                // Robust matching: Mask placeholders, escape regex chars, then apply wildcards
-                let regexStr = tmpl.body;
-                regexStr = regexStr.replace(/\{#[^#]+#\}|\{\{[^}]+\}\}/g, '___WILDCARD___');
+                // Robust matching: Mask placeholders of various styles, escape regex chars, then apply wildcards
+                let regexStr = tmpl.body.trim();
+                // Match {#var#}, {{var}}, {var}, %var%, or [var]
+                regexStr = regexStr.replace(/\{#[^#]+#\}|\{\{[^}]+\}\}|\{[^}]+\}|%[^%]+%|\[[^\]]+\]/g, '___WILDCARD___');
                 regexStr = regexStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                 regexStr = regexStr.replace(/___WILDCARD___/g, '.*');
                 
                 const matcher = new RegExp(`^${regexStr}$`, 's');
-                if (matcher.test(finalMessage)) {
+                if (matcher.test(finalMessage.trim())) {
                     try {
                         const meta = typeof tmpl.metadata === 'string' ? JSON.parse(tmpl.metadata) : (tmpl.metadata || {});
                         finalTemplateId = meta.templateId || meta.dlt_template_id || tmpl.id;
