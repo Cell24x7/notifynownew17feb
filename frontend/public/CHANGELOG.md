@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-26]
+- Fix: Logs.tsx syntax error and missing icon (3bbc853)
 - Fix: Reseller Impersonation Permissions, Config Access, and Enhanced Logging (31448a0)
 - Enhance: Absolute path isolation for PM2 to prevent Developer deployments from stopping Production (fdf3831)
 - Fix: Final verbose auto-detection with explicit dlt_templates fallback and extensive logging (ce72152)
