@@ -8,12 +8,12 @@ const { sendSMS } = require('../utils/smsService');
 
 const compressPermissions = (perms) => {
   if (!Array.isArray(perms)) return [];
-  // If already objects or strings, let's normalize to objects with admin: true
-  if (perms.length > 0 && typeof perms[0] === 'string') {
-    return perms.map(p => ({ feature: p, admin: true }));
-  }
-  // Filter for admin permissions but keep the object structure
-  return perms.filter(p => p.admin || p.manager || p.agent);
+  // Standardize: if objects, extract feature; if strings, keep as is
+  return perms.map(p => {
+    if (typeof p === 'string') return p;
+    if (p && typeof p === 'object' && p.feature) return p.feature;
+    return null;
+  }).filter(Boolean);
 };
 
 const router = express.Router();
@@ -300,7 +300,7 @@ router.post('/login', async (req, res) => {
         company: user.company,
         role: user.role,
         channels_enabled: user.channels_enabled,
-        permissions: finalPermissions,
+        permissions: compressPermissions(finalPermissions),
         plan_name: user.plan_name,
         wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
@@ -420,7 +420,7 @@ router.post('/google', async (req, res) => {
       success: true, token,
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
-        channels_enabled: user.channels_enabled, permissions: finalPermissions, plan_name: user.plan_name,
+        channels_enabled: user.channels_enabled, permissions: compressPermissions(finalPermissions), plan_name: user.plan_name,
       }
     });
 
@@ -710,7 +710,7 @@ router.post('/signup', async (req, res) => {
         role: 'user',
         name: finalUser.name,
         channels_enabled: finalUser.channels_enabled,
-        permissions: compressPermissions(defaultPermissions),
+        permissions: compressPermissions(DEFAULT_CLIENT_PERMISSIONS),
         wallet_balance: finalUser.wallet_balance,
         credits_available: finalUser.credits_available,
         rcs_text_price: finalUser.rcs_text_price,
@@ -735,7 +735,7 @@ router.post('/signup', async (req, res) => {
         company: finalUser.company,
         role: 'user',
         channels_enabled: finalUser.channels_enabled,
-        permissions: defaultPermissions,
+        permissions: compressPermissions(DEFAULT_CLIENT_PERMISSIONS),
         wallet_balance: finalUser.wallet_balance,
         credits_available: finalUser.credits_available,
         rcs_text_price: finalUser.rcs_text_price,
@@ -891,7 +891,7 @@ router.get('/me', authenticate, async (req, res) => {
 
     const userWithPermissions = {
       ...user,
-      permissions: finalPermissions
+      permissions: compressPermissions(finalPermissions)
     };
 
     res.json({ success: true, user: userWithPermissions });
