@@ -339,6 +339,16 @@ async function updateSchema() {
             console.log('Error during extended schema updates:', e.message);
         }
 
+        // 12. Fix campaign_queue status column (ENUM to VARCHAR)
+        try {
+            console.log('Optimizing campaign_queue status column...');
+            await connection.execute('ALTER TABLE campaign_queue MODIFY COLUMN status VARCHAR(50) DEFAULT "pending"');
+            await connection.execute('ALTER TABLE api_campaign_queue MODIFY COLUMN status VARCHAR(50) DEFAULT "pending"');
+            console.log('Status columns optimized.');
+        } catch (e) {
+            console.log('Error optimizing status columns:', e.message);
+        }
+
     } catch (err) {
         console.error('Error:', err.message);
     } finally {
