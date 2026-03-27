@@ -691,28 +691,27 @@ router.post('/whatsapp/callback', async (req, res) => {
                                     const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
                                     const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
-                                    await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+                                    // ATOMIC STATUS UPDATE & COUNTER INCREMENT
+                                    const [updateResult] = await query(
+                                        `UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ? AND status != ?`,
+                                        [finalStatus, messageId, finalStatus]
+                                    );
 
-                                    if (finalStatus === 'delivered') {
-                                        await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
-                                    } else if (finalStatus === 'read') {
-                                        await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
-                                    } else if (finalStatus === 'failed') {
-                                        await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
-                                    }
-
-                                    // Update Campaign Counts
-                                    if (log.campaign_id) {
+                                    // Only increment campaign counters if the status actually changed
+                                    if (updateResult.affectedRows > 0 && log.campaign_id) {
                                         if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
                                             await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                            await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
                                         } else if (finalStatus === 'read' && log.status !== 'read') {
-                                            if (log.status !== 'delivered') {
+                                            if (log.status !== 'delivered' && log.status !== 'read') {
                                                 await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                                             } else {
                                                 await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
                                             }
-                                        } else if (finalStatus === 'failed') {
+                                            await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
+                                        } else if (finalStatus === 'failed' && log.status !== 'failed') {
                                             await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                            await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
                                         }
                                     }
                                     // 📡 REAL-TIME CHAT STATUS UPDATE (Manual only)

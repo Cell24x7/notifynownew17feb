@@ -102,7 +102,10 @@ const campaignWorker = new Worker(queueName, async (job) => {
 
         // 3. PERIODIC DB SYNC (Avoid Row Contention)
         const processedTotal = await redis.hincrby(`${envSuffix}:stats:${campId}`, 'total_processed', 1);
-        if (processedTotal % 100 === 0) {
+        
+        // Sync stats every 100 messages for big campaigns, or every 5 for small ones
+        const syncInterval = (processedTotal < 100) ? 5 : 100;
+        if (processedTotal % syncInterval === 0) {
             const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [parseInt(stats.sent || 0), parseInt(stats.failed || 0), campId]);
         }
