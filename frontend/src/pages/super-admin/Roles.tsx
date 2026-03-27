@@ -147,9 +147,30 @@ export default function SuperAdminRoles() {
        toast({ title: 'Security', description: 'You cannot edit your own permissions', variant: 'destructive' });
        return;
     }
-    setPermissions(prev => prev.map(p => 
-      p.feature === feature ? { ...p, [role]: !p[role] } : p
-    ));
+    setPermissions(prev => prev.map(p => {
+      if (p.feature === feature) {
+         const newValue = !p[role];
+         // If editing a specific entity (User/Reseller), sync all role flags to avoid hidden access
+         if (selectedEntityId) {
+           return { ...p, admin: newValue, manager: newValue, agent: newValue };
+         }
+         return { ...p, [role]: newValue };
+      }
+      return p;
+    }));
+  };
+
+  const handleMasterToggle = (group: string, role: 'admin' | 'manager' | 'agent', isChecked: boolean) => {
+    setPermissions(prev => prev.map(p => {
+      if (p.feature.startsWith(group)) {
+         if (selectedEntityId) {
+            // Sync all roles for this feature set in entity mode
+            return { ...p, admin: isChecked, manager: isChecked, agent: isChecked };
+         }
+         return { ...p, [role]: isChecked };
+      }
+      return p;
+    }));
   };
 
   const handleSavePermissions = async () => {
@@ -459,12 +480,6 @@ export default function SuperAdminRoles() {
           const allManager = perms.every(p => p.manager);
           const allAgent = perms.every(p => p.agent);
 
-          const handleMasterToggle = (role: 'admin' | 'manager' | 'agent', isChecked: boolean) => {
-            setPermissions(prev => prev.map(p => 
-              p.feature.startsWith(group) ? { ...p, [role]: isChecked } : p
-            ));
-          };
-
           return (
             <Card key={group} className="overflow-hidden border-border/50 shadow-sm">
               <CardHeader className="py-3 bg-muted/40 border-b">
@@ -483,7 +498,7 @@ export default function SuperAdminRoles() {
                              <span>Enabled</span>
                              <Switch 
                                checked={allAdmin}
-                               onCheckedChange={(c) => handleMasterToggle('admin', c)}
+                               onCheckedChange={(c) => handleMasterToggle(group, 'admin', c)}
                                className="scale-75 data-[state=checked]:bg-primary"
                              />
                            </div>
@@ -495,7 +510,7 @@ export default function SuperAdminRoles() {
                               <span>Admin</span>
                               <Switch 
                                 checked={allAdmin}
-                                onCheckedChange={(c) => handleMasterToggle('admin', c)}
+                                onCheckedChange={(c) => handleMasterToggle(group, 'admin', c)}
                                 className="scale-75 data-[state=checked]:bg-blue-600 border border-muted-foreground/20"
                               />
                             </div>
@@ -505,7 +520,7 @@ export default function SuperAdminRoles() {
                               <span>Manager</span>
                               <Switch 
                                 checked={allManager}
-                                onCheckedChange={(c) => handleMasterToggle('manager', c)}
+                                onCheckedChange={(c) => handleMasterToggle(group, 'manager', c)}
                                 className="scale-75 data-[state=checked]:bg-secondary"
                               />
                             </div>
@@ -515,7 +530,7 @@ export default function SuperAdminRoles() {
                               <span>Agent</span>
                               <Switch 
                                 checked={allAgent}
-                                onCheckedChange={(c) => handleMasterToggle('agent', c)}
+                                onCheckedChange={(c) => handleMasterToggle(group, 'agent', c)}
                                 className="scale-75 data-[state=checked]:bg-slate-600 border border-muted-foreground/20"
                               />
                             </div>
