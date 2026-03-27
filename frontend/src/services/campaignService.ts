@@ -122,6 +122,11 @@ export const campaignService = {
         return response.data;
     },
 
+    async resendCampaign(id: string) {
+        const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/${id}/resend`, {}, { headers: getAuthHeader() });
+        return response.data;
+    },
+
     async sendTest(data: { channel: string; template_id: string; destination: string; variables: any }) {
         const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/test-send`, data, { headers: getAuthHeader() });
         return response.data;

@@ -2,7 +2,32 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-27]
+- Add detailed RCS payload logging in rcsService (36f9672)
+- Fix RCS customParams gaps and numbered ordering (2453c76)
+
+---
+
 ## [2026-03-26]
+- Implement dynamic variable mapping and template sample download (fec402e)
+- Fix duplicate contact upload and improve report summary accuracy (05f2533)
+- Fix ReferenceError: payloadComponents is not defined in sendingService (8a2ccc5)
+- Auto-convert queue status ENUM to VARCHAR in schema updates to support atomic batching (45a29bc)
+- Fix ambiguous column id and query parameters in queueService (e2037ee)
+- Fix duplicate message sending, campaign summary counts, and WhatsApp language mapping (6e87fb3)
+- Fix: permissions structure across all auth routes and fixed ReferenceError in signup (cb5967b)
+- Fix: Unified default permissions for all user roles and login methods (c5ef3b6)
+- Fix: Resolved Dashboard Fetch Error (CORS preflight failure) and standardized route auth (d311d3f)
+- Fix: Resolved ReferenceErrors in route modules by aligning auth middleware name (798781e)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (cedce60)
+- Fix: Final security stabilization with central authMiddleware, missing table auto-creation, and syntax fixes to resolve dashboard Fetch Error (587cf98)
+- Fix: Stability and permission format alignment (0f248e9)
+- Fix: Critical backend crash in middlewares (Phase 8.2) (924b011)
+- Debug: Add incoming request logging to troubleshoot Network Errors (126eaf7)
+- Fix: Campaign and Template fetch 500 errors by correcting database result destructuring (560f624)
+- Fix: Bulletproof logger to prevent 500 errors if system_logs table has missing columns (04caacf)
+- Fix: Add system_logs migration for device_info and location columns (a28af6a)
+- Fix: Final object-based permission alignment (Phase 8.1) (1d8dcf5)
 - Fix: Logs.tsx syntax error and missing icon (3bbc853)
 - Fix: Reseller Impersonation Permissions, Config Access, and Enhanced Logging (31448a0)
 - Enhance: Absolute path isolation for PM2 to prevent Developer deployments from stopping Production (fdf3831)
@@ -407,13 +432,6 @@ This document is automatically updated based on development activity.
 - updated code rs (a5efb4b)
 - updated code rs (3498d9e)
 - updated code rs (46f670a)
-
----
-
-## [2026-02-24]
-- updated code rs (0f5268a)
-- updated code rs (67fabf9)
-- updated code rs (a060899)
 
 ---
 

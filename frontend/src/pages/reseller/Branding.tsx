@@ -80,6 +80,14 @@ export default function ResellerBranding() {
         );
     }
 
+    if (!settings) {
+        return (
+            <div className="p-6 text-center">
+                <p className="text-muted-foreground">No branding settings found.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 max-w-4xl mx-auto space-y-6">
             <div>

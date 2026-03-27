@@ -171,7 +171,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    {item.icon && <item.icon className="h-5 w-5 flex-shrink-0" />}
                     <span>{item.label}</span>
                   </div>
                   <ChevronDown className={cn("h-4 w-4 transition-transform", reportsOpen && "rotate-180")} />
@@ -209,7 +209,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
+              {item.icon && <item.icon className="h-5 w-5 flex-shrink-0" />}
               <span>{item.label}</span> {/* ← text hamesha dikhega */}
             </NavLink>
           );

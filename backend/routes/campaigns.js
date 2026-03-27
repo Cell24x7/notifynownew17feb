@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const { deductCampaignCredits } = require('../services/walletService');
-const { calculateNextRun } = require('../services/queueService');
+const { calculateNextRun, processQueue } = require('../services/queueService');
 const jwt = require('jsonwebtoken');
 const ExcelJS = require('exceljs');
 const path = require('path');
@@ -321,6 +321,85 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
     } catch (error) {
         console.error('Duplicate campaign error:', error);
         res.status(500).json({ success: false, message: 'Failed to duplicate campaign' });
+    }
+});
+
+// RESEND campaign (Duplicate + Send immediately to same recipients)
+router.post('/:id/resend', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        // 1. Fetch original campaign
+        const [existing] = await query('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        if (existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
+
+        const c = existing[0];
+        const newId = `CAMP${Date.now()}`;
+        const newName = `${c.name} (Resent)`;
+
+        // 2. Insert new campaign record
+        await query(
+            `INSERT INTO campaigns 
+      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
+       variable_mapping, template_metadata, template_body, template_type, 
+       schedule_type, scheduling_mode, next_run_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                newId, userId, newName, c.channel, c.template_id, c.template_name,
+                c.audience_id, c.recipient_count, c.recipient_count, 'running',
+                typeof c.variable_mapping === 'object' ? JSON.stringify(c.variable_mapping) : (c.variable_mapping || '{}'),
+                typeof c.template_metadata === 'object' ? JSON.stringify(c.template_metadata) : (c.template_metadata || '{}'),
+                c.template_body, c.template_type,
+                'now', 'one-time', new Date().toISOString().slice(0, 19).replace('T', ' ')
+            ]
+        );
+
+        // 3. Copy queue entries
+        await query(
+            `INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status)
+             SELECT ?, ?, mobile, variables, 'pending'
+             FROM campaign_queue
+             WHERE campaign_id = ?`,
+            [newId, userId, id]
+        );
+
+        console.log(`🔄 Campaign ${id} resent as ${newId} (Recipients: ${c.recipient_count})`);
+
+        // 4. Deduct credits
+        try {
+            const deductionResult = await deductCampaignCredits(newId);
+            if (!deductionResult.success) {
+                console.warn(`❌ Credit deduction failed for resent campaign ${newId}: ${deductionResult.message}`);
+                await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [newId]);
+                return res.status(402).json({
+                    success: false,
+                    message: deductionResult.message || 'Insufficient wallet balance'
+                });
+            }
+        } catch (creditErr) {
+            console.error('❌ Wallet deduction exception for resend:', creditErr);
+            // We continue as the campaign is already created, but it might stay failed
+        }
+
+        // 5. Trigger Sending immediately (instead of waiting 15s)
+        try {
+            processQueue().catch(err => console.error('Immediate queue trigger error:', err));
+        } catch (qErr) {
+            console.error('❌ Failed to trigger processQueue directly:', qErr);
+        }
+        
+        console.log(`✅ Campaign ${id} successfully resent as ${newId}`);
+        res.json({ success: true, message: 'Campaign re-triggered successfully', campaignId: newId });
+
+    } catch (error) {
+        console.error('❌ FATAL Resend campaign error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to resend campaign', 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+        });
     }
 });
 

@@ -67,18 +67,16 @@ const DEFAULT_CLIENT_PERMISSIONS = [
 
 const DEFAULT_RESELLER_PERMISSIONS = [
   { feature: 'Dashboard - View', admin: true },
-  { feature: 'Clients - View', admin: true },
-  { feature: 'Clients - Create', admin: true },
-  { feature: 'Templates - View', admin: true },
-  { feature: 'Templates - Create', admin: true },
-  { feature: 'Plans - View', admin: true },
-  { feature: 'Roles - View', admin: true },
-  { feature: 'Affiliates - View', admin: true },
-  { feature: 'Wallet - View', admin: true },
+  { feature: 'Reseller Users - View', admin: true },
+  { feature: 'Reseller Branding - View', admin: true },
+  { feature: 'Campaigns - View', admin: true },
+  { feature: 'Template - View', admin: true },
+  { feature: 'Chat - View', admin: true },
+  { feature: 'Contacts - View', admin: true },
   { feature: 'Reports - View', admin: true },
-  { feature: 'Vendors - View', admin: true },
-  { feature: 'Numbers - View', admin: true },
-  { feature: 'System Logs - View', admin: true }
+  { feature: 'Wallet - View', admin: true },
+  { feature: 'Settings - View', admin: true },
+  { feature: 'Marketplace - View', admin: true }
 ];
 
 const { OAuth2Client } = require('google-auth-library');

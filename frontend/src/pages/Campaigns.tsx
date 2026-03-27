@@ -472,6 +472,27 @@ export default function Campaigns() {
     }
   };
 
+  const handleResendCampaign = async (campaign: Campaign) => {
+    try {
+      if (!confirm(`Are you sure you want to resend the campaign "${campaign.name}" to the same recipients?`)) {
+        return;
+      }
+      toast({ title: '🔄 Resending Campaign', description: 'Triggering retry process...' });
+      const res = await campaignService.resendCampaign(campaign.id);
+      if (res.success) {
+        toast({ title: '🚀 Campaign Resent', description: 'A new campaign has been created and started.' });
+        fetchData();
+      }
+    } catch (err: any) {
+      console.error('Resend campaign error:', err);
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to resend campaign.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   // Stats cards
   const stats = [
     { label: 'Total Campaigns', value: campaigns.length, icon: Target, color: 'text-primary' },
@@ -685,6 +706,12 @@ export default function Campaigns() {
                         Analytics
                       </Button>
                     )}
+                    {(campaign.status === 'completed' || campaign.sent_count > 0) && (
+                      <Button variant="outline" size="sm" onClick={() => handleResendCampaign(campaign)} className="bg-success/5 hover:bg-success/10 text-success border-success/20">
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Send Again
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -753,6 +780,9 @@ export default function Campaigns() {
                         )}
                         <Button size="sm" variant="ghost" onClick={() => openAnalytics(campaign)}>
                           <BarChart3 className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleResendCampaign(campaign)} className="text-success hover:text-success hover:bg-success/10">
+                          <RefreshCw className="h-4 w-4" />
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
