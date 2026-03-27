@@ -319,12 +319,25 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
     const client = rows[0];
     console.log('[IMPERSONATE] Client data found:', client.email);
 
-    // Logic: User-specific permissions override Plan permissions
-    let finalPermissions = [];
-    if (client.permissions) {
-      finalPermissions = typeof client.permissions === 'string' ? JSON.parse(client.permissions) : client.permissions;
-    } else if (client.plan_permissions) {
-      finalPermissions = typeof client.plan_permissions === 'string' ? JSON.parse(client.plan_permissions) : client.plan_permissions;
+    // Robust Permission Resolution (Consistent with auth.js)
+    let finalPermissions = null;
+    if (client.permissions !== null && client.permissions !== undefined) {
+      try {
+        finalPermissions = typeof client.permissions === 'string' ? JSON.parse(client.permissions) : client.permissions;
+      } catch (e) {}
+    }
+    
+    // Fallback to plan
+    if (finalPermissions === null && client.plan_permissions) {
+      try {
+        finalPermissions = typeof client.plan_permissions === 'string' ? JSON.parse(client.plan_permissions) : client.plan_permissions;
+      } catch (e) {}
+    }
+    
+    // Final fallback to empty if still null
+    if (finalPermissions === null) {
+      // Users/Clients default to empty if no plan/override exists, to be safe.
+      finalPermissions = [];
     }
 
     // Parse channels if string

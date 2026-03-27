@@ -34,19 +34,33 @@ router.get('/', authenticate, async (req, res) => {
 
     const user = rows[0];
 
-    // Fallback logic for permissions
-    let finalPermissions = [];
-    if (user.permissions) {
+    // Standardized compression logic (same as auth.js)
+    const compressPermissions = (perms) => {
+      if (!Array.isArray(perms)) return [];
+      return perms.map(p => {
+        if (typeof p === 'string') return p;
+        if (p && typeof p === 'object' && p.feature && (p.admin || p.manager || p.agent || p.admin === 1)) return p.feature;
+        return null;
+      }).filter(Boolean);
+    };
+
+    // Robust Fallback Logic (User > Plan > Role Defaults)
+    let finalPermissions = null;
+    if (user.permissions !== null && user.permissions !== undefined) {
       try {
-        finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
-      } catch (e) {
-        console.error('Failed to parse user permissions:', e);
-        finalPermissions = [];
-      }
+        const parsed = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+        if (Array.isArray(parsed)) finalPermissions = parsed;
+      } catch (e) {}
     }
 
-    // Role-based defaults if explicit permissions are missing (exactly like auth.js)
-    if ((!finalPermissions || finalPermissions.length === 0) && user.permissions === null) {
+    if (finalPermissions === null && user.plan_permissions) {
+      try {
+        const parsed = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+        if (Array.isArray(parsed)) finalPermissions = parsed;
+      } catch (e) {}
+    }
+
+    if (finalPermissions === null) {
       if (user.role === 'reseller') {
         finalPermissions = [
           { feature: 'Dashboard - View', admin: 1, manager: 1, agent: 1 },
@@ -67,19 +81,15 @@ router.get('/', authenticate, async (req, res) => {
           { feature: 'Wallet - View', admin: 1, manager: 1, agent: 1 },
           { feature: 'Settings - View', admin: 1, manager: 1, agent: 1 }
         ];
-      } else if (user.role === 'user' && user.plan_permissions) {
-        // Use plan permissions if user specific ones are null
-        try {
-          finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
-        } catch (e) {
-          console.error('Failed to parse plan permissions:', e);
-        }
+      } else {
+        // Default to empty array for others to prevent unintended access
+        finalPermissions = [];
       }
     }
 
     const userWithPermissions = {
       ...user,
-      permissions: finalPermissions,
+      permissions: compressPermissions(finalPermissions),
       plan_permissions: undefined
     };
 

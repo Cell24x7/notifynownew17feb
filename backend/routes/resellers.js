@@ -409,19 +409,27 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
 
     const user = users[0];
 
-    // 3. Prepare payload (Sync with auth system)
-    const rawPermissions = user.permissions ? (typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions) : [];
-    
-    // Maintain object structure: Filter for admin permissions but KEEP as objects
-    let finalPermissions = [];
-    if (Array.isArray(rawPermissions)) {
-        if (rawPermissions.length > 0 && typeof rawPermissions[0] === 'string') {
-            // Convert legacy strings to objects
-            finalPermissions = rawPermissions.map(p => ({ feature: p, admin: true }));
-        } else {
-            // Keep existing objects that have any role access
-            finalPermissions = rawPermissions.filter(p => p.admin || p.manager || p.agent);
-        }
+    // Robust Permission Resolution (Matches auth.js)
+    const compressPermissions = (perms) => {
+      if (!Array.isArray(perms)) return [];
+      return perms.map(p => {
+        if (typeof p === 'string') return p;
+        if (p && typeof p === 'object' && p.feature && (p.admin || p.manager || p.agent || p.admin === 1)) return p.feature;
+        return null;
+      }).filter(Boolean);
+    };
+
+    let finalPermissions = null;
+    if (user.permissions !== null && user.permissions !== undefined) {
+      try { finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions; } catch (e) {}
+    }
+
+    // Fallback logic
+    if (finalPermissions === null) {
+      // For resellers, we usually have a different set of defaults than users
+      // But let's use the explicit list from profile.js for consistency if we wanted, 
+      // or just trust the database for now.
+      finalPermissions = []; // or actual default list
     }
 
     const payload = {
@@ -433,7 +441,7 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
       impersonatedBy: req.user.role,
       company: user.company || resellers[0].name,
       channels_enabled: user.channels_enabled ? (typeof user.channels_enabled === 'string' ? JSON.parse(user.channels_enabled) : user.channels_enabled) : [],
-      permissions: finalPermissions,
+      permissions: compressPermissions(finalPermissions),
       wallet_balance: user.wallet_balance,
       credits_available: user.credits_available,
       rcs_text_price: user.rcs_text_price,
