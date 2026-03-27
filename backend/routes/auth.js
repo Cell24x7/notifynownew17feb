@@ -8,10 +8,14 @@ const { sendSMS } = require('../utils/smsService');
 
 const compressPermissions = (perms) => {
   if (!Array.isArray(perms)) return [];
-  // Standardize: if objects, extract feature; if strings, keep as is
   return perms.map(p => {
     if (typeof p === 'string') return p;
-    if (p && typeof p === 'object' && p.feature) return p.feature;
+    if (p && typeof p === 'object' && p.feature) {
+      // Only include if at least one access flag is truthy
+      if (p.admin || p.manager || p.agent || p.admin === 1 || p.manager === 1 || p.agent === 1) {
+        return p.feature;
+      }
+    }
     return null;
   }).filter(Boolean);
 };
@@ -66,17 +70,23 @@ const DEFAULT_CLIENT_PERMISSIONS = [
 ];
 
 const DEFAULT_RESELLER_PERMISSIONS = [
-  { feature: 'Dashboard - View', admin: true },
-  { feature: 'Reseller Users - View', admin: true },
-  { feature: 'Reseller Branding - View', admin: true },
-  { feature: 'Campaigns - View', admin: true },
-  { feature: 'Template - View', admin: true },
-  { feature: 'Chat - View', admin: true },
-  { feature: 'Contacts - View', admin: true },
-  { feature: 'Reports - View', admin: true },
-  { feature: 'Wallet - View', admin: true },
-  { feature: 'Settings - View', admin: true },
-  { feature: 'Marketplace - View', admin: true }
+    { feature: 'Dashboard - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Campaigns - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'WhatsApp - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'RCS - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'SMS - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Reports - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Chat - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Contacts - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'DLT Templates - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Automations - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Chatflows - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Integrations - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Reseller Users - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Reseller Branding - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Marketplace - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Wallet - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Settings - View', admin: 1, manager: 1, agent: 1 }
 ];
 
 const { OAuth2Client } = require('google-auth-library');
@@ -234,30 +244,32 @@ router.post('/login', async (req, res) => {
     if (!match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     // 1. Priority: User-specific overrides
-    let finalPermissions = [];
+    let finalPermissions = null; // Start as null to detect absence
     if (user.permissions) {
       try {
         const parsed = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
-        if (Array.isArray(parsed) && parsed.length > 0) finalPermissions = parsed;
+        if (Array.isArray(parsed)) finalPermissions = parsed; 
       } catch (e) { console.error('Error parsing permissions:', e); }
     }
 
-    // 2. Fallback: Plan permissions
-    if (finalPermissions.length === 0 && user.plan_permissions) {
+    // 2. Fallback: Plan permissions (If user has no specific overrides)
+    if (finalPermissions === null && user.plan_permissions) {
       try {
         const parsed = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
-        if (Array.isArray(parsed) && parsed.length > 0) finalPermissions = parsed;
+        if (Array.isArray(parsed)) finalPermissions = parsed;
       } catch (e) { console.error('Error parsing plan permissions:', e); }
     }
+    
+    // Ensure it's at least an empty array if still null
+    if (finalPermissions === null) finalPermissions = [];
 
-    // 3. Last Resort: Global Defaults by Role (Prevents blank sidebar)
+    // 3. Last Resort: Global Defaults by Role (Only if truly empty/new)
     if (finalPermissions.length === 0) {
       if (user.role === 'reseller') {
         finalPermissions = DEFAULT_RESELLER_PERMISSIONS;
       } else if (user.role === 'client' || user.role === 'user') {
         finalPermissions = DEFAULT_CLIENT_PERMISSIONS;
       } else if (user.role === 'admin' || user.role === 'superadmin') {
-          // Admins get everything anyway, but we can set a robust list
           finalPermissions = DEFAULT_CLIENT_PERMISSIONS.concat(DEFAULT_RESELLER_PERMISSIONS);
       }
     }

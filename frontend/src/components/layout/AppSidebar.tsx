@@ -58,22 +58,30 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
   // Permissions check
   // Default to true if no permissions found to avoid locking out users during transition
-  const hasPermission = (feature: string) => {
+  const hasPermission = (featureName: string) => {
     // Super Admin / Account Owner always has full access
-    if (user?.role === 'admin' || user?.role === 'superadmin') return true;
+    // Platform Super Admin always has full access
+    if (user?.role === 'superadmin') return true;
 
-    // Safety check: ensure permissions is an array
-    if (!user?.permissions || !Array.isArray(user.permissions)) return false;
-
-    // Support compressed permissions array from JWT
-    if (user.permissions.length > 0 && typeof user.permissions[0] === 'string') {
-      return user.permissions.includes(feature);
+    if (!user?.permissions || !Array.isArray(user.permissions)) {
+       return false;
     }
 
-    const perm = user.permissions.find((p: any) => p.feature === feature);
+    const target = featureName.trim().toLowerCase();
+
+    // Find permission with case-insensitive matching
+    const perm = user.permissions.find((p: any) => {
+       const f = (typeof p === 'string' ? p : (p?.feature || '')).trim().toLowerCase();
+       return f === target || f.startsWith(target + ' -');
+    });
+
     if (!perm) return false;
 
-    return perm.admin === true || perm.admin === 1;
+    // If it's a string from JWT, it was already filtered by the backend
+    if (typeof perm === 'string') return true;
+
+    // For objects, check access flags strictly
+    return Boolean(perm.admin) || Boolean(perm.manager) || Boolean(perm.agent);
   };
 
   const navItems = [

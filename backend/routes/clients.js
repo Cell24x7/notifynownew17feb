@@ -12,8 +12,15 @@ const authenticateToken = require('../middleware/authMiddleware');
 
 const compressPermissions = (perms) => {
   if (!Array.isArray(perms)) return [];
-  if (perms.length > 0 && typeof perms[0] === 'string') return perms;
-  return perms.filter(p => p.admin).map(p => p.feature);
+  return perms.map(p => {
+    if (typeof p === 'string') return p;
+    if (p && typeof p === 'object' && p.feature) {
+      if (p.admin || p.manager || p.agent || p.admin === 1 || p.manager === 1 || p.agent === 1) {
+        return p.feature;
+      }
+    }
+    return null;
+  }).filter(Boolean);
 };
 
 const isResellerOrAdmin = (req, res, next) => {

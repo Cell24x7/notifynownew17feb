@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-
+import api from '../config/axios';
 import { API_BASE_URL } from '../config/api';
 
 const API_URL = API_BASE_URL; // Using central config
@@ -85,6 +84,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           whatsapp_config_id: decoded.whatsapp_config_id,
           actual_reseller_id: decoded.actual_reseller_id,
         });
+
+        // CRITICAL: Hydrate from DB immediately because token might be stale or have broad defaults
+        refreshUser(); 
+
       } catch (err) {
         console.error('Invalid token on load:', err);
         localStorage.removeItem('authToken');
@@ -95,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, { identifier: email, password });
+      const response = await api.post(`/api/auth/login`, { identifier: email, password });
 
       const { success, token, user: userData } = response.data;
 
@@ -148,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string
   ): Promise<boolean> => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/signup`, {
+      const response = await api.post(`/api/auth/signup`, {
         name,
         company,
         email,
@@ -198,12 +201,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshUser = async () => {
-    const token = localStorage.getItem('authToken');
-    if (!token) return;
     try {
-      const response = await axios.get(`${API_URL}/api/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`/api/profile`);
       if (response.data.success) {
         const userData = response.data.user;
         setUser({

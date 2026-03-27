@@ -34,18 +34,52 @@ router.get('/', authenticate, async (req, res) => {
 
     const user = rows[0];
 
-    // Logic: User-specific permissions override Plan permissions
+    // Fallback logic for permissions
     let finalPermissions = [];
     if (user.permissions) {
-      finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
-    } else if (user.plan_permissions) {
-      finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+      try {
+        finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+      } catch (e) {
+        console.error('Failed to parse user permissions:', e);
+        finalPermissions = [];
+      }
+    }
+
+    // Role-based defaults if explicit permissions are missing (exactly like auth.js)
+    if ((!finalPermissions || finalPermissions.length === 0) && user.permissions === null) {
+      if (user.role === 'reseller') {
+        finalPermissions = [
+          { feature: 'Dashboard - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Campaigns - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'WhatsApp - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'RCS - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'SMS - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Reports - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Chat - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Contacts - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'DLT Templates - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Automations - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Chatflows - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Integrations - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Reseller Users - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Reseller Branding - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Marketplace - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Wallet - View', admin: 1, manager: 1, agent: 1 },
+          { feature: 'Settings - View', admin: 1, manager: 1, agent: 1 }
+        ];
+      } else if (user.role === 'user' && user.plan_permissions) {
+        // Use plan permissions if user specific ones are null
+        try {
+          finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+        } catch (e) {
+          console.error('Failed to parse plan permissions:', e);
+        }
+      }
     }
 
     const userWithPermissions = {
       ...user,
       permissions: finalPermissions,
-      // Remove raw plan_permissions from response to keep it clean
       plan_permissions: undefined
     };
 

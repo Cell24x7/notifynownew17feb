@@ -3,6 +3,8 @@
 This document is automatically updated based on development activity.
 
 ## [2026-03-27]
+- Fix duplicate delivery counts and improve small campaign stats sync (e80edf9)
+- Fix: Reseller sidebar, Branding crash and Implement Optimized Send Again feature (16c84d3)
 - Add detailed RCS payload logging in rcsService (36f9672)
 - Fix RCS customParams gaps and numbered ordering (2453c76)
 
@@ -431,7 +433,6 @@ This document is automatically updated based on development activity.
 - updated code rs (8ee51e2)
 - updated code rs (a5efb4b)
 - updated code rs (3498d9e)
-- updated code rs (46f670a)
 
 ---
 
