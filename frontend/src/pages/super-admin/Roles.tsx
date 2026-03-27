@@ -472,6 +472,37 @@ export default function SuperAdminRoles() {
         </div>
       )}
 
+      {/* Permissions Header with Actions */}
+      <div className="flex items-center justify-between mb-4 mt-6">
+        <div>
+          <h3 className="text-lg font-bold text-primary">Features & Permissions</h3>
+          <p className="text-sm text-muted-foreground">Manage granular access to specific features</p>
+        </div>
+        
+        {permissions.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 px-3 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                onClick={() => setPermissions(prev => prev.map(p => ({ ...p, admin: true, manager: true, agent: true })))}
+            >
+              <Check className="w-3.5 h-3.5 mr-1.5" />
+              Enable All
+            </Button>
+            <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 px-3 text-xs bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200"
+                onClick={() => setPermissions(prev => prev.map(p => ({ ...p, admin: false, manager: false, agent: false })))}
+            >
+              <X className="w-3.5 h-3.5 mr-1.5" />
+              Disable All
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Permission Matrix */}
       <div className="space-y-6">
         {Object.entries(groupedPermissions).map(([group, perms]) => {
