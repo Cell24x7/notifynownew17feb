@@ -414,7 +414,12 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
       if (!Array.isArray(perms)) return [];
       return perms.map(p => {
         if (typeof p === 'string') return p;
-        if (p && typeof p === 'object' && p.feature && (p.admin || p.manager || p.agent || p.admin === 1)) return p.feature;
+        if (p && typeof p === 'object' && p.feature) {
+          const isAdmin = p.admin === true || p.admin === 1 || p.admin === 'true' || p.admin === '1';
+          const isManager = p.manager === true || p.manager === 1 || p.manager === 'true' || p.manager === '1';
+          const isAgent = p.agent === true || p.agent === 1 || p.agent === 'true' || p.agent === '1';
+          if (isAdmin || isManager || isAgent) return p.feature;
+        }
         return null;
       }).filter(Boolean);
     };

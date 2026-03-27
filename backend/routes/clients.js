@@ -15,9 +15,10 @@ const compressPermissions = (perms) => {
   return perms.map(p => {
     if (typeof p === 'string') return p;
     if (p && typeof p === 'object' && p.feature) {
-      if (p.admin || p.manager || p.agent || p.admin === 1 || p.manager === 1 || p.agent === 1) {
-        return p.feature;
-      }
+      const isAdmin = p.admin === true || p.admin === 1 || p.admin === 'true' || p.admin === '1';
+      const isManager = p.manager === true || p.manager === 1 || p.manager === 'true' || p.manager === '1';
+      const isAgent = p.agent === true || p.agent === 1 || p.agent === 'true' || p.agent === '1';
+      if (isAdmin || isManager || isAgent) return p.feature;
     }
     return null;
   }).filter(Boolean);
