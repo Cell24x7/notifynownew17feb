@@ -263,14 +263,16 @@ router.post('/login', async (req, res) => {
     // Ensure it's at least an empty array if still null
     if (finalPermissions === null) finalPermissions = [];
 
-    // 3. Last Resort: Global Defaults by Role (Only if truly empty/new)
-    if (finalPermissions.length === 0) {
+    // 3. Last Resort: Global Defaults by Role (Only if truly null - absence of settings)
+    if (finalPermissions === null) {
       if (user.role === 'reseller') {
         finalPermissions = DEFAULT_RESELLER_PERMISSIONS;
       } else if (user.role === 'client' || user.role === 'user') {
         finalPermissions = DEFAULT_CLIENT_PERMISSIONS;
       } else if (user.role === 'admin' || user.role === 'superadmin') {
           finalPermissions = DEFAULT_CLIENT_PERMISSIONS.concat(DEFAULT_RESELLER_PERMISSIONS);
+      } else {
+        finalPermissions = [];
       }
     }
 
@@ -508,17 +510,25 @@ router.post('/linkedin', async (req, res) => {
       user = newRows[0];
     }
 
-    let finalPermissions = [];
-    if (user.permissions) {
+    let finalPermissions = null;
+    if (user.permissions !== null && user.permissions !== undefined) {
       try { finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions; } catch (e) {}
-    } else if (user.plan_permissions) {
+    }
+
+    if (finalPermissions === null && user.plan_permissions) {
       try { finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions; } catch (e) {}
     }
+
+    if (finalPermissions === null) {
+      finalPermissions = (user.role === 'reseller') ? DEFAULT_RESELLER_PERMISSIONS : DEFAULT_CLIENT_PERMISSIONS;
+    }
+
+    const compressed = compressPermissions(finalPermissions);
 
     const token = jwt.sign({
         id: user.id, email: user.email, role: user.role, name: user.name,
         company: user.company, channels_enabled: user.channels_enabled,
-        permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
+        permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         actual_reseller_id: user.actual_reseller_id || null
       },
@@ -535,7 +545,7 @@ router.post('/linkedin', async (req, res) => {
       success: true, token,
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
-        channels_enabled: user.channels_enabled, permissions: finalPermissions, plan_name: user.plan_name,
+        channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
       }
     });
 
@@ -593,17 +603,25 @@ router.post('/facebook', async (req, res) => {
       user = newRows[0];
     }
 
-    let finalPermissions = [];
-    if (user.permissions) {
+    let finalPermissions = null;
+    if (user.permissions !== null && user.permissions !== undefined) {
       try { finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions; } catch (e) {}
-    } else if (user.plan_permissions) {
+    }
+
+    if (finalPermissions === null && user.plan_permissions) {
       try { finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions; } catch (e) {}
     }
+
+    if (finalPermissions === null) {
+      finalPermissions = (user.role === 'reseller') ? DEFAULT_RESELLER_PERMISSIONS : DEFAULT_CLIENT_PERMISSIONS;
+    }
+
+    const compressed = compressPermissions(finalPermissions);
 
     const token = jwt.sign({
         id: user.id, email: user.email, role: user.role, name: user.name,
         company: user.company, channels_enabled: user.channels_enabled,
-        permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
+        permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         actual_reseller_id: user.actual_reseller_id || null
       },
@@ -620,7 +638,7 @@ router.post('/facebook', async (req, res) => {
       success: true, token,
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
-        channels_enabled: user.channels_enabled, permissions: finalPermissions, plan_name: user.plan_name,
+        channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
       }
     });
 
@@ -892,11 +910,21 @@ router.get('/me', authenticate, async (req, res) => {
     const user = rows[0];
 
     // Logic: User-specific permissions override Plan permissions
-    let finalPermissions = [];
-    if (user.permissions) {
-      finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
-    } else if (user.plan_permissions) {
-      finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+    let finalPermissions = null;
+    if (user.permissions !== null && user.permissions !== undefined) {
+      try {
+        finalPermissions = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+      } catch (e) {}
+    } 
+    
+    if (finalPermissions === null && user.plan_permissions) {
+      try {
+        finalPermissions = typeof user.plan_permissions === 'string' ? JSON.parse(user.plan_permissions) : user.plan_permissions;
+      } catch (e) {}
+    }
+
+    if (finalPermissions === null) {
+      finalPermissions = (user.role === 'reseller') ? DEFAULT_RESELLER_PERMISSIONS : DEFAULT_CLIENT_PERMISSIONS;
     }
 
     const userWithPermissions = {
