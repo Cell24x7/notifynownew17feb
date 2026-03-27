@@ -110,25 +110,30 @@ export default function SuperAdminRoles() {
     const entity = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : null;
 
     let loadedPermissions: Permission[] = [];
+    const entityPermissions = entity?.permissions;
 
-    if (entity && entity.permissions && Array.isArray(entity.permissions) && entity.permissions.length > 0) {
-      // Entity-specific permissions
-      loadedPermissions = entity.permissions;
+    // Check if permissions exists (can be empty array)
+    if (entityPermissions !== undefined && entityPermissions !== null && Array.isArray(entityPermissions)) {
+      // Entity-specific permissions (Even if empty array, respect it!)
+      loadedPermissions = entityPermissions;
     } else if (plan && plan.permissions && Array.isArray(plan.permissions) && plan.permissions.length > 0) {
       // Plan default permissions
-      // WARNING: Plan permissions might be mixed User/Reseller if not separated in backend. 
-      // Ideally plan permissions should match the target role.
-      // For now, let's use what's there, but fill in missing keys from basePermissions.
       loadedPermissions = plan.permissions;
     } else {
       loadedPermissions = basePermissions;
     }
 
     // Merge loaded permissions with basePermissions to ensure all features are present
-    // This handles the case where new features are added to constants but not yet in DB
+    // BUT! If we are in entity-specific mode and loadedPermissions is empty, we should keep it empty IF it was intended.
+    // However, for the UI to be usable, we should show the features but as unchecked.
     const mergedPermissions = basePermissions.map(basePerm => {
         const existing = loadedPermissions.find(p => p.feature === basePerm.feature);
-        return existing || basePerm;
+        if (existing) return existing;
+        
+        // If we are editing a specific entity and they have an explicit (possibly empty) permission set,
+        // we should default NEW features to 'false' (unchecked).
+        // If they have NO custom permissions (null), we'll eventually fallback to plan above.
+        return { ...basePerm, admin: false, manager: false, agent: false };
     });
 
     setPermissions(mergedPermissions);
