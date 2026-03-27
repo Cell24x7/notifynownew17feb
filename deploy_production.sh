@@ -122,16 +122,23 @@ NODE_ENV=production node scripts/add_api_key.js || true
 NODE_ENV=production node scripts/setup_admin.js || true
 NODE_ENV=production node optimize_db.js || true
 
-# ── Step 7: Restart Clean ─────────────────────────────
-log "♻️  [7/7] Starting clean PM2 instance..."
+# ── Step 7: Restart SMART ─────────────────────────────
+log "♻️  [7/7] Restarting PM2 instance (Zero-Downtime)..."
 cd "$PROJECT_DIR"
-# Force kill anything on port 5050 (Production Port)
-fuser -k 5050/tcp || true
-# Delete ONLY this specific production instance
-pm2 delete notifynow-production 2>/dev/null || true
-# Standard PM2 start for production
-APP_NAME=notifynow-production pm2 start ecosystem.config.js --env production
-# Success! 
-ok "Instance 'notifynow-production' is active on Production Port (5050)"
+
+# Check if app is already running
+if pm2 list | grep -q "$APP_NAME"; then
+    log "   🔄 App '$APP_NAME' is running, reloading..."
+    # Reload ensures Zero-Downtime and preserves other PM2 apps
+    APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
+else
+    log "   🚀 App '$APP_NAME' is new, starting..."
+    APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
+fi
+
+# Final backup of PM2 state
+pm2 save --force
+
+ok "Instance '$APP_NAME' is live and stable."
 
 echo "✨ PRODUCTION DEPLOYMENT COMPLETE!"
