@@ -30,43 +30,43 @@ if (!JWT_SECRET) {
 
 // Robust Default Permissions for Different Roles
 const DEFAULT_CLIENT_PERMISSIONS = [
-  { feature: 'Dashboard - View', admin: true },
-  { feature: 'Template - View', admin: true },
-  { feature: 'Template - Create', admin: true },
-  { feature: 'Template - Edit', admin: true },
-  { feature: 'Template - Delete', admin: true },
-  { feature: 'Campaigns - View', admin: true },
-  { feature: 'Campaigns - Create', admin: true },
-  { feature: 'Campaigns - Edit', admin: true },
-  { feature: 'Campaigns - Delete', admin: true },
-  { feature: 'Campaigns - Report', admin: true },
-  { feature: 'Contacts - View', admin: true },
-  { feature: 'Contacts - Create', admin: true },
-  { feature: 'Contacts - Edit', admin: true },
-  { feature: 'Contacts - Delete', admin: true },
-  { feature: 'Contacts - Export', admin: true },
-  { feature: 'Contacts - Import', admin: true },
-  { feature: 'Chat - View', admin: true },
-  { feature: 'Chat - Reply', admin: true },
-  { feature: 'Chat - Assign', admin: true },
-  { feature: 'Chat - Close', admin: true },
-  { feature: 'API & Webhooks - View', admin: true },
-  { feature: 'API & Webhooks - Manage', admin: true },
-  { feature: 'Automations - View', admin: true },
-  { feature: 'Automations - Create', admin: true },
-  { feature: 'Automations - Edit', admin: true },
-  { feature: 'Automations - Delete', admin: true },
-  { feature: 'Chatflows - View', admin: true },
-  { feature: 'Chatflows - Create', admin: true },
-  { feature: 'Chatflows - Edit', admin: true },
-  { feature: 'Chatflows - Delete', admin: true },
-  { feature: 'DLT Templates - View', admin: true },
-  { feature: 'DLT Templates - Create', admin: true },
-  { feature: 'DLT Templates - Edit', admin: true },
-  { feature: 'DLT Templates - Delete', admin: true },
-  { feature: 'Reports - View', admin: true },
-  { feature: 'Wallet - View', admin: true },
-  { feature: 'Settings - View', admin: true }
+  { feature: 'Dashboard - View', admin: 1 },
+  { feature: 'Template - View', admin: 1 },
+  { feature: 'Template - Create', admin: 1 },
+  { feature: 'Template - Edit', admin: 1 },
+  { feature: 'Template - Delete', admin: 1 },
+  { feature: 'Campaigns - View', admin: 1 },
+  { feature: 'Campaigns - Create', admin: 1 },
+  { feature: 'Campaigns - Edit', admin: 1 },
+  { feature: 'Campaigns - Delete', admin: 1 },
+  { feature: 'Campaigns - Report', admin: 1 },
+  { feature: 'Contacts - View', admin: 1 },
+  { feature: 'Contacts - Create', admin: 1 },
+  { feature: 'Contacts - Edit', admin: 1 },
+  { feature: 'Contacts - Delete', admin: 1 },
+  { feature: 'Contacts - Export', admin: 1 },
+  { feature: 'Contacts - Import', admin: 1 },
+  { feature: 'Chat - View', admin: 1 },
+  { feature: 'Chat - Reply', admin: 1 },
+  { feature: 'Chat - Assign', admin: 1 },
+  { feature: 'Chat - Close', admin: 1 },
+  { feature: 'API & Webhooks - View', admin: 1 },
+  { feature: 'API & Webhooks - Manage', admin: 1 },
+  { feature: 'Automations - View', admin: 1 },
+  { feature: 'Automations - Create', admin: 1 },
+  { feature: 'Automations - Edit', admin: 1 },
+  { feature: 'Automations - Delete', admin: 1 },
+  { feature: 'Chatflows - View', admin: 1 },
+  { feature: 'Chatflows - Create', admin: 1 },
+  { feature: 'Chatflows - Edit', admin: 1 },
+  { feature: 'Chatflows - Delete', admin: 1 },
+  { feature: 'DLT Templates - View', admin: 1 },
+  { feature: 'DLT Templates - Create', admin: 1 },
+  { feature: 'DLT Templates - Edit', admin: 1 },
+  { feature: 'DLT Templates - Delete', admin: 1 },
+  { feature: 'Reports - View', admin: 1 },
+  { feature: 'Wallet - View', admin: 1 },
+  { feature: 'Settings - View', admin: 1 }
 ];
 
 const DEFAULT_RESELLER_PERMISSIONS = [
@@ -260,11 +260,9 @@ router.post('/login', async (req, res) => {
       } catch (e) { console.error('Error parsing plan permissions:', e); }
     }
     
-    // Ensure it's at least an empty array if still null
-    if (finalPermissions === null) finalPermissions = [];
-
     // 3. Last Resort: Global Defaults by Role (Only if truly null - absence of settings)
     if (finalPermissions === null) {
+      console.log(`[AUTH] No permissions found for user ${user.email}, applying role defaults for: ${user.role}`);
       if (user.role === 'reseller') {
         finalPermissions = DEFAULT_RESELLER_PERMISSIONS;
       } else if (user.role === 'client' || user.role === 'user') {
@@ -274,7 +272,12 @@ router.post('/login', async (req, res) => {
       } else {
         finalPermissions = [];
       }
+    } else {
+      console.log(`[AUTH] Using explicit permissions for user ${user.email} (Count: ${finalPermissions.length})`);
     }
+
+    const compressed = compressPermissions(finalPermissions);
+    console.log(`[AUTH] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`);
 
     const token = jwt.sign(
       {

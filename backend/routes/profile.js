@@ -61,6 +61,7 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     if (finalPermissions === null) {
+      console.log(`[PROFILE] No permissions for user ${user.email}, applying defaults for: ${user.role}`);
       if (user.role === 'reseller') {
         finalPermissions = [
           { feature: 'Dashboard - View', admin: 1, manager: 1, agent: 1 },
@@ -82,10 +83,14 @@ router.get('/', authenticate, async (req, res) => {
           { feature: 'Settings - View', admin: 1, manager: 1, agent: 1 }
         ];
       } else {
-        // Default to empty array for others to prevent unintended access
         finalPermissions = [];
       }
+    } else {
+      console.log(`[PROFILE] Using explicit permissions for user ${user.email} (Count: ${finalPermissions.length})`);
     }
+
+    const compressed = compressPermissions(finalPermissions);
+    console.log(`[PROFILE] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`);
 
     const userWithPermissions = {
       ...user,
