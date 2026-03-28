@@ -11,7 +11,7 @@ const redis = new Redis(redisConnection);
  * Optimized for high-throughput with minimized DB overhead.
  */
 
-const envSuffix = process.env.APP_NAME || 'notifynow-production';
+const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 const queueName = `campaign-sending-${envSuffix}`;
 
 const campaignWorker = new Worker(queueName, async (job) => {
@@ -103,8 +103,8 @@ const campaignWorker = new Worker(queueName, async (job) => {
         // 3. PERIODIC DB SYNC (Avoid Row Contention)
         const processedTotal = await redis.hincrby(`${envSuffix}:stats:${campId}`, 'total_processed', 1);
         
-        // Faster updates for small campaigns: Sync every 2 messages if < 100, else every 100
-        const syncInterval = (processedTotal < 100) ? 2 : 100;
+        // INSTANT UPDATES for small campaigns (< 10 msgs: sync every msg, < 100: sync every 2)
+        const syncInterval = (processedTotal < 10) ? 1 : 100;
         if (processedTotal % syncInterval === 0) {
             const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [parseInt(stats.sent || 0), parseInt(stats.failed || 0), campId]);

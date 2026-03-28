@@ -121,6 +121,7 @@ NODE_ENV=production node apply_schema_updates.js || true
 NODE_ENV=production node scripts/add_api_key.js || true
 NODE_ENV=production node scripts/setup_admin.js || true
 NODE_ENV=production node optimize_db.js || true
+NODE_ENV=production node fix_logs_schema.js || true
 
 # ── Step 7: Restart SMART ─────────────────────────────
 log "♻️  [7/7] Restarting PM2 instance (Zero-Downtime)..."

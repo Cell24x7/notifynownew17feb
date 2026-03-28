@@ -372,6 +372,17 @@ router.post('/dotgo', async (req, res) => {
                     }
                 }
 
+                if (logs.length === 0 && process.env.APP_NAME === 'notifynow-production') {
+                    // RELAY: This report does not belong to Production database.
+                    // Forward it to the Developer app so its reports also work!
+                    console.log(`📡 [Relay] Unknown DLR ${messageId}. Forwarding to Developer instance...`);
+                    const axios = require('axios');
+                    const devUrl = 'https://developer.notifynow.in/api/webhooks/dotgo';
+                    axios.post(devUrl, req.body, { headers: { 'x-relay': 'true' } }).catch(e => {
+                        if (!e.response || e.response.status !== 404) console.error('[Relay] Forwarding failed:', e.message);
+                    });
+                }
+
                 if (logs.length > 0) {
                     const log = logs[0];
                     const oldStatus = (log.status || '').toLowerCase();
