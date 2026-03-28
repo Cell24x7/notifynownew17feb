@@ -7,7 +7,7 @@ const express = require('express');
 const axios = require('axios');
 const { query } = require('../config/db');
 const authenticate = require('../middleware/authMiddleware');
-const { deductSingleMessageCredit } = require('../services/walletService');
+const { deductSingleMessageCredit, deductCampaignCredits } = require('../services/walletService');
 
 const router = express.Router();
 

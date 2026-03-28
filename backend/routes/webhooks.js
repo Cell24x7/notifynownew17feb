@@ -31,22 +31,30 @@ router.post('/rcs/callback', async (req, res) => {
 
             // Update message_logs
             try {
-                // Check if message exists
-                let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                // RETRY LOGIC: If a message was JUST sent, the provider might hit our webhook faster than the local DB can record it.
+                let [logs] = [];
                 let isApiLog = false;
+                let attempts = 0;
                 
-                if (logs.length === 0) {
-                    [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
-                    if (logs.length > 0) isApiLog = true;
+                while (attempts < 3) {
+                    [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                    if (logs.length === 0) {
+                        [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                        if (logs.length > 0) {
+                            isApiLog = true;
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                    
+                    attempts++;
+                    // Wait 500ms before retrying
+                    if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
                 if (logs.length > 0) {
                     const log = logs[0];
-
-                    // Only update if status is "better" or different
-                    // Hierarchy: sent -> submitted -> delivered -> read
-                    // Failure is separate
-
                     const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
                     const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
@@ -56,7 +64,6 @@ router.post('/rcs/callback', async (req, res) => {
                     if (finalStatus === 'delivered') {
                         await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
                     } else if (finalStatus === 'read') {
-                        // If it's read, it must have been delivered. Set delivery_time if null.
                         await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
                     } else if (finalStatus === 'failed') {
                         await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
@@ -77,7 +84,7 @@ router.post('/rcs/callback', async (req, res) => {
 
                     console.log(`✅ Updated status for ${messageId} to ${finalStatus}`);
                 } else {
-                    console.warn(`⚠️ Message ID ${messageId} not found in logs. DLR ignored.`);
+                    console.warn(`⚠️ Message ID ${messageId} not found in logs after retries.`);
                 }
             } catch (dbErr) {
                 console.error('❌ Database Error updating DLR:', dbErr.message);
@@ -688,12 +695,25 @@ router.post('/whatsapp/callback', async (req, res) => {
 
                             // Update logic based on messageId (checks both manual and API logs)
                             try {
-                                let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                                let [logs] = [];
                                 let isApiLog = false;
+                                let attempts = 0;
                                 
-                                if (logs.length === 0) {
-                                    [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
-                                    if (logs.length > 0) isApiLog = true;
+                                while (attempts < 3) {
+                                    [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                                    if (logs.length === 0) {
+                                        [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                                        if (logs.length > 0) {
+                                            isApiLog = true;
+                                            break;
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                    
+                                    attempts++;
+                                    // Wait 500ms before retrying
+                                    if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 500));
                                 }
 
                                 if (logs.length > 0) {
@@ -733,7 +753,7 @@ router.post('/whatsapp/callback', async (req, res) => {
                                         });
                                     }
                                 } else {
-                                    console.warn(`⚠️ WA Message ID ${messageId} not found in logs.`);
+                                    console.warn(`⚠️ WA Message ID ${messageId} not found in logs after retries.`);
                                 }
                             } catch (error) {
                                 console.error('❌ Error handling WA DLR:', error.message);

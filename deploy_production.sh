@@ -8,11 +8,17 @@
 
 set -e  # Stop on any error
 
-# Auto-detect project paths
+# ─── Configuration ─────────────────────────────────────────
 PROJECT_DIR=$(pwd)
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 DIST_DIR="$FRONTEND_DIR/dist"
+
+# Detect APP_NAME from .env.production if it exists, else default 
+if [ -f "$BACKEND_DIR/.env.production" ]; then
+    APP_NAME=$(grep "^APP_NAME=" "$BACKEND_DIR/.env.production" | cut -d'=' -f2 | tr -d '"'\'' ')
+fi
+: "${APP_NAME:=notifynow-production}" # Fallback to default
 
 # ─── Colors for pretty output ────────────────────────────
 GREEN='\033[0;32m'
@@ -72,7 +78,7 @@ else
     sed -i '/^DB_NAME=/c\DB_NAME=notifynow_db' "$BACKEND_DIR/.env.production"
     sed -i '/^PORT=/c\PORT=5050' "$BACKEND_DIR/.env.production"
     sed -i '/^API_BASE_URL=/c\API_BASE_URL=https://notifynow.in' "$BACKEND_DIR/.env.production"
-    if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production"; then echo "JWT_EXPIRES_IN=20m" >> "$BACKEND_DIR/.env.production"; else sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=20m' "$BACKEND_DIR/.env.production"; fi
+    if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production"; then echo "JWT_EXPIRES_IN=24h" >> "$BACKEND_DIR/.env.production"; else sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=24h' "$BACKEND_DIR/.env.production"; fi
     if ! grep -q "JWT_SECRET=" "$BACKEND_DIR/.env.production"; then echo "JWT_SECRET=notifynow_prod_secret_key_secure" >> "$BACKEND_DIR/.env.production"; fi
 fi
 
