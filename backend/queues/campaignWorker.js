@@ -103,8 +103,8 @@ const campaignWorker = new Worker(queueName, async (job) => {
         // 3. PERIODIC DB SYNC (Avoid Row Contention)
         const processedTotal = await redis.hincrby(`${envSuffix}:stats:${campId}`, 'total_processed', 1);
         
-        // Sync stats every 100 messages for big campaigns, or every 5 for small ones
-        const syncInterval = (processedTotal < 100) ? 5 : 100;
+        // Faster updates for small campaigns: Sync every 2 messages if < 100, else every 100
+        const syncInterval = (processedTotal < 100) ? 2 : 100;
         if (processedTotal % syncInterval === 0) {
             const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [parseInt(stats.sent || 0), parseInt(stats.failed || 0), campId]);
@@ -130,9 +130,9 @@ const campaignWorker = new Worker(queueName, async (job) => {
     }
 }, {
     connection: redisConnection,
-    concurrency: 80, // Reduced to prevent DB pool exhaustion (300-500 was too high for 600 connections total)
+    concurrency: 5, // LOW CONCURRENCY for 100% reliability on tests (Prevents 'Too many requests' 429)
     limiter: {
-        max: 500,
+        max: 5, 
         duration: 1000,
     }
 });

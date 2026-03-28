@@ -464,7 +464,7 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
 
     try {
         // Verify campaign exists
-        const [existing] = await query('SELECT id FROM campaigns WHERE id = ? AND user_id = ?', [campaignId, userId]);
+        const [existing] = await query('SELECT id, channel FROM campaigns WHERE id = ? AND user_id = ?', [campaignId, userId]);
         if (existing.length === 0) {
             // Cleanup uploaded file if campaign invalid
             if (req.file) fs.unlinkSync(req.file.path);
@@ -476,11 +476,13 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
         const BATCH_SIZE = 1000;
         let batch = [];
 
+        const channel = existing[0]?.channel || 'rcs'; // Ensure channel is known
         const processBatch = async (currentBatch) => {
             if (currentBatch.length === 0) return;
-            const values = currentBatch.map(item => [campaignId, userId, item.mobile, JSON.stringify(item.variables), 'pending']);
-            console.log(`[Upload] Inserting batch of ${currentBatch.length} with variables for campaign ${campaignId} (User: ${userId})`);
-            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status) VALUES ?', [values]);
+            // FIXED: Added channel column as it is required for the worker reporting engine
+            const values = currentBatch.map(item => [campaignId, userId, item.mobile, JSON.stringify(item.variables), 'pending', channel]);
+            console.log(`[Upload] Inserting batch of ${currentBatch.length} with variables for campaign ${campaignId} (Channel: ${channel})`);
+            await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status, channel) VALUES ?', [values]);
         };
 
         if (req.file) {
@@ -568,6 +570,11 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
             if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
             await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
+            
+            // Trigger Queue Immediately
+            const { processQueue } = require('../services/queueService');
+            processQueue().catch(e => console.error('Auto-trigger queue failed:', e.message));
+
             return res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
 
         } else if (req.body.manualNumbers) {
@@ -591,6 +598,11 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
             }
             if (batch.length > 0) await processBatch(batch);
             await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contactCount, campaignId]);
+            
+            // Trigger Queue Immediately for small manual campaigns
+            const { processQueue } = require('../services/queueService');
+            processQueue().catch(e => console.error('Auto-trigger queue failed:', e.message));
+
             return res.json({ success: true, message: `Added ${contactCount} contacts`, count: contactCount });
         } else {
             return res.status(400).json({ success: false, message: 'No file or numbers provided' });

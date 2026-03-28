@@ -22,7 +22,31 @@ async function fix() {
         if (!colNames.includes('message_id')) {
             console.log('Adding message_id column...');
             await connection.query('ALTER TABLE message_logs ADD COLUMN message_id VARCHAR(255) AFTER id');
+            await connection.query('CREATE INDEX idx_msg_id ON message_logs(message_id)');
+        } else {
+            // Ensure index exists even if column was already there
+            try {
+                await connection.query('CREATE INDEX idx_msg_id ON message_logs(message_id)');
+                console.log('Created index idx_msg_id on message_logs');
+            } catch (e) {
+                if (!e.message.includes('Duplicate key name')) console.error('Index error:', e.message);
+            }
         }
+
+        // Also for api_message_logs and campaign_id
+        try {
+            await connection.query('CREATE INDEX idx_api_msg_id ON api_message_logs(message_id)');
+        } catch (e) {}
+
+        try {
+            await connection.query('CREATE INDEX idx_camp_id ON message_logs(campaign_id)');
+            console.log('Created index idx_camp_id on message_logs');
+        } catch (e) {}
+        
+        try {
+            await connection.query('CREATE INDEX idx_api_camp_id ON api_message_logs(campaign_id)');
+            console.log('Created index idx_api_camp_id on api_message_logs');
+        } catch (e) {}
 
         if (!colNames.includes('failure_reason')) {
             console.log('Adding failure_reason column...');
@@ -32,6 +56,13 @@ async function fix() {
         if (!colNames.includes('delivery_time')) {
             console.log('Adding delivery_time column...');
             await connection.query('ALTER TABLE message_logs ADD COLUMN delivery_time TIMESTAMP NULL AFTER created_at');
+        }
+
+        // Check campaign_queue for channel column
+        const [qCols] = await connection.query('SHOW COLUMNS FROM campaign_queue');
+        if (!qCols.map(c => c.Field).includes('channel')) {
+            console.log('Adding channel column to campaign_queue...');
+            await connection.query('ALTER TABLE campaign_queue ADD COLUMN channel VARCHAR(50) DEFAULT NULL AFTER status');
         }
 
         console.log('✅ Schema updated successfully!');
