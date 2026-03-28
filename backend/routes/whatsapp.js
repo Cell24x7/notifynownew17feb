@@ -832,7 +832,7 @@ router.post('/send-campaign', authenticate, async (req, res) => {
         // Queue contacts
         if (contacts && contacts.length > 0) {
             if (!campaignId) {
-                campaignId = `CAMP_${Date.now()}`;
+                campaignId = `CAMP${Date.now()}`;
                 await query(
                     `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at, template_metadata, template_body)
                      VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW(), ?, ?)`,
@@ -857,7 +857,8 @@ router.post('/send-campaign', authenticate, async (req, res) => {
             if (values.length > 0) {
                 const BATCH = 1000;
                 for (let i = 0; i < values.length; i += BATCH) {
-                    await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
+                    // Added 'channel' column for compatibility with worker reporting engine
+                    await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [values.slice(i, i + BATCH).map(v => [...v, 'whatsapp'])]);
                 }
                 console.log(`✅ Queued ${values.length} contacts for WhatsApp campaign ${campaignId}`);
             }
@@ -869,13 +870,16 @@ router.post('/send-campaign', authenticate, async (req, res) => {
         if (campaignId) {
             await query('UPDATE campaigns SET status = "running" WHERE id = ? AND user_id = ?', [campaignId, userId]);
 
-            const { deductCampaignCredits } = require('../services/walletService');
             const deductionResult = await deductCampaignCredits(campaignId);
             if (!deductionResult.success) {
                 console.error(`❌ Credit deduction failed for WA campaign ${campaignId}: ${deductionResult.message}`);
                 await query('UPDATE campaigns SET status = "paused" WHERE id = ?', [campaignId]);
                 return res.status(402).json({ success: false, message: deductionResult.message || 'Insufficient wallet balance' });
             }
+
+            // Trigger Queue processing IMMEDIATELY instead of waiting for 15s loop
+            const { processQueue } = require('../services/queueService');
+            processQueue().catch(err => console.error('WA Queue Trigger Error:', err.message));
 
             return res.json({
                 success: true,
@@ -970,6 +974,10 @@ router.post('/api/send-bulk', async (req, res) => {
 
         // Mark as running in api_campaigns so worker processes it
         await query('UPDATE api_campaigns SET status = "running" WHERE id = ?', [campaignId]);
+
+        // Trigger Queue processing IMMEDIATELY
+        const { processApiQueue } = require('../services/queueService');
+        processApiQueue().catch(err => console.error('WA API Queue Trigger Error:', err.message));
 
         res.json({ success: true, campaignId, queued: contacts.length });
     } catch (error) {

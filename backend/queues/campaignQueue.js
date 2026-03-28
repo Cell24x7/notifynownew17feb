@@ -9,7 +9,7 @@ const redisConnection = {
 };
 
 // Create the High-Volume Campaign Queue with Environment Isolation
-const envSuffix = process.env.APP_NAME || 'notifynow-production';
+const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 const queueName = `campaign-sending-${envSuffix}`;
 
 const campaignQueue = new Queue(queueName, {

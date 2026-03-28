@@ -192,7 +192,7 @@ const processBatch = async (tableConfig) => {
         `;
 
         let totalOffloaded = 0;
-        const envSuffix = process.env.APP_NAME || 'notifynow-production';
+        const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 
         while (true) {
             // A. Fetch potential candidate IDs
@@ -230,6 +230,22 @@ const processBatch = async (tableConfig) => {
                 continue;
             }
 
+            // 1. SYNC Redis Counters FIRST (CRITICAL: prevents race condition where worker decr happens before producer incr)
+            const { redisConnection } = require('../queues/campaignQueue');
+            const Redis = require('ioredis');
+            const redisClient = new Redis(redisConnection);
+            
+            const countsByCamp = {};
+            for (const item of workItems) {
+                countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1;
+            }
+            
+            for (const campId in countsByCamp) {
+                await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, countsByCamp[campId]);
+            }
+            await redisClient.quit();
+
+            // 2. Offload claimed batch to BullMQ
             console.log(`[${processorName}] Offloading claimed batch of ${workItems.length} items to BullMQ...`);
             const { campaignQueue } = require('../queues/campaignQueue');
 
@@ -240,21 +256,6 @@ const processBatch = async (tableConfig) => {
             }));
             
             await campaignQueue.addBulk(jobs);
-
-            // SYNC Redis Counters for only the items we added
-            const { redisConnection } = require('../queues/campaignQueue');
-            const Redis = require('ioredis');
-            const redisClient = new Redis(redisConnection);
-            
-            const counts = {};
-            for (const item of workItems) {
-                counts[item.campaign_id] = (counts[item.campaign_id] || 0) + 1;
-            }
-            
-            for (const campId in counts) {
-                await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, counts[campId]);
-            }
-            await redisClient.quit();
 
             // MARK AS PROCESSING (Final state for queue)
             const claimedIds = workItems.map(i => i.id);

@@ -112,16 +112,26 @@ const campaignWorker = new Worker(queueName, async (job) => {
 
         // 4. COMPLETION CHECK
         const remains = await redis.decr(`${envSuffix}:camp_progress:${campId}`);
-        if (remains <= 0) {
-            // Final Sync
+        if (remains === 0) {
+            // Final Sync - ONLY if it reached exactly 0
             const finalStats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
-            await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
-                [parseInt(finalStats.sent || 0), parseInt(finalStats.failed || 0), campId]);
-            
-            // Cleanup Redis
-            await redis.del(`${envSuffix}:camp_progress:${campId}`);
-            await redis.del(`${envSuffix}:stats:${campId}`);
-            console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
+            if (Object.keys(finalStats).length > 0) {
+                await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
+                    [parseInt(finalStats.sent || 0), parseInt(finalStats.failed || 0), campId]);
+                
+                // Cleanup Redis
+                await redis.del(`${envSuffix}:camp_progress:${campId}`);
+                await redis.del(`${envSuffix}:stats:${campId}`);
+                console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
+            } else {
+                // Stats missing? Just mark as sent
+                await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [campId]);
+                await redis.del(`${envSuffix}:camp_progress:${campId}`);
+            }
+        } else if (remains < 0) {
+             // If it's already negative, something went wrong with initialization or double processing.
+             // Final catch-all update but don't delete if we expect more.
+             await redis.del(`${envSuffix}:camp_progress:${campId}`);
         }
 
     } catch (err) {

@@ -263,7 +263,7 @@ router.post('/send-campaign', authenticate, async (req, res) => {
 
       // If no campaignId, create a new campaign record
       if (!campaignId) {
-        campaignId = `CAMP_${Date.now()}`;
+        campaignId = `CAMP${Date.now()}`;
         await query(
           `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, template_type, recipient_count, sent_count, failed_count, status, created_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
@@ -280,7 +280,7 @@ router.post('/send-campaign', authenticate, async (req, res) => {
         );
         console.log(`✅ Created new Dotgo campaign ${campaignId} for ${contacts.length} contacts (Type: ${templateType})`);
       } else {
-        await query('UPDATE campaigns SET recipient_count = recipient_count + ?, template_type = ? WHERE id = ?', [contacts.length, templateType, campaignId]);
+        await query('UPDATE campaigns SET recipient_count = recipient_count + ?, template_type = ?, status = "running" WHERE id = ?', [contacts.length, templateType, campaignId]);
       }
 
       // Prepare queue items
@@ -295,7 +295,8 @@ router.post('/send-campaign', authenticate, async (req, res) => {
         // Batch insert to queue
         const BATCH = 1000;
         for (let i = 0; i < values.length; i += BATCH) {
-          await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status) VALUES ?', [values.slice(i, i + BATCH)]);
+          // Added 'channel' column for compatibility with worker reporting engine
+          await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [values.slice(i, i + BATCH).map(v => [...v, 'rcs'])]);
         }
         console.log(`✅ Queued ${values.length} contacts for Dotgo campaign ${campaignId}`);
       }
@@ -321,6 +322,10 @@ router.post('/send-campaign', authenticate, async (req, res) => {
           message: deductionResult.message || 'Insufficient wallet balance'
         });
       }
+
+      // Trigger Queue processing IMMEDIATELY instead of waiting for 15s loop
+      const { processQueue } = require('../services/queueService');
+      processQueue().catch(err => console.error('RCS Queue Trigger Error:', err.message));
 
       return res.json({
         success: true,
