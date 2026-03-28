@@ -12,9 +12,10 @@ const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
  * Normalizes RCS results from service
  */
 const normalizeRcsResult = (raw) => {
-    if (raw && raw.messageId) return { success: true, messageId: raw.messageId };
-    if (raw && raw.id) return { success: true, messageId: raw.id };
-    return { success: false, error: raw?.error || 'RCS message sending failed' };
+    if (raw && (raw.id || raw.messageId || raw.message_id || raw.success)) {
+        return { success: true, messageId: raw.id || raw.messageId || raw.message_id || `rcs_${Date.now()}` };
+    }
+    return { success: false, error: raw?.error || 'Provider Error' };
 };
 
 /**
@@ -40,11 +41,9 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
         const contactVars = typeof contactVarsStr === 'string' ? JSON.parse(contactVarsStr || '{}') : (contactVarsStr || {});
         const resolved = {};
         
-        // Strategy 1: Mapping exists
         if (Object.keys(mapping).length > 0) {
             Object.keys(mapping).forEach(key => {
                 const mapEntry = mapping[key];
-                
                 if (mapEntry && typeof mapEntry === 'object' && mapEntry.type) {
                     if (mapEntry.type === 'field') {
                         resolved[key] = contactVars[mapEntry.value] || '';
@@ -52,15 +51,11 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
                         resolved[key] = mapEntry.value || '';
                     }
                 } else if (typeof mapEntry === 'string') {
-                    // Fallback for simple string mapping
                     resolved[key] = contactVars[mapEntry] || '';
                 }
             });
         } 
-        
-        // Strategy 2: Direct merge (for API-driven campaigns where variables are already "1", "2")
         Object.assign(resolved, contactVars);
-        
         return resolved;
     } catch (e) {
         return {};
@@ -73,7 +68,6 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
 const getOrderedVariables = (text, resolvedVars) => {
     const vars = [];
     if (!text) return vars;
-    // Regex for both [X] and {{X}}
     const regex = /\[(\d+)\]|\{\{(\d+)\}\}/g;
     let match;
     const foundIndices = new Set();
@@ -81,8 +75,6 @@ const getOrderedVariables = (text, resolvedVars) => {
         const idx = match[1] || match[2];
         if (idx) foundIndices.add(idx);
     }
-    
-    // Sort indices numerically and get values
     const sorted = Array.from(foundIndices).sort((a, b) => parseInt(a) - parseInt(b));
     return sorted.map(idx => resolvedVars[idx] || '');
 };
@@ -90,16 +82,14 @@ const getOrderedVariables = (text, resolvedVars) => {
 const calculateNextRun = (currentRun, frequency, repeatDays) => {
     if (!currentRun) return null;
     const next = new Date(currentRun);
-    
     if (frequency === 'daily') {
         next.setDate(next.getDate() + 1);
     } else if (frequency === 'weekly') {
         if (!repeatDays || !Array.isArray(repeatDays) || repeatDays.length === 0) {
-            next.setDate(next.getDate() + 7); // Default to same day next week
+            next.setDate(next.getDate() + 7);
         } else {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const currentDayIdx = next.getDay();
-            
             let minDiff = 8;
             repeatDays.forEach(day => {
                 const targetIdx = days.findIndex(d => d.startsWith(day));
@@ -120,46 +110,16 @@ const calculateNextRun = (currentRun, frequency, repeatDays) => {
 };
 
 /**
- * Core processor for any campaign queue
+ * Core processor: Drains SQL Queue into BullMQ
  */
-const processBatch = async (tableConfig) => {
-    const { 
-        campaignTable, 
-        queueTable, 
-        logsTable,
-        name: processorName
-    } = tableConfig;
-
+const processBatch = async ({ campaignTable, queueTable, logsTable, name: processorName }) => {
     try {
-        // --- 1. Handle Recurring Campaigns Renewal (Resetting previously finished runs) ---
-        // Currently only supported for manual campaigns
-        if (campaignTable === 'campaigns') {
-            const [recurringCamps] = await query(`
-                SELECT * FROM ${campaignTable} 
-                WHERE scheduling_mode = 'repeat' 
-                AND status = 'sent' 
-                AND next_run_at <= NOW()
-                AND (end_date IS NULL OR end_date > NOW())
-            `);
+        const tableConfig = { campaignTable, queueTable, logsTable };
+        const workerId = `worker_${process.pid}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const DRIP_BATCH_SIZE = 1000;
+        const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 
-            for (const camp of recurringCamps) {
-                console.log(`♻️ [${processorName}] Renewing recurring campaign ${camp.id} (${camp.name})`);
-                
-                // Reset queue items to pending
-                await query(`UPDATE ${queueTable} SET status = "pending" WHERE campaign_id = ?`, [camp.id]);
-                
-                // Calculate next run
-                const nextRun = calculateNextRun(camp.next_run_at, camp.frequency, camp.repeat_days);
-                
-                // Set status back to 'running'
-                await query(
-                    `UPDATE ${campaignTable} SET status = "running", next_run_at = ?, last_run_at = NOW() WHERE id = ?`, 
-                    [nextRun, camp.id]
-                );
-            }
-        }
-
-        // --- 2. Auto-start scheduled/pending campaigns whose time has passed ---
+        // --- 1. Auto-start scheduled campaigns ---
         await query(`
             UPDATE ${campaignTable} 
             SET status = 'running', last_run_at = NOW()
@@ -168,7 +128,7 @@ const processBatch = async (tableConfig) => {
             AND status != 'running'
         `);
 
-        // 3. Fetch pending items
+        // --- 2. SQL FETCH SQL ---
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(mt.name, c.template_name) as template_name,
@@ -192,251 +152,67 @@ const processBatch = async (tableConfig) => {
         `;
 
         let totalOffloaded = 0;
-        const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
-
         while (true) {
-            // A. Fetch potential candidate IDs
-            const [candidates] = await query(`SELECT q.id FROM ${queueTable} q JOIN ${campaignTable} c ON q.campaign_id = c.id WHERE q.status = 'pending' AND c.status = 'running' LIMIT ?`, [BATCH_SIZE]);
-            if (candidates.length === 0) break;
+            const [candidates] = await query(sql, [DRIP_BATCH_SIZE]);
+            if (!candidates || candidates.length === 0) break;
 
+            // Claim
             const candidateIds = candidates.map(c => c.id);
-            const batchToken = `proc-${process.pid}-${Date.now()}`;
+            const [markResult] = await query(
+                `UPDATE ${queueTable} SET status = ?, worker_id = ? WHERE id IN (?) AND status = 'pending'`, 
+                ['claiming', workerId, candidateIds]
+            );
+            if (markResult.affectedRows === 0) break;
 
-            // B. Atomically mark them with a unique batch token
-            const [markResult] = await query(`UPDATE ${queueTable} SET status = ? WHERE id IN (?) AND status = 'pending'`, [batchToken, candidateIds]);
-            if (markResult.affectedRows === 0) continue; // All were stolen by another worker process
+            const [workItems] = await query(`SELECT * FROM ${queueTable} WHERE status = 'claiming' AND worker_id = ?`, [workerId]);
+            if (!workItems || workItems.length === 0) break;
 
-            // C. Fetch the full data for ONLY the items we successfully claimed
-            const [batchItems] = await query(sql.replace("q.status = 'pending'", "q.status = ?"), [batchToken, BATCH_SIZE]);
-            if (batchItems.length === 0) continue;
-
-            // Safety Deduct Credits (Only for campaigns that haven't been deducted yet)
-            const uniqueCampaigns = [...new Set(batchItems.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
+            // Credits
+            const uniqueCampaigns = [...new Set(workItems.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
             const failedCampaigns = new Set();
             for (const campId of uniqueCampaigns) {
-                const result = await deductCampaignCredits(campId, campaignTable);
-                if (!result.success) {
-                    console.error(`[${processorName}] Credit deduction failed for ${campId}: ${result.message}`);
+                const creditResult = await deductCampaignCredits(campId, campaignTable);
+                if (!creditResult.success) {
                     await query(`UPDATE ${campaignTable} SET status = "paused" WHERE id = ?`, [campId]);
                     failedCampaigns.add(campId);
                 }
             }
 
-            let workItems = batchItems;
-            if (failedCampaigns.size > 0) workItems = batchItems.filter(i => !failedCampaigns.has(i.campaign_id));
-            if (workItems.length === 0) {
-                // Return failed ones to pending or mark as failed
-                await query(`UPDATE ${queueTable} SET status = 'pending' WHERE status = ?`, [batchToken]);
-                continue;
+            const validItems = failedCampaigns.size > 0 ? workItems.filter(i => !failedCampaigns.has(i.campaign_id)) : workItems;
+            if (validItems.length === 0) {
+                await query(`UPDATE ${queueTable} SET status = 'pending', worker_id = NULL WHERE status = 'claiming' AND worker_id = ?`, [workerId]);
+                break;
             }
 
-            // 1. SYNC Redis Counters FIRST (CRITICAL: prevents race condition where worker decr happens before producer incr)
+            // Sync Redis
             const { redisConnection } = require('../queues/campaignQueue');
             const Redis = require('ioredis');
             const redisClient = new Redis(redisConnection);
-            
             const countsByCamp = {};
-            for (const item of workItems) {
-                countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1;
-            }
-            
-            for (const campId in countsByCamp) {
-                await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, countsByCamp[campId]);
-            }
+            for (const item of validItems) countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1;
+            for (const campId in countsByCamp) await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, countsByCamp[campId]);
             await redisClient.quit();
 
-            // 2. Offload claimed batch to BullMQ
-            console.log(`[${processorName}] Offloading claimed batch of ${workItems.length} items to BullMQ...`);
+            // BullMQ
             const { campaignQueue } = require('../queues/campaignQueue');
-
-            const jobs = workItems.map(item => ({
+            const jobs = validItems.map(item => ({
                 name: `sending-${item.mobile}`,
                 data: { item, tableConfig },
-                opts: { jobId: `${processorName}-${item.id}` }
+                opts: { jobId: `${queueTable}-${item.id}` } 
             }));
-            
             await campaignQueue.addBulk(jobs);
 
-            // MARK AS PROCESSING (Final state for queue)
-            const claimedIds = workItems.map(i => i.id);
-            await query(`UPDATE ${queueTable} SET status = "processing" WHERE id IN (?)`, [claimedIds]);
+            // Update
+            const claimedIds = validItems.map(i => i.id);
+            await query(`UPDATE ${queueTable} SET status = "processing", worker_id = ? WHERE id IN (?)`, [workerId, claimedIds]);
             
-            totalOffloaded += workItems.length;
-            if (batchItems.length < BATCH_SIZE) break; 
+            totalOffloaded += validItems.length;
+            if (candidates.length < DRIP_BATCH_SIZE) break;
         }
 
-        if (totalOffloaded > 0) {
-            console.log(`[${processorName}] Total Drain Complete: ${totalOffloaded} items pushed.`);
-        }
-        return;
-
-        // --- OLD IN-THREAD LOGIC (Bypassed by Redis) ---
-        const stats = {};
-        const results = [];
-
-        await Promise.all(items.map(async (item) => {
-            if (!stats[item.campaign_id]) stats[item.campaign_id] = { sent: 0, failed: 0 };
-            let result = { success: false, error: 'Unknown' };
-
-            try {
-                const resolvedVars = resolveMappedVariables(item.variable_mapping, item.variables);
-                const channelParsed = (item.channel || '').toLowerCase();
-
-                if (channelParsed === 'rcs') {
-                    const userConfig = item.rcs_config_id ? {
-                        id: item.rcs_config_id, name: item.rcs_config_name,
-                        auth_url: item.auth_url, api_base_url: item.api_base_url,
-                        client_id: item.client_id, client_secret: item.client_secret, bot_id: item.bot_id
-                    } : null;
-
-                    const body = item.template_body || '';
-                    const meta = typeof item.template_metadata === 'string' ? item.template_metadata : JSON.stringify(item.template_metadata || {});
-                    
-                    if (item.template_name && item.template_name.length > 5) {
-                        const customParams = getOrderedVariables(`${body} ${meta}`, resolvedVars);
-                        const raw = await sendRcsTemplate(item.mobile, item.template_name, userConfig, customParams);
-                        result = normalizeRcsResult(raw);
-                    } else {
-                        const msg = replaceVariables(body || item.campaign_name, resolvedVars);
-                        const rawText = await sendRcsMessage(item.mobile, msg, userConfig);
-                        result = normalizeRcsResult(rawText);
-                    }
-                } else if (channelParsed === 'whatsapp') {
-                    if (!item.whatsapp_config_id) {
-                        result = { success: false, error: 'No WhatsApp configuration' };
-                    } else {
-                        const isPinbot = item.wa_provider === 'vendor2';
-                        
-                        if (!item.wa_ph_no_id) {
-                            result = { success: false, error: 'Missing Message ID (ph_no_id) for user config' };
-                        } else {
-                            const msgUrl = isPinbot ? `${PINBOT_BASE}/${item.wa_ph_no_id}/messages` : `${GRAPH_BASE}/${item.wa_ph_no_id}/messages`;
-                            const headers = isPinbot ? { apikey: item.wa_api_key, 'Content-Type': 'application/json' } : { Authorization: `Bearer ${item.wa_token}`, 'Content-Type': 'application/json' };
-
-                        let mobile = item.mobile.replace(/\D/g, '');
-                        if (mobile.length === 10) mobile = '91' + mobile;
-
-                        let langCode = 'en_US';
-                        try {
-                            const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
-                            if (meta.language) langCode = meta.language;
-                        } catch(e) {}
-
-                        const payload = {
-                            messaging_product: 'whatsapp', recipient_type: 'individual', to: mobile, type: 'template',
-                            template: { name: item.template_name, language: { code: langCode } }
-                        };
-
-                        const payloadComponents = [];
-                        const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
-                        const mtComponents = meta.components || [];
-
-                        const bodyComp = mtComponents.find(c => c.type === 'BODY' || c.type === 'body');
-                        const waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
-                        
-                        // Header
-                        const headerComp = mtComponents.find(c => c.type === 'HEADER' || c.type === 'header');
-                        if (headerComp) {
-                            if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format?.toUpperCase())) {
-                                const mediaType = headerComp.format.toLowerCase();
-                                let dynamicHeader = String(resolvedVars['header_url'] || headerComp.example?.header_handle?.[0] || '');
-                                if (dynamicHeader.startsWith('4::') && headerComp.file_url) dynamicHeader = headerComp.file_url;
-                                if (dynamicHeader) {
-                                    payloadComponents.push({
-                                        type: 'header', parameters: [{ type: mediaType, [mediaType]: dynamicHeader.startsWith('http') ? { link: dynamicHeader } : { id: dynamicHeader } }]
-                                    });
-                                }
-                            } else if (headerComp.format?.toUpperCase() === 'TEXT') {
-                                const headParams = getOrderedVariables(headerComp.text, resolvedVars);
-                                if (headParams.length > 0) payloadComponents.push({ type: 'header', parameters: headParams.map(v => ({ type: 'text', text: String(v) })) });
-                            }
-                        }
-
-                        if (waParams.length > 0) payloadComponents.push({ type: 'body', parameters: waParams.map(v => ({ type: 'text', text: String(v) })) });
-
-                        // Buttons
-                        const buttonComp = mtComponents.find(c => c.type === 'BUTTONS' || c.type === 'buttons');
-                        if (buttonComp?.buttons) {
-                            buttonComp.buttons.forEach((btn, idx) => {
-                                if (btn.type === 'URL') {
-                                    const btnValue = resolvedVars[`button_${idx + 1}_url`];
-                                    if (btnValue) payloadComponents.push({ type: 'button', sub_type: 'url', index: String(idx), parameters: [{ type: 'text', text: String(btnValue) }] });
-                                    else {
-                                        const btnParams = getOrderedVariables(btn.url, resolvedVars);
-                                        if (btnParams.length > 0) payloadComponents.push({ type: 'button', sub_type: 'url', index: String(idx), parameters: btnParams.map(v => ({ type: 'text', text: String(v) })) });
-                                    }
-                                }
-                            });
-                        }
-                        if (payloadComponents.length > 0) payload.template.components = payloadComponents;
-                        
-                        console.log(`[WA-SEND] Endpoint: ${msgUrl}`);
-                        console.log(`[WA-SEND] Payload: ${JSON.stringify(payload, null, 2)}`);
-                        
-                        const response = await axios.post(msgUrl, payload, { headers });
-                        const respData = response.data;
-                        result = { success: true, messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${mobile}` };
-                        }
-                    }
-                } else if (channelParsed === 'sms') {
-                    const body = item.template_body || item.campaign_name;
-                    const customMessage = replaceVariables(body, resolvedVars);
-                    let templateId = item.raw_template_id || '', peId = '', hashId = '';
-                    try {
-                        const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
-                        templateId = meta.templateId || meta.dlt_template_id || templateId;
-                        peId = meta.peId || meta.pe_id || '';
-                        hashId = meta.hashId || meta.hash_id || '';
-                    } catch(e) {}
-                    await sendSMS(item.mobile, customMessage, { userId: item.user_id, templateId, peId, hashId });
-                    result = { success: true, messageId: `sms_${Date.now()}_${item.mobile.slice(-4)}` };
-                }
-
-                results.push({ ...item, success: result.success, messageId: result.messageId, error: result.error });
-                if (result.success) stats[item.campaign_id].sent++;
-                else stats[item.campaign_id].failed++;
-
-            } catch (err) {
-                const errorDetail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-                console.error(`[${processorName}] Item Error ${item.id}:`, errorDetail);
-                results.push({ ...item, success: false, error: errorDetail });
-                stats[item.campaign_id].failed++;
-            }
-        }));
-
-        // Database updates
-        for (const r of results) {
-            if (r.success) {
-                await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, created_at = NOW() WHERE id = ?`, [r.messageId, r.id]);
-                try {
-                    await query(
-                        `INSERT INTO webhook_logs (user_id, recipient, message_id, status, event_type, type, raw_payload, created_at) 
-                         VALUES (?, ?, ?, 'sent', 'SENT', ?, ?, NOW())`,
-                        [r.user_id, r.mobile, r.messageId, (r.channel || 'rcs').toLowerCase(), JSON.stringify({ note: 'Initial status from queue' })]
-                    );
-                } catch (e) {}
-            } else {
-                await query(`UPDATE ${queueTable} SET status = "failed", error_message = ? WHERE id = ?`, [r.error, r.id]);
-            }
-        }
-
-        // Logs
-        const logs = results.map(r => [r.user_id, r.campaign_id, r.campaign_name, r.template_name, r.messageId || 'N/A', r.mobile, r.success ? 'sent' : 'failed', new Date(), r.channel || 'RCS']);
-        if (logs.length > 0) await query(`INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES ?`, [logs]);
-
-        // Campaign totals
-        for (const [campId, counts] of Object.entries(stats)) {
-            await query(`UPDATE ${campaignTable} SET sent_count = COALESCE(sent_count, 0) + ?, failed_count = COALESCE(failed_count, 0) + ? WHERE id = ?`, [counts.sent, counts.failed, campId]);
-            const [remains] = await query(`SELECT COUNT(*) as count FROM ${queueTable} WHERE campaign_id = ? AND status IN ("pending", "processing")`, [campId]);
-            if (remains[0].count === 0) {
-                const [checks] = await query(`SELECT recipient_count, sent_count, failed_count FROM ${campaignTable} WHERE id = ?`, [campId]);
-                if (checks.length > 0 && (checks[0].recipient_count > 0 || (checks[0].sent_count + checks[0].failed_count) > 0)) {
-                    await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [campId]);
-                }
-            }
-        }
+        if (totalOffloaded > 0) console.log(`[${processorName}] Offloaded ${totalOffloaded} items to BullMQ.`);
     } catch (error) {
-        console.error(`[${processorName}] Fatal Error:`, error);
+        console.error(`[${processorName}] Error:`, error.message);
     }
 };
 

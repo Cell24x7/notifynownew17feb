@@ -46,7 +46,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         
         // Safety: ensure logsTable is correct for API campaigns
         let effectiveLogsTable = logsTable;
-        if (campId && campId.startsWith('CAMP_API_')) {
+        if (campId && String(campId).startsWith('CAMP_API_')) {
             effectiveLogsTable = 'api_message_logs';
         } else if (!effectiveLogsTable) {
             effectiveLogsTable = 'message_logs';
@@ -58,7 +58,12 @@ const campaignWorker = new Worker(queueName, async (job) => {
         if (result.success) {
             // Update status FIRST to mark it as done
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
-            await redis.hincrby(`${envSuffix}:stats:${campId}`, 'sent', 1);
+            
+            // IDEMPOTENT COUNTERS: Only increment if this item wasn't already tracked for this campaign
+            const isNew = await redis.sadd(`${envSuffix}:tracked:${campId}`, item.id);
+            if (isNew) {
+                await redis.hincrby(`${envSuffix}:stats:${campId}`, 'sent', 1);
+            }
             
             // Detailed Logs for Reports (Try-catch to prevent job failure if logging fails)
             try {
@@ -90,7 +95,11 @@ const campaignWorker = new Worker(queueName, async (job) => {
 
         } else {
             await query(`UPDATE ${queueTable} SET status = "failed", error_message = ? WHERE id = ?`, [result.error || 'Failed', item.id]);
-            await redis.hincrby(`${envSuffix}:stats:${campId}`, 'failed', 1);
+            
+            const isNew = await redis.sadd(`${envSuffix}:tracked:${campId}`, item.id);
+            if (isNew) {
+                await redis.hincrby(`${envSuffix}:stats:${campId}`, 'failed', 1);
+            }
             
             try {
                 await query(
@@ -122,6 +131,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
                 // Cleanup Redis
                 await redis.del(`${envSuffix}:camp_progress:${campId}`);
                 await redis.del(`${envSuffix}:stats:${campId}`);
+                await redis.del(`${envSuffix}:tracked:${campId}`);
                 console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
             } else {
                 // Stats missing? Just mark as sent
@@ -140,9 +150,9 @@ const campaignWorker = new Worker(queueName, async (job) => {
     }
 }, {
     connection: redisConnection,
-    concurrency: 5, // LOW CONCURRENCY for 100% reliability on tests (Prevents 'Too many requests' 429)
+    concurrency: 100, // FAST: Handle 1 Lakh+ campaigns with high throughput
     limiter: {
-        max: 5, 
+        max: 200, 
         duration: 1000,
     }
 });
