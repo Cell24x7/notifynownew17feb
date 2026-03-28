@@ -67,11 +67,20 @@ const campaignWorker = new Worker(queueName, async (job) => {
             
             // Detailed Logs for Reports (Try-catch to prevent job failure if logging fails)
             try {
+                const now = new Date();
+                const chan = (item.channel || 'rcs').toLowerCase();
+                const tName = item.template_name || 'N/A';
+                const cName = item.campaign_name || 'N/A';
+                
                 await query(
                     `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id, campId, item.campaign_name || 'N/A', item.mobile, 'sent', result.messageId, item.channel, item.template_name || 'N/A', now]
+                    [item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, now]
                 );
-            } catch (e) { console.error('Error logging to message_logs:', e.message); }
+            } catch (logErr) {
+                console.error(`[Worker] CRITICAL INSERT FAIL for ${item.mobile} in ${effectiveLogsTable}:`, logErr.message);
+                // Log all params to debug why it failed
+                console.error(`[Worker] Data:`, { user_id: item.user_id, campId, mobile: item.mobile, messageId: result.messageId });
+            }
 
             // Webhook Logs for Chat UI
             try {

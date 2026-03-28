@@ -194,7 +194,8 @@ router.post('/dotgo', async (req, res) => {
             console.warn('⚠️ Failed to decode Dotgo message.data:', e.message);
         }
 
-        const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId;
+        // Robust messageId extraction for Dotgo (check name field if messageId missing)
+        const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId || (payload.message?.name ? payload.message.name.split('/').pop() : null);
         const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
         
         let finalStatus = 'unknown';

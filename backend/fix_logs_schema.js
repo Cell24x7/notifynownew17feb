@@ -33,7 +33,7 @@ async function fix() {
             }
         }
 
-        // Also for api_message_logs and campaign_id
+        // Also for api_message_logs
         try {
             await connection.query('CREATE INDEX idx_api_msg_id ON api_message_logs(message_id)');
         } catch (e) {}
@@ -56,6 +56,19 @@ async function fix() {
         if (!colNames.includes('delivery_time')) {
             console.log('Adding delivery_time column...');
             await connection.query('ALTER TABLE message_logs ADD COLUMN delivery_time TIMESTAMP NULL AFTER created_at');
+        }
+
+        // --- ENSURE COLUMNS ARE WIDE ENOUGH ---
+        console.log('Ensuring column lengths are sufficient...');
+        await connection.query('ALTER TABLE message_logs MODIFY COLUMN recipient VARCHAR(50)');
+        await connection.query('ALTER TABLE api_message_logs MODIFY COLUMN recipient VARCHAR(50)');
+        await connection.query('ALTER TABLE message_logs MODIFY COLUMN message_id VARCHAR(255)');
+        await connection.query('ALTER TABLE api_message_logs MODIFY COLUMN message_id VARCHAR(255)');
+        
+        // Ensure failure_reason is TEXT in both
+        const [apiCols] = await connection.query('SHOW COLUMNS FROM api_message_logs');
+        if (!apiCols.map(c => c.Field).includes('failure_reason')) {
+            await connection.query('ALTER TABLE api_message_logs ADD COLUMN failure_reason TEXT AFTER status');
         }
 
         // Check campaign_queue for channel column
