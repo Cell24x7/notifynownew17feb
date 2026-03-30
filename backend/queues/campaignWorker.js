@@ -47,64 +47,53 @@ const campaignWorker = new Worker(queueName, async (job) => {
             effectiveLogsTable = 'message_logs';
         }
 
-        // 2. DB Log & Queue Update
+        // 2. LOG TO DATABASE IMMEDIATELY (Before status updates)
+        // This ensures the log exists before webhooks arrive.
         if (result.success) {
-            // Update status FIRST to mark it as done in queue
+            try {
+                // Mandatory log to message_logs
+                await query(
+                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, now]
+                );
+
+                // Secondary log to webhook_logs for Chat UI
+                await query(
+                    `INSERT INTO webhook_logs (user_id, recipient, message_id, status, event_type, type, channel, message_content, campaign_id, campaign_name, template_name, raw_payload, created_at) 
+                     VALUES (?, ?, ?, 'sent', 'SENT', ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                    [item.user_id || job.data.item.user_id, item.mobile, result.messageId, chan, chan, msgContent, campId, cName, tName, JSON.stringify({ note: 'Campaign Message', item_id: item.id })]
+                ).catch(() => {});
+            } catch (logErr) {
+                console.error(`[Worker] DB INSERT FAIL for ${item.mobile}: ${logErr.message}`);
+                // Continue to update queue even if log fail (better than sending twice on retry)
+            }
+
+            // 3. Update status in Queue & Redis stats
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
             
-            // IDEMPOTENT COUNTERS: Only increment if this item wasn't already tracked for this campaign
             const isNew = await redis.sadd(`${envSuffix}:tracked:${campId}`, item.id);
             if (isNew) {
                 await redis.hincrby(`${envSuffix}:stats:${campId}`, 'sent', 1);
             }
-            
-            // Detailed Logs for Reports (Try-catch to prevent job failure if logging fails)
-            try {
-                await query(
-                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, now]
-                );
-            } catch (logErr) {
-                console.error(`[Worker] CRITICAL INSERT FAIL for ${item.mobile} in ${effectiveLogsTable}:`, logErr.message);
-                console.error(`[Worker] Data:`, { user_id: item.user_id, campId, mobile: item.mobile, messageId: result.messageId });
-            }
-
-            // Webhook Logs for Chat UI
-            try {
-                await query(
-                    `INSERT INTO webhook_logs (user_id, recipient, message_id, status, event_type, type, channel, message_content, campaign_id, campaign_name, template_name, raw_payload, created_at) 
-                     VALUES (?, ?, ?, 'sent', 'SENT', ?, ?, ?, ?, ?, ?, ?, NOW())`,
-                    [
-                        item.user_id, 
-                        item.mobile, 
-                        result.messageId, 
-                        chan, 
-                        chan,
-                        msgContent,
-                        campId,
-                        cName,
-                        tName,
-                        JSON.stringify({ note: 'Campaign Message', item_id: item.id })
-                    ]
-                );
-            } catch (err) { /* Silently handle webhook log errors */ }
 
         } else {
             console.error(`❌ Campaign ${campId} failed for ${item.mobile}:`, result.error);
+            
+            // Log the failure to message_logs so user knows why it failed
+            try {
+                await query(
+                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time, failure_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'failed', chan, tName, now, String(result.error || 'Provider rejected').slice(0, 1000)]
+                );
+            } catch (failLogErr) {
+                console.error(`[Worker] FAILURE LOG FAIL for ${item.mobile}: ${failLogErr.message}`);
+            }
+
             await query(`UPDATE ${queueTable} SET status = "failed", updated_at = NOW() WHERE id = ?`, [item.id]);
 
             const isNewFail = await redis.sadd(`${envSuffix}:tracked_fail:${campId}`, item.id);
             if (isNewFail) {
                 await redis.hincrby(`${envSuffix}:stats:${campId}`, 'failed', 1);
-            }
-
-            try {
-                await query(
-                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time, failure_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id, campId, cName, item.mobile, 'failed', chan, tName, now, result.error || 'Provider rejected']
-                );
-            } catch (failLogErr) {
-                console.error(`[Worker] FAIL LOG ERROR for ${item.mobile}:`, failLogErr.message);
             }
         }
 

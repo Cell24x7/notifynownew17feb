@@ -10,146 +10,103 @@ const { processAutomation } = require('../services/automationService');
 router.post('/rcs/callback', async (req, res) => {
     try {
         const payload = req.body;
-
         console.log('==============================================');
         console.log('📨 RECEIVED RCS WEBHOOK');
-        console.log('Timestamp:', new Date().toISOString());
         console.log('Payload:', JSON.stringify(payload, null, 2));
         console.log('==============================================');
 
-        // -------------------------------------------------------------
-        // LOGIC TO HANDLE DIFFERENT EVENTS
-        // -------------------------------------------------------------
-
         // 1. DELIVERY REPORTS (DLR)
-        // Common fields: messageId, status (delivered, read, failed), error
-        if (payload.status) {
-            const { messageId, status, error } = payload;
-            let finalStatus = status.toLowerCase();
+        if (payload.status && (payload.messageId || (payload.message && payload.message.name))) {
+            let messageId = payload.messageId;
+            const status = payload.status;
+            const error = payload.error;
 
-            console.log(`📊 DLR Update: Message ${messageId} is ${finalStatus}`);
+            if (!messageId && payload.message && payload.message.name) {
+                const parts = payload.message.name.split('/');
+                messageId = parts[parts.length - 1]; 
+            }
 
-            // Update message_logs
             try {
-                // RETRY LOGIC: If a message was JUST sent, the provider might hit our webhook faster than the local DB can record it.
                 let [logs] = [];
                 let isApiLog = false;
                 let attempts = 0;
-                
-                while (attempts < 3) {
+                while (attempts < 10) {
                     [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
                     if (logs.length === 0) {
                         [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
-                        if (logs.length > 0) {
-                            isApiLog = true;
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-                    
+                        if (logs.length > 0) { isApiLog = true; break; }
+                    } else { break; }
                     attempts++;
-                    // Wait 500ms before retrying
-                    if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 500));
+                    if (attempts < 10) await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
                 if (logs.length > 0) {
                     const log = logs[0];
+                    const finalStatus = (status || '').toLowerCase();
                     const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
                     const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
-                    await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+                    const weights = { sent: 1, delivered: 2, read: 3, failed: 0 };
+                    const oldStatus = (log.status || 'sent').toLowerCase();
 
-                    // Update specific timestamps based on status
-                    if (finalStatus === 'delivered') {
-                        await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
-                    } else if (finalStatus === 'read') {
-                        await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
-                    } else if (finalStatus === 'failed') {
-                        await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
-                    }
+                    if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
+                        await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
 
-                    // Update campaign counts
-                    if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
-                        await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
-                    } else if (finalStatus === 'read' && log.status !== 'read') {
-                        if (log.status !== 'delivered') {
-                            await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
-                        } else {
-                            await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                        if (log.campaign_id) {
+                            if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
+                            } 
+                            else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                if (oldStatus !== 'delivered') {
+                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                } else {
+                                    await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                }
+                                await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
+                            } 
+                            else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
+                            }
                         }
-                    } else if (finalStatus === 'failed') {
-                        await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
                     }
-
-                    console.log(`✅ Updated status for ${messageId} to ${finalStatus}`);
+                    console.log(`✅ Updated RCS status for ${messageId} to ${finalStatus}`);
                 } else {
-                    console.warn(`⚠️ Message ID ${messageId} not found in logs after retries.`);
+                    console.warn(`⚠️ RCS Message ID ${messageId} not found in logs after retries.`);
                 }
             } catch (dbErr) {
-                console.error('❌ Database Error updating DLR:', dbErr.message);
+                console.error('❌ Database Error updating RCS DLR:', dbErr.message);
             }
         }
 
         // 2. INCOMING MESSAGES (Replies)
-        // Common fields: sender, message / text, type
         if (payload.sender && (payload.message || payload.text)) {
-            const sender = payload.sender; // Mobile number
+            const sender = payload.sender;
             const text = payload.message || payload.text;
-            const msgId = payload.messageId || `IN_${Date.now()}`;
-
-            console.log(`💬 Incoming Reply from ${sender}: ${text}`);
+            console.log(`💬 Incoming RCS Reply from ${sender}: ${text}`);
 
             try {
-                // Save to webhook_logs
-                const [result] = await query(
-                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type) SELECT user_id, ?, ?, ?, ?, "received", "rcs" FROM message_logs WHERE message_id = ? LIMIT 1',
-                    [sender, payload.recipient || 'System', text, JSON.stringify(payload), payload.messageId]
+                // Determine user_id from previous message record
+                const [owner] = await query('SELECT user_id FROM message_logs WHERE recipient LIKE ? ORDER BY id DESC LIMIT 1', [`%${sender.slice(-10)}%`]);
+                const userId = owner.length > 0 ? owner[0].user_id : 1;
+
+                await query(
+                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type, channel) VALUES (?, ?, ?, ?, ?, "received", "rcs", "rcs")',
+                    [userId, sender, 'System', text, JSON.stringify(payload)]
                 );
 
-                // If message_logs didn't find a user_id (e.g. unsolicited message), we might need a fallback
-                // For now, let's assume we match it.
-
-                // Notify via Socket.io
                 if (req.io) {
-                    // We need to find the user_id for this sender/message
-                    const [msgOwner] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [payload.messageId]);
-                    if (msgOwner.length > 0) {
-                        const targetUserId = msgOwner[0].user_id;
-                        req.io.to(`user_${targetUserId}`).emit('new_message', {
-                            sender,
-                            message_content: text,
-                            created_at: new Date(),
-                            status: 'received',
-                            type: 'rcs'
-                        });
-
-                        // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
-                        triggerChatflow(targetUserId, sender, text, 'rcs', req.io).catch(e =>
-                            console.error('[ChatFlow] RCS trigger error:', e.message)
-                        );
-
-                        // 🤖 CHECK AUTOMATIONS — graph-based logic
-                        processAutomation(targetUserId, 'new_message', 'rcs', { 
-                            sender, 
-                            message_content: text, 
-                            messageId: payload.messageId 
-                        }, req.io).catch(e =>
-                            console.error('[AutomationService] RCS trigger error:', e.message)
-                        );
-                    }
+                    req.io.to(`user_${userId}`).emit('new_message', { sender, message_content: text, created_at: new Date(), status: 'received', type: 'rcs' });
+                    triggerChatflow(userId, sender, text, 'rcs', req.io).catch(() => {});
+                    processAutomation(userId, 'new_message', 'rcs', { sender, message_content: text }, req.io).catch(() => {});
                 }
-                console.log(`✅ Saved incoming message from ${sender} to DB and notified via Socket.`);
-            } catch (dbErr) {
-                console.error('❌ Failed to save incoming message:', dbErr.message);
-            }
+            } catch (err) { console.error('❌ Error handling RCS reply:', err.message); }
         }
 
-        // Always return 200 OK to acknowledge receipt
-        res.status(200).json({ success: true, message: 'Webhook received' });
-
+        res.status(200).json({ success: true, message: 'RCS callback processed' });
     } catch (error) {
-        console.error('❌ Webhook Error:', error.message);
+        console.error('❌ RCS Callback Error:', error.message);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
@@ -699,8 +656,7 @@ router.post('/whatsapp/callback', async (req, res) => {
                                 let [logs] = [];
                                 let isApiLog = false;
                                 let attempts = 0;
-                                
-                                while (attempts < 3) {
+                                while (attempts < 10) {
                                     [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
                                     if (logs.length === 0) {
                                         [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
@@ -713,8 +669,8 @@ router.post('/whatsapp/callback', async (req, res) => {
                                     }
                                     
                                     attempts++;
-                                    // Wait 500ms before retrying
-                                    if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 500));
+                                    // Wait 500ms before retrying (5 seconds total)
+                                    if (attempts < 10) await new Promise(resolve => setTimeout(resolve, 500));
                                 }
 
                                     if (logs.length > 0) {

@@ -1,0 +1,113 @@
+const express = require('express');
+const router = express.Router();
+const { query } = require('../config/db');
+const authenticateToken = require('../middleware/auth');
+const axios = require('axios');
+
+/**
+ * -----------------------------------------------------------------------------------------
+ * RCS Callbacks (Dotgo / Generic)
+ * -----------------------------------------------------------------------------------------
+ */
+router.post('/rcs/callback', async (req, res) => {
+    try {
+        const payload = req.body;
+        // console.log('📨 RECEIVED RCS WEBHOOK:', JSON.stringify(payload, null, 2));
+
+        // 1. DELIVERY STATUS UPDATES (DLR)
+        if (payload.status && (payload.messageId || (payload.message && payload.message.name))) {
+            let messageId = payload.messageId;
+            const status = payload.status;
+            const error = payload.error;
+
+            // Dotgo fallback: extract ID from 'projects/X/messages/MSG_ID'
+            if (!messageId && payload.message && payload.message.name) {
+                const parts = payload.message.name.split('/');
+                messageId = parts[parts.length - 1]; // Last part is the ID
+            }
+
+            try {
+                // RETRY LOGIC: Give the background worker time to insert the message record (5 second window)
+                let logs = [];
+                let isApiLog = false;
+                let attempts = 0;
+                
+                while (attempts < 10) {
+                    [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                    if (logs.length === 0) {
+                        [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                        if (logs.length > 0) {
+                            isApiLog = true;
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                    attempts++;
+                    if (attempts < 10) await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                if (logs.length > 0) {
+                    const log = logs[0];
+                    const finalStatus = (status || '').toLowerCase();
+                    const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                    const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+
+                    // Hierarchy weights (sent < delivered < read)
+                    const weights = { sent: 1, delivered: 2, read: 3, failed: 0 };
+                    const oldStatus = (log.status || 'sent').toLowerCase();
+
+                    if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
+                        // 1. UPDATE DB LOG STATUS
+                        await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+
+                        // 2. ATOMIC COUNTERS
+                        if (log.campaign_id) {
+                            if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
+                            } 
+                            else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                if (oldStatus !== 'delivered') {
+                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                } else {
+                                    await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                }
+                                await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
+                            } 
+                            else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
+                            }
+                        }
+                    }
+                    console.log(`✅ Updated status for ${messageId} to ${finalStatus}`);
+                } else {
+                    console.warn(`⚠️ RCS Message ID ${messageId} not found in logs after retries.`);
+                }
+            } catch (dbErr) {
+                console.error('❌ Database Error updating DLR:', dbErr.message);
+            }
+        }
+
+        // 2. INCOMING MESSAGES (Replies)
+        if (payload.sender && (payload.message || payload.text)) {
+            const sender = payload.sender;
+            const text = payload.message || payload.text;
+            console.log(`💬 Incoming Reply from ${sender}: ${text}`);
+            
+            try {
+                // Save to webhook_logs (simplified)
+                await query(
+                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type, channel, created_at) VALUES (?, ?, ?, ?, "received", "replied", "rcs", NOW())',
+                    [1, sender, 'System', text] // Fallback user_id 1
+                );
+            } catch (err) { console.error('Error logging RCS reply:', err.message); }
+        }
+
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('❌ Error in RCS Callback:', error.message);
+        res.sendStatus(500);
+    }
+});
