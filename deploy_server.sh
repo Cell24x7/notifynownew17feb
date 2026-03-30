@@ -1,12 +1,19 @@
 #!/bin/bash
 
 # =========================================================
-# 🚀 NotifyNow FULL AUTO Deploy Script (Developer)
-# - Force Clean: pm2 delete -> pm2 start
-# - Separate DB: developer_notify
+# 🚀 NotifyNow DEVELOPER Deploy Script
+# Server: developer.notifynow.in
+# PM2 App: notifynow-developer
+# Port: 5000 | DB: developer_notify
 # =========================================================
 
 set -e  # Stop on any error
+
+# ═══ FIXED CONFIG ══════════════════════════════════════
+APP_NAME="notifynow-developer"   # NEVER changes
+APP_PORT="5000"                   # Developer port
+APP_DB="developer_notify"         # Developer DB
+APP_URL="https://developer.notifynow.in"
 
 # Auto-detect project paths
 PROJECT_DIR=$(pwd)
@@ -53,59 +60,35 @@ npm install --production --silent
 cd "$FRONTEND_DIR"
 if [ ! -d "node_modules" ]; then npm install --silent; fi
 
-# ── Step 4: Enforce Env ───────────────────────────────
-log "🛠️  [4/7] Enforcing DEV settings..."
-# Backend Env (Strictly preserve credentials if file exists)
-if [ ! -f "$BACKEND_DIR/.env.production" ]; then
-    warn ".env.production not found, creating from template..."
-cat <<EOF > "$BACKEND_DIR/.env.production"
-DB_HOST=localhost
-DB_USER=root
-DB_PASS=waQ4!r1241Kr
-DB_NAME=developer_notify
-PORT=5000
-API_BASE_URL=https://developer.notifynow.in
-JWT_SECRET=notifynow_db_secret_key
-JWT_EXPIRES_IN=20m
-EOF
+# ── Step 4: Enforce Env ─────────────────────────────────
+log "🛠️  [4/7] Setting DEVELOPER environment..."
 
-else
-    sed -i '/^DB_HOST=/c\DB_HOST=localhost' "$BACKEND_DIR/.env.production"
-    sed -i '/^DB_NAME=/c\DB_NAME=developer_notify' "$BACKEND_DIR/.env.production"
-    sed -i '/^PORT=/c\PORT=5000' "$BACKEND_DIR/.env.production"
-    sed -i '/^API_BASE_URL=/c\API_BASE_URL=https://developer.notifynow.in' "$BACKEND_DIR/.env.production"
-    if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production"; then echo "JWT_EXPIRES_IN=20m" >> "$BACKEND_DIR/.env.production"; else sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=20m' "$BACKEND_DIR/.env.production"; fi
-    if ! grep -q "JWT_SECRET=" "$BACKEND_DIR/.env.production"; then echo "JWT_SECRET=notifynow_db_secret_key" >> "$BACKEND_DIR/.env.production"; fi
+# Always write correct developer settings (overwrite if wrong)
+sed -i "/^DB_NAME=/c\DB_NAME=$APP_DB"          "$BACKEND_DIR/.env.production" 2>/dev/null || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/.env.production"
+sed -i "/^PORT=/c\PORT=$APP_PORT"              "$BACKEND_DIR/.env.production" 2>/dev/null || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/.env.production"
+sed -i "/^API_BASE_URL=/c\API_BASE_URL=$APP_URL" "$BACKEND_DIR/.env.production" 2>/dev/null || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/.env.production"
+sed -i "/^APP_NAME=/c\APP_NAME=$APP_NAME"      "$BACKEND_DIR/.env.production" 2>/dev/null || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/.env.production"
+
+if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production" 2>/dev/null; then 
+    echo "JWT_EXPIRES_IN=24h" >> "$BACKEND_DIR/.env.production"
+else 
+    sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=24h' "$BACKEND_DIR/.env.production"
+fi
+if ! grep -q "JWT_SECRET=" "$BACKEND_DIR/.env.production" 2>/dev/null; then
+    echo "JWT_SECRET=notifynow_db_secret_key" >> "$BACKEND_DIR/.env.production"
 fi
 
-# Frontend Env (VITE_API_URL is critical for build)
-API_URL="https://developer.notifynow.in"
-# Preserve other variables (like VITE_GOOGLE_CLIENT_ID) instead of overwriting
-if [ ! -f "$FRONTEND_DIR/.env.production" ]; then
-    cat <<EOF > "$FRONTEND_DIR/.env.production"
-VITE_API_URL=$API_URL
-VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com
-EOF
+# Frontend Env
+if grep -q "VITE_API_URL=" "$FRONTEND_DIR/.env.production" 2>/dev/null; then
+    sed -i "/^VITE_API_URL=/c\VITE_API_URL=$APP_URL" "$FRONTEND_DIR/.env.production"
 else
-    # Update or add API URL
-    if grep -q "VITE_API_URL=" "$FRONTEND_DIR/.env.production"; then
-        sed -i "/^VITE_API_URL=/c\VITE_API_URL=$API_URL" "$FRONTEND_DIR/.env.production"
-    else
-        echo "VITE_API_URL=$API_URL" >> "$FRONTEND_DIR/.env.production"
-    fi
-    # Update or add Google ID
-    GOOGLE_ID="387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com"
-    if grep -q "VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/.env.production"; then
-        sed -i "/^VITE_GOOGLE_CLIENT_ID=/c\VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID" "$FRONTEND_DIR/.env.production"
-    else
-        echo "VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID" >> "$FRONTEND_DIR/.env.production"
-    fi
+    echo "VITE_API_URL=$APP_URL" >> "$FRONTEND_DIR/.env.production"
 fi
 
-# Sync .env with .env.production for simplicity
+# Sync .env with .env.production
 cp "$FRONTEND_DIR/.env.production" "$FRONTEND_DIR/.env"
-cp "$BACKEND_DIR/.env.production" "$BACKEND_DIR/.env"
-ok "Environment files updated (API: $API_URL)"
+cp "$BACKEND_DIR/.env.production"  "$BACKEND_DIR/.env"
+ok "Environment set: APP=$APP_NAME | PORT=$APP_PORT | DB=$APP_DB"
 
 # ── Step 5: Build Frontend ────────────────────────────
 log "🏗️  [5/7] Building frontend..."
@@ -138,20 +121,17 @@ fi
 : "${APP_NAME:=notifynow-developer}"
 
 # ── Step 7: Restart SMART ─────────────────────────────
-log "♻️  [7/7] Restarting PM2 instance (Zero-Downtime)..."
+log "♻️  [7/7] Restarting PM2: $APP_NAME (zero-downtime)..."
 cd "$PROJECT_DIR"
 
-# Check if app is already running
 if pm2 list | grep -q "$APP_NAME"; then
-    log "   🔄 App '$APP_NAME' is running, reloading..."
+    log "   🔄 Reloading '$APP_NAME'..."
     APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
 else
-    log "   🚀 App '$APP_NAME' is new, starting..."
+    log "   🚀 Starting '$APP_NAME' (new)..."
     APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
 fi
 
 pm2 save --force
-
 ok "Instance '$APP_NAME' is stable and running."
-
-echo "✨ DEVELOPER DEPLOYMENT COMPLETE!"
+echo "✨ DEVELOPER DEPLOYMENT COMPLETE! ($APP_NAME on port $APP_PORT)"
