@@ -65,6 +65,12 @@ async function fix() {
         await safe("ALTER TABLE campaign_queue ADD COLUMN message_id VARCHAR(512) DEFAULT NULL AFTER worker_id",  'campaign_queue: add message_id');
         await safe("ALTER TABLE campaign_queue MODIFY COLUMN message_id VARCHAR(512) DEFAULT NULL",               'campaign_queue: widen message_id');
 
+        // api_campaign_queue — ensure ALL worker columns exist
+        await safe("ALTER TABLE api_campaign_queue ADD COLUMN channel    VARCHAR(50)  DEFAULT NULL AFTER status",    'api_campaign_queue: add channel');
+        await safe("ALTER TABLE api_campaign_queue ADD COLUMN worker_id  VARCHAR(100) DEFAULT NULL AFTER channel",   'api_campaign_queue: add worker_id');
+        await safe("ALTER TABLE api_campaign_queue ADD COLUMN message_id VARCHAR(512) DEFAULT NULL AFTER worker_id", 'api_campaign_queue: add message_id');
+        await safe("ALTER TABLE api_campaign_queue MODIFY COLUMN message_id VARCHAR(512) DEFAULT NULL",              'api_campaign_queue: widen message_id');
+
         // ============================================================
         // campaigns — ensure counter columns exist
         // ============================================================

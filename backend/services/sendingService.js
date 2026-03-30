@@ -189,12 +189,51 @@ const sendUniversalMessage = async (item) => {
 
             const payloadComponents = [];
             const mtComponents = meta.components || [];
-            const bodyComp = mtComponents.find(c => c.type === 'BODY' || c.type === 'body');
+            const bodyComp   = mtComponents.find(c => c.type?.toUpperCase() === 'BODY');
+            const headerComp = mtComponents.find(c => c.type?.toUpperCase() === 'HEADER');
+
+            // ── HEADER COMPONENT ──────────────────────────────────────
+            if (headerComp) {
+                const headerFormat = (headerComp.format || '').toUpperCase(); // IMAGE, VIDEO, DOCUMENT, TEXT
+                // header_url can come from: resolvedVars, variables JSON, or template metadata
+                const headerUrl = resolvedVars['header_url'] || resolvedVars['headerUrl'] ||
+                                  resolvedVars['image_url'] || resolvedVars['imageUrl'] ||
+                                  meta.header_url || meta.headerUrl || meta.sampleMediaUrl ||
+                                  headerComp.example?.header_handle?.[0] || null;
+
+                if (headerFormat === 'IMAGE' && headerUrl) {
+                    payloadComponents.push({ 
+                        type: 'header', 
+                        parameters: [{ type: 'image', image: { link: headerUrl } }] 
+                    });
+                } else if (headerFormat === 'VIDEO' && headerUrl) {
+                    payloadComponents.push({ 
+                        type: 'header', 
+                        parameters: [{ type: 'video', video: { link: headerUrl } }] 
+                    });
+                } else if (headerFormat === 'DOCUMENT' && headerUrl) {
+                    payloadComponents.push({ 
+                        type: 'header', 
+                        parameters: [{ type: 'document', document: { link: headerUrl } }] 
+                    });
+                } else if (headerFormat === 'TEXT') {
+                    const headerText = getOrderedVariables(headerComp.text || '', resolvedVars);
+                    if (headerText.length > 0) {
+                        payloadComponents.push({ 
+                            type: 'header', 
+                            parameters: headerText.map(v => ({ type: 'text', text: String(v) })) 
+                        });
+                    }
+                }
+                // If headerFormat is IMAGE/VIDEO/DOCUMENT but no URL → skip (WhatsApp will use template default)
+            }
+
+            // ── BODY COMPONENT ────────────────────────────────────────
             const waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
-            
             if (waParams.length > 0) {
                 payloadComponents.push({ type: 'body', parameters: waParams.map(v => ({ type: 'text', text: String(v) })) });
             }
+
             if (payloadComponents.length > 0) payload.template.components = payloadComponents;
 
             const response = await axios.post(msgUrl, payload, { headers });
