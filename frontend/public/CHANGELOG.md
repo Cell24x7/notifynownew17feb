@@ -2,7 +2,41 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-03-30]
+- Fix: Hardcode APP_NAME in each deploy script - no cross-instance reload (0973488)
+- Fix: worker_id column missing, schema fix in both deploy scripts (22f561f)
+- Fix: Keep notifynow-developer, only remove stale production instance (69fb712)
+- Add: fix_and_deploy.sh - remove stale PM2 instance (c28e01b)
+- Fix: Missing logs, schema fix, atomic webhooks (d05b1c0)
+- Final: Fix rapid DLR race conditions and mandatory failure logging (9fd5e81)
+- Fix: Resolve reporting discrepancies and webhook atomicity (04f8e80)
+
+---
+
+## [2026-03-29]
+- Fix Reporting Discrepancy and Dotgo Webhook Extraction (68114a4)
+- Optimize Speed and Fix Detailed Reporting Discrepancy (0946273)
+- Fix WhatsApp ReferenceError and Webhook lookup retries (bfefdb0)
+- Fix RCS and WhatsApp campaign real-time reporting logic (c2d85ee)
+
+---
+
+## [2026-03-28]
+- FIX: Full Engine Relay and Reporting Sync (b76efc3)
+- COMPLETE ENGINE FIX: Manual Sync and Reporting Reliability (992569f)
+
+---
+
 ## [2026-03-27]
+- UI: Added Enable/Disable All buttons and synced entity toggle logic for strict RBAC enforcement (04da51c)
+- Frontend: Sync all role flags (Admin/Manager/Agent) when toggling permissions for a specific entity (93a182f)
+- Hardened permission compression with strict type checking (boolean, number, string) (980ce42)
+- Fixed critical bug where users with no custom permissions were receiving empty sets instead of defaults (bfb47c5)
+- Improved PM2 restart logic to prevent stopping other instances (04da05c)
+- Fixed frontend Roles.tsx fallback bug (48c1945)
+- Comprehensive fix for user permission system: synchronized backend resolution and fixed frontend fallback bug (ecaefb8)
+- Corrected permission fallback logic for all auth routes (5f7ca96)
+- Fix sidebar permissions, toast UI positioning, and session expiry automatic redirect (959b4db)
 - Fix duplicate delivery counts and improve small campaign stats sync (e80edf9)
 - Fix: Reseller sidebar, Branding crash and Implement Optimized Send Again feature (16c84d3)
 - Add detailed RCS payload logging in rcsService (36f9672)
@@ -411,28 +445,6 @@ This document is automatically updated based on development activity.
 ## [2026-02-28]
 - updated code (790569a)
 - updated code (2ea5c27)
-
----
-
-## [2026-02-27]
-- updated code (c18f9e5)
-- sandeep update (8da9392)
-- updated code by vikas (43da1aa)
-
----
-
-## [2026-02-26]
-- RCS configs and campaign updates (6feb924)
-- updated code by vikas (14bac8e)
-
----
-
-## [2026-02-25]
-- updated code rs (2dc7841)
-- Resolve merge conflicts (a1dd726)
-- updated code rs (8ee51e2)
-- updated code rs (a5efb4b)
-- updated code rs (3498d9e)
 
 ---
 

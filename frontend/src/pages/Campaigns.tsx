@@ -668,7 +668,7 @@ export default function Campaigns() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
                     {campaign.status === 'draft' && (
                       <Button
                         className="flex-1 gradient-primary"
@@ -701,13 +701,12 @@ export default function Campaigns() {
                       </Button>
                     )}
                     {(campaign.status === 'completed' || campaign.sent_count > 0) && (
-                      <Button variant="outline" size="sm" onClick={() => openAnalytics(campaign)}>
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        Analytics
-                      </Button>
-                    )}
-                    {(campaign.status === 'completed' || campaign.sent_count > 0) && (
-                      <Button variant="outline" size="sm" onClick={() => handleResendCampaign(campaign)} className="bg-success/5 hover:bg-success/10 text-success border-success/20">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResendCampaign(campaign)}
+                        className="flex-1 bg-success/5 hover:bg-success/10 text-success border-success/20"
+                      >
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Send Again
                       </Button>
