@@ -615,4 +615,85 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
     }
 });
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/campaigns/:id/status  — Update campaign status (pause/resume/cancel)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch('/:id/status', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const userId = req.user.id;
+
+        const allowedStatuses = ['running', 'paused', 'cancelled', 'sent', 'draft'];
+        if (!status || !allowedStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
+        }
+
+        // Try manual campaigns first
+        const [manualResult] = await query(
+            'UPDATE campaigns SET status = ? WHERE id = ? AND user_id = ?',
+            [status, id, userId]
+        );
+
+        if (manualResult.affectedRows > 0) {
+            console.log(`[Campaign] Status updated: ${id} → ${status} (User: ${userId})`);
+            return res.json({ success: true, message: `Campaign status updated to '${status}'` });
+        }
+
+        // Try API campaigns
+        const [apiResult] = await query(
+            'UPDATE api_campaigns SET status = ? WHERE id = ? AND user_id = ?',
+            [status, id, userId]
+        );
+
+        if (apiResult.affectedRows > 0) {
+            console.log(`[Campaign] API Campaign status updated: ${id} → ${status} (User: ${userId})`);
+            return res.json({ success: true, message: `Campaign status updated to '${status}'` });
+        }
+
+        return res.status(404).json({ success: false, message: 'Campaign not found or not authorized' });
+
+    } catch (error) {
+        console.error('Update campaign status error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update campaign status' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/campaigns/:id  — Delete a campaign and its queue items
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete('/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Check manual campaigns
+        const [manualCheck] = await query('SELECT id FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        if (manualCheck.length > 0) {
+            await query('DELETE FROM campaign_queue WHERE campaign_id = ?', [id]);
+            await query('DELETE FROM message_logs WHERE campaign_id = ?', [id]);
+            await query('DELETE FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+            console.log(`[Campaign] Deleted manual campaign: ${id} (User: ${userId})`);
+            return res.json({ success: true, message: 'Campaign deleted successfully' });
+        }
+
+        // Check API campaigns
+        const [apiCheck] = await query('SELECT id FROM api_campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        if (apiCheck.length > 0) {
+            await query('DELETE FROM api_campaign_queue WHERE campaign_id = ?', [id]);
+            await query('DELETE FROM api_message_logs WHERE campaign_id = ?', [id]);
+            await query('DELETE FROM api_campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+            console.log(`[Campaign] Deleted API campaign: ${id} (User: ${userId})`);
+            return res.json({ success: true, message: 'Campaign deleted successfully' });
+        }
+
+        return res.status(404).json({ success: false, message: 'Campaign not found or not authorized' });
+
+    } catch (error) {
+        console.error('Delete campaign error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete campaign' });
+    }
+});
+
 module.exports = router;
