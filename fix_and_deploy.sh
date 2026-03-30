@@ -61,19 +61,17 @@ ok "Schema fix complete"
 log "♻️  [5/5] Fixing PM2 instances..."
 cd "$PROJECT_DIR"
 
-# Remove the OLD/ORPHAN production instance (old code, different folder)
+# Remove the OLD/ORPHAN production instance (old code, different folder/port)
 if pm2 list | grep -q "notifynow-production"; then
-    warn "Removing stale 'notifynow-production' instance (old code)..."
+    warn "Removing stale 'notifynow-production' instance (old/duplicate)..."
     pm2 delete notifynow-production
     ok "Removed 'notifynow-production'"
+else
+    ok "'notifynow-production' not found — nothing to remove"
 fi
 
-# Remove developer instance from production server if running
-if pm2 list | grep -q "notifynow-developer"; then
-    warn "Removing 'notifynow-developer' from production server..."
-    pm2 delete notifynow-developer
-    ok "Removed 'notifynow-developer'"
-fi
+# NOTE: notifynow-developer runs on port 5000 (separate dev server) — DO NOT TOUCH
+warn "Keeping 'notifynow-developer' intact (port 5000 - separate dev server)"
 
 # Now restart/start the correct live-prod instance
 if pm2 list | grep -q "notifynow-live-prod"; then
