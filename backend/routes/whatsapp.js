@@ -938,7 +938,8 @@ router.post('/api/send-bulk', async (req, res) => {
         contacts = contacts.filter(c => c.to);
 
         const cName = campaignName || `BULK_API_${Date.now()}`;
-        const campaignId = `CAMP_API_${Date.now()}`;
+        const hrTime = process.hrtime();
+        const campaignId = `CAMP_API_${Date.now()}_${Math.floor(Math.random() * 1000)}_${hrTime[1]}`;
 
         // Create Campaign initially as checking_credits in api_campaigns
         await query(
@@ -1034,23 +1035,31 @@ router.post('/api/campaign-status', async (req, res) => {
         const [statsRows] = await query(`
             SELECT 
                 COUNT(*) as log_total,
-                SUM(CASE WHEN LOWER(status) = 'sent' THEN 1 ELSE 0 END) as sent_total,
-                SUM(CASE WHEN LOWER(status) = 'delivered' THEN 1 ELSE 0 END) as delivered_total,
-                SUM(CASE WHEN LOWER(status) IN ('read', 'displayed') THEN 1 ELSE 0 END) as read_total,
-                SUM(CASE WHEN LOWER(status) = 'failed' THEN 1 ELSE 0 END) as failed_total
+                CAST(SUM(CASE WHEN LOWER(status) = 'sent' THEN 1 ELSE 0 END) AS UNSIGNED) as sent_total,
+                CAST(SUM(CASE WHEN LOWER(status) = 'delivered' THEN 1 ELSE 0 END) AS UNSIGNED) as delivered_total,
+                CAST(SUM(CASE WHEN LOWER(status) IN ('read', 'displayed', 'read_receipt') THEN 1 ELSE 0 END) AS UNSIGNED) as read_total,
+                CAST(SUM(CASE WHEN LOWER(status) = 'failed' THEN 1 ELSE 0 END) AS UNSIGNED) as failed_total
             FROM ${logsTable}
             WHERE campaign_id = ? AND user_id = ?
         `, [campaignId, userId]);
 
-        const stats = statsRows[0];
+        const stats = statsRows[0] || {};
         const totalRecipients = campaign.recipient_count || 0;
-        const sent = stats.sent_total || 0;
-        const delivered = stats.delivered_total || 0;
-        const read = stats.read_total || 0;
-        const failed = stats.failed_total || 0;
         
-        // Items still in queue or not yet processed
-        const pending = Math.max(0, totalRecipients - sent - delivered - read - failed);
+        // Convert to Numbers to avoid string outputs from SQL
+        const log_total = Number(stats.log_total || 0);
+        const sent_only = Number(stats.sent_total || 0);
+        const delivered_only = Number(stats.delivered_total || 0);
+        const read = Number(stats.read_total || 0);
+        const failed = Number(stats.failed_total || 0);
+
+        // Standard 'delivered' count includes those already 'read'
+        const delivered = delivered_only + read;
+        // Standard 'sent' count includes all that progressed beyond raw sending
+        const sent = Math.min(totalRecipients, sent_only + delivered);
+
+        // Items still in entry or processing
+        const pending = Math.max(0, totalRecipients - sent - failed);
 
         const response = {
             success: true,
@@ -1061,7 +1070,7 @@ router.post('/api/campaign-status', async (req, res) => {
             createdAt: campaign.created_at,
             summary: {
                 total: totalRecipients,
-                sent: Math.min(totalRecipients, sent + delivered + read), // Standard 'sent' count includes ones that progressed
+                sent,
                 delivered,
                 read,
                 failed,
@@ -1072,7 +1081,6 @@ router.post('/api/campaign-status', async (req, res) => {
 
         // Optional: per-recipient detail
         if (detail === true || detail === 'true') {
-            const logsTable = String(campaignId).startsWith('CAMP_API_') ? 'api_message_logs' : 'message_logs';
             const [logs] = await query(
                 `SELECT recipient as mobile, status, send_time, delivery_time, read_time, failure_reason 
                  FROM ${logsTable} WHERE campaign_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1000`,
