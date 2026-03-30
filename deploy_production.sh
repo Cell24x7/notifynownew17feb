@@ -121,13 +121,17 @@ ok "Frontend built successfully"
 chmod -R 755 "$DIST_DIR"
 
 # ── Step 6: Migrations ────────────────────────────────
-log "🗄️  [6/7] Running migrations..."
+log "🗄️  [6/7] Running DB migrations & schema fixes..."
 cd "$BACKEND_DIR"
 NODE_ENV=production node apply_schema_updates.js || true
 NODE_ENV=production node scripts/add_api_key.js || true
 NODE_ENV=production node scripts/setup_admin.js || true
 NODE_ENV=production node optimize_db.js || true
-NODE_ENV=production node fix_logs_schema.js || true
+
+# CRITICAL: Fix columns (message_id, recipient sizes, indexes)
+log "   🔧 Running fix_logs_schema.js (CRITICAL)..."
+NODE_ENV=production node fix_logs_schema.js
+ok "Schema fix applied successfully"
 
 # ── Step 7: Restart SMART ─────────────────────────────
 log "♻️  [7/7] Restarting PM2 instance (Zero-Downtime)..."
