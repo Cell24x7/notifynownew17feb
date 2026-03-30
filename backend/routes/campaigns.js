@@ -139,7 +139,8 @@ router.get('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
-        const [campaign] = await query('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        const table = id.startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
+        const [campaign] = await query(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
         if (campaign.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
         res.json({ success: true, campaign: campaign[0] });
     } catch (error) {
@@ -269,11 +270,12 @@ router.put('/:id/status', authenticate, async (req, res) => {
         const userId = req.user.id;
         const { id } = req.params;
         const { status } = req.body;
+        const table = id.startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
 
-        const [existing] = await query('SELECT id FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        const [existing] = await query(`SELECT id FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
 
-        await query('UPDATE campaigns SET status = ? WHERE id = ? AND user_id = ?', [status, id, userId]);
+        await query(`UPDATE ${table} SET status = ? WHERE id = ? AND user_id = ?`, [status, id, userId]);
 
         // If starting/resuming, deduct credits upfront
         if (status === 'running') {
@@ -298,8 +300,9 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
+        const table = id.startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
 
-        const [existing] = await query('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        const [existing] = await query(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
 
         const c = existing[0];
@@ -440,11 +443,12 @@ router.delete('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
+        const table = id.startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
 
-        const [existing] = await query('SELECT id FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        const [existing] = await query(`SELECT id FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
 
-        await query('DELETE FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
+        await query(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
         res.json({ success: true, message: 'Campaign deleted successfully' });
     } catch (error) {
         console.error('Delete campaign error:', error);
