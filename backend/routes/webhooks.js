@@ -717,35 +717,41 @@ router.post('/whatsapp/callback', async (req, res) => {
                                     if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 500));
                                 }
 
-                                if (logs.length > 0) {
-                                    const log = logs[0];
-                                    let finalStatus = status.toLowerCase();
-                                    const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
-                                    const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+                                    if (logs.length > 0) {
+                                        const log = logs[0];
+                                        const finalStatus = (status || '').toLowerCase();
+                                        const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                                        const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
-                                    // ATOMIC STATUS UPDATE & COUNTER INCREMENT
-                                    const [updateResult] = await query(
-                                        `UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ? AND status != ?`,
-                                        [finalStatus, messageId, finalStatus]
-                                    );
+                                        // Status hierarchy to prevent downgrades (sent < delivered < read)
+                                        const weights = { sent: 1, delivered: 2, read: 3, failed: 0 };
+                                        const oldStatus = (log.status || 'sent').toLowerCase();
 
-                                    // Only increment campaign counters if the status actually changed
-                                    if (updateResult.affectedRows > 0 && log.campaign_id) {
-                                        if (finalStatus === 'delivered' && log.status !== 'delivered' && log.status !== 'read') {
-                                            await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
-                                            await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
-                                        } else if (finalStatus === 'read' && log.status !== 'read') {
-                                            if (log.status !== 'delivered' && log.status !== 'read') {
-                                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
-                                            } else {
-                                                await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                        if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
+                                            // 1. UPDATE DB LOG STATUS
+                                            await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+
+                                            // 2. INCREMENT CAMPAIGN COUNTERS ATOMICALLY
+                                            if (log.campaign_id) {
+                                                if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                    await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
+                                                } 
+                                                else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                                    // If directly moved from sent to read, increment both
+                                                    if (oldStatus !== 'delivered') {
+                                                        await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                    } else {
+                                                        await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                    }
+                                                    await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
+                                                } 
+                                                else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                                    await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                    await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
+                                                }
                                             }
-                                            await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
-                                        } else if (finalStatus === 'failed' && log.status !== 'failed') {
-                                            await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
-                                            await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
                                         }
-                                    }
                                     // 📡 REAL-TIME CHAT STATUS UPDATE (Manual only)
                                     if (['delivered', 'read', 'failed'].includes(finalStatus) && req.io && !log.campaign_id) {
                                         req.io.to(`user_${log.user_id}`).emit('message_status_update', {

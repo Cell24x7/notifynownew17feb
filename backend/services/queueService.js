@@ -5,8 +5,6 @@ const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
 const { sendSMS } = require('../utils/smsService');
 
 const BATCH_SIZE = 10000;
-const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
-const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
 
 /**
  * Normalizes RCS results from service
@@ -33,7 +31,7 @@ const replaceVariables = (text, vars) => {
 };
 
 /**
- * Maps variable_mapping JSON (e.g., {"1": "Name"}) to values from contacts variables JSON (e.g., {"Name": "Sandeep"})
+ * Maps variable_mapping JSON
  */
 const resolveMappedVariables = (mappingStr, contactVarsStr) => {
     try {
@@ -63,7 +61,7 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
 };
 
 /**
- * Scans text for {{1}}, {{2}}... and returns an array of values in that order.
+ * Scans text for {{1}}, {{2}}...
  */
 const getOrderedVariables = (text, resolvedVars) => {
     const vars = [];
@@ -120,15 +118,17 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 
         // --- 1. Auto-start scheduled campaigns ---
-        await query(`
-            UPDATE ${campaignTable} 
-            SET status = 'running', last_run_at = NOW()
-            WHERE status IN ('scheduled', 'draft') 
-            AND next_run_at <= NOW()
-            AND status != 'running'
-        `);
+        try {
+            await query(`
+                UPDATE ${campaignTable} 
+                SET status = 'running', last_run_at = NOW()
+                WHERE status IN ('scheduled', 'draft') 
+                AND next_run_at <= NOW()
+                AND status != 'running'
+            `);
+        } catch(e) {}
 
-        // --- 2. SQL FETCH SQL ---
+        // --- 2. SQL FETCH JOINED DATA ---
         const sql = `
             SELECT q.id, q.campaign_id, q.mobile, 
             COALESCE(mt.name, c.template_name) as template_name,
@@ -153,21 +153,27 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
 
         let totalOffloaded = 0;
         while (true) {
+            // Fetch candidates with full metadata
             const [candidates] = await query(sql, [DRIP_BATCH_SIZE]);
             if (!candidates || candidates.length === 0) break;
 
-            // Claim
             const candidateIds = candidates.map(c => c.id);
+            
+            // Atomically CLAIM the candidates
             const [markResult] = await query(
                 `UPDATE ${queueTable} SET status = ?, worker_id = ? WHERE id IN (?) AND status = 'pending'`, 
                 ['claiming', workerId, candidateIds]
             );
             if (markResult.affectedRows === 0) break;
 
+            // Re-fetch only those successfully claimed by THIS worker loop
             const [workItems] = await query(`SELECT * FROM ${queueTable} WHERE status = 'claiming' AND worker_id = ?`, [workerId]);
             if (!workItems || workItems.length === 0) break;
 
-            // Credits
+            const markedIds = workItems.map(i => i.id);
+            const markedIdSet = new Set(markedIds);
+
+            // Credits check
             const uniqueCampaigns = [...new Set(workItems.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
             const failedCampaigns = new Set();
             for (const campId of uniqueCampaigns) {
@@ -178,13 +184,14 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                 }
             }
 
+            // Filter out items in failed campaigns
             const validItems = failedCampaigns.size > 0 ? workItems.filter(i => !failedCampaigns.has(i.campaign_id)) : workItems;
             if (validItems.length === 0) {
                 await query(`UPDATE ${queueTable} SET status = 'pending', worker_id = NULL WHERE status = 'claiming' AND worker_id = ?`, [workerId]);
                 break;
             }
 
-            // Sync Redis
+            // Redis Sync
             const { redisConnection } = require('../queues/campaignQueue');
             const Redis = require('ioredis');
             const redisClient = new Redis(redisConnection);
@@ -193,18 +200,24 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             for (const campId in countsByCamp) await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, countsByCamp[campId]);
             await redisClient.quit();
 
-            // BullMQ
+            // BullMQ Offloading
+            // CRITICAL: Use the joined 'candidates' data for BullMQ processing to ensure metadata isn't lost
+            const candidateLookups = candidates.reduce((acc, c) => ({ ...acc, [c.id]: c }), {});
+            
             const { campaignQueue } = require('../queues/campaignQueue');
-            const jobs = validItems.map(item => ({
-                name: `sending-${item.mobile}`,
-                data: { item, tableConfig },
-                opts: { jobId: `${queueTable}-${item.id}` } 
-            }));
+            const jobs = validItems.map(item => {
+                const fullItem = candidateLookups[item.id] || item;
+                return {
+                    name: `sending-${item.mobile}`,
+                    data: { item: fullItem, tableConfig },
+                    opts: { jobId: `${queueTable}-${item.id}` } 
+                };
+            });
             await campaignQueue.addBulk(jobs);
 
-            // Update
-            const claimedIds = validItems.map(i => i.id);
-            await query(`UPDATE ${queueTable} SET status = "processing", worker_id = ? WHERE id IN (?)`, [workerId, claimedIds]);
+            // Final Move to 'processing'
+            const processedIds = validItems.map(i => i.id);
+            await query(`UPDATE ${queueTable} SET status = "processing", worker_id = ? WHERE id IN (?)`, [workerId, processedIds]);
             
             totalOffloaded += validItems.length;
             if (candidates.length < DRIP_BATCH_SIZE) break;

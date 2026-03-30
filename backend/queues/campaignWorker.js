@@ -24,26 +24,21 @@ const campaignWorker = new Worker(queueName, async (job) => {
         const [check] = await query(`SELECT status FROM ${queueTable} WHERE id = ?`, [item.id]);
         if (check.length > 0 && (check[0].status === 'sent' || check[0].status === 'failed')) {
             console.log(`[Worker] Skipping job ${job.id} for ${item.mobile} - Already processed (Status: ${check[0].status})`);
-            
-            // Still decrement progress if it was accidentally incremented twice
-            const remains = await redis.decr(`${envSuffix}:camp_progress:${item.campaign_id}`);
-            if (remains <= 0) {
-                const finalStats = await redis.hgetall(`${envSuffix}:stats:${item.campaign_id}`);
-                await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
-                    [parseInt(finalStats.sent || 0), parseInt(finalStats.failed || 0), item.campaign_id]);
-                await redis.del(`${envSuffix}:camp_progress:${item.campaign_id}`);
-                await redis.del(`${envSuffix}:stats:${item.campaign_id}`);
-            }
             return;
         }
+
+        // Pre-calculate status independent variables
+        const now = new Date();
+        const campId = item.campaign_id;
+        const chan = (item.channel || 'rcs').toLowerCase();
+        const tName = item.template_name || 'N/A';
+        const cName = item.campaign_name || 'N/A';
+        const msgContent = item.template_body || item.campaign_name || 'Template Message';
 
         // 1. Process Message
         const { sendUniversalMessage } = require('../services/sendingService');
         result = await sendUniversalMessage(item);
 
-        const now = new Date();
-        const campId = item.campaign_id;
-        
         // Safety: ensure logsTable is correct for API campaigns
         let effectiveLogsTable = logsTable;
         if (campId && String(campId).startsWith('CAMP_API_')) {
@@ -52,11 +47,9 @@ const campaignWorker = new Worker(queueName, async (job) => {
             effectiveLogsTable = 'message_logs';
         }
 
-        const msgContent = item.template_body || item.campaign_name || 'Template Message';
-
         // 2. DB Log & Queue Update
         if (result.success) {
-            // Update status FIRST to mark it as done
+            // Update status FIRST to mark it as done in queue
             await query(`UPDATE ${queueTable} SET status = "sent", message_id = ?, updated_at = NOW() WHERE id = ?`, [result.messageId, item.id]);
             
             // IDEMPOTENT COUNTERS: Only increment if this item wasn't already tracked for this campaign
@@ -67,18 +60,12 @@ const campaignWorker = new Worker(queueName, async (job) => {
             
             // Detailed Logs for Reports (Try-catch to prevent job failure if logging fails)
             try {
-                const now = new Date();
-                const chan = (item.channel || 'rcs').toLowerCase();
-                const tName = item.template_name || 'N/A';
-                const cName = item.campaign_name || 'N/A';
-                
                 await query(
                     `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
                     [item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, now]
                 );
             } catch (logErr) {
                 console.error(`[Worker] CRITICAL INSERT FAIL for ${item.mobile} in ${effectiveLogsTable}:`, logErr.message);
-                // Log all params to debug why it failed
                 console.error(`[Worker] Data:`, { user_id: item.user_id, campId, mobile: item.mobile, messageId: result.messageId });
             }
 
@@ -91,37 +78,40 @@ const campaignWorker = new Worker(queueName, async (job) => {
                         item.user_id, 
                         item.mobile, 
                         result.messageId, 
-                        (item.channel || 'rcs').toLowerCase(), 
-                        (item.channel || 'rcs').toLowerCase(),
+                        chan, 
+                        chan,
                         msgContent,
                         campId,
-                        item.campaign_name || 'Campaign',
-                        item.template_name || 'N/A',
+                        cName,
+                        tName,
                         JSON.stringify({ note: 'Campaign Message', item_id: item.id })
                     ]
                 );
-            } catch (err) { console.error('Error logging to webhook_logs:', err.message); }
+            } catch (err) { /* Silently handle webhook log errors */ }
 
         } else {
-            await query(`UPDATE ${queueTable} SET status = "failed", error_message = ? WHERE id = ?`, [result.error || 'Failed', item.id]);
-            
-            const isNew = await redis.sadd(`${envSuffix}:tracked:${campId}`, item.id);
-            if (isNew) {
+            console.error(`❌ Campaign ${campId} failed for ${item.mobile}:`, result.error);
+            await query(`UPDATE ${queueTable} SET status = "failed", updated_at = NOW() WHERE id = ?`, [item.id]);
+
+            const isNewFail = await redis.sadd(`${envSuffix}:tracked_fail:${campId}`, item.id);
+            if (isNewFail) {
                 await redis.hincrby(`${envSuffix}:stats:${campId}`, 'failed', 1);
             }
-            
+
             try {
                 await query(
                     `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time, failure_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id, campId, item.campaign_name || 'N/A', item.mobile, 'failed', item.channel, item.template_name || 'N/A', now, result.error || 'Failed']
+                    [item.user_id, campId, cName, item.mobile, 'failed', chan, tName, now, result.error || 'Provider rejected']
                 );
-            } catch (e) { console.error('Error logging failure to message_logs:', e.message); }
+            } catch (failLogErr) {
+                console.error(`[Worker] FAIL LOG ERROR for ${item.mobile}:`, failLogErr.message);
+            }
         }
 
         // 3. PERIODIC DB SYNC (Avoid Row Contention)
         const processedTotal = await redis.hincrby(`${envSuffix}:stats:${campId}`, 'total_processed', 1);
         
-        // INSTANT UPDATES for small campaigns (< 10 msgs: sync every msg, < 100: sync every 2)
+        // INSTANT UPDATES for small campaigns (< 10 msgs: sync every msg, else sync every 100)
         const syncInterval = (processedTotal < 10) ? 1 : 100;
         if (processedTotal % syncInterval === 0) {
             const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
@@ -131,7 +121,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         // 4. COMPLETION CHECK
         const remains = await redis.decr(`${envSuffix}:camp_progress:${campId}`);
         if (remains === 0) {
-            // Final Sync - ONLY if it reached exactly 0
+            // Final Sync
             const finalStats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             if (Object.keys(finalStats).length > 0) {
                 await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
@@ -141,16 +131,14 @@ const campaignWorker = new Worker(queueName, async (job) => {
                 await redis.del(`${envSuffix}:camp_progress:${campId}`);
                 await redis.del(`${envSuffix}:stats:${campId}`);
                 await redis.del(`${envSuffix}:tracked:${campId}`);
+                await redis.del(`${envSuffix}:tracked_fail:${campId}`);
                 console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
             } else {
-                // Stats missing? Just mark as sent
                 await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [campId]);
                 await redis.del(`${envSuffix}:camp_progress:${campId}`);
             }
         } else if (remains < 0) {
-             // If it's already negative, something went wrong with initialization or double processing.
-             // Final catch-all update but don't delete if we expect more.
-             await redis.del(`${envSuffix}:camp_progress:${campId}`);
+             await redis.del(`${envSuffix}:camp_progress:${campId}`); // Safeguard
         }
 
     } catch (err) {
@@ -167,4 +155,3 @@ const campaignWorker = new Worker(queueName, async (job) => {
 });
 
 module.exports = campaignWorker;
-
