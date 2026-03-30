@@ -595,9 +595,6 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
             }
         }
 
-        const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
-        const host = req.get('host');
-        const fileUrl = `${protocol}://${host}/api/whatsapp/media-file/${req.file.filename}`;
         
         console.log(`[WA-UPLOAD] Local upload (non-Pinbot) via proxy: ${fileUrl}`);
         res.json({ success: true, url: fileUrl });

@@ -457,78 +457,55 @@ router.post('/dotgo', async (req, res) => {
     }
 });
 
-// GET /api/webhooks/message-logs
-// Fetch consolidated logs (one row per message) for reporting
+// GET /api/webhooks/message-logs (Optimized for 1Cr+ Scale)
 router.get('/message-logs', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { campaignId } = req.query;
-        const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
-        const offset = (page - 1) * limit;
+        const lastId = parseInt(req.query.lastId) || 0; // Keyset pagination for 1Cr+ data
+        const source = req.query.source || 'manual'; 
 
-        let logsTable = 'message_logs';
-        let campaignsTable = 'campaigns';
+        let logsTable = (source === 'api') ? 'api_message_logs' : 'message_logs';
+        let campaignsTable = (source === 'api') ? 'api_campaigns' : 'campaigns';
 
-        if (req.query.source === 'api') {
-            logsTable = 'api_message_logs';
-            campaignsTable = 'api_campaigns';
+        let conditions = ["ml.user_id = ?"];
+        let params = [userId];
+
+        // Apply Keyset Pagination (FASTEST for 1Cr)
+        if (lastId > 0) {
+            conditions.push("ml.id < ?");
+            params.push(lastId);
         }
 
-        let baseSql = ` FROM ${logsTable} ml LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id WHERE 1=1`;
-        let params = [];
-
-        // Filter by userId
-        const targetUserId = req.query.userId || req.user.id;
-        if (req.user.role === 'superadmin' || req.user.role === 'admin') {
-            if (req.query.userId) {
-                baseSql += ' AND ml.user_id = ?';
-                params.push(req.query.userId);
-            }
-        } else {
-            baseSql += ' AND ml.user_id = ?';
-            params.push(req.user.id);
-        }
-
-        if (campaignId) {
-            baseSql += ' AND ml.campaign_id = ?';
-            params.push(campaignId);
-        }
-
-        if (req.query.channel && req.query.channel !== 'all') {
-            baseSql += ' AND (c.channel = ? OR ml.channel = ?)';
-            params.push(req.query.channel, req.query.channel);
-        }
-
-        if (req.query.startDate && req.query.endDate) {
-            baseSql += ' AND ml.created_at BETWEEN ? AND ?';
-            params.push(req.query.startDate + ' 00:00:00', req.query.endDate + ' 23:59:59');
+        if (req.query.campaignId) {
+            conditions.push("ml.campaign_id = ?");
+            params.push(req.query.campaignId);
         }
 
         if (req.query.search) {
-            baseSql += ' AND (ml.recipient LIKE ? OR ml.campaign_name LIKE ? OR ml.template_name LIKE ?)';
-            const searchVal = `%${req.query.search}%`;
-            params.push(searchVal, searchVal, searchVal);
+            conditions.push("(ml.recipient LIKE ? OR ml.campaign_name LIKE ?)");
+            params.push(`%${req.query.search}%`, `%${req.query.search}%`);
         }
 
-        // Get total count
-        const countSql = `SELECT COUNT(*) as total ${baseSql}`;
-        const [countResult] = await query(countSql, params);
-        const total = countResult[0].total;
+        const whereClause = conditions.join(' AND ');
 
-        // Get paginated data
-        const selectSql = `SELECT ml.*, c.channel ${baseSql} ORDER BY ml.id DESC LIMIT ? OFFSET ?`;
-        const [logs] = await query(selectSql, [...params, limit, offset]);
+        // No COUNT(*) for performance. Frontend will use "Has More" logic or estimations.
+        const selectSql = `
+            SELECT ml.*, c.channel as campaign_channel 
+            FROM ${logsTable} ml 
+            LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id 
+            WHERE ${whereClause} 
+            ORDER BY ml.id DESC 
+            LIMIT ?
+        `;
+
+        const [logs] = await query(selectSql, [...params, limit]);
 
         res.json({
             success: true,
             data: logs,
-            pagination: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit)
-            }
+            hasMore: logs.length === limit,
+            nextLastId: logs.length > 0 ? logs[logs.length - 1].id : null
         });
     } catch (error) {
         console.error('❌ Error fetching message logs:', error.message);
