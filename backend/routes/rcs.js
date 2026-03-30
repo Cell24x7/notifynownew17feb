@@ -292,13 +292,13 @@ router.post('/send-campaign', authenticate, async (req, res) => {
       }).filter(Boolean);
 
       if (values.length > 0) {
-        // Batch insert to queue
-        const BATCH = 1000;
-        for (let i = 0; i < values.length; i += BATCH) {
-          // Added 'channel' column for compatibility with worker reporting engine
-          await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [values.slice(i, i + BATCH).map(v => [...v, 'rcs'])]);
+        // SUPER-FAST INGESTION: Bulk insert with high throughput
+        const BATCH_SIZE = 5000;
+        for (let i = 0; i < values.length; i += BATCH_SIZE) {
+          const batch = values.slice(i, i + BATCH_SIZE).map(v => [...v, 'rcs']);
+          await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [batch]);
         }
-        console.log(`✅ Queued ${values.length} contacts for Dotgo campaign ${campaignId}`);
+        console.log(`🚀 [SuperFast] Ingested ${values.length} contacts for Dotgo campaign ${campaignId}`);
       }
 
     } else if (!campaignId) {

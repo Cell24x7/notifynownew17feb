@@ -851,13 +851,14 @@ router.post('/send-campaign', authenticate, async (req, res) => {
                 return [campaignId, userId, cleanMobile, 'pending'];
             }).filter(Boolean);
 
+            // SUPER-FAST INGESTION: Bulk insert with high throughput
             if (values.length > 0) {
-                const BATCH = 1000;
-                for (let i = 0; i < values.length; i += BATCH) {
-                    // Added 'channel' column for compatibility with worker reporting engine
-                    await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [values.slice(i, i + BATCH).map(v => [...v, 'whatsapp'])]);
+                const BATCH_SIZE = 5000;
+                for (let i = 0; i < values.length; i += BATCH_SIZE) {
+                    const batch = values.slice(i, i + BATCH_SIZE).map(v => [...v, 'whatsapp']);
+                    await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [batch]);
                 }
-                console.log(`✅ Queued ${values.length} contacts for WhatsApp campaign ${campaignId}`);
+                console.log(`🚀 [SuperFast] Ingested ${values.length} contacts for WhatsApp campaign ${campaignId}`);
             }
         } else if (!campaignId) {
             return res.status(400).json({ success: false, message: 'No contacts provided and no campaign ID' });
