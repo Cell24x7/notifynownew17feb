@@ -119,12 +119,23 @@ ok "Frontend built"
 chmod -R 755 "$DIST_DIR"
 
 # ── Step 6: Migrations ────────────────────────────────
-log "🗄️  [6/7] Running migrations..."
+log "🗄️  [6/7] Running DB migrations & schema fixes..."
 cd "$BACKEND_DIR"
 NODE_ENV=production node apply_schema_updates.js || true
 NODE_ENV=production node scripts/add_api_key.js || true
 NODE_ENV=production node scripts/setup_admin.js || true
 NODE_ENV=production node optimize_db.js || true
+
+# CRITICAL: Fix all missing columns (worker_id, message_id, indexes)
+log "   🔧 Running fix_logs_schema.js (CRITICAL)..."
+NODE_ENV=production node fix_logs_schema.js
+ok "Schema fix applied successfully"
+
+# APP_NAME from .env.production
+if [ -f "$BACKEND_DIR/.env.production" ]; then
+    APP_NAME=$(grep "^APP_NAME=" "$BACKEND_DIR/.env.production" | cut -d'=' -f2 | tr -d '"\'' ')
+fi
+: "${APP_NAME:=notifynow-developer}"
 
 # ── Step 7: Restart SMART ─────────────────────────────
 log "♻️  [7/7] Restarting PM2 instance (Zero-Downtime)..."
@@ -133,14 +144,12 @@ cd "$PROJECT_DIR"
 # Check if app is already running
 if pm2 list | grep -q "$APP_NAME"; then
     log "   🔄 App '$APP_NAME' is running, reloading..."
-    # Use reload for zero-downtime, it keeps other apps safe
     APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
 else
     log "   🚀 App '$APP_NAME' is new, starting..."
     APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
 fi
 
-# Save to ensure persistence after server reboot
 pm2 save --force
 
 ok "Instance '$APP_NAME' is stable and running."

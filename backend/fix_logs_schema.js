@@ -58,16 +58,19 @@ async function fix() {
         await safe("ALTER TABLE api_message_logs ADD COLUMN read_time      TIMESTAMP NULL AFTER delivery_time", 'api_message_logs: add read_time');
 
         // ============================================================
+        // campaign_queue — ensure ALL worker columns exist
+        // ============================================================
+        await safe("ALTER TABLE campaign_queue ADD COLUMN channel    VARCHAR(50)  DEFAULT NULL AFTER status",     'campaign_queue: add channel');
+        await safe("ALTER TABLE campaign_queue ADD COLUMN worker_id  VARCHAR(100) DEFAULT NULL AFTER channel",    'campaign_queue: add worker_id');
+        await safe("ALTER TABLE campaign_queue ADD COLUMN message_id VARCHAR(512) DEFAULT NULL AFTER worker_id",  'campaign_queue: add message_id');
+        await safe("ALTER TABLE campaign_queue MODIFY COLUMN message_id VARCHAR(512) DEFAULT NULL",               'campaign_queue: widen message_id');
+
+        // ============================================================
         // campaigns — ensure counter columns exist
         // ============================================================
         await safe("ALTER TABLE campaigns ADD COLUMN delivered_count INT DEFAULT 0 AFTER sent_count", 'campaigns: add delivered_count');
         await safe("ALTER TABLE campaigns ADD COLUMN read_count      INT DEFAULT 0 AFTER delivered_count", 'campaigns: add read_count');
         await safe("ALTER TABLE campaigns ADD COLUMN failed_count    INT DEFAULT 0 AFTER read_count",   'campaigns: add failed_count');
-
-        // ============================================================
-        // campaign_queue — ensure channel column exists
-        // ============================================================
-        await safe("ALTER TABLE campaign_queue ADD COLUMN channel VARCHAR(50) DEFAULT NULL AFTER status", 'campaign_queue: add channel');
 
         // ============================================================
         // INDEXES — for fast lookups during webhook delivery
