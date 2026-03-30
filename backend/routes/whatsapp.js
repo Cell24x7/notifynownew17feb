@@ -1029,12 +1029,28 @@ router.post('/api/campaign-status', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Campaign not found or not authorized' });
         }
 
-        const total = campaign.recipient_count || 0;
-        const sent = campaign.sent_count || 0;
-        const delivered = campaign.delivered_count || 0;
-        const read = campaign.read_count || 0;
-        const failed = campaign.failed_count || 0;
-        const pending = Math.max(0, total - sent - failed);
+        // Get Real-time counts from Logs (More reliable than campaign table counters)
+        const logsTable = String(campaignId).startsWith('CAMP_API_') ? 'api_message_logs' : 'message_logs';
+        const [statsRows] = await query(`
+            SELECT 
+                COUNT(*) as log_total,
+                SUM(CASE WHEN LOWER(status) = 'sent' THEN 1 ELSE 0 END) as sent_total,
+                SUM(CASE WHEN LOWER(status) = 'delivered' THEN 1 ELSE 0 END) as delivered_total,
+                SUM(CASE WHEN LOWER(status) IN ('read', 'displayed') THEN 1 ELSE 0 END) as read_total,
+                SUM(CASE WHEN LOWER(status) = 'failed' THEN 1 ELSE 0 END) as failed_total
+            FROM ${logsTable}
+            WHERE campaign_id = ? AND user_id = ?
+        `, [campaignId, userId]);
+
+        const stats = statsRows[0];
+        const totalRecipients = campaign.recipient_count || 0;
+        const sent = stats.sent_total || 0;
+        const delivered = stats.delivered_total || 0;
+        const read = stats.read_total || 0;
+        const failed = stats.failed_total || 0;
+        
+        // Items still in queue or not yet processed
+        const pending = Math.max(0, totalRecipients - sent - delivered - read - failed);
 
         const response = {
             success: true,
@@ -1044,13 +1060,13 @@ router.post('/api/campaign-status', async (req, res) => {
             status: campaign.status,
             createdAt: campaign.created_at,
             summary: {
-                total,
-                sent,
+                total: totalRecipients,
+                sent: Math.min(totalRecipients, sent + delivered + read), // Standard 'sent' count includes ones that progressed
                 delivered,
                 read,
                 failed,
                 pending,
-                deliveryRate: total > 0 ? ((delivered / total) * 100).toFixed(1) + '%' : '0%'
+                deliveryRate: totalRecipients > 0 ? ((delivered / totalRecipients) * 100).toFixed(1) + '%' : '0%'
             }
         };
 
