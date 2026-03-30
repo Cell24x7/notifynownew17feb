@@ -986,6 +986,94 @@ router.post('/api/send-bulk', async (req, res) => {
 });
 
 /**
+ * POST /api/whatsapp/api/campaign-status
+ * Check status of a campaign sent via API
+ * Body: { username, password, campaignId, detail: true/false }
+ */
+router.post('/api/campaign-status', async (req, res) => {
+    try {
+        const { username, password, campaignId, detail } = req.body;
+
+        if (!username || !password || !campaignId) {
+            return res.status(400).json({ success: false, message: 'Required: username, password, campaignId' });
+        }
+
+        // Auth
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !users[0].api_password) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        }
+        if (!(await bcrypt.compare(password, users[0].api_password))) {
+            return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        }
+        const userId = users[0].id;
+
+        // Find campaign in api_campaigns (or campaigns for manual)
+        let campaign = null;
+        const [apiCamps] = await query(
+            'SELECT id, name, channel, status, recipient_count, sent_count, delivered_count, read_count, failed_count, created_at FROM api_campaigns WHERE id = ? AND user_id = ?',
+            [campaignId, userId]
+        );
+        if (apiCamps.length > 0) {
+            campaign = apiCamps[0];
+        } else {
+            const [manualCamps] = await query(
+                'SELECT id, name, channel, status, recipient_count, sent_count, delivered_count, read_count, failed_count, created_at FROM campaigns WHERE id = ? AND user_id = ?',
+                [campaignId, userId]
+            );
+            if (manualCamps.length > 0) campaign = manualCamps[0];
+        }
+
+        if (!campaign) {
+            return res.status(404).json({ success: false, message: 'Campaign not found or not authorized' });
+        }
+
+        const total = campaign.recipient_count || 0;
+        const sent = campaign.sent_count || 0;
+        const delivered = campaign.delivered_count || 0;
+        const read = campaign.read_count || 0;
+        const failed = campaign.failed_count || 0;
+        const pending = Math.max(0, total - sent - failed);
+
+        const response = {
+            success: true,
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            channel: campaign.channel,
+            status: campaign.status,
+            createdAt: campaign.created_at,
+            summary: {
+                total,
+                sent,
+                delivered,
+                read,
+                failed,
+                pending,
+                deliveryRate: total > 0 ? ((delivered / total) * 100).toFixed(1) + '%' : '0%'
+            }
+        };
+
+        // Optional: per-recipient detail
+        if (detail === true || detail === 'true') {
+            const logsTable = String(campaignId).startsWith('CAMP_API_') ? 'api_message_logs' : 'message_logs';
+            const [logs] = await query(
+                `SELECT recipient as mobile, status, send_time, delivery_time, read_time, failure_reason 
+                 FROM ${logsTable} WHERE campaign_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1000`,
+                [campaignId, userId]
+            );
+            response.recipients = logs;
+        }
+
+        res.json(response);
+
+    } catch (error) {
+        console.error('[API] campaign-status error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * POST /api/whatsapp/api/send-single
  * Simple Message API: Best for instant OTPs, Alerts, or Single Notifications
  */
