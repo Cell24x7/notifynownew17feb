@@ -108,35 +108,39 @@ const calculateNextRun = (currentRun, frequency, repeatDays) => {
 };
 
 /**
- * Core processor: Drains SQL Queue into BullMQ
+ * Core processor: Drains SQL Queue into BullMQ (Optimized for 1Cr+ volume)
  */
 const processBatch = async ({ campaignTable, queueTable, logsTable, name: processorName }) => {
+    let redisClient = null;
     try {
         const tableConfig = { campaignTable, queueTable, logsTable };
-        const workerId = `worker_${process.pid}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-        const DRIP_BATCH_SIZE = 1000;
+        const workerId = `worker_${process.env.APP_NAME || 'notifynow'}_${process.pid}_${Date.now()}`;
+        const DRIP_BATCH_SIZE = 10000;
         const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 
+        // 0. Persistent Redis for this loop
+        const { redisConnection, campaignQueue } = require('../queues/campaignQueue');
+        const Redis = require('ioredis');
+        redisClient = new Redis(redisConnection);
+
         // --- 1. Auto-start scheduled campaigns ---
-        try {
-            await query(`
-                UPDATE ${campaignTable} 
-                SET status = 'running', last_run_at = NOW()
-                WHERE status IN ('scheduled', 'draft') 
-                AND next_run_at <= NOW()
-                AND status != 'running'
-            `);
-        } catch(e) {}
+        await query(`
+            UPDATE ${campaignTable} 
+            SET status = 'running', last_run_at = NOW()
+            WHERE status IN ('scheduled', 'draft') 
+            AND next_run_at <= NOW()
+            AND status != 'running'
+        `).catch(() => {});
 
         // --- 2. SQL FETCH JOINED DATA ---
         const sql = `
-            SELECT q.id, q.campaign_id, q.mobile, 
+            SELECT q.id, q.campaign_id, q.mobile, q.variables as contact_variables,
             COALESCE(mt.name, c.template_name) as template_name,
             COALESCE(mt.body, c.template_body) as template_body,
             mt.template_type, 
             COALESCE(mt.metadata, c.template_metadata) as template_metadata,
-            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, c.variable_mapping, c.template_id as raw_template_id,
-            u.rcs_config_id, u.whatsapp_config_id, q.variables,
+            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, 
+            u.rcs_config_id, u.whatsapp_config_id,
             rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
             rc.client_id, rc.client_secret, rc.bot_id,
             wc.provider as wa_provider, wc.wa_token, wc.api_key as wa_api_key,
@@ -153,28 +157,20 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
 
         let totalOffloaded = 0;
         while (true) {
-            // Fetch candidates with full metadata
             const [candidates] = await query(sql, [DRIP_BATCH_SIZE]);
             if (!candidates || candidates.length === 0) break;
 
             const candidateIds = candidates.map(c => c.id);
             
-            // Atomically CLAIM the candidates
+            // 3. Atomically CLAIM the candidates
             const [markResult] = await query(
-                `UPDATE ${queueTable} SET status = ?, worker_id = ? WHERE id IN (?) AND status = 'pending'`, 
-                ['claiming', workerId, candidateIds]
+                `UPDATE ${queueTable} SET status = ?, worker_id = ?, updated_at = NOW() WHERE id IN (?) AND status = 'pending'`, 
+                ['processing', workerId, candidateIds]
             );
             if (markResult.affectedRows === 0) break;
 
-            // Re-fetch only those successfully claimed by THIS worker loop
-            const [workItems] = await query(`SELECT * FROM ${queueTable} WHERE status = 'claiming' AND worker_id = ?`, [workerId]);
-            if (!workItems || workItems.length === 0) break;
-
-            const markedIds = workItems.map(i => i.id);
-            const markedIdSet = new Set(markedIds);
-
-            // Credits check
-            const uniqueCampaigns = [...new Set(workItems.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
+            // 4. Credits check (Only check per unique campaign)
+            const uniqueCampaigns = [...new Set(candidates.filter(i => !i.credits_deducted).map(i => i.campaign_id))];
             const failedCampaigns = new Set();
             for (const campId of uniqueCampaigns) {
                 const creditResult = await deductCampaignCredits(campId, campaignTable);
@@ -185,47 +181,36 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             }
 
             // Filter out items in failed campaigns
-            const validItems = failedCampaigns.size > 0 ? workItems.filter(i => !failedCampaigns.has(i.campaign_id)) : workItems;
-            if (validItems.length === 0) {
-                await query(`UPDATE ${queueTable} SET status = 'pending', worker_id = NULL WHERE status = 'claiming' AND worker_id = ?`, [workerId]);
-                break;
-            }
+            const validItems = failedCampaigns.size > 0 ? candidates.filter(i => !failedCampaigns.has(i.campaign_id)) : candidates;
+            if (validItems.length === 0) break;
 
-            // Redis Sync
-            const { redisConnection } = require('../queues/campaignQueue');
-            const Redis = require('ioredis');
-            const redisClient = new Redis(redisConnection);
+            // 5. Update Redis progress counters (Faster in pipeline)
+            const pipeline = redisClient.pipeline();
             const countsByCamp = {};
-            for (const item of validItems) countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1;
-            for (const campId in countsByCamp) await redisClient.incrby(`${envSuffix}:camp_progress:${campId}`, countsByCamp[campId]);
-            await redisClient.quit();
+            validItems.forEach(item => countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1);
+            Object.keys(countsByCamp).forEach(cid => pipeline.incrby(`${envSuffix}:camp_progress:${cid}`, countsByCamp[cid]));
+            await pipeline.exec();
 
-            // BullMQ Offloading
-            // CRITICAL: Use the joined 'candidates' data for BullMQ processing to ensure metadata isn't lost
-            const candidateLookups = candidates.reduce((acc, c) => ({ ...acc, [c.id]: c }), {});
-            
-            const { campaignQueue } = require('../queues/campaignQueue');
-            const jobs = validItems.map(item => {
-                const fullItem = candidateLookups[item.id] || item;
-                return {
-                    name: `sending-${item.mobile}`,
-                    data: { item: fullItem, tableConfig },
-                    opts: { jobId: `${queueTable}-${item.id}` } 
-                };
-            });
+            // 6. BullMQ Offloading
+            const jobs = validItems.map(item => ({
+                name: `sending-${item.mobile}`,
+                data: { item: item, tableConfig },
+                opts: { jobId: `${queueTable}-${item.id}`, removeOnComplete: true } 
+            }));
             await campaignQueue.addBulk(jobs);
 
-            // Final Move to 'processing'
-            const processedIds = validItems.map(i => i.id);
-            await query(`UPDATE ${queueTable} SET status = "processing", worker_id = ? WHERE id IN (?)`, [workerId, processedIds]);
-            
             totalOffloaded += validItems.length;
             if (candidates.length < DRIP_BATCH_SIZE) break;
+            
+            // Allow event loop breathing, then continue
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
 
         if (totalOffloaded > 0) console.log(`[${processorName}] Offloaded ${totalOffloaded} items to BullMQ.`);
     } catch (error) {
-        console.error(`[${processorName}] Error:`, error.message);
+        console.error(`[${processorName}] Ingestion Error:`, error.message);
+    } finally {
+        if (redisClient) await redisClient.quit().catch(() => {});
     }
 };
 

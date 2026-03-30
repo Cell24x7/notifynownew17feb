@@ -136,10 +136,17 @@ const campaignWorker = new Worker(queueName, async (job) => {
     }
 }, {
     connection: redisConnection,
-    concurrency: 100, // FAST: Handle 1 Lakh+ campaigns with high throughput
+    concurrency: 500, // SUPER-FAST: Process 500 parallel messages
     limiter: {
-        max: 200, 
+        max: 1000,    // 1000 messages per second
         duration: 1000,
+    },
+    removeOnComplete: {
+        age: 60,      // Keep last 60 seconds of history only
+        count: 100, 
+    },
+    removeOnFail: {
+        age: 24 * 3600 // Keep failures for 24h
     }
 });
 
