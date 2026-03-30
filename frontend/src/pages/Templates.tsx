@@ -978,76 +978,78 @@ export default function Templates() {
         ))}
       </div>
 
-      <Tabs value={templateSubTab} onValueChange={(v) => setTemplateSubTab(v as 'all' | 'pending')} className="mt-8">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-          {/* <TabsList className="p-1 h-auto flex flex-wrap gap-2 bg-muted/50 rounded-lg w-full xl:w-auto">
-            <TabsTrigger value="all" className="flex items-center gap-2 flex-1 xl:flex-none">
-              <FileText className="h-4 w-4" />
-              All Templates
-              <Badge variant="secondary" className="ml-1">{filteredTemplates.length}</Badge>
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="pending" className="flex items-center gap-2 flex-1 xl:flex-none">
-                <Clock className="h-4 w-4" />
-                Pending Approvals
-                <Badge variant="outline" className="ml-1 border-amber-500 text-amber-700 bg-amber-50">
-                  {pendingCount}
-                </Badge>
-              </TabsTrigger>
-            )}
-          </TabsList> */}
-
-          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-            {/* Channel Dropdown */}
-            <div className="flex items-center gap-2 flex-1 sm:flex-none">
-              <Select value={channelFilter} onValueChange={(v: any) => setChannelFilter(v)}>
-                <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm hover:border-primary/30 transition-all text-xs font-bold">
-                  <SelectValue placeholder="Channel" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-slate-200">
-                  <SelectItem value="all">All Channels</SelectItem>
-                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="rcs">RCS</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Status Dropdown */}
-            <div className="flex items-center gap-2 flex-1 sm:flex-none">
-              <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm hover:border-primary/30 transition-all text-xs font-bold">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-slate-200">
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search templates..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm w-full text-xs"
-              />
-            </div>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm mt-8">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-primary/10 text-primary">
+            <Sparkles className="h-4 w-4" />
           </div>
+          <h2 className="text-sm font-bold tracking-tight uppercase text-slate-500">Filters & Search</h2>
         </div>
 
-        <TabsContent value="all" className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted" />)}
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+          {/* Channel Dropdown */}
+          <div className="flex items-center gap-2 flex-1 sm:flex-none">
+            <Select value={channelFilter} onValueChange={(v: any) => { setChannelFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm hover:border-primary/30 transition-all text-xs font-bold">
+                <SelectValue placeholder="Channel" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-slate-200">
+                <SelectItem value="all">All Channels</SelectItem>
+                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                <SelectItem value="rcs">RCS</SelectItem>
+                <SelectItem value="sms">SMS</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status Dropdown */}
+          <div className="flex items-center gap-2 flex-1 sm:flex-none">
+            <Select value={statusFilter} onValueChange={(v: any) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm hover:border-primary/30 transition-all text-xs font-bold">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-slate-200">
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              className="pl-9 h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm w-full text-xs"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map(i => <Card key={i} className="h-64 animate-pulse bg-muted/40 border-none rounded-2xl" />)}
+          </div>
+        ) : filteredTemplates.length === 0 ? (
+          <div className="text-center py-32 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200 shadow-sm">
+            <div className="p-4 bg-slate-50 w-fit mx-auto rounded-full mb-4">
+              <FileText className="h-10 w-10 text-slate-300" />
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <h3 className="text-xl font-bold text-slate-800">No Templates Found</h3>
+            <p className="text-muted-foreground max-w-xs mx-auto mt-2">
+              We couldn't find any templates matching your current filters.
+            </p>
+            <Button variant="outline" className="mt-6 rounded-xl hover:bg-slate-50" onClick={() => { setChannelFilter('all'); setStatusFilter('all'); setSearchQuery(''); }}>
+              Clear All Filters
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredTemplates.map((template) => (
                 <Card key={template.id} className="group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col h-full border-muted/20 rounded-2xl">
                   {template.channel === 'whatsapp' && (
@@ -1080,36 +1082,29 @@ export default function Templates() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {(template.channel === 'rcs' || template.channel === 'whatsapp') && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" title="Sync Status" onClick={() => {
-                            if (template.channel === 'rcs') handleSyncTemplate(template);
-                            else handleRefreshTemplates();
-                          }}>
-                            <RefreshCw className="h-3.5 w-3.5" />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-muted/50 transition-colors">
+                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                        )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted"><MoreVertical className="h-4 w-4" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="rounded-xl">
-                            <DropdownMenuItem onClick={() => {
-                              setPreviewTemplate(template);
-                              setIsPreviewOpen(true);
-                            }} className="gap-2">
-                              <Eye className="h-4 w-4" />Preview
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleEditTemplate(template)} className="gap-2"><Edit className="h-4 w-4" />Edit</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive gap-2 focus:text-destructive" onClick={() => handleDeleteTemplate(template.id)}><Trash2 className="h-4 w-4" />Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 rounded-xl border-slate-200 shadow-xl p-1.5">
+                          <DropdownMenuItem onClick={() => { setPreviewTemplate(template); setIsPreviewOpen(true); }} className="rounded-lg h-10 cursor-pointer font-medium text-slate-700">
+                            <Eye className="mr-2.5 h-4 w-4 text-blue-500" /> View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditTemplate(template)} className="rounded-lg h-10 cursor-pointer font-medium text-slate-700">
+                            <Edit className="mr-2.5 h-4 w-4 text-amber-500" /> Edit Template
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="mx-1 my-1.5 bg-slate-100" />
+                          <DropdownMenuItem onClick={() => handleDeleteTemplate(template.id)} className="rounded-lg h-10 cursor-pointer font-medium text-rose-600 focus:text-rose-600 focus:bg-rose-50">
+                            <Trash2 className="mr-2.5 h-4 w-4" /> Delete Template
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </CardHeader>
-                  <CardContent className="flex-1 flex flex-col space-y-4 p-6 pt-0">
+
+                  <CardContent className="px-6 pb-6 pt-0 flex-1 flex flex-col">
                     <div className="p-4 rounded-xl bg-muted/30 text-sm border border-muted/20 min-h-[80px] flex flex-col justify-center gap-2">
                        {template.body === 'External Template' ? (
                           <>
@@ -1122,80 +1117,112 @@ export default function Templates() {
                             </p>
                           </>
                        ) : (
-                          <p className="line-clamp-3 text-muted-foreground leading-relaxed text-[13px]">
-                             {template.body || 'Media-only Template Content'}
+                          <p className="line-clamp-3 text-slate-600 leading-relaxed italic">
+                            "{template.body || template.text || 'No content provided'}"
                           </p>
                        )}
+                       
+                      {template.buttons && template.buttons.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-muted/20 mt-2">
+                          {template.buttons.slice(0, 2).map((btn, idx) => (
+                            <Badge key={idx} variant="secondary" className="bg-white/50 text-[9px] font-bold h-5 uppercase tracking-wide px-2 border-none">
+                              {btn.type === 'URL' || btn.type === 'url' ? <Link className="h-2.5 w-2.5 mr-1" /> : <Phone className="h-2.5 w-2.5 mr-1" />}
+                              {btn.text || btn.label}
+                            </Badge>
+                          ))}
+                          {template.buttons.length > 2 && <span className="text-[10px] text-muted-foreground">+{template.buttons.length - 2} more</span>}
+                        </div>
+                      )}
                     </div>
-                    
-                    <Button
-                        className={cn(
-                            "w-full mt-auto text-white border-none shadow-lg hover:shadow-xl transition-all duration-300 font-bold h-11 rounded-xl",
-                            template.body === 'External Template' ? "bg-amber-500 hover:bg-amber-600" : "gradient-primary"
+
+                    <div className="mt-auto pt-5 flex items-center justify-between gap-3">
+                      <div className="flex gap-2 w-full">
+                        {isAdmin && template.status === 'pending' && (
+                          <div className="flex gap-2 flex-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-bold h-11 rounded-xl"
+                              onClick={() => handleApproveTemplate(template.id, 'approved')}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 border-red-200 text-red-600 hover:bg-red-50 font-bold h-11 rounded-xl"
+                              onClick={() => handleApproveTemplate(template.id, 'rejected')}
+                            >
+                              Reject
+                            </Button>
+                          </div>
                         )}
-                        onClick={() => {
-                            if (template.body === 'External Template') {
-                                if (template.channel === 'rcs') handleSyncTemplateDetails(template);
-                                else handleRefreshTemplates();
-                            } else {
-                                handleCreateCampaignFromTemplate(template);
-                            }
-                        }}
-                    >
-                        {template.body === 'External Template' ? (
-                            <RefreshCw className={cn("h-4 w-4 mr-2", refreshingTemplateId === template.id && "animate-spin")} />
-                        ) : (
-                            <Zap className="h-4 w-4 mr-2 fill-current" />
+
+                        {template.status !== 'pending' && (
+                          <Button
+                            className={cn(
+                                "w-full text-white border-none shadow-lg hover:shadow-xl transition-all duration-300 font-bold h-11 rounded-xl",
+                                template.body === 'External Template' ? "bg-amber-500 hover:bg-amber-600" : "gradient-primary"
+                            )}
+                            onClick={() => {
+                                if (template.body === 'External Template') {
+                                    if (template.channel === 'rcs') handleSyncTemplateDetails(template);
+                                    else handleRefreshTemplates();
+                                } else {
+                                    handleCreateCampaignFromTemplate(template);
+                                }
+                            }}
+                          >
+                            {template.body === 'External Template' ? (
+                                <RefreshCw className={cn("h-4 w-4 mr-2", refreshingTemplateId === template.id && "animate-spin")} />
+                            ) : (
+                                <Zap className="h-4 w-4 mr-2 fill-current" />
+                            )}
+                            {template.body === 'External Template' ? 'Sync Template' : 'Create Campaign'}
+                          </Button>
                         )}
-                        {template.body === 'External Template' ? 'Sync Template' : 'Create Campaign'}
-                    </Button>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
             {/* Pagination Controls */}
-            {(totalPages > 1 || filteredTemplates.length > 20) && (
-              <div className="flex items-center justify-between px-2 py-8 mt-4 border-t border-slate-100">
-                <p className="text-sm text-muted-foreground">
-                  Showing <span className="font-medium">{(page - 1) * 20 + 1}</span> to{" "}
-                  <span className="font-medium">{Math.min(page * 20, totalItems)}</span> of{" "}
-                  <span className="font-medium">{totalItems}</span> templates
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-8 mt-12 border-t border-slate-100">
+                <p className="text-sm text-muted-foreground uppercase font-bold tracking-widest opacity-60">
+                  Page <span className="text-primary">{page}</span> of {totalPages}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="icon"
                     onClick={() => {
                         setPage(p => Math.max(1, p - 1));
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     disabled={page === 1}
-                    className="rounded-xl"
+                    className="rounded-xl h-10 w-10 border-slate-200"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <div className="flex items-center gap-1">
+                  
+                  <div className="flex items-center gap-2 mx-2">
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                       let pageNum: number;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (page <= 3) {
-                        pageNum = i + 1;
-                      } else if (page >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = page - 2 + i;
-                      }
+                      if (totalPages <= 5) pageNum = i + 1;
+                      else if (page <= 3) pageNum = i + 1;
+                      else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+                      else pageNum = page - 2 + i;
+
                       return (
                         <Button
                           key={pageNum}
-                          variant={page === pageNum ? "default" : "outline"}
-                          size="sm"
+                          variant={page === pageNum ? "default" : "ghost"}
                           className={cn(
-                              "w-9 h-9 p-0 rounded-xl",
-                              page === pageNum ? "bg-primary text-white shadow-lg shadow-primary/20" : ""
+                              "w-10 h-10 p-0 rounded-xl font-bold transition-all duration-200",
+                              page === pageNum ? "bg-primary text-white shadow-lg shadow-primary/30 scale-110" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
                           )}
                           onClick={() => {
                               setPage(pageNum);
@@ -1207,88 +1234,25 @@ export default function Templates() {
                       );
                     })}
                   </div>
+
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="icon"
                     onClick={() => {
                         setPage(p => Math.min(totalPages, p + 1));
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     disabled={page === totalPages}
-                    className="rounded-xl"
+                    className="rounded-xl h-10 w-10 border-slate-200"
                   >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             )}
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="pending" className="mt-6">
-          {loading ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {[1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted shadow-none rounded-2xl" />)}
-             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {templates.filter(t => t.status === 'pending').map((template) => (
-                  <Card key={template.id} className="group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col h-full border-muted/20 rounded-2xl">
-                     <div className="absolute top-0 right-0 bg-amber-500/10 text-amber-600 font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-bl-xl border-b border-l border-amber-500/20 z-10">
-                        Pending
-                      </div>
-                      <CardHeader className="pb-3 pt-6 px-6">
-                        <CardTitle className="text-lg font-bold tracking-tight text-primary">{template.name}</CardTitle>
-                        <Badge variant="outline" className="w-fit">{template.channel.toUpperCase()}</Badge>
-                      </CardHeader>
-                      <CardContent className="flex-1 px-6 pb-6 pt-0 flex flex-col">
-                        <p className="text-sm text-muted-foreground line-clamp-3 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100 italic">
-                          "{template.body}"
-                        </p>
-                        <div className="flex gap-2 mt-auto">
-                          <Button 
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold h-11 rounded-xl"
-                            onClick={() => handleApproveTemplate(template.id, 'approved')}
-                          >
-                            Approve
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            className="flex-1 border-red-200 text-red-600 hover:bg-red-50 font-bold h-11 rounded-xl"
-                            onClick={() => handleApproveTemplate(template.id, 'rejected')}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              {templates.filter(t => t.status === 'pending').length === 0 && (
-                <div className="text-center py-20 bg-muted/20 rounded-3xl border-2 border-dashed border-muted/50">
-                  <Clock className="mx-auto h-12 w-12 text-muted-foreground opacity-20 mb-4" />
-                  <h3 className="text-lg font-bold text-slate-400">No Pending Approvals</h3>
-                  <p className="text-sm text-slate-400">All templates have been processed.</p>
-                </div>
-              )}
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between px-2 py-8 mt-4 border-t border-slate-100">
-                  <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl">Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-xl">Next</Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </TabsContent>
-      </Tabs>
+          </>
+        )}
+      </div>
 
       {/* Template View/Edit Dialog */}
       <Dialog open={isTemplateOpen} onOpenChange={setIsTemplateOpen}>
