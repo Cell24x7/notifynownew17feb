@@ -979,12 +979,12 @@ export default function Templates() {
       </div>
 
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm mt-8">
-        <div className="flex items-center gap-3">
+        {/* <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-primary/10 text-primary">
             <Sparkles className="h-4 w-4" />
           </div>
           <h2 className="text-sm font-bold tracking-tight uppercase text-slate-500">Filters & Search</h2>
-        </div>
+        </div> */}
 
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
           {/* Channel Dropdown */}
