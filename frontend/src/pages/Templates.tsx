@@ -931,9 +931,12 @@ export default function Templates() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3">
+            <div className="p-2 rounded-2xl bg-primary/10 text-primary">
+              <FileText className="h-6 w-6" />
+            </div>
             Message Templates
             {!loading && (
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-xs font-bold px-2 py-0.5 rounded-full">
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                 {allCount} Total
               </Badge>
             )}
@@ -941,96 +944,50 @@ export default function Templates() {
           <p className="text-muted-foreground">Manage your cross-channel message templates</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handleRefreshTemplates} disabled={refreshing} title="Refresh all templates & statuses">
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+          <Button variant="outline" size="icon" onClick={handleRefreshTemplates} disabled={refreshing} title="Refresh all templates & statuses" className="h-12 w-12 rounded-xl border-none shadow-lg">
+            <RefreshCw className={cn("h-5 w-5", refreshing && "animate-spin")} />
           </Button>
-          <Button onClick={() => { setEditingTemplate(null); resetTemplateForm(); setIsTemplateOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button className="gradient-primary text-white border-none shadow-xl px-6 h-12 font-bold rounded-xl" onClick={() => { setEditingTemplate(null); resetTemplateForm(); setIsTemplateOpen(true); }}>
+            <Plus className="h-5 w-5 mr-2" />
             New Template
           </Button>
         </div>
       </div>
 
-      {/* Channel & Status Filter Control Center */}
-      <div className="flex flex-wrap items-center gap-3 bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-        {/* Channel Selection */}
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            { key: 'all' as const, label: 'All Channels', count: allCount, icon: <FileText className="h-3.5 w-3.5" />, color: 'text-primary' },
-            { key: 'whatsapp' as const, label: 'WhatsApp', count: channelCounts.whatsapp, icon: <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />, color: 'text-emerald-600' },
-            { key: 'rcs' as const, label: 'RCS', count: channelCounts.rcs, icon: <Smartphone className="h-3.5 w-3.5 text-blue-500" />, color: 'text-blue-600' },
-            { key: 'sms' as const, label: 'SMS', count: channelCounts.sms, icon: <Send className="h-3.5 w-3.5 text-slate-500" />, color: 'text-slate-600' },
-          ].map(ch => (
-            <button
-              key={ch.key}
-              onClick={() => setChannelFilter(ch.key)}
-              className={cn(
-                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 border",
-                channelFilter === ch.key
-                  ? "bg-white border-primary/20 shadow-lg shadow-primary/5 text-primary"
-                  : "bg-transparent border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-              )}
-            >
-              <span className="flex items-center justify-center">{ch.icon}</span>
-              {ch.label}
-              <Badge 
-                variant="secondary" 
-                className={cn(
-                  "text-[10px] px-1.5 py-0 h-4.5 min-w-[22px] flex items-center justify-center font-bold rounded-md transition-colors",
-                  channelFilter === ch.key ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
-                )}
-              >
-                {ch.count}
-              </Badge>
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-8 bg-slate-200 mx-2 hidden md:block" />
-
-        {/* Status Selection */}
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            { key: 'all' as const, label: 'All Status', icon: <Target className="h-3.5 w-3.5" />, count: allCount, activeColor: 'bg-slate-900 border-slate-900 text-white' },
-            { key: 'approved' as const, label: 'Approved', icon: <Check className="h-3.5 w-3.5" />, count: statusCounts.approved, activeColor: 'bg-emerald-500 border-emerald-500 text-white' },
-            { key: 'pending' as const, label: 'Pending', icon: <Clock className="h-3.5 w-3.5" />, count: statusCounts.pending, activeColor: 'bg-amber-500 border-amber-500 text-white' },
-            { key: 'rejected' as const, label: 'Rejected', icon: <AlertCircle className="h-3.5 w-3.5" />, count: statusCounts.rejected, activeColor: 'bg-rose-500 border-rose-500 text-white' },
-          ].map(st => (
-            <button
-              key={st.key}
-              onClick={() => setStatusFilter(st.key)}
-              className={cn(
-                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 border",
-                statusFilter === st.key
-                  ? cn(st.activeColor, "shadow-lg shadow-slate-200")
-                  : "bg-transparent border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-              )}
-            >
-              <span className="flex items-center justify-center">{st.icon}</span>
-              {st.label}
-              {st.count > 0 && (
-                 <span className={cn(
-                   "text-[10px] font-bold opacity-80",
-                   statusFilter === st.key ? "text-white" : "text-slate-400"
-                 )}>
-                   ({st.count})
-                 </span>
-              )}
-            </button>
-          ))}
-        </div>
+      {/* Top Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Templates', value: allCount, icon: FileText, color: 'text-primary', bgColor: 'bg-primary/10' },
+          { label: 'Approved', value: statusCounts.approved, icon: Check, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+          { label: 'Pending', value: statusCounts.pending, icon: Clock, color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+          { label: 'Rejected', value: statusCounts.rejected, icon: AlertCircle, color: 'text-rose-500', bgColor: 'bg-rose-500/10' },
+        ].map((stat, i) => (
+          <Card key={i} className="card-elevated border-none shadow-sm hover:shadow-md transition-all duration-300">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">{stat.label}</p>
+                  <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                </div>
+                <div className={cn("p-3 rounded-2xl", stat.bgColor)}>
+                  <stat.icon className={cn("w-6 h-6", stat.color)} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Tabs value={templateSubTab} onValueChange={(v) => setTemplateSubTab(v as 'all' | 'pending')}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <TabsList className="p-1 h-auto flex flex-wrap gap-2 bg-muted/50 rounded-lg w-full sm:w-auto">
-            <TabsTrigger value="all" className="flex items-center gap-2 flex-1 sm:flex-none">
+      <Tabs value={templateSubTab} onValueChange={(v) => setTemplateSubTab(v as 'all' | 'pending')} className="mt-8">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+          {/* <TabsList className="p-1 h-auto flex flex-wrap gap-2 bg-muted/50 rounded-lg w-full xl:w-auto">
+            <TabsTrigger value="all" className="flex items-center gap-2 flex-1 xl:flex-none">
               <FileText className="h-4 w-4" />
               All Templates
               <Badge variant="secondary" className="ml-1">{filteredTemplates.length}</Badge>
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="pending" className="flex items-center gap-2 flex-1 sm:flex-none">
+              <TabsTrigger value="pending" className="flex items-center gap-2 flex-1 xl:flex-none">
                 <Clock className="h-4 w-4" />
                 Pending Approvals
                 <Badge variant="outline" className="ml-1 border-amber-500 text-amber-700 bg-amber-50">
@@ -1038,16 +995,48 @@ export default function Templates() {
                 </Badge>
               </TabsTrigger>
             )}
-          </TabsList>
+          </TabsList> */}
 
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search templates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* Channel Dropdown */}
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <Select value={channelFilter} onValueChange={(v: any) => setChannelFilter(v)}>
+                <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm hover:border-primary/30 transition-all text-xs font-bold">
+                  <SelectValue placeholder="Channel" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-slate-200">
+                  <SelectItem value="all">All Channels</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="rcs">RCS</SelectItem>
+                  <SelectItem value="sms">SMS</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Dropdown */}
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm hover:border-primary/30 transition-all text-xs font-bold">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-slate-200">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search templates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 rounded-xl bg-white border-slate-200 focus:ring-primary shadow-sm w-full text-xs"
+              />
+            </div>
           </div>
         </div>
 
