@@ -696,4 +696,29 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
 
+
+// PUT alias for backward compatibility (frontend may use PUT or PATCH)
+router.put('/:id/status', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const userId = req.user.id;
+
+        const allowedStatuses = ['running', 'paused', 'cancelled', 'sent', 'draft'];
+        if (!status || !allowedStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
+        }
+
+        const [manualResult] = await query('UPDATE campaigns SET status = ? WHERE id = ? AND user_id = ?', [status, id, userId]);
+        if (manualResult.affectedRows > 0) return res.json({ success: true, message: `Status updated to '${status}'` });
+
+        const [apiResult] = await query('UPDATE api_campaigns SET status = ? WHERE id = ? AND user_id = ?', [status, id, userId]);
+        if (apiResult.affectedRows > 0) return res.json({ success: true, message: `Status updated to '${status}'` });
+
+        return res.status(404).json({ success: false, message: 'Campaign not found or not authorized' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to update campaign status' });
+    }
+});
+
 module.exports = router;

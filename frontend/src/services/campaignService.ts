@@ -70,7 +70,7 @@ export const campaignService = {
     },
 
     async updateStatus(id: string, status: Campaign['status']) {
-        const response = await axios.put(`${API_BASE_URL_CAMPAIGNS}/${id}/status`, { status }, { headers: getAuthHeader() });
+        const response = await axios.patch(`${API_BASE_URL_CAMPAIGNS}/${id}/status`, { status }, { headers: getAuthHeader() });
         return response.data;
     },
 
