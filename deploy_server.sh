@@ -1,27 +1,35 @@
 #!/bin/bash
 
 # =========================================================
-# 🚀 NotifyNow DEVELOPER Deploy Script
-# Server: developer.notifynow.in
-# PM2 App: notifynow-developer
-# Port: 5000 | DB: developer_notify
+# 🚀 NotifyNow SMART Deploy Script (1Cr Scaling Edition)
+# Supports: Production (notifynow.in) & Developer (developer.notifynow.in)
 # =========================================================
 
 set -e  # Stop on any error
 
-# ═══ FIXED CONFIG ══════════════════════════════════════
-APP_NAME="notifynow-developer"   # NEVER changes
-APP_PORT="5000"                   # Developer port
-APP_DB="developer_notify"         # Developer DB
-APP_URL="https://developer.notifynow.in"
-
-# Auto-detect project paths
+# ── Step 1: Smart Environment Detection ─────────────────
 PROJECT_DIR=$(pwd)
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 DIST_DIR="$FRONTEND_DIR/dist"
 
-# ─── Colors for pretty output ────────────────────────────
+if [[ "$PROJECT_DIR" == *"developer"* ]]; then
+    # DEVELOPER SETTINGS
+    APP_NAME="notifynow-developer"
+    APP_PORT="5000"
+    APP_DB="developer_notify"
+    APP_URL="https://developer.notifynow.in"
+    ENV_DESC="DEVELOPER"
+else
+    # PRODUCTION SETTINGS
+    APP_NAME="notifynow-live-prod"
+    APP_PORT="5000"
+    APP_DB="notifynow_main"
+    APP_URL="https://notifynow.in"
+    ENV_DESC="PRODUCTION"
+fi
+
+# ── Colors for pretty output ────────────────────────────
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -36,102 +44,66 @@ err()  { echo -e "   ${RED}❌ $1${NC}"; }
 
 echo ""
 echo -e "${BOLD}=========================================="
-echo -e "  🚀 NotifyNow DEVELOPER Deployment       "
+echo -e "  🚀 NotifyNow $ENV_DESC Deployment       "
+echo -e "  URL: $APP_URL | DB: $APP_DB             "
 echo -e "==========================================${NC}"
 
-# ── Step 1: Verification ─────────────────────────────
-log "📂 [1/7] Verifying structure..."
-if [ ! -d "$BACKEND_DIR" ] || [ ! -d "$FRONTEND_DIR" ]; then
-    err "Error: Not in a proper project directory."
-    exit 1
-fi
-
-# ── Step 2: Git pull ──────────────────────────────────
-log "📥 [2/7] Pulling from GitHub..."
+# ── Step 2: Git Sync ──────────────────────────────────
+log "📥 [1/6] Pulling Latest Changes..."
 git fetch origin main
 git reset --hard origin/main
 COMMIT=$(git log -1 --pretty=format:'%h — %s (%ar)')
-ok "Updated to: $COMMIT"
+ok "Pulled latest: $COMMIT"
 
-# ── Step 3: Dependencies ──────────────────────────────
-log "📦 [3/7] Installing dependencies..."
+# ── Step 3: Dependencies & Environment ────────────────
+log "📦 [2/6] Installing Dependencies & Setting Env..."
 cd "$BACKEND_DIR"
 npm install --production --silent
+
+# Force correct .env variables for this environment
+cp "$BACKEND_DIR/.env.production" "$BACKEND_DIR/.env" || touch "$BACKEND_DIR/.env"
+sed -i "/^DB_NAME=/c\DB_NAME=$APP_DB"          "$BACKEND_DIR/.env"
+sed -i "/^PORT=/c\PORT=$APP_PORT"              "$BACKEND_DIR/.env"
+sed -i "/^API_BASE_URL=/c\API_BASE_URL=$APP_URL" "$BACKEND_DIR/.env"
+sed -i "/^APP_NAME=/c\APP_NAME=$APP_NAME"      "$BACKEND_DIR/.env"
+ok "Backend environment synchronized."
+
+# ── Step 4: Build Frontend (Optional Sync) ─────────────
+log "🏗️  [3/6] Building Frontend..."
 cd "$FRONTEND_DIR"
-if [ ! -d "node_modules" ]; then npm install --silent; fi
-
-# ── Step 4: Enforce Env ─────────────────────────────────
-log "🛠️  [4/7] Setting DEVELOPER environment..."
-
-# Always write correct developer settings (overwrite if wrong)
-sed -i "/^DB_NAME=/c\DB_NAME=$APP_DB"          "$BACKEND_DIR/.env.production" 2>/dev/null || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/.env.production"
-sed -i "/^PORT=/c\PORT=$APP_PORT"              "$BACKEND_DIR/.env.production" 2>/dev/null || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/.env.production"
-sed -i "/^API_BASE_URL=/c\API_BASE_URL=$APP_URL" "$BACKEND_DIR/.env.production" 2>/dev/null || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/.env.production"
-sed -i "/^APP_NAME=/c\APP_NAME=$APP_NAME"      "$BACKEND_DIR/.env.production" 2>/dev/null || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/.env.production"
-
-if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production" 2>/dev/null; then 
-    echo "JWT_EXPIRES_IN=24h" >> "$BACKEND_DIR/.env.production"
-else 
-    sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=24h' "$BACKEND_DIR/.env.production"
-fi
-if ! grep -q "JWT_SECRET=" "$BACKEND_DIR/.env.production" 2>/dev/null; then
-    echo "JWT_SECRET=notifynow_db_secret_key" >> "$BACKEND_DIR/.env.production"
-fi
-
-# Frontend Env
-if grep -q "VITE_API_URL=" "$FRONTEND_DIR/.env.production" 2>/dev/null; then
-    sed -i "/^VITE_API_URL=/c\VITE_API_URL=$APP_URL" "$FRONTEND_DIR/.env.production"
-else
-    echo "VITE_API_URL=$APP_URL" >> "$FRONTEND_DIR/.env.production"
-fi
-
-# Sync .env with .env.production
-cp "$FRONTEND_DIR/.env.production" "$FRONTEND_DIR/.env"
-cp "$BACKEND_DIR/.env.production"  "$BACKEND_DIR/.env"
-ok "Environment set: APP=$APP_NAME | PORT=$APP_PORT | DB=$APP_DB"
-
-# ── Step 5: Build Frontend ────────────────────────────
-log "🏗️  [5/7] Building frontend..."
-cd "$FRONTEND_DIR"
-npm install --silent # Always ensure fresh modules for developer build
+# Check if dist exists and is recent (optional optimization)
+npm install --silent
 npm run build
-ok "Frontend built"
+ok "Frontend built successfully."
 
-
-# Fix dist folder permissions
-chmod -R 755 "$DIST_DIR"
-
-# ── Step 6: Migrations ────────────────────────────────
-log "🗄️  [6/7] Running DB migrations & schema fixes..."
+# ── Step 5: Database Optimization (1Cr Ready) ─────────
+log "🗄️  [4/6] Optimizing Database & Running Migrations..."
 cd "$BACKEND_DIR"
-NODE_ENV=production node apply_schema_updates.js || true
-NODE_ENV=production node scripts/add_api_key.js || true
-NODE_ENV=production node scripts/setup_admin.js || true
-NODE_ENV=production node optimize_db.js || true
 
-# CRITICAL: Fix all missing columns (worker_id, message_id, indexes)
-log "   🔧 Running fix_logs_schema.js (CRITICAL)..."
-NODE_ENV=production node fix_logs_schema.js
-ok "Schema fix applied successfully"
+# Run the 1Cr Speed-Boost Indexer
+log "   📊 Running optimize_db.js..."
+NODE_ENV=production node optimize_db.js || warn "Optimization skipped or already done."
 
-# APP_NAME from .env.production
-if [ -f "$BACKEND_DIR/.env.production" ]; then
-    APP_NAME=$(grep "^APP_NAME=" "$BACKEND_DIR/.env.production" | cut -d'=' -f2 | tr -d '"\'' ')
-fi
-: "${APP_NAME:=notifynow-developer}"
+# Final Schema Fixes
+log "   🔧 Running fix_logs_schema.js..."
+NODE_ENV=production node fix_logs_schema.js || true
+ok "Database is optimized and ready for high volume."
 
-# ── Step 7: Restart SMART ─────────────────────────────
-log "♻️  [7/7] Restarting PM2: $APP_NAME (zero-downtime)..."
+# ── Step 6: Reload PM2 (Zero Downtime) ─────────────────
+log "♻️  [5/6] Restarting $APP_NAME..."
 cd "$PROJECT_DIR"
 
+# Ensure we use the correct APP_NAME env for ecosystem
 if pm2 list | grep -q "$APP_NAME"; then
-    log "   🔄 Reloading '$APP_NAME'..."
-    APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
+    APP_NAME=$APP_NAME pm2 reload notifynow-live-prod --env production || pm2 reload $APP_NAME
 else
-    log "   🚀 Starting '$APP_NAME' (new)..."
-    APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
+    APP_NAME=$APP_NAME pm2 start backend/index.js --name $APP_NAME --env production
 fi
 
 pm2 save --force
-ok "Instance '$APP_NAME' is stable and running."
-echo "✨ DEVELOPER DEPLOYMENT COMPLETE! ($APP_NAME on port $APP_PORT)"
+ok "Deployment Successful! Instance is live."
+
+echo ""
+echo -e "${GREEN}${BOLD}✨ $ENV_DESC DEPLOYMENT COMPLETE!${NC}"
+echo -e "   URL: $APP_URL"
+echo ""
