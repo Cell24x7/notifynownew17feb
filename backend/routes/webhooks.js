@@ -512,11 +512,19 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             LIMIT ? OFFSET ?
         `;
 
+        const [rows] = await query(selectSql, [...params, limit, offset]);
+
         res.json({
             success: true,
-            data: logs,
-            hasMore: logs.length === limit,
-            nextLastId: logs.length > 0 ? logs[logs.length - 1].id : null
+            data: rows,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            },
+            hasMore: rows.length === limit,
+            nextLastId: rows.length > 0 ? rows[rows.length - 1].id : null
         });
     } catch (error) {
         console.error('❌ Error fetching message logs:', error.message);
