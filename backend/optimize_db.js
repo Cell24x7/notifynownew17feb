@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { query } = require('./config/db');
 
 async function optimize() {
