@@ -68,23 +68,12 @@ export default function Campaigns() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => fetchData(), 30000); // Live refresh every 30s
     if (!user) {
       refreshUser();
     }
-  }, [user?.id, page]); // Re-fetch when user identity is established or page changes
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (autoRefresh) {
-      interval = setInterval(() => {
-        fetchData();
-        refreshUser();
-      }, 5000); // 5 seconds
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [autoRefresh]);
+    return () => clearInterval(interval);
+  }, [user?.id, page]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -495,7 +484,7 @@ export default function Campaigns() {
 
   // Stats cards
   const stats = [
-    { label: 'Total Campaigns', value: campaigns.length, icon: Target, color: 'text-primary' },
+    { label: 'Total Campaigns', value: totalItems, icon: Target, color: 'text-primary' },
     { label: 'Running', value: campaigns.filter(c => c.status === 'running').length, icon: Zap, color: 'text-success' },
     { label: 'Scheduled', value: campaigns.filter(c => c.status === 'scheduled').length, icon: Clock, color: 'text-warning' },
     { label: 'Total Delivered', value: campaigns.reduce((acc, c) => acc + (c.delivered_count || 0), 0).toLocaleString(), icon: TrendingUp, color: 'text-primary' },
@@ -510,13 +499,13 @@ export default function Campaigns() {
     <div className="p-4 md:p-6 space-y-6 animate-fade-in w-full max-w-[100vw] overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-            Campaigns
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground">Create and manage your messaging campaigns</p>
-        </div>
+            <div className="mb-8">
+                <h1 className="text-3xl font-semibold text-slate-800 tracking-tight flex items-center gap-2">
+                    <Sparkles className="w-7 h-7 text-emerald-500" />
+                    Campaigns
+                </h1>
+                <p className="text-slate-500 mt-1">Create and manage your messaging campaigns</p>
+            </div>
         <div className="flex items-center gap-2">
 
           <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateStep(1); }}>

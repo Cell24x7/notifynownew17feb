@@ -58,36 +58,32 @@ export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('All');
 
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token || !user) return;
+
+      const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.role === 'reseller';
+      const endpoint = isAdmin ? '/api/dashboard/super-admin' : '/api/dashboard/stats';
+
+      const res = await fetch(`${API_BASE_URL}${endpoint}?_t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStats(data.stats);
+      } else {
+        console.error('Dashboard Stats API Error:', data.message);
+      }
+    } catch (err: any) {
+      console.error('Dashboard Fetch Error:', err.message);
+    }
+  };
+
   // Fetch real stats based on Role
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const token = localStorage.getItem('authToken');
-        if (!token || !user) return;
-
-        const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.role === 'reseller';
-        const endpoint = isAdmin ? '/api/dashboard/super-admin' : '/api/dashboard/stats';
-
-        const res = await fetch(`${API_BASE_URL}${endpoint}?_t=${Date.now()}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          setStats(data.stats);
-        } else {
-          console.error('Dashboard Stats API Error:', data.message);
-        }
-      } catch (err: any) {
-        console.error('Dashboard Fetch Error:', err.message);
-      }
-    };
-    
     fetchStats();
-    
-    // Live update simulation interval
-    const interval = setInterval(() => {
-        fetchStats();
-    }, 15000);
+    const interval = setInterval(fetchStats, 30000); // Live update every 30s
     return () => clearInterval(interval);
   }, [user]);
 
@@ -175,7 +171,7 @@ export default function Dashboard() {
   });
 
   const renderTrend = (value: string, isUp: boolean) => (
-    <span className={cn("text-xs font-medium flex items-center gap-1", isUp ? "text-emerald-500" : "text-rose-500")}>
+    <span className={cn("text-xs font-semibold flex items-center gap-1", isUp ? "text-emerald-500" : "text-rose-500")}>
       {isUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
       {value}
     </span>
@@ -185,9 +181,9 @@ export default function Dashboard() {
     <div className="p-4 md:p-8 space-y-6 bg-white min-h-screen font-sans text-slate-800">
       
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Analytics Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1 font-medium">Comprehensive insights across all your communication channels.</p>
+      <div className="mb-6 px-1">
+        <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Analytics Dashboard</h1>
+        <p className="text-sm text-slate-500 mt-1">Comprehensive insights across all your communication channels.</p>
       </div>
 
       {/* Top 4 Cards Grid */}
@@ -199,7 +195,7 @@ export default function Dashboard() {
               {renderTrend("+12.5%", true)}
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900">{totalConvos.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900">{totalConvos.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Total Conversations</p>
             </div>
           </CardContent>
@@ -212,7 +208,7 @@ export default function Dashboard() {
               {renderTrend("+8.2%", true)}
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900">{activeChats.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900">{activeChats.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Active Chats</p>
             </div>
           </CardContent>
@@ -225,7 +221,7 @@ export default function Dashboard() {
               {renderTrend("+23.1%", true)}
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900">{automationsTriggered.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900">{automationsTriggered.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Automations Triggered</p>
             </div>
           </CardContent>
@@ -238,7 +234,7 @@ export default function Dashboard() {
               {renderTrend("-2.4%", false)}
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900">{campaignsSent.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900">{campaignsSent.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Campaigns Sent</p>
             </div>
           </CardContent>
@@ -250,7 +246,7 @@ export default function Dashboard() {
         <div className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-5 w-5 text-emerald-500" />
-            <h2 className="text-lg font-bold text-slate-900">Channel Analytics</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Channel Analytics</h2>
           </div>
           
           <div className="flex flex-wrap gap-2 mb-6 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
@@ -292,41 +288,41 @@ export default function Dashboard() {
             <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquare className="h-4 w-4 text-emerald-500" />
-                <span className="text-[11px] font-bold text-emerald-500 tracking-wide uppercase">Total Messages</span>
+                <span className="text-[11px] font-semibold text-emerald-500 tracking-wide uppercase">Total Messages</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">{totalMessages.toLocaleString()}</p>
+              <p className="text-2xl font-semibold text-slate-900">{totalMessages.toLocaleString()}</p>
             </div>
             
             <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
-                <span className="text-[11px] font-bold text-emerald-500 tracking-wide uppercase">Delivered</span>
+                <span className="text-[11px] font-semibold text-emerald-500 tracking-wide uppercase">Delivered</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">{avgDeliveryRate}</p>
+              <p className="text-2xl font-semibold text-slate-900">{avgDeliveryRate}</p>
             </div>
 
             <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4 flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-2">
                 <Bot className="h-4 w-4 text-blue-500" />
-                <span className="text-[11px] font-bold text-blue-500 tracking-wide uppercase">Bot Handled</span>
+                <span className="text-[11px] font-semibold text-blue-500 tracking-wide uppercase">Bot Handled</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">{botHandled.toLocaleString()}</p>
+              <p className="text-2xl font-semibold text-slate-900">{botHandled.toLocaleString()}</p>
             </div>
 
             <div className="border border-purple-100 bg-purple-50/50 rounded-xl p-4 flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-2">
                 <UserCog className="h-4 w-4 text-purple-500" />
-                <span className="text-[11px] font-bold text-purple-500 tracking-wide uppercase">Human Handled</span>
+                <span className="text-[11px] font-semibold text-purple-500 tracking-wide uppercase">Human Handled</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">{humanHandled.toLocaleString()}</p>
+              <p className="text-2xl font-semibold text-slate-900">{humanHandled.toLocaleString()}</p>
             </div>
 
             <div className="border border-amber-100 bg-amber-50/50 rounded-xl p-4 flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-2">
                 <Star className="h-4 w-4 text-amber-500" />
-                <span className="text-[11px] font-bold text-amber-600 tracking-wide uppercase">Avg Satisfaction</span>
+                <span className="text-[11px] font-semibold text-amber-600 tracking-wide uppercase">Avg Satisfaction</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">4.4/5</p>
+              <p className="text-2xl font-semibold text-slate-900">4.4/5</p>
             </div>
           </div>
         </div>
@@ -336,7 +332,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="rounded-xl border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-bold text-slate-800">Customer Satisfaction Trends</CardTitle>
+            <CardTitle className="text-[15px] font-semibold text-slate-800">Customer Satisfaction Trends</CardTitle>
           </CardHeader>
           <CardContent className="pt-4 px-2">
             <div className="h-[250px] w-full">
@@ -364,7 +360,7 @@ export default function Dashboard() {
 
         <Card className="rounded-xl border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-bold text-slate-800">Bot vs Human Resolution by Channel</CardTitle>
+            <CardTitle className="text-[15px] font-semibold text-slate-800">Bot vs Human Resolution by Channel</CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
             <div className="h-[250px] w-full">
@@ -397,9 +393,9 @@ export default function Dashboard() {
                   <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 shadow-sm">
                     {item.icon}
                   </div>
-                  <span className="font-extrabold text-slate-900 text-[14px] tracking-tight">{item.name}</span>
+                  <span className="font-semibold text-slate-900 text-[14px] tracking-tight">{item.name}</span>
                 </div>
-                <Badge className="bg-blue-600 hover:bg-blue-700 text-[10px] px-2 py-0 h-6 rounded-lg flex items-center gap-1 border-none shadow-md font-bold">
+                <Badge className="bg-blue-600 hover:bg-blue-700 text-[10px] px-2 py-0 h-6 rounded-lg flex items-center gap-1 border-none shadow-md font-semibold">
                   <Star className="h-2.5 w-2.5 fill-white text-white" /> {item.rating}
                 </Badge>
               </div>
@@ -407,23 +403,23 @@ export default function Dashboard() {
               <div className="space-y-3 mt-1">
                 <div className="flex justify-between items-center text-[13px]">
                   <span className="text-slate-500 font-semibold">Messages</span>
-                  <span className="font-black text-slate-900 tabular-nums">{item.messages}</span>
+                  <span className="font-semibold text-slate-900 tabular-nums">{item.messages}</span>
                 </div>
                 <div className="flex justify-between items-center text-[13px]">
                   <span className="text-slate-500 font-semibold whitespace-nowrap">Delivery Rate</span>
-                  <span className="font-black text-emerald-500 tabular-nums">{item.delivery}</span>
+                  <span className="font-semibold text-emerald-500 tabular-nums">{item.delivery}</span>
                 </div>
                 <div className="flex justify-between items-center text-[13px]">
                   <span className="text-slate-500 font-semibold whitespace-nowrap">Avg Response</span>
                   <div className="flex flex-col items-end">
-                    <span className="font-black text-slate-900 tabular-nums leading-none">{item.response}</span>
+                    <span className="font-semibold text-slate-900 tabular-nums leading-none">{item.response}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="px-5 pb-5 mt-auto">
-              <div className="flex justify-between items-center text-[10px] text-slate-400 font-extrabold uppercase mb-2 tracking-wider">
+              <div className="flex justify-between items-center text-[10px] text-slate-400 font-semibold uppercase mb-2 tracking-wider">
                 <span>Bot: {item.bot}</span>
                 <span>Human: {item.human}</span>
               </div>
@@ -440,9 +436,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="rounded-xl border-slate-200 shadow-sm lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-bold text-slate-800 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-emerald-500" /> Weekly Chat Activity
-            </CardTitle>
+            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-emerald-500" />
+              Channel Analytics
+            </h3>
           </CardHeader>
           <CardContent className="pt-4">
             <div className="h-[220px] w-full">
@@ -461,7 +458,7 @@ export default function Dashboard() {
 
         <Card className="rounded-xl border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-bold text-slate-800">Channel Distribution</CardTitle>
+            <CardTitle className="text-[15px] font-semibold text-slate-800">Channel Distribution</CardTitle>
           </CardHeader>
           <CardContent className="pt-2 flex flex-col items-center">
             <div className="h-[180px] w-full relative">
@@ -515,7 +512,7 @@ export default function Dashboard() {
           <CardContent className="p-4 flex justify-between items-center">
             <div>
               <p className="text-xs text-slate-500 font-medium mb-1">Open Chats</p>
-              <h3 className="text-2xl font-black text-emerald-500">{(stats?.openChats || 0).toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-emerald-500">{(stats?.openChats || 0).toLocaleString()}</h3>
             </div>
             <MessageSquare className="h-6 w-6 text-emerald-400" />
           </CardContent>
@@ -524,7 +521,7 @@ export default function Dashboard() {
           <CardContent className="p-4 flex justify-between items-center">
             <div>
               <p className="text-xs text-slate-500 font-medium mb-1">Closed Chats</p>
-              <h3 className="text-2xl font-black text-slate-900">{(stats?.closedChats || 0).toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900">{(stats?.closedChats || 0).toLocaleString()}</h3>
             </div>
             <div className="p-2 bg-slate-50 rounded-lg">
               <MessageSquare className="h-5 w-5 text-slate-400" />
@@ -535,7 +532,7 @@ export default function Dashboard() {
           <CardContent className="p-4 flex justify-between items-center">
             <div>
               <p className="text-xs text-slate-500 font-medium mb-1">Response Rate</p>
-              <h3 className="text-2xl font-black text-emerald-500">94.2%</h3>
+              <h3 className="text-2xl font-semibold text-emerald-500">94.2%</h3>
             </div>
             <TrendingUp className="h-6 w-6 text-emerald-500" />
           </CardContent>
@@ -545,7 +542,7 @@ export default function Dashboard() {
       {/* Recent Campaign Activity Section */}
       <Card className="rounded-xl border-slate-200 shadow-sm overflow-hidden mb-8">
         <CardHeader className="bg-white pb-4 pt-6 border-b border-slate-100 flex flex-row items-center justify-between">
-          <CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <CardTitle className="text-xl font-semibold text-slate-800 flex items-center gap-2">
             <Send className="h-5 w-5 text-indigo-600" /> Today's Campaign Activity
           </CardTitle>
           <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100">Live Updating</Badge>
@@ -553,7 +550,7 @@ export default function Dashboard() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-white border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+              <tr className="bg-white border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
                 <th className="py-4 px-6">Campaign Name</th>
                 <th className="py-4 px-4 text-center">Channel</th>
                 <th className="py-4 px-4 text-center">Total Recipient</th>
@@ -581,21 +578,21 @@ export default function Dashboard() {
                     <tr key={idx} className="bg-white hover:bg-slate-50 transition-colors">
                       <td className="py-4 px-6">
                         <div className="flex flex-col">
-                          <p className="font-bold text-slate-900 text-[13px]">{camp.name}</p>
+                          <p className="font-semibold text-slate-900 text-[13px]">{camp.name}</p>
                           <span className="text-[10px] text-slate-400 font-medium">{format(new Date(camp.created_at), 'HH:mm')} • {camp.template_id}</span>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <Badge className={cn("text-[9px] px-1.5 py-0 rounded uppercase font-black border-none", 
+                        <Badge className={cn("text-[9px] px-1.5 py-0 rounded uppercase font-semibold border-none", 
                           camp.channel === 'whatsapp' ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700")}>
                           {camp.channel || 'RCS'}
                         </Badge>
                       </td>
-                      <td className="py-4 px-4 text-center font-black text-slate-900 text-xs">{camp.recipient_count?.toLocaleString()}</td>
-                      <td className="py-4 px-4 text-center font-bold text-indigo-600 text-xs">{camp.sent_count?.toLocaleString()}</td>
-                      <td className="py-4 px-4 text-center font-bold text-emerald-600 text-xs">{camp.delivered_count?.toLocaleString()}</td>
-                      <td className="py-4 px-4 text-center font-bold text-purple-600 text-xs">{camp.read_count?.toLocaleString()}</td>
-                      <td className="py-4 px-4 text-center font-bold text-rose-600 text-xs">{camp.failed_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-semibold text-slate-900 text-xs">{camp.recipient_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-semibold text-indigo-600 text-xs">{camp.sent_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-semibold text-emerald-600 text-xs">{camp.delivered_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-semibold text-purple-600 text-xs">{camp.read_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-semibold text-rose-600 text-xs">{camp.failed_count?.toLocaleString()}</td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden min-w-[80px] shadow-inner">

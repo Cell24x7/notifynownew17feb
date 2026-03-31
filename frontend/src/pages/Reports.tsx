@@ -574,16 +574,16 @@ export default function Reports() {
                                 <Table className="border-2 border-slate-200">
                                     <TableHeader className="sticky top-0 bg-slate-100 z-10 shadow-sm">
                                         <TableRow className="bg-slate-100/80 hover:bg-slate-100 h-10">
-                                            <TableHead className="w-[60px] font-black text-slate-700 border-r border-b border-slate-300 px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
-                                            <TableHead className="w-[120px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Rtime</TableHead>
-                                            <TableHead className="w-[110px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Mobile</TableHead>
-                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">sendTime</TableHead>
-                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">DelTime</TableHead>
-                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">ReadTime</TableHead>
-                                            <TableHead className="w-[130px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Template</TableHead>
-                                            <TableHead className="w-[140px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Campaign</TableHead>
-                                            <TableHead className="w-[90px] font-black text-slate-700 border-r border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">Status</TableHead>
-                                            <TableHead className="font-black text-slate-700 border-b border-slate-300 text-center px-3 text-[10px] uppercase tracking-wider">reason</TableHead>
+                                            <TableHead className="w-[60px] font-semibold text-slate-700 border-r border-b border-slate-300 px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">Rtime</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">Mobile</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">SendTime</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">DelTime</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">ReadTime</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">Template</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">Campaign</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-r border-b border-slate-300">Status</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider py-3 text-center border-b border-slate-300">Reason</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -594,44 +594,34 @@ export default function Reports() {
                                         ) : (
                                             webhookLogs.map((log) => (
                                                 <TableRow key={log.id} className="hover:bg-slate-50 transition-colors border-b border-slate-200 h-12">
-                                                    <TableCell className="text-[10px] font-black text-slate-500 border-r border-slate-200 px-3">
+                                                    <TableCell className="text-[10px] font-medium text-slate-500 border-r border-slate-200 px-3">
                                                         {log.id}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-semibold text-slate-600">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-medium text-slate-600">
                                                         {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[11px] border-r border-slate-200 text-center px-3 font-bold text-slate-900">
+                                                    <TableCell className="text-[11px] border-r border-slate-200 text-center px-3 font-medium text-slate-900">
                                                         {log.recipient?.replace(/^\+/, '')}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-semibold text-slate-600">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-medium text-slate-600">
                                                         {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-emerald-600 font-bold px-3">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-emerald-600 font-medium px-3">
                                                         {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-purple-600 font-bold px-3">
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-purple-600 font-medium px-3">
                                                         {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-[10px] border-r border-slate-200 text-center truncate max-w-[130px] px-3 font-medium text-slate-600" title={log.template_name}>
                                                         {log.template_name || 'N/A'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center truncate max-w-[140px] px-3 font-medium" title={log.campaign_name}>
-                                                        <div className="flex flex-col items-center gap-1">
-                                                            <span className="text-slate-900 font-bold line-clamp-1">{log.campaign_name || 'N/A'}</span>
-                                                            <div className="flex gap-1">
-                                                                <Badge variant="outline" className={cn("uppercase font-black text-[8px] tracking-tighter px-1 py-0 h-4", log.channel === 'whatsapp' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200')}>{log.channel || 'RCS'}</Badge>
-                                                                {log.campaign_id?.startsWith('CAMP_API_') && (
-                                                                    <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 px-1 py-0 h-4 font-black">API</Badge>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
+                                                    <TableCell className="text-[10px] text-slate-600 font-medium px-3 text-center border-r border-slate-200">{log.campaign_name || '-'}</TableCell>
                                                     <TableCell className="text-center border-r border-slate-200 px-2">
-                                                        <Badge className={cn("uppercase text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm border", getStatusColor(log.status))}>
+                                                        <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-semibold uppercase", getStatusColor(log.status))}>
                                                             {log.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] text-rose-500 font-bold px-3 leading-tight min-w-[150px]">
+                                                    <TableCell className="text-[10px] text-rose-500 font-semibold px-3 leading-tight min-w-[150px]">
                                                         {log.failure_reason || '-'}
                                                     </TableCell>
                                                 </TableRow>
