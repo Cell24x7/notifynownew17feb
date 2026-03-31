@@ -210,14 +210,15 @@ router.post('/send-otp', async (req, res) => {
           
           try {
             const axios = require('axios');
-            // We use localhost to ensure it hits the internal port correctly
-            const port = process.env.PORT || 5050;
-            const smsUrl = `http://localhost:${port}/api/sms-v1/send?apiKey=${apiKey}&mobile=${target}&message=${encodeURIComponent(msg)}&templateId=${templateId}`;
+            // Dynamically detect the correct local port (5000 or 5050)
+            const currentPort = process.env.PORT || (is_signup ? '5000' : '5050'); 
+            const smsUrl = `http://localhost:${currentPort}/api/sms-v1/send?apiKey=${apiKey}&mobile=${target}&message=${encodeURIComponent(msg)}&templateId=${templateId}`;
             
+            console.log(`[AUTH] Hitting internal SMS API: ${smsUrl.replace(/apiKey=[^&]+/, 'apiKey=********')}`);
             const response = await axios.get(smsUrl);
             console.log(`[AUTH] Internal SMS API Response:`, response.data);
           } catch (internalErr) {
-            console.warn(`[AUTH] Internal API failed, falling back to direct sendService:`, internalErr.message);
+            console.warn(`[AUTH] Internal API failed at port ${process.env.PORT || 'unknown'}, falling back to direct sendService:`, internalErr.message);
             await sendSMS(target, msg, templateId);
           }
         }
