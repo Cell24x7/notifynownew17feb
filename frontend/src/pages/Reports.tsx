@@ -327,10 +327,10 @@ export default function Reports() {
     return (
         <div className="h-full flex flex-col space-y-6 p-8 bg-slate-50/30">
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900">Campaign Analytics</h1>
-                    <p className="text-slate-500 font-medium">Real-time performance and delivery intelligence</p>
-                </div>
+                <div className="mb-6 px-1">
+                <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Campaign Analytics</h1>
+                <p className="text-sm text-slate-500 mt-1">Real-time performance and delivery intelligence</p>
+            </div>
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" onClick={handleRefresh} className="bg-white border-slate-200">
                       Refresh Data
@@ -499,15 +499,15 @@ export default function Reports() {
                             <Table>
                                 <TableHeader className="bg-slate-100 border-b-2 border-slate-200">
                                     <TableRow className="hover:bg-transparent h-12">
-                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest pl-6 border-r border-slate-200">Campaign Name</TableHead>
-                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest border-r border-slate-200 text-center">Channel</TableHead>
-                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest border-r border-slate-200 text-center">Template</TableHead>
-                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest border-r border-slate-200 text-center">Date</TableHead>
-                                        <TableHead className="font-black text-slate-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4">Total</TableHead>
-                                        <TableHead className="font-black text-indigo-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4 bg-indigo-50/30">Sent</TableHead>
-                                        <TableHead className="font-black text-emerald-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4 bg-emerald-50/30">Deliv.</TableHead>
-                                        <TableHead className="font-black text-purple-700 py-0 uppercase text-[10px] tracking-widest text-right border-r border-slate-200 px-4 bg-purple-50/30">Read</TableHead>
-                                        <TableHead className="font-black text-rose-700 py-0 uppercase text-[10px] tracking-widest text-right pr-6 bg-rose-50/30">Failed</TableHead>
+                                            <TableHead className="py-4 px-6 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">Campaign Name</TableHead>
+                                            <TableHead className="py-4 px-4 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">Channel</TableHead>
+                                            <TableHead className="py-4 px-4 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">Template</TableHead>
+                                            <TableHead className="py-4 px-4 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">Date</TableHead>
+                                            <TableHead className="py-4 px-3 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">Total</TableHead>
+                                            <TableHead className="py-4 px-3 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100 text-indigo-600">Sent</TableHead>
+                                            <TableHead className="py-4 px-3 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100 text-emerald-600">Deliv.</TableHead>
+                                            <TableHead className="py-4 px-3 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100 text-purple-600">Read</TableHead>
+                                            <TableHead className="py-4 px-3 text-center text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100 text-rose-600">Failed</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -516,35 +516,32 @@ export default function Reports() {
                                     ) : filteredReports.length === 0 ? (
                                         <TableRow><TableCell colSpan={9} className="text-center py-10 text-slate-400 font-medium">No reports found.</TableCell></TableRow>
                                     ) : (
-                                        filteredReports.map((report: any) => (
-                                            <TableRow key={report.id} className="hover:bg-slate-50/80 transition-colors h-14 border-b border-slate-200">
-                                                <TableCell className="font-bold text-slate-900 pl-6 border-r border-slate-100">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-[13px]">{report.name}</span>
-                                                        <div className="flex gap-1">
-                                                            {report.id?.startsWith('CAMP_API_') ? (
-                                                                <Badge variant="secondary" className="w-fit text-[8px] bg-indigo-50 text-indigo-700 border-indigo-200 px-1 py-0 uppercase font-black">API</Badge>
-                                                            ) : (
-                                                                <Badge variant="secondary" className="w-fit text-[8px] bg-slate-50 text-slate-600 border-slate-200 px-1 py-0 uppercase font-black">Manual</Badge>
-                                                            )}
+                                        filteredReports.map((camp: any) => (
+                                            <TableRow key={camp.id} className="hover:bg-slate-50/80 transition-colors border-b border-slate-200">
+                                                    <td className="py-4 px-6">
+                                                        <div className="flex flex-col">
+                                                            <p className="font-semibold text-slate-900 text-[13px]">{camp.name || 'Untitled'}</p>
+                                                            <span className="text-[10px] text-slate-400 font-medium">{camp.source === 'api' ? 'API' : 'Manual'}</span>
                                                         </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center border-r border-slate-100">
-                                                    <Badge className={cn("uppercase font-black text-[9px] tracking-tighter rounded-md h-5 px-1.5", report.channel === 'whatsapp' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200')}>{report.channel || 'RCS'}</Badge>
-                                                </TableCell>
-                                                <TableCell className="font-mono text-[11px] text-slate-500 font-bold border-r border-slate-100 text-center">{report.template_name || report.template_id}</TableCell>
-                                                <TableCell className="leading-tight border-r border-slate-100 text-center">
-                                                    <div className="flex flex-col">
-                                                      <span className="text-slate-900 font-bold text-xs">{format(new Date(report.created_at), 'dd MMM yy')}</span>
-                                                      <span className="text-[10px] text-slate-400 font-bold">{format(new Date(report.created_at), 'HH:mm')}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right font-black text-slate-900 text-[13px] border-r border-slate-100 px-4">{report.recipient_count?.toLocaleString() || 0}</TableCell>
-                                                <TableCell className="text-right text-indigo-700 font-black text-[13px] border-r border-slate-100 px-4 bg-indigo-50/10">{report.sent_count?.toLocaleString() || 0}</TableCell>
-                                                <TableCell className="text-right text-emerald-700 font-black text-[13px] border-r border-slate-100 px-4 bg-emerald-50/10">{report.delivered_count?.toLocaleString() || 0}</TableCell>
-                                                <TableCell className="text-right text-purple-700 font-black text-[13px] border-r border-slate-100 px-4 bg-purple-50/10">{report.read_count?.toLocaleString() || 0}</TableCell>
-                                                <TableCell className="text-right text-rose-700 font-black text-[13px] pr-6 bg-rose-50/10">{report.failed_count?.toLocaleString() || 0}</TableCell>
+                                                    </td>
+                                                    <td className="py-4 px-4 text-center">
+                                                        <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 rounded uppercase font-semibold border-none", 
+                                                            camp.channel === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700")}>
+                                                            {camp.channel || 'RCS'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="py-4 px-4 text-center text-[11px] text-slate-500 font-medium">{camp.template_name}</td>
+                                                    <td className="py-4 px-4 text-center">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-[11px] font-semibold text-slate-900">{format(new Date(camp.created_at), 'dd MMM yy')}</span>
+                                                            <span className="text-[10px] text-slate-400">{format(new Date(camp.created_at), 'HH:mm')}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 px-3 text-center font-semibold text-slate-900 text-xs">{camp.total_recipient?.toLocaleString()}</td>
+                                                    <td className="py-4 px-3 text-center font-semibold text-indigo-600 text-xs">{camp.sent_count?.toLocaleString()}</td>
+                                                    <td className="py-4 px-3 text-center font-semibold text-emerald-600 text-xs">{camp.delivered_count?.toLocaleString()}</td>
+                                                    <td className="py-4 px-3 text-center font-semibold text-purple-600 text-xs">{camp.read_count?.toLocaleString()}</td>
+                                                    <td className="py-4 px-3 text-center font-semibold text-rose-600 text-xs">{camp.failed_count?.toLocaleString()}</td>
                                             </TableRow>
                                         ))
                                     )}
