@@ -93,14 +93,17 @@ log "   🔧 Running fix_logs_schema.js..."
 NODE_ENV=production node fix_logs_schema.js || true
 ok "Database is optimized and ready for high volume."
 
-# ── Step 6: Reload PM2 (Zero Downtime) ─────────────────
-log "♻️  [5/6] Restarting $APP_NAME..."
+# ── Step 6: Reload PM2 & Fix Permissions ───────────────
+log "♻️  [5/6] Restarting $APP_NAME & Fixing Permissions..."
 cd "$PROJECT_DIR"
 
-# Fix permissions to prevent Nginx 403 Forbidden
-# Ensures web server can traverse the path
+# MANDATORY: Fix permissions for Nginx visibility
+# This ensures Nginx can traverse ALL the way into the dist folder
+log "   🔓 Opening folder permissions for Nginx..."
+chmod o+x /home/adm.Cell24X7 || true
+chmod o+x /home/adm.Cell24X7/developer.notifynow.in || true
 chmod o+x "$PROJECT_DIR" || true
-chmod -R o+r "$FRONTEND_DIR/dist" || true
+chmod -R 755 "$FRONTEND_DIR/dist" || true
 chmod o+x "$FRONTEND_DIR" || true
 chmod o+x "$FRONTEND_DIR/dist" || true
 
