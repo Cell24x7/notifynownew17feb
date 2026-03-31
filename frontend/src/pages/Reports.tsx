@@ -537,7 +537,7 @@ export default function Reports() {
                                                             <span className="text-[10px] text-slate-400">{format(new Date(camp.created_at), 'HH:mm')}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="py-4 px-3 text-center font-semibold text-slate-900 text-xs">{camp.total_recipient?.toLocaleString()}</td>
+                                                    <td className="py-4 px-3 text-center font-bold text-slate-900 text-xs">{(camp.recipient_count || camp.total_recipient || 0).toLocaleString()}</td>
                                                     <td className="py-4 px-3 text-center font-semibold text-indigo-600 text-xs">{camp.sent_count?.toLocaleString()}</td>
                                                     <td className="py-4 px-3 text-center font-semibold text-emerald-600 text-xs">{camp.delivered_count?.toLocaleString()}</td>
                                                     <td className="py-4 px-3 text-center font-semibold text-purple-600 text-xs">{camp.read_count?.toLocaleString()}</td>
@@ -590,35 +590,39 @@ export default function Reports() {
                                             <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
                                         ) : (
                                             webhookLogs.map((log) => (
-                                                <TableRow key={log.id} className="hover:bg-slate-50 transition-colors border-b border-slate-200 h-12">
-                                                    <TableCell className="text-[10px] font-medium text-slate-500 border-r border-slate-200 px-3">
+                                                <TableRow key={log.id} className="hover:bg-slate-50 transition-colors border-b border-slate-200">
+                                                    <TableCell className="text-[10px] font-medium text-slate-500 border-r border-slate-200 px-3 py-2">
                                                         {log.id}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-medium text-slate-600">
-                                                        {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 py-2 font-medium text-slate-600">
+                                                        {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[11px] border-r border-slate-200 text-center px-3 font-medium text-slate-900">
+                                                    <TableCell className="text-[11px] border-r border-slate-200 text-center px-3 py-2 font-bold text-slate-900">
                                                         {log.recipient?.replace(/^\+/, '')}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 font-medium text-slate-600">
-                                                        {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center px-3 py-2 font-medium text-slate-600">
+                                                        {log.send_time ? format(new Date(log.send_time), 'HH:mm') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-emerald-600 font-medium px-3">
-                                                        {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-emerald-600 font-bold px-3 py-2">
+                                                        {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-purple-600 font-medium px-3">
-                                                        {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center text-purple-600 font-bold px-3 py-2">
+                                                        {log.read_time ? format(new Date(log.read_time), 'HH:mm') : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center truncate max-w-[130px] px-3 font-medium text-slate-600" title={log.template_name}>
+                                                    <TableCell className="text-[10px] border-r border-slate-200 text-center truncate max-w-[100px] px-3 py-2 font-medium text-slate-600" title={log.template_name}>
                                                         {log.template_name || 'N/A'}
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] text-slate-600 font-medium px-3 text-center border-r border-slate-200">{log.campaign_name || '-'}</TableCell>
-                                                    <TableCell className="text-center border-r border-slate-200 px-2">
-                                                        <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-semibold uppercase", getStatusColor(log.status))}>
+                                                    <TableCell className="text-[10px] text-slate-600 font-semibold px-3 py-2 text-center border-r border-slate-200 max-w-[120px]">
+                                                        <div className="line-clamp-2 leading-tight" title={log.campaign_name}>
+                                                            {log.campaign_name || '-'}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-center border-r border-slate-200 px-2 py-2">
+                                                        <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-black uppercase", getStatusColor(log.status))}>
                                                             {log.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] text-rose-500 font-semibold px-3 leading-tight min-w-[150px]">
+                                                    <TableCell className="text-[10px] text-rose-500 font-bold px-3 py-2 leading-tight max-w-[150px]">
                                                         {log.failure_reason || '-'}
                                                     </TableCell>
                                                 </TableRow>
