@@ -13,21 +13,12 @@ FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 DIST_DIR="$FRONTEND_DIR/dist"
 
-if [[ "$PROJECT_DIR" == *"developer"* ]]; then
-    # DEVELOPER SETTINGS
-    APP_NAME="notifynow-developer"
-    APP_PORT="5000"
-    APP_DB="developer_notify"
-    APP_URL="https://developer.notifynow.in"
-    ENV_DESC="DEVELOPER"
-else
-    # PRODUCTION SETTINGS
-    APP_NAME="notifynow-live-prod"
-    APP_PORT="5050"
-    APP_DB="notifynow_main"
-    APP_URL="https://notifynow.in"
-    ENV_DESC="PRODUCTION"
-fi
+# 📦 FIXED DEVELOPER SETTINGS (Locked)
+APP_NAME="notifynow-developer"
+APP_PORT="5000"
+APP_DB="developer_notify"
+APP_URL="https://developer.notifynow.in"
+ENV_DESC="DEVELOPER"
 
 # ── Colors for pretty output ────────────────────────────
 GREEN='\033[0;32m'

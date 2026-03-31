@@ -14,7 +14,7 @@ FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 DIST_DIR="$FRONTEND_DIR/dist"
 
-# Fixed Production Constants
+# 📦 FIXED PRODUCTION SETTINGS (Locked)
 APP_NAME="notifynow-live-prod"
 APP_PORT="5050"
 APP_DB="notifynow_db"
