@@ -202,13 +202,24 @@ router.post('/send-otp', async (req, res) => {
           // Email uses standard .env SMTP settings
           await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`, otp);
         } else {
-          // Send via Official SMS API Format
-          console.log(`[AUTH] Sending SMS OTP: ${otp} to ${target} (Template: 1007939764982063485)`);
+          // Send via Official Internal SMS API
+          console.log(`[AUTH] Sending SMS OTP: ${otp} to ${target} via Internal API...`);
           const msg = `Dear Customer, Your One Time Password is ${otp} CMT`;
           const templateId = '1007939764982063485';
+          const apiKey = 'nn_c44eaf15fad864bdcb6258bf566c39b945fe8de4006470ec';
           
-          // Use internal SMS service but with specific template parameters for OTP
-          await sendSMS(target, msg, templateId);
+          try {
+            const axios = require('axios');
+            // We use localhost to ensure it hits the internal port correctly
+            const port = process.env.PORT || 5050;
+            const smsUrl = `http://localhost:${port}/api/sms-v1/send?apiKey=${apiKey}&mobile=${target}&message=${encodeURIComponent(msg)}&templateId=${templateId}`;
+            
+            const response = await axios.get(smsUrl);
+            console.log(`[AUTH] Internal SMS API Response:`, response.data);
+          } catch (internalErr) {
+            console.warn(`[AUTH] Internal API failed, falling back to direct sendService:`, internalErr.message);
+            await sendSMS(target, msg, templateId);
+          }
         }
         res.json({ success: true, message: 'OTP sent successfully' });
       } catch (sendErr) {

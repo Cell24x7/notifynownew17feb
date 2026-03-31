@@ -39,25 +39,22 @@ const replacePlaceholders = (url, data) => {
     return formatted;
 };
 
-/**
- * Send an SMS message using assigned gateway or default gateway.
- * @param {string} mobile - Recipient mobile number.
- * @param {string} message - Content.
- * @param {object} options - Optional: userId, templateId, peId, etc.
- * @returns {Promise<any>}
- */
-const sendSMS = async (mobile, message, options = {}) => {
+const sendSMS = async (mobile, message, templateOrOptions = {}) => {
     try {
+        // Handle case where third arg is just the string templateId
+        const options = typeof templateOrOptions === 'string' ? { templateId: templateOrOptions } : templateOrOptions;
+        
         let gateway = null;
+        const userId = options.userId || '0';
 
         // 1. Try to fetch user's assigned gateway
-        if (options.userId) {
-            const [users] = await query('SELECT sms_gateway_id FROM users WHERE id = ?', [options.userId]);
+        if (userId && userId !== '0') {
+            const [users] = await query('SELECT sms_gateway_id FROM users WHERE id = ?', [userId]);
             if (users.length > 0 && users[0].sms_gateway_id) {
                 const [gateways] = await query('SELECT * FROM sms_gateways WHERE id = ? AND status = "active"', [users[0].sms_gateway_id]);
                 if (gateways.length > 0) {
                     gateway = gateways[0];
-                    console.log(`[SMS] Using assigned gateway "${gateway.name}" for user ${options.userId}`);
+                    console.log(`[SMS] Using assigned gateway "${gateway.name}" for user ${userId}`);
                 }
             }
         }
