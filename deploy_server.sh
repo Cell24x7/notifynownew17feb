@@ -23,7 +23,7 @@ if [[ "$PROJECT_DIR" == *"developer"* ]]; then
 else
     # PRODUCTION SETTINGS
     APP_NAME="notifynow-live-prod"
-    APP_PORT="5000"
+    APP_PORT="5050"
     APP_DB="notifynow_main"
     APP_URL="https://notifynow.in"
     ENV_DESC="PRODUCTION"
@@ -60,13 +60,26 @@ log "📦 [2/6] Installing Dependencies & Setting Env..."
 cd "$BACKEND_DIR"
 npm install --production --silent
 
-# Force correct .env variables for this environment
-cp "$BACKEND_DIR/.env.production" "$BACKEND_DIR/.env" || touch "$BACKEND_DIR/.env"
-sed -i "/^DB_NAME=/c\DB_NAME=$APP_DB"          "$BACKEND_DIR/.env"
-sed -i "/^PORT=/c\PORT=$APP_PORT"              "$BACKEND_DIR/.env"
-sed -i "/^API_BASE_URL=/c\API_BASE_URL=$APP_URL" "$BACKEND_DIR/.env"
-sed -i "/^APP_NAME=/c\APP_NAME=$APP_NAME"      "$BACKEND_DIR/.env"
-ok "Backend environment synchronized."
+# Sync environment variables across both files to be safe
+for ENV_FILE in ".env" ".env.production"; do
+    if [ ! -f "$BACKEND_DIR/$ENV_FILE" ]; then
+        touch "$BACKEND_DIR/$ENV_FILE"
+    fi
+    
+    # Use perl for more reliable in-place replacement than sed on some systems
+    # Synchronize Port, DB Name, and API URL
+    perl -i -pe "s|^PORT=.*|PORT=$APP_PORT|g" "$BACKEND_DIR/$ENV_FILE"
+    perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
+    perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
+    perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
+    
+    # Add if they don't exist
+    grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
+    grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
+    grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
+done
+
+ok "Environment variables synchronized for $ENV_DESC (Port: $APP_PORT)"
 
 # ── Step 4: Build Frontend (Optional Sync) ─────────────
 log "🏗️  [3/6] Building Frontend..."
@@ -93,11 +106,29 @@ ok "Database is optimized and ready for high volume."
 log "♻️  [5/6] Restarting $APP_NAME..."
 cd "$PROJECT_DIR"
 
-# Ensure we use the correct APP_NAME env for ecosystem
+# Fix permissions to prevent Nginx 403 Forbidden
+# Ensures web server can traverse the path
+chmod o+x "$PROJECT_DIR" || true
+chmod -R o+r "$FRONTEND_DIR/dist" || true
+chmod o+x "$FRONTEND_DIR" || true
+chmod o+x "$FRONTEND_DIR/dist" || true
+
+# Use ecosystem.config.js - more robust for environment variables
 if pm2 list | grep -q "$APP_NAME"; then
-    APP_NAME=$APP_NAME pm2 reload notifynow-live-prod --env production || pm2 reload $APP_NAME
+    log "  🔄 App already exists, reloading..."
+    # Always reload based on ecosystem config if available
+    if [ -f "ecosystem.config.js" ]; then
+        APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
+    else
+        pm2 reload $APP_NAME --update-env
+    fi
 else
-    APP_NAME=$APP_NAME pm2 start backend/index.js --name $APP_NAME --env production
+    log "  🚀 Starting new instance..."
+    if [ -f "ecosystem.config.js" ]; then
+        APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
+    else
+        APP_NAME=$APP_NAME pm2 start backend/index.js --name $APP_NAME --env production
+    fi
 fi
 
 pm2 save --force
