@@ -677,15 +677,30 @@ router.get('/api/status/:id', async (req, res) => {
 });
 
 /**
- * POST /api/rcs/send
+ * GET & POST /api/rcs/send
  * Clean endpoint for External Developers (Alias for send-single)
  */
-router.post('/send', async (req, res) => {
+const handleRcsSend = async (req, res) => {
     try {
-        const { username, password, to, templateName, params } = req.body;
+        const username = req.body.username || req.query.username;
+        const password = req.body.password || req.query.password;
+        const to = req.body.to || req.query.to;
+        const templateName = req.body.templateName || req.query.templateName;
+        let params = req.body.params || req.query.params;
+
+        // If params are passed as a string in GET, try to parse or convert to array
+        if (typeof params === 'string' && params.includes(',')) {
+            params = params.split(',');
+        } else if (params && !Array.isArray(params)) {
+            params = [params];
+        }
 
         if (!username || !password || !templateName || !to) {
-            return res.status(400).json({ success: false, message: 'Missing fields: username, password, templateName, to' });
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Missing fields: username, password, templateName, to',
+                received: { username: !!username, password: !!password, templateName: !!templateName, to: !!to }
+            });
         }
 
         // Auth
@@ -717,7 +732,7 @@ router.post('/send', async (req, res) => {
             return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
         }
 
-        const result = await sendRcsTemplate(to, templateName, configs[0], params);
+        const result = await sendRcsTemplate(to, templateName, configs[0], params || []);
 
         if (result.success) {
             const apiLogId = `LOG_API_${Date.now()}`;
@@ -741,8 +756,12 @@ router.post('/send', async (req, res) => {
             res.status(500).json({ success: false, error: result.error });
         }
     } catch (error) {
+        console.error('❌ RCS Send API Error:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
-});
+};
+
+router.get('/send', handleRcsSend);
+router.post('/send', handleRcsSend);
 
 module.exports = router;
