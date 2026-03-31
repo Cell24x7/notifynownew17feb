@@ -14,11 +14,12 @@ FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 DIST_DIR="$FRONTEND_DIR/dist"
 
-# Detect APP_NAME from .env.production if it exists, else default 
-if [ -f "$BACKEND_DIR/.env.production" ]; then
-    APP_NAME=$(grep "^APP_NAME=" "$BACKEND_DIR/.env.production" | cut -d'=' -f2 | tr -d '"'\'' ')
-fi
-: "${APP_NAME:=notifynow-production}" # Fallback to default
+# Fixed Production Constants
+APP_NAME="notifynow-live-prod"
+APP_PORT="5050"
+APP_DB="notifynow_db"
+APP_URL="https://notifynow.in"
+ENV_DESC="PRODUCTION"
 
 # ─── Colors for pretty output ────────────────────────────
 GREEN='\033[0;32m'
@@ -59,57 +60,29 @@ npm install --production --silent
 cd "$FRONTEND_DIR"
 npm install --silent
 # ── Step 4: Enforce Env ───────────────────────────────
-log "🛠️  [4/7] Enforcing PRODUCTION settings..."
-# Backend Env (Strictly preserve credentials if file exists)
-if [ ! -f "$BACKEND_DIR/.env.production" ]; then
-    warn ".env.production not found, creating from template..."
-cat <<EOF > "$BACKEND_DIR/.env.production"
-DB_HOST=localhost
-DB_USER=root
-DB_PASS=waQ4!r1241Kr
-DB_NAME=notifynow_db
-PORT=5050
-API_BASE_URL=https://notifynow.in
-JWT_SECRET=notifynow_prod_secret_key_secure
-JWT_EXPIRES_IN=20m
-EOF
-else
-    sed -i '/^DB_HOST=/c\DB_HOST=localhost' "$BACKEND_DIR/.env.production"
-    sed -i '/^DB_NAME=/c\DB_NAME=notifynow_db' "$BACKEND_DIR/.env.production"
-    sed -i '/^PORT=/c\PORT=5050' "$BACKEND_DIR/.env.production"
-    sed -i '/^API_BASE_URL=/c\API_BASE_URL=https://notifynow.in' "$BACKEND_DIR/.env.production"
-    if ! grep -q "JWT_EXPIRES_IN=" "$BACKEND_DIR/.env.production"; then echo "JWT_EXPIRES_IN=24h" >> "$BACKEND_DIR/.env.production"; else sed -i '/^JWT_EXPIRES_IN=/c\JWT_EXPIRES_IN=24h' "$BACKEND_DIR/.env.production"; fi
-    if ! grep -q "JWT_SECRET=" "$BACKEND_DIR/.env.production"; then echo "JWT_SECRET=notifynow_prod_secret_key_secure" >> "$BACKEND_DIR/.env.production"; fi
-fi
+log "🛠️  [4/7] Enforcing Production Env..."
+cd "$BACKEND_DIR"
 
-# Frontend Env (VITE_API_URL is critical for build)
-API_URL="https://notifynow.in"
-GOOGLE_ID="387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com"
-
-if [ ! -f "$FRONTEND_DIR/.env.production" ]; then
-    cat <<EOF > "$FRONTEND_DIR/.env.production"
-VITE_API_URL=$API_URL
-VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID
-EOF
-else
-    # Update or add API URL
-    if grep -q "VITE_API_URL=" "$FRONTEND_DIR/.env.production"; then
-        sed -i "/^VITE_API_URL=/c\VITE_API_URL=$API_URL" "$FRONTEND_DIR/.env.production"
-    else
-        echo "VITE_API_URL=$API_URL" >> "$FRONTEND_DIR/.env.production"
+# Sync environment variables across both files to be safe
+for ENV_FILE in ".env" ".env.production"; do
+    if [ ! -f "$BACKEND_DIR/$ENV_FILE" ]; then
+        touch "$BACKEND_DIR/$ENV_FILE"
     fi
-    # Update or add Google ID (Force update to ensure it's correct)
-    if grep -q "VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/.env.production"; then
-        sed -i "/^VITE_GOOGLE_CLIENT_ID=/c\VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID" "$FRONTEND_DIR/.env.production"
-    else
-        echo "VITE_GOOGLE_CLIENT_ID=$GOOGLE_ID" >> "$FRONTEND_DIR/.env.production"
-    fi
-fi
+    
+    # Use perl for more reliable in-place replacement than sed on some systems
+    # Synchronize Port, DB Name, and API URL
+    perl -i -pe "s|^PORT=.*|PORT=$APP_PORT|g" "$BACKEND_DIR/$ENV_FILE"
+    perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
+    perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
+    perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
+    
+    # Add if they don't exist
+    grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
+    grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
+    grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
+done
 
-# Sync .env with .env.production
-cp "$FRONTEND_DIR/.env.production" "$FRONTEND_DIR/.env"
-cp "$BACKEND_DIR/.env.production" "$BACKEND_DIR/.env"
-ok "Environment files updated (API: $API_URL)"
+ok "Environment variables synchronized for $ENV_DESC (Port: $APP_PORT)"
 
 # ── Step 5: Build Frontend ────────────────────────────
 log "🏗️  [5/7] Building frontend..."
@@ -117,8 +90,11 @@ cd "$FRONTEND_DIR"
 npm run build
 ok "Frontend built successfully"
 
-# Fix dist folder permissions
-chmod -R 755 "$DIST_DIR"
+# Fix Nginx Permissions
+chmod o+x "$PROJECT_DIR" || true
+chmod -R o+r "$FRONTEND_DIR/dist" || true
+chmod o+x "$FRONTEND_DIR" || true
+chmod o+x "$FRONTEND_DIR/dist" || true
 
 # ── Step 6: Migrations ────────────────────────────────
 log "🗄️  [6/7] Running DB migrations & schema fixes..."
@@ -137,14 +113,22 @@ ok "Schema fix applied successfully"
 log "♻️  [7/7] Restarting PM2 instance (Zero-Downtime)..."
 cd "$PROJECT_DIR"
 
-# Check if app is already running
+# Use ecosystem.config.js for robustness
 if pm2 list | grep -q "$APP_NAME"; then
-    log "   🔄 App '$APP_NAME' is running, reloading..."
-    # Reload ensures Zero-Downtime and preserves other PM2 apps
-    APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
+    log "  🔄 App already exists, reloading..."
+    # Always reload based on ecosystem config if available
+    if [ -f "ecosystem.config.js" ]; then
+        APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
+    else
+        pm2 reload $APP_NAME --update-env
+    fi
 else
-    log "   🚀 App '$APP_NAME' is new, starting..."
-    APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
+    log "  🚀 Starting new instance..."
+    if [ -f "ecosystem.config.js" ]; then
+        APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
+    else
+        APP_NAME=$APP_NAME pm2 start backend/index.js --name $APP_NAME --env production
+    fi
 fi
 
 # Final backup of PM2 state
