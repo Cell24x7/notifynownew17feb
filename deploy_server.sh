@@ -72,13 +72,27 @@ done
 
 ok "Environment variables synchronized for $ENV_DESC (Port: $APP_PORT)"
 
-# ── Step 4: Build Frontend (Optional Sync) ─────────────
-log "🏗️  [3/6] Building Frontend..."
+# ── Step 4: Build Frontend (With Environment Sync) ──────────
+log "🏗️  [3/6] Building Frontend for $ENV_DESC..."
 cd "$FRONTEND_DIR"
-# Check if dist exists and is recent (optional optimization)
+
+# Sync Frontend Env (CRITICAL: Prevents Developer hitting Production API)
+for ENV_FILE in ".env" ".env.production"; do
+    if [ ! -f "$FRONTEND_DIR/$ENV_FILE" ]; then
+        touch "$FRONTEND_DIR/$ENV_FILE"
+    fi
+    perl -i -pe "s|^VITE_API_URL=.*|VITE_API_URL=$APP_URL|g" "$FRONTEND_DIR/$ENV_FILE"
+    grep -q "^VITE_API_URL=" "$FRONTEND_DIR/$ENV_FILE" || echo "VITE_API_URL=$APP_URL" >> "$FRONTEND_DIR/$ENV_FILE"
+    # Ensure Google Client ID is also set correctly
+    if ! grep -q "^VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/$ENV_FILE"; then
+        echo "VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com" >> "$FRONTEND_DIR/$ENV_FILE"
+    fi
+done
+
+rm -rf dist
 npm install --silent
 npm run build
-ok "Frontend built successfully."
+ok "Frontend built successfully for $APP_URL"
 
 # ── Step 5: Database Optimization (1Cr Ready) ─────────
 log "🗄️  [4/6] Optimizing Database & Running Migrations..."
