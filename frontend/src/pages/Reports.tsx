@@ -78,6 +78,8 @@ export default function Reports() {
     const [searchQuery, setSearchQuery] = useState('');
     const [targetUserId, setTargetUserId] = useState('all');
     const [users, setUsers] = useState<any[]>([]);
+    const [apiPage, setApiPage] = useState(1);
+    const [apiTotal, setApiTotal] = useState(0);
     
     // Read from URL
     const activeTab = searchParams.get('tab') || 'summary';
@@ -127,10 +129,12 @@ export default function Reports() {
     };
 
     useEffect(() => {
-        if (activeTab === 'detailed' || activeTab === 'api') {
-            fetchWebhookLogs(detailedPage, activeTab);
+        if (activeTab === 'detailed') {
+            fetchWebhookLogs(detailedPage, 'detailed');
+        } else if (activeTab === 'api') {
+            fetchWebhookLogs(apiPage, 'api');
         }
-    }, [detailedPage, targetUserId]);
+    }, [detailedPage, apiPage, targetUserId]);
 
     const fetchReports = async (page: number = 1) => {
         setLoading(true);
@@ -190,7 +194,11 @@ export default function Reports() {
             const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
-                setDetailedTotal(data.pagination?.total || 0);
+                if (currentTab === 'api') {
+                    setApiTotal(data.pagination?.total || 0);
+                } else {
+                    setDetailedTotal(data.pagination?.total || 0);
+                }
             }
         } catch (error) {
             console.error('Error fetching logs:', error);
@@ -202,7 +210,8 @@ export default function Reports() {
 
     useEffect(() => {
         if (activeTab === 'summary') fetchReports(summaryPage);
-        if (activeTab === 'detailed' || activeTab === 'api') fetchWebhookLogs(detailedPage, activeTab);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
+        if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
     }, [activeTab, startDate, endDate, searchQuery, targetUserId]);
 
     useEffect(() => {
@@ -259,7 +268,8 @@ export default function Reports() {
 
     const handleRefresh = () => {
         if (activeTab === 'summary') fetchReports(summaryPage);
-        if (activeTab === 'detailed' || activeTab === 'api') fetchWebhookLogs(detailedPage, activeTab);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
+        if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
     };
 
     const filteredReports = reports;
