@@ -137,7 +137,8 @@ router.post('/dotgo', async (req, res) => {
         console.log('📦 Dotgo Webhook Raw:', JSON.stringify(payload, null, 2));
 
         if (!payload.message || !payload.message.data) {
-            return res.status(400).json({ success: false, message: 'Invalid Dotgo payload' });
+            console.log('ℹ️ Dotgo Heartbeat or empty payload received. Returning 200.');
+            return res.status(200).json({ success: true, message: 'Heartbeat acknowledged' });
         }
 
         // 1. Decode Base64 data
@@ -468,10 +469,19 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         let logsTable = (source === 'api') ? 'api_message_logs' : 'message_logs';
         let campaignsTable = (source === 'api') ? 'api_campaigns' : 'campaigns';
 
-        let conditions = ["ml.user_id = ?"];
-        let params = [userId];
+        let userIdQuery = req.query.userId || userId;
+        let conditions = [];
+        let params = [];
 
-        // Apply Keyset Pagination (FASTEST for 1Cr)
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin' || userIdQuery !== 'all') {
+            conditions.push("ml.user_id = ?");
+            params.push(userIdQuery);
+        }
+
+        // Apply Keyset Pagination (FASTEST for 1Cr) or Page-based (Current UI)
+        const page = parseInt(req.query.page) || 1;
+        const offset = (page - 1) * limit;
+
         if (lastId > 0) {
             conditions.push("ml.id < ?");
             params.push(lastId);
@@ -487,19 +497,20 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             params.push(`%${req.query.search}%`, `%${req.query.search}%`);
         }
 
-        const whereClause = conditions.join(' AND ');
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
-        // No COUNT(*) for performance. Frontend will use "Has More" logic or estimations.
+        // Get total count for pagination (Admin/Small views only)
+        const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml ${whereClause}`, params);
+        const total = countResult[0].total;
+
         const selectSql = `
             SELECT ml.*, c.channel as campaign_channel 
             FROM ${logsTable} ml 
             LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id 
-            WHERE ${whereClause} 
+            ${whereClause} 
             ORDER BY ml.id DESC 
-            LIMIT ?
+            LIMIT ? OFFSET ?
         `;
-
-        const [logs] = await query(selectSql, [...params, limit]);
 
         res.json({
             success: true,

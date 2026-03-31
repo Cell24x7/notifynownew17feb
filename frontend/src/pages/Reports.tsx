@@ -76,6 +76,8 @@ export default function Reports() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [channelFilter, setChannelFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [targetUserId, setTargetUserId] = useState('all');
+    const [users, setUsers] = useState<any[]>([]);
     
     // Read from URL
     const activeTab = searchParams.get('tab') || 'summary';
@@ -104,10 +106,31 @@ export default function Reports() {
     }, [summaryPage]);
 
     useEffect(() => {
+        if (user?.role === 'admin' || user?.role === 'superadmin') {
+            fetchUsers();
+        }
+    }, [user]);
+
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`${API_BASE_URL}/api/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                setUsers(data.users);
+            }
+        } catch (error) {
+            console.error('Failed to fetch users', error);
+        }
+    };
+
+    useEffect(() => {
         if (activeTab === 'detailed' || activeTab === 'api') {
             fetchWebhookLogs(detailedPage, activeTab);
         }
-    }, [detailedPage]);
+    }, [detailedPage, targetUserId]);
 
     const fetchReports = async (page: number = 1) => {
         setLoading(true);
@@ -119,6 +142,7 @@ export default function Reports() {
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+            if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
             // If in summary, only show manual campaigns. If in API tab, show API campaigns.
             if (activeTab === 'summary' || activeTab === 'detailed') url += `source=manual&`;
@@ -150,6 +174,7 @@ export default function Reports() {
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+            if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
             if (currentTab === 'api') {
                 url += `source=api&`;
@@ -178,7 +203,7 @@ export default function Reports() {
     useEffect(() => {
         if (activeTab === 'summary') fetchReports(summaryPage);
         if (activeTab === 'detailed' || activeTab === 'api') fetchWebhookLogs(detailedPage, activeTab);
-    }, [activeTab, startDate, endDate, searchQuery]);
+    }, [activeTab, startDate, endDate, searchQuery, targetUserId]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -428,6 +453,25 @@ export default function Reports() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
+
+                    {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                        <div className="flex items-center gap-2 ml-auto">
+                            <Label className="text-[10px] font-bold text-slate-400 uppercase">View As:</Label>
+                            <Select value={targetUserId} onValueChange={setTargetUserId}>
+                                <SelectTrigger className="w-[180px] h-9 text-xs font-semibold border-slate-200 bg-white shadow-sm">
+                                    <SelectValue placeholder="All Users" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Users (Admin)</SelectItem>
+                                    {users.map(u => (
+                                        <SelectItem key={u.id} value={u.id.toString()}>
+                                            {u.company || u.username || u.email}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -577,7 +621,7 @@ export default function Reports() {
                                                             {log.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] text-rose-500 font-semibold text-center truncate max-w-[150px] px-3" title={log.failure_reason || ''}>
+                                                    <TableCell className="text-[10px] text-rose-500 font-bold px-3 leading-tight min-w-[150px]">
                                                         {log.failure_reason || '-'}
                                                     </TableCell>
                                                 </TableRow>
@@ -585,7 +629,7 @@ export default function Reports() {
                                         )}
                                     </TableBody>
                                 </Table>
-                                {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
+                                {renderPagination(activeTab === 'api' ? apiPage : detailedPage, activeTab === 'api' ? apiTotal : detailedTotal, activeTab === 'api' ? setApiPage : setDetailedPage)}
                             </CardContent>
                         </Card>
                     </TabsContent>

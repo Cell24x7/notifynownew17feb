@@ -20,8 +20,13 @@ router.get('/summary', authenticate, async (req, res) => {
         }
 
         // Base filter conditions
-        let conditions = ["c.user_id = ?"];
-        let params = [targetUserId];
+        let conditions = [];
+        let params = [];
+
+        if (targetUserId !== 'all') {
+            conditions.push("c.user_id = ?");
+            params.push(targetUserId);
+        }
 
         if (from) {
             conditions.push("c.created_at >= ?");
@@ -129,8 +134,13 @@ router.get('/detail', authenticate, async (req, res) => {
             targetUserId = userId;
         }
 
-        let conditions = ["c.user_id = ?"];
-        let params = [targetUserId];
+        let conditions = [];
+        let params = [];
+
+        if (targetUserId !== 'all') {
+            conditions.push("c.user_id = ?");
+            params.push(targetUserId);
+        }
 
         if (from) {
             conditions.push("c.created_at >= ?");
@@ -199,8 +209,18 @@ router.get('/export', authenticate, async (req, res) => {
         const { from, to, channel, status, format } = req.query;
         console.log('Export Request:', { from, to, channel, status, format, userId });
 
-        let conditions = ["c.user_id = ?"];
-        let params = [userId];
+        let targetUserId = req.user.id;
+        if ((req.user.role === 'superadmin' || req.user.role === 'admin') && req.query.userId) {
+            targetUserId = req.query.userId;
+        }
+
+        let conditions = [];
+        let params = [];
+
+        if (targetUserId !== 'all') {
+            conditions.push("c.user_id = ?");
+            params.push(targetUserId);
+        }
 
         if (from) {
             conditions.push("c.created_at >= ?");
