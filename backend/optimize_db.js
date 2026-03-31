@@ -1,60 +1,34 @@
-const path = require('path');
-const fs = require('fs');
-
-// Load environment-specific file if it exists
-if (process.env.NODE_ENV === 'production' && fs.existsSync('.env.production')) {
-    require('dotenv').config({ path: '.env.production' });
-} else {
-    require('dotenv').config();
-}
-
 const { query } = require('./config/db');
 
 async function optimize() {
+    console.log('🚀 Starting Database Optimization for 1Cr+ Scale...');
+    
     try {
-        console.log("🚀 Starting database optimization...");
+        // 1. Index for Webhook Logs (Speed up Reports)
+        console.log('📦 Optimizing webhook_logs (Step 1/3)...');
+        await query(`ALTER TABLE webhook_logs ADD INDEX IF NOT EXISTS idx_created_at (created_at)`);
+        await query(`ALTER TABLE webhook_logs ADD INDEX IF NOT EXISTS idx_user_id (user_id)`);
+        await query(`ALTER TABLE webhook_logs ADD INDEX IF NOT EXISTS idx_message_id (message_id)`);
+        console.log('✅ Webhook logs optimized.');
 
-        // 0. Increase Global Server Connections (Crucial for 500+ workers)
-        console.log("Increasing MySQL max_connections limit to 2000...");
-        try {
-            await query("SET GLOBAL max_connections = 2000");
-            console.log("✅ MySQL max_connections increased.");
-        } catch (e) {
-            console.warn("⚠️ [Skip] Could not set max_connections (No SUPER privilege):", e.message);
-        }
+        // 2. Index for Message Logs (Speed up Detailed Reports)
+        console.log('📊 Optimizing message_logs (Step 2/3)...');
+        await query(`ALTER TABLE message_logs ADD INDEX IF NOT EXISTS idx_campaign_id (campaign_id)`);
+        await query(`ALTER TABLE message_logs ADD INDEX IF NOT EXISTS idx_user_id (user_id)`);
+        await query(`ALTER TABLE message_logs ADD INDEX IF NOT EXISTS idx_recipient (recipient)`);
+        console.log('✅ Message logs optimized.');
 
-        // 1. WEBHOOK_LOGS Indexes (Crucial for Chat UI)
-        console.log("Adding indexes to webhook_logs...");
-        try {
-            await query("ALTER TABLE webhook_logs ADD INDEX idx_user_id (user_id)");
-            await query("ALTER TABLE webhook_logs ADD INDEX idx_created_at (created_at DESC)");
-            await query("ALTER TABLE webhook_logs ADD INDEX idx_phones (sender, recipient)");
-        } catch (e) {
-            console.warn("⚠️ Webhook logs indexes warning (likely already exists):", e.message);
-        }
+        // 3. Index for API Message Logs
+        console.log('📡 Optimizing api_message_logs (Step 3/3)...');
+        await query(`ALTER TABLE api_message_logs ADD INDEX IF NOT EXISTS idx_campaign_id (campaign_id)`);
+        await query(`ALTER TABLE api_message_logs ADD INDEX IF NOT EXISTS idx_user_id (user_id)`);
+        await query(`ALTER TABLE api_message_logs ADD INDEX IF NOT EXISTS idx_recipient (recipient)`);
+        console.log('✅ API logs optimized.');
 
-        // 2. MESSAGE_LOGS Indexes (Crucial for Reports)
-        console.log("Adding indexes to message_logs...");
-        try {
-            await query("ALTER TABLE message_logs ADD INDEX idx_user_id (user_id)");
-            await query("ALTER TABLE message_logs ADD INDEX idx_created_at (created_at DESC)");
-        } catch (e) {
-            console.warn("⚠️ Message logs indexes warning:", e.message);
-        }
-
-        // 3. CONTACTS Indexes (Crucial for Chat search/linking)
-        console.log("Adding indexes to contacts...");
-        try {
-            await query("ALTER TABLE contacts ADD INDEX idx_user_id (user_id)");
-            await query("ALTER TABLE contacts ADD INDEX idx_phone (phone)");
-        } catch (e) {
-            console.warn("⚠️ Contacts indexes warning:", e.message);
-        }
-
-        console.log("✅ Database optimization complete.");
+        console.log('✨ DATABASE OPTIMIZATION COMPLETE! Your server is now 1Cr-Ready.');
         process.exit(0);
-    } catch (err) {
-        console.error("❌ Fatal optimization error:", err.message);
+    } catch (error) {
+        console.error('❌ Optimization failed:', error.message);
         process.exit(1);
     }
 }

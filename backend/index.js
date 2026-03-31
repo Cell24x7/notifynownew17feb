@@ -63,6 +63,9 @@ app.use('/uploads', express.static(uploadsDir));
 /* ==================================
    START SERVER & SOCKET.IO
 ================================== */
+const { startMaintenanceService } = require('./services/maintenanceService');
+startMaintenanceService();
+
 const PORT = process.env.PORT || 5000;
 const httpServer = app.listen(PORT, () => {
   console.log('===================================');
