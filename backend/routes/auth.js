@@ -199,12 +199,16 @@ router.post('/send-otp', async (req, res) => {
       try {
         if (type === 'email') {
           console.log(`[AUTH] Sending Email OTP: ${otp} to ${target}`);
+          // Email uses standard .env SMTP settings
           await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`, otp);
         } else {
-          // Send via SMS
-          console.log(`[AUTH] Sending SMS OTP: ${otp} to ${target}`);
-          const msg = `Dear Customer, Your One Time Password is ${otp}. CMT`;
-          await sendSMS(target, msg);
+          // Send via Official SMS API Format
+          console.log(`[AUTH] Sending SMS OTP: ${otp} to ${target} (Template: 1007939764982063485)`);
+          const msg = `Dear Customer, Your One Time Password is ${otp} CMT`;
+          const templateId = '1007939764982063485';
+          
+          // Use internal SMS service but with specific template parameters for OTP
+          await sendSMS(target, msg, templateId);
         }
         res.json({ success: true, message: 'OTP sent successfully' });
       } catch (sendErr) {
