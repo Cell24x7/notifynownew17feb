@@ -178,17 +178,17 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="p-4 md:p-8 space-y-6 bg-white min-h-screen font-sans text-slate-800">
+    <div className="p-4 md:p-8 space-y-6 bg-background min-h-screen font-sans text-foreground">
       
       {/* Header */}
       <div className="mb-6 px-1">
-        <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Analytics Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">Comprehensive insights across all your communication channels.</p>
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Analytics Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Comprehensive insights across all your communication channels.</p>
       </div>
 
       {/* Top 4 Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-xl border-slate-200 shadow-sm hover:shadow-md transition-all">
+        <Card className="rounded-xl border-border shadow-sm hover:shadow-md transition-all">
           <CardContent className="p-5 flex flex-col justify-between h-full">
             <div className="flex justify-between items-start mb-4">
               <MessageSquare className="h-5 w-5 text-emerald-500" />
@@ -249,7 +249,7 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold text-slate-900">Channel Analytics</h2>
           </div>
           
-          <div className="flex flex-wrap gap-2 mb-6 bg-slate-50 p-1.5 rounded-xl w-fit border border-slate-100">
+          <div className="flex flex-wrap gap-2 mb-6 bg-muted p-1.5 rounded-xl w-fit border border-border/50">
             {['All', 'Whatsapp', 'Sms', 'Instagram', 'Messenger', 'Rcs', 'Email', 'Voice'].filter(tab => {
                if (!user) return false;
                if (tab === 'All') return true;
@@ -285,12 +285,12 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-between">
+            <div className="border border-border/50 rounded-xl p-4 bg-muted/30 flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquare className="h-4 w-4 text-emerald-500" />
                 <span className="text-[11px] font-semibold text-emerald-500 tracking-wide uppercase">Total Messages</span>
               </div>
-              <p className="text-2xl font-semibold text-slate-900">{totalMessages.toLocaleString()}</p>
+              <p className="text-2xl font-semibold text-foreground">{totalMessages.toLocaleString()}</p>
             </div>
             
             <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col justify-between">
@@ -298,7 +298,7 @@ export default function Dashboard() {
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
                 <span className="text-[11px] font-semibold text-emerald-500 tracking-wide uppercase">Delivered</span>
               </div>
-              <p className="text-2xl font-semibold text-slate-900">{avgDeliveryRate}</p>
+              <p className="text-2xl font-semibold text-foreground">{avgDeliveryRate}</p>
             </div>
 
             <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4 flex flex-col justify-between">
@@ -322,7 +322,7 @@ export default function Dashboard() {
                 <Star className="h-4 w-4 text-amber-500" />
                 <span className="text-[11px] font-semibold text-amber-600 tracking-wide uppercase">Avg Satisfaction</span>
               </div>
-              <p className="text-2xl font-semibold text-slate-900">4.4/5</p>
+              <p className="text-2xl font-semibold text-foreground">4.4/5</p>
             </div>
           </div>
         </div>
@@ -332,7 +332,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="rounded-xl border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-semibold text-slate-800">Customer Satisfaction Trends</CardTitle>
+            <CardTitle className="text-[15px] font-semibold text-foreground">Customer Satisfaction Trends</CardTitle>
           </CardHeader>
           <CardContent className="pt-4 px-2">
             <div className="h-[250px] w-full">
@@ -360,7 +360,7 @@ export default function Dashboard() {
 
         <Card className="rounded-xl border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-semibold text-slate-800">Bot vs Human Resolution by Channel</CardTitle>
+            <CardTitle className="text-[15px] font-semibold text-foreground">Bot vs Human Resolution by Channel</CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
             <div className="h-[250px] w-full">
@@ -370,14 +370,14 @@ export default function Dashboard() {
                   <XAxis type="number" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <YAxis dataKey="name" type="category" axisLine={{ stroke: '#cbd5e1' }} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} width={80} />
                   <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                  <Bar dataKey="bot" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="human" stackId="a" fill="#ec4899" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="bot" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="human" stackId="a" fill="hsl(var(--secondary))" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex justify-center gap-6 mt-2 text-xs font-semibold text-slate-600">
-              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-indigo-500 rounded-sm"></div> Bot Handled</div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-pink-500 rounded-sm"></div> Human Handled</div>
+            <div className="flex justify-center gap-6 mt-2 text-xs font-semibold text-muted-foreground">
+              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-primary rounded-sm"></div> Bot Handled</div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-secondary rounded-sm"></div> Human Handled</div>
             </div>
           </CardContent>
         </Card>
@@ -541,16 +541,16 @@ export default function Dashboard() {
 
       {/* Recent Campaign Activity Section */}
       <Card className="rounded-xl border-slate-200 shadow-sm overflow-hidden mb-8">
-        <CardHeader className="bg-white pb-4 pt-6 border-b border-slate-100 flex flex-row items-center justify-between">
-          <CardTitle className="text-xl font-semibold text-slate-800 flex items-center gap-2">
-            <Send className="h-5 w-5 text-indigo-600" /> Today's Campaign Activity
+        <CardHeader className="bg-card pb-4 pt-6 border-b border-border/50 flex flex-row items-center justify-between">
+          <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <Send className="h-5 w-5 text-primary" /> Today's Campaign Activity
           </CardTitle>
           <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100">Live Updating</Badge>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-white border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+              <tr className="bg-muted/50 border-b border-border/50 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                 <th className="py-4 px-6">Campaign Name</th>
                 <th className="py-4 px-4 text-center">Channel</th>
                 <th className="py-4 px-4 text-center">Total Recipient</th>
@@ -575,10 +575,10 @@ export default function Dashboard() {
                     : 0;
                   
                   return (
-                    <tr key={idx} className="bg-white hover:bg-slate-50 transition-colors">
+                    <tr key={idx} className="bg-card hover:bg-muted/50 transition-colors">
                       <td className="py-4 px-6">
                         <div className="flex flex-col">
-                          <p className="font-semibold text-slate-900 text-[13px]">{camp.name}</p>
+                          <p className="font-semibold text-foreground text-[13px]">{camp.name}</p>
                           <span className="text-[10px] text-slate-400 font-medium">{format(new Date(camp.created_at), 'HH:mm')} • {camp.template_id}</span>
                         </div>
                       </td>

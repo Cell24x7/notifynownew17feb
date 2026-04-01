@@ -674,13 +674,19 @@ router.post('/verify-otp', async (req, res) => {
 
   if (!identifier || !otp) return res.status(400).json({ success: false, message: 'Identifier and OTP required' });
 
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  const trimmedOtp = otp.toString().trim();
+
   try {
     // Check email or mobile
-    const [rows] = await query('SELECT * FROM users WHERE email = ? OR contact_phone = ?', [identifier, identifier]);
+    const [rows] = await query('SELECT * FROM users WHERE LOWER(email) = ? OR contact_phone = ?', [normalizedIdentifier, normalizedIdentifier]);
     if (!rows.length) return res.status(404).json({ success: false, message: 'User not found' });
     const user = rows[0];
 
-    if (String(user.otp) !== String(otp)) return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    if (String(user.otp).trim() !== trimmedOtp) {
+      console.warn(`[AUTH] Invalid OTP for ${normalizedIdentifier}: DB has '${user.otp}', received '${trimmedOtp}'`);
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
     if (new Date() > new Date(user.otp_expiry)) return res.status(400).json({ success: false, message: 'OTP expired' });
 
     res.json({ success: true, message: 'OTP verified' });
@@ -692,20 +698,28 @@ router.post('/verify-otp', async (req, res) => {
 
 // Signup (Complete Registration)
 router.post('/signup', async (req, res) => {
-  // Now accepts mobile as primary identifier
-  // identifier = email or mobile
   const { identifier, password, otp, name, company } = req.body;
+  const normalizedIdentifier = (identifier || '').trim().toLowerCase();
+  const trimmedOtp = (otp || '').toString().trim();
 
-  console.log('DEBUG: Signup Request:', JSON.stringify(req.body, null, 2));
+  console.log(`[AUTH] Signup - Identifier: ${normalizedIdentifier}, Received OTP: ${trimmedOtp}`);
 
-  if (!identifier || !password || !otp) return res.status(400).json({ success: false, message: 'Missing fields' });
+  if (!normalizedIdentifier || !password || !trimmedOtp) return res.status(400).json({ success: false, message: 'Missing fields' });
 
   try {
-    const [rows] = await query('SELECT * FROM users WHERE email = ? OR contact_phone = ?', [identifier, identifier]);
-    if (!rows.length) return res.status(400).json({ success: false, message: 'User not found (OTP not sent?)' });
+    const [rows] = await query('SELECT * FROM users WHERE LOWER(email) = ? OR contact_phone = ?', [normalizedIdentifier, normalizedIdentifier]);
+    if (!rows.length) {
+       console.warn(`[AUTH] Signup User not found for: ${normalizedIdentifier}`);
+       return res.status(400).json({ success: false, message: 'User not found (OTP not sent?)' });
+    }
     const user = rows[0];
 
-    if (String(user.otp) !== String(otp)) return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    console.log(`[AUTH] Signup - User found: ${user.id}, DB OTP: ${user.otp}, Received: ${trimmedOtp}`);
+
+    if (String(user.otp).trim() !== trimmedOtp) {
+      console.warn(`[AUTH] Invalid OTP for ${normalizedIdentifier}: DB has '${user.otp}', received '${trimmedOtp}'`);
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
 
     // Hash password
     const hash = await bcrypt.hash(password, 10);
@@ -747,8 +761,8 @@ router.post('/signup', async (req, res) => {
     const finalUser = finalUserRows[0];
 
     // Logic: User-specific permissions override Plan permissions (Consistent with Login)
-    let finalPermissions = defaultPermissions; // Default for new user
-    // (Optimization: we just set permissions, so we know they are defaultPermissions)
+    let finalPermissions = DEFAULT_CLIENT_PERMISSIONS; // Default for new user
+    // (Optimization: we just set permissions, so we know they are DEFAULT_CLIENT_PERMISSIONS)
 
     const token = jwt.sign(
       {
