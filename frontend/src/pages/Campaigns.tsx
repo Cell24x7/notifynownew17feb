@@ -500,11 +500,11 @@ export default function Campaigns() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="mb-8">
-                <h1 className="text-3xl font-semibold text-slate-800 tracking-tight flex items-center gap-2">
+                <h1 className="text-3xl font-semibold text-foreground tracking-tight flex items-center gap-2">
                     <Sparkles className="w-7 h-7 text-emerald-500" />
                     Campaigns
                 </h1>
-                <p className="text-slate-500 mt-1">Create and manage your messaging campaigns</p>
+                <p className="text-muted-foreground mt-1">Create and manage your messaging campaigns</p>
             </div>
         <div className="flex items-center gap-2">
 
@@ -533,12 +533,12 @@ export default function Campaigns() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         {stats.map((stat, i) => (
-          <Card key={i} className="card-elevated">
+          <Card key={i} className="rounded-xl border-border bg-card shadow-sm">
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-lg md:text-2xl font-bold">{stat.value}</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground">{stat.value}</p>
                 </div>
                 <stat.icon className={cn("h-6 w-6 md:h-8 md:w-8", stat.color)} />
               </div>
@@ -550,7 +550,7 @@ export default function Campaigns() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6">
         <div className="flex items-center gap-2">
           <Target className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-semibold">Campaign Management</h2>
+          <h2 className="text-xl font-semibold text-foreground">Campaign Management</h2>
         </div>
 
         <div className="flex items-center gap-2">
@@ -560,10 +560,10 @@ export default function Campaigns() {
               placeholder="Search campaigns..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 bg-muted/20 border-border"
             />
           </div>
-          <div className="flex items-center border rounded-lg p-1">
+          <div className="flex items-center border border-border rounded-lg p-1 bg-muted/10">
             <Button
               variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
               size="sm"
@@ -586,11 +586,11 @@ export default function Campaigns() {
         {viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCampaigns.map((campaign) => (
-              <Card key={campaign.id} className="card-elevated animate-slide-up group hover:shadow-lg transition-shadow">
+              <Card key={campaign.id} className="rounded-xl border-border bg-card shadow-sm animate-slide-up group hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <CardTitle className="text-lg">{campaign.name}</CardTitle>
+                      <CardTitle className="text-lg text-foreground">{campaign.name}</CardTitle>
                       <ChannelBadge channel={campaign.channel as any} />
                     </div>
                     <DropdownMenu>
@@ -706,21 +706,21 @@ export default function Campaigns() {
             ))}
           </div>
         ) : (
-          <Card>
+          <Card className="rounded-xl border-border bg-card shadow-sm overflow-hidden">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-center">Sent</TableHead>
-                  <TableHead className="text-center">Delivered</TableHead>
-                  <TableHead className="text-center">Read</TableHead>
-                  <TableHead className="text-center">Failed</TableHead>
-                  <TableHead className="text-center">Delivery Rate</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+              <TableHeader className="bg-muted/50 border-b border-border">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-muted-foreground font-bold">Campaign</TableHead>
+                  <TableHead className="text-muted-foreground font-bold">Channel</TableHead>
+                  <TableHead className="text-muted-foreground font-bold">Status</TableHead>
+                  <TableHead className="text-center text-muted-foreground font-bold">Sent</TableHead>
+                  <TableHead className="text-center text-muted-foreground font-bold">Delivered</TableHead>
+                  <TableHead className="text-center text-muted-foreground font-bold">Read</TableHead>
+                  <TableHead className="text-center text-muted-foreground font-bold">Failed</TableHead>
+                  <TableHead className="text-center text-muted-foreground font-bold">Delivery Rate</TableHead>
+                  <TableHead className="text-right text-muted-foreground font-bold">Cost</TableHead>
+                  <TableHead className="text-muted-foreground font-bold">Created</TableHead>
+                  <TableHead className="text-right text-muted-foreground font-bold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
