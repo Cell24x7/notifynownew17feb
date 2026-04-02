@@ -27,6 +27,7 @@ const replacePlaceholders = (url, data) => {
         '%PWD': process.env.SMS_PASSWORD || '',
         '%HASHID': data.hashId || '',
         '%MSGID': data.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        '%CALLBACK': encodeURIComponent(data.callbackUrl || ''),
         '%DLRUSERID': data.userId || '0',
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
@@ -91,7 +92,14 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         // Clean mobile number (keep it digits-only for most replacements)
         const cleanMobile = mobile.replace(/\D/g, '');
         
-        // 4. Format the primary URL
+        // 4. Generate/Capture Message ID for tracking
+        const msgId = options.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+        // Get system base URL for callback
+        const baseUrl = process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'http://localhost:5000';
+        const callbackUrl = `${baseUrl}/api/webhooks/sms/callback`;
+
+        // 5. Format the primary URL
         const data = {
             mobile: cleanMobile,
             message: message,
@@ -100,6 +108,8 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             peId: options.peId || '',
             hashId: options.hashId || '',
             userId: options.userId || '0',
+            msgId: msgId,
+            callbackUrl: callbackUrl,
             gatewayName: gateway.name
         };
 
@@ -117,14 +127,10 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
 
         // Basic success check
         const responseStr = String(result).toLowerCase();
-        if (responseStr.includes('error') || responseStr.includes('fail') || responseStr.includes('invalid')) {
-            throw new Error(`Gateway Error: ${result}`);
-        }
-
-        return result;
+        return { success: true, response: result, messageId: data.msgId };
     } catch (err) {
         console.error('[SMS] Send Error:', err.message);
-        throw err;
+        return { success: false, error: err.message, messageId: null };
     }
 };
 

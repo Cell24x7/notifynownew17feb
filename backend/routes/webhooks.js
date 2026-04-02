@@ -885,10 +885,15 @@ const handleSmsCallback = async (req, res) => {
         // 1. SAVE TO WEBHOOK_LOGS (For Display on Panel)
         let userId = null;
         try {
-            // Try to find the user_id associated with this message
-            if (messageId) {
+            // Try to find the user_id associated with this message (Check both Manual and API logs)
+            if (messageId && messageId !== 'N/A') {
                 const [rows] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
-                if (rows.length > 0) userId = rows[0].user_id;
+                if (rows.length > 0) {
+                    userId = rows[0].user_id;
+                } else {
+                    const [apiRows] = await query('SELECT user_id FROM api_message_logs WHERE message_id = ? LIMIT 1', [messageId]);
+                    if (apiRows.length > 0) userId = apiRows[0].user_id;
+                }
             }
 
             await query(
@@ -909,50 +914,72 @@ const handleSmsCallback = async (req, res) => {
             console.error('❌ Failed to save SMS webhook log:', logErr.message);
         }
 
-        // 2. UPDATE MESSAGE_LOGS & CAMPAIGN COUNTS
+        // 2. UPDATE LOGS & CAMPAIGN COUNTS (Manual or API)
         if (messageId || mobile) {
             try {
                 let log = null;
+                let isApiTable = false;
+
+                // A. Try message_logs (Manual)
                 if (messageId && messageId !== 'N/A') {
                     const [rows] = await query('SELECT * FROM message_logs WHERE message_id = ? ORDER BY id DESC LIMIT 1', [messageId]);
                     if (rows.length > 0) log = rows[0];
                 }
                 
+                // B. Try api_message_logs if not found (API)
+                if (!log && messageId && messageId !== 'N/A') {
+                    const [rows] = await query('SELECT * FROM api_message_logs WHERE message_id = ? ORDER BY id DESC LIMIT 1', [messageId]);
+                    if (rows.length > 0) { log = rows[0]; isApiTable = true; }
+                }
+
+                // C. Fallback: Search by mobile number (Last 72 hours)
                 if (!log && mobile) {
-                    // Search for recent sent SMS to this mobile if ID didn't match
                     const last10 = String(mobile).slice(-10);
+                    // Match manual log
                     const [rows] = await query(
-                        'SELECT * FROM message_logs WHERE recipient LIKE ? AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) ORDER BY id DESC LIMIT 1',
+                        'SELECT * FROM message_logs WHERE (recipient LIKE ?) AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) ORDER BY id DESC LIMIT 1',
                         [`%${last10}`]
                     );
                     if (rows.length > 0) log = rows[0];
+
+                    // Match api log if manual still not found
+                    if (!log) {
+                        const [apiRows] = await query(
+                            'SELECT * FROM api_message_logs WHERE (recipient LIKE ?) AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) ORDER BY id DESC LIMIT 1',
+                            [`%${last10}`]
+                        );
+                        if (apiRows.length > 0) { log = apiRows[0]; isApiTable = true; }
+                    }
                 }
 
                 if (log) {
+                    const currentTable = isApiTable ? 'api_message_logs' : 'message_logs';
+                    const campaignsTable = isApiTable ? 'api_campaigns' : 'campaigns';
+
                     // Avoid status downgrade (don't go from delivered to sent)
-                    const weights = { 'sent': 1, 'delivered': 2, 'failed': -1 };
-                    const currentWeight = weights[log.status] || 0;
-                    const newWeight = weights[finalStatus] || 0;
+                    const statusWeights = { 'sent': 1, 'delivered': 2, 'failed': -1 };
+                    const currentWeight = statusWeights[log.status] || 0;
+                    const newWeight = statusWeights[finalStatus] || 0;
 
                     if (newWeight !== 0 && (newWeight > currentWeight || finalStatus === 'failed')) {
-                        console.log(`📝 Updating SMS Log ${log.id} (${log.recipient}): ${log.status} -> ${finalStatus}`);
+                        console.log(`📝 Updating SMS Log ${log.id} (${log.recipient}) in ${currentTable}: ${log.status} -> ${finalStatus}`);
                         
                         await query(
-                            'UPDATE message_logs SET status = ?, message_id = COALESCE(?, message_id), updated_at = NOW() WHERE id = ?', 
+                            `UPDATE ${currentTable} SET status = ?, message_id = COALESCE(?, message_id), updated_at = NOW() WHERE id = ?`, 
                             [finalStatus, messageId, log.id]
                         );
                         
                         // Handle Timestamps & Counters
                         if (finalStatus === 'delivered') {
-                            await query('UPDATE message_logs SET delivery_time = NOW() WHERE id = ?', [log.id]);
+                            await query(`UPDATE ${currentTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
                             if (log.campaign_id) {
-                                await query('UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [log.campaign_id]);
+                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
                             }
                         } else if (finalStatus === 'failed') {
                             const reason = payload.reason || payload.err_code || payload.description || payload.err || 'Gateway reported failure';
-                            await query('UPDATE message_logs SET failure_reason = ? WHERE id = ?', [reason, log.id]);
+                            await query(`UPDATE ${currentTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
                             if (log.campaign_id) {
-                                await query('UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?', [log.campaign_id]);
+                                await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
                             }
                         }
 
@@ -974,8 +1001,7 @@ const handleSmsCallback = async (req, res) => {
             }
         }
 
-        // Always acknowledge receipt for the gateway with simple OK or JSON
-        res.status(200).send("OK"); // Some gateways prefer simple text response
+        res.status(200).send("OK");
     } catch (error) {
         console.error('❌ Global SMS Callback Error:', error.message);
         res.status(200).send("ERROR");

@@ -100,6 +100,7 @@ chmod o+x "$FRONTEND_DIR/dist" || true
 log "🗄️  [6/7] Running DB migrations & schema fixes..."
 cd "$BACKEND_DIR"
 NODE_ENV=production node apply_schema_updates.js || true
+NODE_ENV=production node scripts/fix_webhook_logs.js || true
 NODE_ENV=production node scripts/add_api_key.js || true
 NODE_ENV=production node scripts/setup_admin.js || true
 NODE_ENV=production node optimize_db.js || true

@@ -253,8 +253,12 @@ const sendUniversalMessage = async (item) => {
                 peId = meta.peId || meta.pe_id || '';
                 hashId = meta.hashId || meta.hash_id || '';
             } catch(e) {}
-            await sendSMS(item.mobile, customMessage, { userId: item.user_id, templateId, peId, hashId });
-            result = { success: true, messageId: `sms_${Date.now()}_${item.mobile.slice(-4)}` };
+            const smsResult = await sendSMS(item.mobile, customMessage, { userId: item.user_id, templateId, peId, hashId });
+            result = { 
+                success: smsResult.success, 
+                messageId: smsResult.messageId || `sms_${Date.now()}_${item.mobile.slice(-4)}`,
+                error: smsResult.error 
+            };
         }
 
         return result;

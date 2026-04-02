@@ -173,32 +173,36 @@ const handleSendSms = async (req, res) => {
             return res.status(402).json({ success: false, message: creditResult.message });
         }
 
-        // 3. Send SMS
-        const result = await sendSMS(mobile, finalMessage, {
+        const smsResult = await sendSMS(mobile, finalMessage, {
             userId: req.user.id,
             templateId: finalTemplateId,
             sender: senderId,
             peId: finalPeId,
             hashId: finalHashId
         });
+        
+        if (!smsResult.success) {
+            return res.status(502).json({ success: false, message: smsResult.error });
+        }
 
-        // 4. Log to api_message_logs
-        const internalMsgId = `API_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        // 4. Log to api_message_logs using the identical ID sent to gateway
+        const finalMsgId = smsResult.messageId;
+
         await query(
             'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
-            [req.user.id, 'API_V1', 'Direct SMS API', templateId || 'Direct SMS', internalMsgId, mobile, 'sent', 'SMS']
+            [req.user.id, 'API_V1', 'Direct SMS API', templateId || 'Direct SMS', finalMsgId, mobile, 'sent', 'SMS']
         );
 
         res.json({
             success: true,
             message: 'SMS sent successfully',
-            messageId: internalMsgId,
+            messageId: finalMsgId,
             resolved: {
                 templateId: finalTemplateId,
                 peId: finalPeId,
                 templateSource: templateResolved ? 'database' : 'input'
             },
-            providerResponse: typeof result === 'object' ? JSON.stringify(result) : String(result)
+            providerResponse: typeof smsResult.response === 'object' ? JSON.stringify(smsResult.response) : String(smsResult.response)
         });
 
     } catch (err) {
