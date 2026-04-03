@@ -16,7 +16,7 @@ const replacePlaceholders = (url, data) => {
     if (!url) return '';
     
     // Default placeholders
-    const baseReplacements = {
+    const replacements = {
         '%TO': data.mobile || '',
         '%MSGTEXT': encodeURIComponent(data.message || ''),
         '%FROM': data.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
@@ -31,20 +31,22 @@ const replacePlaceholders = (url, data) => {
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
 
-    // Support both %VAR and %VAR% formats to avoid hanging percents
-    const replacements = {};
-    for (const key in baseReplacements) {
-        replacements[key] = baseReplacements[key];
-        replacements[key + '%'] = baseReplacements[key];
-    }
-
     // Single-Pass Replacement Strategy:
-    // This prevents any recursive or double-replacement issues (like %%3F)
+    // This prevents any recursive or double-replacement issues
     const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
-    const regex = new RegExp(sortedKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+    
+    // SMART REGEX: Supports both %VAR and %VAR%
+    // The (%?!\\d\\d) part ensures we don't 'steal' the % from a URL-encoded character like %26
+    const regex = new RegExp(sortedKeys.map(key => {
+        const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // If the key doesn't end in %, we allow an optional % but ONLY if not followed by hex digits
+        return escaped + '(?=%(?![0-9a-fA-F]{2}))?';
+    }).join('|'), 'g');
     
     return url.replace(regex, (match) => {
-        return replacements[match] !== undefined ? replacements[match] : match;
+        // Strip trailing % for lookup if it was matched by the optional group
+        const cleanMatch = (match.endsWith('%') && !replacements[match]) ? match.slice(0, -1) : match;
+        return replacements[cleanMatch] !== undefined ? replacements[cleanMatch] : match;
     });
 };
 
