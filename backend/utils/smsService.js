@@ -16,20 +16,27 @@ const replacePlaceholders = (url, data) => {
     if (!url) return '';
     
     // Default placeholders
-    const replacements = {
+    const baseReplacements = {
         '%TO': data.mobile || '',
         '%MSGTEXT': encodeURIComponent(data.message || ''),
         '%FROM': data.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
-        '%TEMPID': data.templateId || '',
-        '%PEID': data.peId || '',
+        '%TEMPID': (data.templateId || '').toString(),
+        '%PEID': (data.peId || '').toString(),
         '%USER': process.env.SMS_USER || '',
         '%PWD': process.env.SMS_PASSWORD || '',
-        '%HASHID': data.hashId || '',
+        '%HASHID': (data.hashId || '').toString(),
         '%MSGID': data.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         '%CALLBACK': encodeURIComponent(data.callbackUrl || ''),
         '%DLRUSERID': data.userId || '0',
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
+
+    // Support both %VAR and %VAR% formats to avoid hanging percents
+    const replacements = {};
+    for (const key in baseReplacements) {
+        replacements[key] = baseReplacements[key];
+        replacements[key + '%'] = baseReplacements[key];
+    }
 
     // Single-Pass Replacement Strategy:
     // This prevents any recursive or double-replacement issues (like %%3F)
