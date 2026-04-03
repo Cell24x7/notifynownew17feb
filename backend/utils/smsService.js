@@ -27,7 +27,7 @@ const replacePlaceholders = (url, data) => {
         '%PWD': process.env.SMS_PASSWORD || '',
         '%HASHID': data.hashId || '',
         '%MSGID': data.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-        '%CALLBACK': data.callbackUrl || '',
+        '%CALLBACK': encodeURIComponent(data.callbackUrl || ''),
         '%DLRUSERID': data.userId || '0',
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
@@ -36,13 +36,10 @@ const replacePlaceholders = (url, data) => {
     const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
 
     sortedKeys.forEach(key => {
-        // Safe replacement using Regex: 
-        // We match the key (e.g., %TEMPID) but use a negative lookahead 
-        // to make sure we don't match if it's actually part of an encoded hex character (unlikely for our keys)
-        // More importantly, we NO LONGER try to match a trailing '%' which was stealing the start of %26
+        // Precise Regex replacement to avoid conflicting with encoded characters
         const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(escapedKey, 'g');
-        formatted = formatted.replace(regex, replacements[key]);
+        formatted = formatted.replace(regex, (match) => replacements[key]);
     });
 
     return formatted;
