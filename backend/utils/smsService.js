@@ -36,15 +36,15 @@ const replacePlaceholders = (url, data) => {
     const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
     
     // SMART REGEX: Supports both %VAR and %VAR%
-    // The (%?!\\d\\d) part ensures we don't 'steal' the % from a URL-encoded character like %26
+    // We match the key followed by an optional trailing % 
+    // IF AND ONLY IF that trailing % is not followed by two hex digits (URL encoding)
     const regex = new RegExp(sortedKeys.map(key => {
         const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // If the key doesn't end in %, we allow an optional % but ONLY if not followed by hex digits
-        return escaped + '(?=%(?![0-9a-fA-F]{2}))?';
+        return escaped + '(%?![0-9a-fA-F]{2})?';
     }).join('|'), 'g');
     
     return url.replace(regex, (match) => {
-        // Strip trailing % for lookup if it was matched by the optional group
+        // Strip trailing % for lookup if it was matched
         const cleanMatch = (match.endsWith('%') && !replacements[match]) ? match.slice(0, -1) : match;
         return replacements[cleanMatch] !== undefined ? replacements[cleanMatch] : match;
     });
