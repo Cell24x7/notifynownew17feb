@@ -14,7 +14,6 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
  */
 const replacePlaceholders = (url, data) => {
     if (!url) return '';
-    let formatted = url;
     
     // Default placeholders
     const replacements = {
@@ -32,17 +31,14 @@ const replacePlaceholders = (url, data) => {
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
 
-    // Sort keys by length descending to ensure longest placeholders are replaced first
+    // Single-Pass Replacement Strategy:
+    // This prevents any recursive or double-replacement issues (like %%3F)
     const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
-
-    sortedKeys.forEach(key => {
-        // Precise Regex replacement to avoid conflicting with encoded characters
-        const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedKey, 'g');
-        formatted = formatted.replace(regex, (match) => replacements[key]);
+    const regex = new RegExp(sortedKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+    
+    return url.replace(regex, (match) => {
+        return replacements[match] !== undefined ? replacements[match] : match;
     });
-
-    return formatted;
 };
 
 const sendSMS = async (mobile, message, templateOrOptions = {}) => {
