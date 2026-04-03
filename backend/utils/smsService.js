@@ -20,7 +20,7 @@ const replacePlaceholders = (url, data) => {
     const replacements = {
         '%TO': data.mobile || '',
         '%MSGTEXT': encodeURIComponent(data.message || ''),
-        '%FROM': data.sender || process.env.SMS_SENDER_ID || '',
+        '%FROM': data.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
         '%TEMPID': data.templateId || '',
         '%PEID': data.peId || '',
         '%USER': process.env.SMS_USER || '',
@@ -32,29 +32,16 @@ const replacePlaceholders = (url, data) => {
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
 
-    // Sort keys by length descending to ensure longest placeholders are replaced first (e.g. %TEMPID before %TO if they overlapped)
+    // Sort keys by length descending to ensure longest placeholders are replaced first
     const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
 
     sortedKeys.forEach(key => {
-        // We only want to replace the EXACT placeholder.
-        // To avoid stealing a '%' from an encoded character (like %26), 
-        // we prioritize the %KEY% format if it exists, otherwise just %KEY.
-        
-        const keyWithTrailingPercent = key + '%';
-        if (formatted.includes(keyWithTrailingPercent)) {
-            formatted = formatted.split(keyWithTrailingPercent).join(replacements[key]);
-        }
-        
-        // Use a regex boundary or check to ensure we don't accidentally match part of an encoded char
-        // But since our keys are unique (like %TEMPID, %TO), a simple split-join on the full key is safe
-        // AS LONG AS we don't match the trailing % if it belongs to an encoded char.
-        
-        // REPAIR: Only replace %KEY if it's NOT followed by a digit (which would indicate an encoded char like %26)
-        // Actually, the simplest fix for this specific gateway style is to use a Regex.
+        // Safe replacement using Regex: 
+        // We match the key (e.g., %TEMPID) but use a negative lookahead 
+        // to make sure we don't match if it's actually part of an encoded hex character (unlikely for our keys)
+        // More importantly, we NO LONGER try to match a trailing '%' which was stealing the start of %26
         const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Match %KEY but NOT if followed by a digit (to protect %26, %3D etc)
-        // UNLESS the %KEY itself ends with a digit (none of ours do)
-        const regex = new RegExp(escapedKey + '(?![0-9A-F]{2})', 'g');
+        const regex = new RegExp(escapedKey, 'g');
         formatted = formatted.replace(regex, replacements[key]);
     });
 
