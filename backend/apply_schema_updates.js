@@ -188,16 +188,18 @@ async function updateSchema() {
             `);
             
             const [dltCols] = await connection.execute('DESCRIBE dlt_templates');
-            if (!dltCols.some(col => col.Field === 'pe_id')) {
+            const dltFieldNames = dltCols.map(c => c.Field);
+            
+            if (!dltFieldNames.includes('pe_id')) {
                 await connection.execute('ALTER TABLE dlt_templates ADD COLUMN pe_id VARCHAR(50) DEFAULT NULL');
                 console.log('Added pe_id to dlt_templates');
             }
-            if (!dltCols.some(col => col.Field === 'hash_id')) {
+            if (!dltFieldNames.includes('hash_id')) {
                 await connection.execute('ALTER TABLE dlt_templates ADD COLUMN hash_id VARCHAR(255) DEFAULT NULL');
                 console.log('Added hash_id to dlt_templates');
             }
-            if (!dltCols.some(col => col.Field === 'body')) {
-                await connection.execute('ALTER TABLE dlt_templates ADD COLUMN body TEXT AFTER temp_name');
+            if (!dltFieldNames.includes('body')) {
+                await connection.execute('ALTER TABLE dlt_templates ADD COLUMN body TEXT DEFAULT NULL');
                 console.log('Added body to dlt_templates');
             }
             console.log('dlt_templates table ready.');

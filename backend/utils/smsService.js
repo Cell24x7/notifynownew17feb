@@ -27,7 +27,7 @@ const replacePlaceholders = (url, data) => {
         '%PWD': process.env.SMS_PASSWORD || '',
         '%HASHID': data.hashId || '',
         '%MSGID': data.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-        '%CALLBACK': encodeURIComponent(data.callbackUrl || ''),
+        '%CALLBACK': data.callbackUrl || '',
         '%DLRUSERID': data.userId || '0',
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
