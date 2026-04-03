@@ -5,12 +5,13 @@ const { sendSMS } = require('../utils/smsService');
 const { deductSingleMessageCredit } = require('../services/walletService');
 
 /**
- * Enhanced Authentication Middleware for API Key
+ * Enhanced Authentication Middleware: Support Headers, Query, and Body
  */
 const authenticateApiKey = async (req, res, next) => {
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+    const apiKey = req.headers['x-api-key'] || req.query.apiKey || req.body.apiKey;
 
     if (!apiKey) {
+        console.warn(`[API-AUTH] Rejected: No API Key provided at ${req.method} ${req.url}`);
         return res.status(401).json({ success: false, message: 'API Key is required.' });
     }
 
@@ -18,22 +19,21 @@ const authenticateApiKey = async (req, res, next) => {
         const [users] = await query('SELECT id, name, company, role, status FROM users WHERE api_key = ?', [apiKey]);
         
         if (users.length === 0) {
+            console.warn(`[API-AUTH] Invalid Key: ${apiKey.substring(0, 8)}...`);
             return res.status(403).json({ success: false, message: 'Invalid API Key' });
         }
 
-        if (users[0].status !== 'active') {
-            return res.status(403).json({ success: false, message: 'User account is not active' });
+        if (users[0].status !== 'active' && users[0].status !== 'pending') {
+            console.warn(`[API-AUTH] Inactive User: ${users[0].name} (Status: ${users[0].status})`);
+            return res.status(403).json({ success: false, message: `Account is ${users[0].status}` });
         }
 
+        console.log(`[API-AUTH] Success: ${users[0].name} authenticated via key.`);
         req.user = users[0];
         next();
     } catch (err) {
-        if (err.code === 'ER_BAD_FIELD_ERROR' && err.sqlMessage.includes('api_key')) {
-            console.error('⚠️ [API-AUTH] missing "api_key" column in users table. Please run migration.');
-            return res.status(500).json({ success: false, message: 'System configuration error: API Key support not initialized.' });
-        }
-        console.error('API Key Auth Error:', err);
-        res.status(500).json({ success: false, message: 'Authentication error' });
+        console.error('API Key Auth CRITICAL Error:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error during Authentication' });
     }
 };
 
