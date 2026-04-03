@@ -107,7 +107,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         const data = {
             mobile: cleanMobile,
             message: message,
-            sender: options.sender || process.env.SMS_SENDER_ID,
+            sender: options.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
             templateId: options.templateId || '',
             peId: options.peId || '',
             hashId: options.hashId || '',
@@ -121,16 +121,30 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         
         // Log the outgoing URL (masking sensitive keys)
         const loggedUrl = finalUrl.replace(/(user|pass|password|pwd|key|apikey|sid|auth|token)=([^&]+)/gi, '$1=*******');
+        
+        if (!data.templateId && process.env.NODE_ENV === 'production') {
+            console.warn(`[SMS-WARN] Sending to ${mobile} without Template ID via ${gateway.name}. This may fail in India.`);
+        }
+
         console.log(`[SMS-LOG] Sending to ${mobile} via ${gateway.name}`);
         console.log(`[SMS-LOG] URL: ${loggedUrl}`);
 
         const response = await axios.get(finalUrl, { timeout: 10000 });
         const result = response.data;
         
-        console.log(`[SMS-LOG] Provider Response: ${typeof result === 'object' ? JSON.stringify(result) : String(result)}`);
+        console.log(`[SMS-LOG] Provider Response: ${typeof result === 'object' ? JSON.stringify(result) : String(result).substring(0, 100)}`);
 
-        // Basic success check
+        // Basic success check (Most Indian gateways return 'success', 'ok', or a Numeric ID)
         const responseStr = String(result).toLowerCase();
+        const isSuccess = responseStr.includes('ok') || 
+                          responseStr.includes('success') || 
+                          /^\d+$/.test(responseStr) || 
+                          (typeof result === 'object' && (result.status === 'success' || result.success));
+
+        if (!isSuccess && responseStr.includes('error')) {
+            return { success: false, error: result, messageId: data.msgId };
+        }
+
         return { success: true, response: result, messageId: data.msgId };
     } catch (err) {
         console.error('[SMS] Send Error:', err.message);

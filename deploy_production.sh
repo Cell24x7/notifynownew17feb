@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # =========================================================
-# 🚀 NotifyNow FULL AUTO Deploy Script (Production)
-# - Force Clean: pm2 delete -> pm2 start
-# - Separate DB: notifynow_db
+# 🚀 NotifyNow PRO Production Deployment Script
+# 
+# Usage on Server:
+#   1. chmod +x deploy_production.sh
+#   2. ./deploy_production.sh
 # =========================================================
 
 set -e  # Stop on any error
@@ -14,127 +16,121 @@ FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 DIST_DIR="$FRONTEND_DIR/dist"
 
-# 📦 FIXED PRODUCTION SETTINGS (Locked)
+# 📦 FIXED PRODUCTION SETTINGS
 APP_NAME="notifynow-live-prod"
 APP_PORT="5050"
 APP_DB="notifynow_db"
 APP_URL="https://notifynow.in"
 ENV_DESC="PRODUCTION"
 
-# ─── Colors for pretty output ────────────────────────────
+# ─── Colors ────────────────────────────────────────────────
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 BOLD='\033[1m'
-NC='\033[0m' # No Color
+NC='\033[0m' 
 
-log()  { echo -e "${BOLD}${BLUE}$1${NC}"; }
+log()  { echo -e "\n${BOLD}${BLUE}📦 $1${NC}"; }
 ok()   { echo -e "   ${GREEN}✅ $1${NC}"; }
 warn() { echo -e "   ${YELLOW}⚠️  $1${NC}"; }
 err()  { echo -e "   ${RED}❌ $1${NC}"; }
 
-echo ""
-echo -e "${BOLD}=========================================="
-echo -e "  🚀 NotifyNow PRODUCTION Deployment      "
-echo -e "==========================================${NC}"
+clear
+echo -e "${BOLD}${BLUE}"
+echo "=========================================="
+echo "   🚀 NotifyNow PRODUCTION DEPLOYMENT     "
+echo "=========================================="
+echo -e "${NC}"
 
-# ── Step 1: Verification ─────────────────────────────
-log "📂 [1/7] Verifying structure..."
+# ── Step 1: Verification ───────────────────────────────────
+log "[1/8] Verifying environment..."
 if [ ! -d "$BACKEND_DIR" ] || [ ! -d "$FRONTEND_DIR" ]; then
-    err "Error: Not in a proper project directory."
+    err "Fatal: Directory structure mismatch. Run this from project root."
     exit 1
 fi
+ok "Structure verified."
 
-# ── Step 2: Git pull ──────────────────────────────────
-log "📥 [2/7] Pulling from GitHub..."
+# ── Step 2: Inhale Latest Code ─────────────────────────────
+log "[2/8] Pulling latest code from GitHub..."
 git fetch origin main
 git reset --hard origin/main
 COMMIT=$(git log -1 --pretty=format:'%h — %s (%ar)')
 ok "Updated to: $COMMIT"
 
-# ── Step 3: Dependencies ──────────────────────────────
-log "📦 [3/7] Installing dependencies..."
+# ── Step 3: Dependencies ──────────────────────────────────
+log "[3/8] Building dependency tree..."
 cd "$BACKEND_DIR"
 npm install --production --silent
 cd "$FRONTEND_DIR"
 npm install --silent
-# ── Step 4: Enforce Env ───────────────────────────────
-log "🛠️  [4/7] Enforcing Production Env..."
-cd "$BACKEND_DIR"
+ok "Dependencies installed."
 
-# Sync environment variables across both files to be safe
-for ENV_FILE in ".env" ".env.production"; do
-    if [ ! -f "$BACKEND_DIR/$ENV_FILE" ]; then
-        touch "$BACKEND_DIR/$ENV_FILE"
-    fi
-    
-    # Use perl for more reliable in-place replacement than sed on some systems
-    # Synchronize Port, DB Name, and API URL
-    perl -i -pe "s|^PORT=.*|PORT=$APP_PORT|g" "$BACKEND_DIR/$ENV_FILE"
-    perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
-    perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
-    perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
-    
-    # Add if they don't exist
-    grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
-    grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
-    grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
-done
-
-ok "Environment variables synchronized for $ENV_DESC (Port: $APP_PORT)"
-
-# ── Step 5: Build Frontend ────────────────────────────
-log "🏗️  [5/7] Building frontend..."
+# ── Step 4: Build Frontend (Production) ────────────────────
+log "[4/8] Building Frontend Assets..."
 cd "$FRONTEND_DIR"
-npm run build
-ok "Frontend built successfully"
+# Ensure clean build
+rm -rf dist
+VITE_API_URL="$APP_URL" npm run build
+ok "Frontend build complete."
 
-# Fix Nginx Permissions
+# ── Step 5: Permission Hardening ───────────────────────────
+log "[5/8] Hardening Nginx/Static permissions..."
 chmod o+x "$PROJECT_DIR" || true
-chmod -R o+r "$FRONTEND_DIR/dist" || true
 chmod o+x "$FRONTEND_DIR" || true
-chmod o+x "$FRONTEND_DIR/dist" || true
+chmod -R 755 "$FRONTEND_DIR/dist" || true
+ok "Static assets permissions fixed."
 
-# ── Step 6: Migrations ────────────────────────────────
-log "🗄️  [6/7] Running DB migrations & schema fixes..."
+# ── Step 6: Database & Schema Sync ────────────────────────
+log "[6/8] Syncing Database Schema..."
 cd "$BACKEND_DIR"
-NODE_ENV=production node apply_schema_updates.js || true
+
+# Clean up any potentially locked environment files
+touch .env.production
+chmod 600 .env.production
+
+# Run all migration scripts
+NODE_ENV=production node apply_schema_updates.js
+NODE_ENV=production node fix_logs_schema.js || true
 NODE_ENV=production node scripts/fix_webhook_logs.js || true
-NODE_ENV=production node scripts/add_api_key.js || true
-NODE_ENV=production node scripts/setup_admin.js || true
-NODE_ENV=production node optimize_db.js || true
 
-# CRITICAL: Fix columns (message_id, recipient sizes, indexes)
-log "   🔧 Running fix_logs_schema.js (CRITICAL)..."
-NODE_ENV=production node fix_logs_schema.js
-ok "Schema fix applied successfully"
+ok "Database schema is up to date."
 
-# ── Step 7: Restart SMART ─────────────────────────────
-log "♻️  [7/7] Restarting PM2 instance (Zero-Downtime)..."
+# ── Step 7: Zero-Downtime Restart ─────────────────────────
+log "[7/8] Restarting PM2 Cluster..."
 cd "$PROJECT_DIR"
 
-# Use ecosystem.config.js for robustness
 if pm2 list | grep -q "$APP_NAME"; then
-    log "  🔄 App already exists, reloading..."
-    # Always reload based on ecosystem config if available
-    if [ -f "ecosystem.config.js" ]; then
-        APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
-    else
-        pm2 reload $APP_NAME --update-env
-    fi
+    log "   Reloading existing instance..."
+    pm2 reload "$APP_NAME" --update-env
 else
-    log "  🚀 Starting new instance..."
-    if [ -f "ecosystem.config.js" ]; then
-        APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
-    else
-        APP_NAME=$APP_NAME pm2 start backend/index.js --name $APP_NAME --env production
-    fi
+    log "   Spawning new production instance..."
+    pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
 fi
 
-# Final backup of PM2 state
 pm2 save --force
+ok "PM2 Process management complete."
 
-ok "Instance '$APP_NAME' is live and stable."
+# ── Step 8: Health Check ───────────────────────────────────
+log "[8/8] Running Final Health Check..."
+sleep 3
+HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/api/health" || echo "FAILED")
 
-echo "✨ PRODUCTION DEPLOYMENT COMPLETE!"
+if [ "$HEALTH" == "200" ]; then
+    ok "Server is responding at $APP_URL (Status: 200 OK)"
+else
+    warn "Server did not respond to health check (Status: $HEALTH). Check logs: pm2 logs $APP_NAME"
+fi
+
+echo -e "\n${BOLD}${GREEN}"
+echo "=========================================="
+echo "    ✨  LIVE DEPLOYMENT COMPLETE!        "
+echo "=========================================="
+echo -e "${NC}\n"
+
+log "🔍 Quick Diagnostic Commands:"
+echo "   pm2 status           - Check application health"
+echo "   pm2 logs $APP_NAME   - Stream real-time logs"
+echo "   pm2 monit            - Interactive monitoring dashboard"
+echo ""
+

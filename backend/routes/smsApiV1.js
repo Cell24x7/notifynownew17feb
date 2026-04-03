@@ -8,11 +8,12 @@ const { deductSingleMessageCredit } = require('../services/walletService');
  * Enhanced Authentication Middleware: Support Headers, Query, and Body
  */
 const authenticateApiKey = async (req, res, next) => {
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey || req.body.apiKey;
+    // Support multiple casing for apiKey
+    const apiKey = req.headers['x-api-key'] || req.query.apiKey || req.body.apiKey || req.query.apikey || req.body.apikey;
 
     if (!apiKey) {
         console.warn(`[API-AUTH] Rejected: No API Key provided at ${req.method} ${req.url}`);
-        return res.status(401).json({ success: false, message: 'API Key is required.' });
+        return res.status(401).json({ success: false, message: 'API Key is required. Please provide it as apiKey query parameter or x-api-key header.' });
     }
 
     try {
@@ -38,25 +39,39 @@ const authenticateApiKey = async (req, res, next) => {
 };
 
 /**
- * Optimized endpoint to handle template resolution and automatic metadata fetching
+ * Handle Single SMS Send (Optimized for DLT Auto-Detection)
  */
 const handleSendSms = async (req, res) => {
-    const { mobile, message, templateId, senderId, peId, hashId } = { ...req.query, ...req.body };
+    // Support both camelCase and snake_case for common DLT parameters
+    const params = { ...req.query, ...req.body };
+    const mobile = params.mobile || params.to || params.phone;
+    const message = params.message || params.msg || params.text;
+    
+    // DLT Specific IDs
+    let templateId = params.templateId || params.template_id || params.dlt_template_id || params.temp_id;
+    let senderId = params.senderId || params.sender_id || params.sender || params.from;
+    let peId = params.peId || params.pe_id;
+    let hashId = params.hashId || params.hash_id;
 
     if (!mobile) {
-        return res.status(400).json({ success: false, message: 'Mobile number is required' });
+        return res.status(400).json({ success: false, message: 'Mobile number is required (mobile or to)' });
+    }
+
+    if (!message && !templateId) {
+        return res.status(400).json({ success: false, message: 'Message content or a valid templateId is required' });
     }
 
     try {
         let finalMessage = message;
         let finalTemplateId = templateId || '';
+        let finalSenderId = senderId || '';
         let finalPeId = peId || '';
         let finalHashId = hashId || '';
         let templateResolved = false;
 
-        // 1. Resolve Template Metadata from Database if templateId/name is provided
+        // 1. Resolve Template Metadata from Database if templateId is provided
         if (templateId) {
-            // Check message_templates first
+            // Check user's message_templates first
             const [msgTmpl] = await query(
                 'SELECT name, body, metadata FROM message_templates WHERE (id = ? OR name = ?) AND user_id = ? LIMIT 1',
                 [templateId, templateId, req.user.id]
@@ -72,155 +87,144 @@ const handleSendSms = async (req, res) => {
                     finalPeId = meta.peId || meta.pe_id || finalPeId;
                     finalHashId = meta.hashId || meta.hash_id || finalHashId;
                     templateResolved = true;
-                    console.log(`[SMS-API] Resolved metadata from message_templates for "${templateId}"`);
                 } catch (e) {
-                    console.warn('[SMS-API] Failed to parse template metadata');
+                    console.warn('[SMS-API] Meta parse failed for templateId:', templateId);
                 }
             } else {
-                // Check dlt_templates if not found in message_templates
+                // Check global dlt_templates if not found in personal templates
                 const [dltTmpl] = await query(
-                    'SELECT temp_id, pe_id, hash_id FROM dlt_templates WHERE (temp_id = ? OR temp_name = ?) LIMIT 1',
+                    'SELECT temp_id, pe_id, hash_id, temp_name FROM dlt_templates WHERE (temp_id = ? OR temp_name = ?) LIMIT 1',
                     [templateId, templateId]
                 );
                 
                 if (dltTmpl.length > 0) {
-                    const dlt = dltTmpl[0];
-                    finalTemplateId = dlt.temp_id;
-                    finalPeId = dlt.pe_id || finalPeId;
-                    finalHashId = dlt.hash_id || finalHashId;
+                    finalTemplateId = dltTmpl[0].temp_id;
+                    finalPeId = dltTmpl[0].pe_id || finalPeId;
+                    finalHashId = dltTmpl[0].hash_id || finalHashId;
                     templateResolved = true;
-                    console.log(`[SMS-API] Resolved metadata from dlt_templates for "${templateId}"`);
                 }
             }
         } 
-        // 1b. AUTO-DETECTION: If no templateId provided, try matching message body against user templates
-        else if (finalMessage && !templateId) {
-            console.log(`[SMS-API] DEBUG: Attempting auto-detection for user ${req.user.id}. Message: "${finalMessage.substring(0, 30)}..."`);
-            const [userTemplates] = await query(
-                'SELECT id, name, body, metadata FROM message_templates WHERE user_id = ?',
-                [req.user.id]
-            );
+        
+        // 1b. AUTO-DETECTION: If no templateId provided, try matching message body against DLT records
+        if (!templateResolved && finalMessage) {
+            console.log(`[SMS-API] Auto-detecting template for: "${finalMessage.substring(0, 30)}..."`);
             
-            console.log(`[SMS-API] DEBUG: Found ${userTemplates.length} templates for user ${req.user.id}`);
+            // Fetch both user templates and global DLT templates for matching
+            const [userTmpls] = await query('SELECT name, body, metadata FROM message_templates WHERE user_id = ?', [req.user.id]);
+            const [dltTmpls] = await query('SELECT temp_id, pe_id, hash_id, body FROM dlt_templates');
+            
+            const allTmpls = [
+                ...userTmpls.map(t => ({ ...t, source: 'user' })),
+                ...dltTmpls.map(t => ({ ...t, name: t.temp_id, source: 'dlt' }))
+            ];
 
-            for (const tmpl of userTemplates) {
+            for (const tmpl of allTmpls) {
                 if (!tmpl.body) continue;
                 
-                // --- SMART ROBUST MATCHING ---
-                let regexStr = tmpl.body.trim();
-                // Mask all variable types
-                regexStr = regexStr.replace(/\{#[^#]+#\}|\{\{[^}]+\}\}|\{[^}]+\}|%[^%]+%|\[[^\]]+\]/g, '___WILDCARD___');
-                // Escape regex
-                regexStr = regexStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                // Punctuation and whitespace agnostic
-                regexStr = regexStr.replace(/[^A-Za-z0-9_\\s]/g, '[\\s\\W]*');
-                // Wildcards
-                regexStr = regexStr.replace(/___WILDCARD___/g, '.*');
+                let regexBody = tmpl.body.trim();
+                // Replace variables with wildcards: {#...#}, {{...}}, {...}, %...%
+                regexBody = regexBody.replace(/\{#[^#]+#\}|\{\{[^}]+\}\}|\{[^}]+\}|%[^%]+%|\[[^\]]+\]/g, '___WILDCARD___');
+                // Escape special regex chars
+                regexBody = regexBody.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                // Make punctuation/whitespace flexible
+                regexBody = regexBody.replace(/[^A-Za-z0-9_\\s]/g, '[\\s\\W]*');
+                // Restore wildcards
+                regexBody = regexBody.replace(/___WILDCARD___/g, '.*');
                 
-                const matcher = new RegExp(`^${regexStr}$`, 's');
+                const matcher = new RegExp(`^${regexBody}$`, 's');
                 
                 if (matcher.test(finalMessage.trim())) {
-                    console.log(`[SMS-API] ✅ MATCH FOUND: "${tmpl.name}"`);
-                    try {
-                        let meta = {};
+                    console.log(`[SMS-API] Match found in ${tmpl.source} templates: ${tmpl.name || tmpl.temp_id}`);
+                    
+                    if (tmpl.source === 'user') {
                         try {
-                            meta = typeof tmpl.metadata === 'string' ? JSON.parse(tmpl.metadata) : (tmpl.metadata || {});
-                        } catch (e) { meta = {}; }
+                            const meta = typeof tmpl.metadata === 'string' ? JSON.parse(tmpl.metadata) : (tmpl.metadata || {});
+                            finalTemplateId = meta.templateId || meta.dlt_template_id;
+                            finalPeId = meta.peId || meta.pe_id;
+                            finalHashId = meta.hashId || meta.hash_id;
+                        } catch (e) {}
+                    } else {
+                        finalTemplateId = tmpl.temp_id;
+                        finalPeId = tmpl.pe_id;
+                        finalHashId = tmpl.hash_id;
+                    }
 
-                        finalTemplateId = meta.templateId || meta.dlt_template_id;
-                        finalPeId = meta.peId || meta.pe_id;
-                        finalHashId = meta.hashId || meta.hash_id;
-
-                        // --- DEEP DLT LOOKUP FALLBACK ---
-                        if (!finalTemplateId || !finalPeId) {
-                            console.log(`[SMS-API] ⚠️ IDs missing in metadata for "${tmpl.name}", checking dlt_templates table...`);
-                            const [dltRows] = await query(
-                                'SELECT temp_id, pe_id, hash_id FROM dlt_templates WHERE temp_name = ? OR temp_id = ? LIMIT 1',
-                                [tmpl.name, finalTemplateId || tmpl.id]
-                            );
-                            
-                            if (dltRows.length > 0) {
-                                finalTemplateId = dltRows[0].temp_id || finalTemplateId;
-                                finalPeId = dltRows[0].pe_id || finalPeId;
-                                finalHashId = dltRows[0].hash_id || finalHashId;
-                                console.log(`[SMS-API] 🎯 Found DLT IDs from dlt_templates: ${finalTemplateId}`);
-                            }
-                        }
-
-                        if (finalTemplateId) {
-                            templateResolved = true;
-                            console.log(`[SMS-API] 🚀 Resolved Final IDs: Template=${finalTemplateId}, PE=${finalPeId}`);
-                            break;
-                        }
-                    } catch (e) {
-                        console.error('[SMS-API] Error during resolution:', e.message);
+                    if (finalTemplateId) {
+                        templateResolved = true;
+                        break;
                     }
                 }
             }
-            
-            if (!templateResolved) {
-                console.log(`[SMS-API] ❌ No template matched for user ${req.user.id}`);
-            }
         }
 
-        if (!finalMessage) {
-            return res.status(400).json({ success: false, message: 'Message content is required or valid templateId not found' });
+        // 2. Final Guard: In India, TemplateId and PEID are mandatory for DLT gateways
+        if (!finalTemplateId || !finalPeId) {
+            console.warn(`[SMS-API] Send attempted without DLT metadata. Resolving might have failed.`);
+            // We still proceed, but the gateway might reject it.
         }
 
-        // 2. Credit Check & Deduction
-        const creditResult = await deductSingleMessageCredit(req.user.id, 'sms', templateId || 'Direct API');
+        // 3. Credit Check & Deduction
+        const creditResult = await deductSingleMessageCredit(req.user.id, 'sms', finalTemplateId || 'Direct API');
         if (!creditResult.success) {
             return res.status(402).json({ success: false, message: creditResult.message });
         }
 
+        // 4. Dispatch SMS
         const smsResult = await sendSMS(mobile, finalMessage, {
             userId: req.user.id,
             templateId: finalTemplateId,
-            sender: senderId,
+            sender: finalSenderId,
             peId: finalPeId,
             hashId: finalHashId
         });
         
         if (!smsResult.success) {
-            return res.status(502).json({ success: false, message: smsResult.error });
+            return res.status(502).json({ 
+                success: false, 
+                message: 'Gateway Rejection: ' + smsResult.error,
+                details: 'Ensure your message matches the DLT template exactly and provides valid Template ID.'
+            });
         }
 
-        // 4. Log to api_message_logs using the identical ID sent to gateway
+        // 5. Log to API usage
         const finalMsgId = smsResult.messageId;
-
         await query(
             'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
-            [req.user.id, 'API_V1', 'Direct SMS API', templateId || 'Direct SMS', finalMsgId, mobile, 'sent', 'SMS']
+            [req.user.id, 'API_V1', 'Direct SMS API', finalTemplateId || 'Direct SMS', finalMsgId, mobile, 'sent', 'SMS']
         );
 
         res.json({
             success: true,
             message: 'SMS sent successfully',
             messageId: finalMsgId,
-            resolved: {
-                templateId: finalTemplateId,
-                peId: finalPeId,
-                templateSource: templateResolved ? 'database' : 'input'
+            metadata: {
+                resolvedTemplateId: finalTemplateId,
+                resolvedPeId: finalPeId,
+                autoDetected: templateResolved
             },
-            providerResponse: typeof smsResult.response === 'object' ? JSON.stringify(smsResult.response) : String(smsResult.response)
+            providerResponse: smsResult.response
         });
 
     } catch (err) {
-        console.error('SMS API v1 error:', err.message);
-        res.status(500).json({ success: false, message: err.message });
+        console.error('SMS API v1 error:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error: ' + err.message });
     }
 };
 
+router.get('/send', authenticateApiKey, handleSendSms);
+router.post('/send', authenticateApiKey, handleSendSms);
+
+// Diagnostic Tools for Developers
 router.get('/debug-templates', authenticateApiKey, async (req, res) => {
     try {
         const [templates] = await query('SELECT id, name, body, metadata FROM message_templates WHERE user_id = ?', [req.user.id]);
-        res.json({ success: true, user: req.user.id, templates });
+        const [dltTemplates] = await query('SELECT temp_id, pe_id, hash_id, temp_name, body FROM dlt_templates LIMIT 50');
+        res.json({ success: true, user_id: req.user.id, user_templates: templates, global_dlt_templates_sample: dltTemplates });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-router.get('/send', authenticateApiKey, handleSendSms);
-router.post('/send', authenticateApiKey, handleSendSms);
-
 module.exports = router;
+

@@ -169,9 +169,24 @@ async function updateSchema() {
             console.log('Error creating webhook_logs table:', e.message);
         }
 
-        // 8. Add pe_id and hash_id to dlt_templates
+        // 8. Create dlt_templates table if not exists & Add columns
         try {
-            console.log('Ensuring pe_id and hash_id exist in dlt_templates...');
+            console.log('Ensuring dlt_templates table exists...');
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS dlt_templates (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    temp_id VARCHAR(50) NOT NULL UNIQUE,
+                    pe_id VARCHAR(50) DEFAULT NULL,
+                    hash_id VARCHAR(250) DEFAULT NULL,
+                    temp_name VARCHAR(255) DEFAULT NULL,
+                    body TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_temp_id (temp_id),
+                    INDEX idx_temp_name (temp_name)
+                )
+            `);
+            
             const [dltCols] = await connection.execute('DESCRIBE dlt_templates');
             if (!dltCols.some(col => col.Field === 'pe_id')) {
                 await connection.execute('ALTER TABLE dlt_templates ADD COLUMN pe_id VARCHAR(50) DEFAULT NULL');
@@ -181,6 +196,7 @@ async function updateSchema() {
                 await connection.execute('ALTER TABLE dlt_templates ADD COLUMN hash_id VARCHAR(255) DEFAULT NULL');
                 console.log('Added hash_id to dlt_templates');
             }
+            console.log('dlt_templates table ready.');
         } catch (e) {
             console.log('Error modifying dlt_templates table:', e.message);
         }
