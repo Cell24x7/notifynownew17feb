@@ -97,7 +97,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
 
         // Get system base URL for callback (Forcing HTTP for Kannel compatibility)
         let baseUrl = process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'http://localhost:5000';
-        const callbackUrl = baseUrl.replace(/^https:/i, 'http') + '/api/webhooks/sms/callback';
+        const callbackUrl = baseUrl.replace(/^https:/i, 'http:') + '/api/webhooks/sms/callback';
 
         // 5. Format the primary URL
         const data = {
