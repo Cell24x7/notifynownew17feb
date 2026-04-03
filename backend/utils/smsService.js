@@ -43,6 +43,9 @@ const replacePlaceholders = (url, data) => {
 
 const sendSMS = async (mobile, message, templateOrOptions = {}) => {
     try {
+        // Clean mobile number (keep it digits-only for most replacements)
+        const cleanMobile = mobile.replace(/\D/g, '');
+
         // Handle case where third arg is just the string templateId
         const options = typeof templateOrOptions === 'string' ? { templateId: templateOrOptions } : templateOrOptions;
         
