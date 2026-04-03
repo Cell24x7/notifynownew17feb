@@ -846,12 +846,25 @@ router.post('/whatsapp/callback', async (req, res) => {
 // SMS Delivery Reports (DLR) from various gateways
 const handleSmsCallback = async (req, res) => {
     try {
-        const payload = { ...req.query, ...req.body };
+        let payload = { ...req.query, ...req.body };
+
+        // Handle case where query params are encoded into the path (e.g. callback%3Fmsgid=...)
+        if (req.originalUrl.includes('%3F')) {
+            const fullUrl = decodeURIComponent(req.originalUrl);
+            if (fullUrl.includes('?')) {
+                const queryString = fullUrl.split('?')[1];
+                const params = new URLSearchParams(queryString);
+                for (const [key, value] of params) {
+                    payload[key] = value;
+                }
+            }
+        }
+
         console.log('==============================================');
         console.log('📨 RECEIVED SMS WEBHOOK');
         console.log('Timestamp:', new Date().toISOString());
         console.log('Method:', req.method);
-        console.log('URL:', req.originalUrl); // Added this line
+        console.log('URL:', req.originalUrl);
         console.log('Payload:', JSON.stringify(payload, null, 2));
         console.log('==============================================');
 
