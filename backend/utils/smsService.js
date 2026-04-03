@@ -95,9 +95,9 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         // 4. Generate/Capture Message ID for tracking
         const msgId = options.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-        // Get system base URL for callback
-        const baseUrl = process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'http://localhost:5000';
-        const callbackUrl = `${baseUrl}/api/webhooks/sms/callback`;
+        // Get system base URL for callback (Forcing HTTP for Kannel compatibility)
+        let baseUrl = process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'http://localhost:5000';
+        const callbackUrl = baseUrl.replace(/^https:/i, 'http') + '/api/webhooks/sms/callback';
 
         // 5. Format the primary URL
         const data = {
