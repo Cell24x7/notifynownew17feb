@@ -35,17 +35,18 @@ const replacePlaceholders = (url, data) => {
     // This prevents any recursive or double-replacement issues
     const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
     
-    // SMART REGEX: Supports both %VAR and %VAR%
     // We match the key followed by an optional trailing % 
-    // IF AND ONLY IF that trailing % is not followed by two hex digits (URL encoding)
-    const regex = new RegExp(sortedKeys.map(key => {
+    // IF AND ONLY IF that trailing % is not followed by two hex digits (which would be URL encoding)
+    const pattern = sortedKeys.map(key => {
         const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return escaped + '(%?![0-9a-fA-F]{2})?';
-    }).join('|'), 'g');
+        return `(${escaped}%(?![0-9a-fA-F]{2})|${escaped})`;
+    }).join('|');
+    
+    const regex = new RegExp(pattern, 'g');
     
     return url.replace(regex, (match) => {
-        // Strip trailing % for lookup if it was matched
-        const cleanMatch = (match.endsWith('%') && !replacements[match]) ? match.slice(0, -1) : match;
+        // Strip trailing % if present to find the base key in our lookups
+        const cleanMatch = match.endsWith('%') && !replacements[match] ? match.slice(0, -1) : match;
         return replacements[cleanMatch] !== undefined ? replacements[cleanMatch] : match;
     });
 };
