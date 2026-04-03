@@ -90,27 +90,24 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             return response.data;
         }
 
-        // Clean mobile number (keep it digits-only for most replacements)
-        const cleanMobile = mobile.replace(/\D/g, '');
-        
         // 4. Generate/Capture Message ID for tracking
         const msgId = options.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-        // Get system base URL for callback (Forcing HTTP for Kannel compatibility)
-        let baseUrl = process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'http://localhost:5000';
-        const callbackUrl = baseUrl.replace(/^https:/i, 'http:') + '/api/webhooks/sms/callback';
+        // Get system base URL for callback (Using passed callbackUrl or detecting from env)
+        const baseUrl = process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'https://notifynow.in';
+        const finalCallbackUrl = options.callbackUrl || `${baseUrl}/api/webhooks/sms/callback`;
 
-        // 5. Format the primary URL
+        // 5. Format the data for placeholders
         const data = {
             mobile: cleanMobile,
             message: message,
             sender: options.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
-            templateId: options.templateId || '',
-            peId: options.peId || '',
-            hashId: options.hashId || '',
+            templateId: (options.templateId || '').toString(),
+            peId: (options.peId || '').toString(),
+            hashId: (options.hashId || '').toString(),
             userId: options.userId || '0',
             msgId: msgId,
-            callbackUrl: callbackUrl,
+            callbackUrl: finalCallbackUrl,
             gatewayName: gateway.name
         };
 

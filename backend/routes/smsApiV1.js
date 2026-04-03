@@ -171,12 +171,18 @@ const handleSendSms = async (req, res) => {
         }
 
         // 4. Dispatch SMS
+        // Enforce HTTPS for production webhooks to ensure gateway can reach the server
+        const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace('http://', 'https://');
+        const callbackUrl = `${baseUrl}/api/webhooks/sms/callback`;
+        console.log(`[SMS-API] Generated Callback URL: ${callbackUrl}`);
+        
         const smsResult = await sendSMS(mobile, finalMessage, {
             userId: req.user.id,
             templateId: finalTemplateId,
             sender: finalSenderId,
             peId: finalPeId,
-            hashId: finalHashId
+            hashId: finalHashId,
+            callbackUrl: callbackUrl
         });
         
         if (!smsResult.success) {
