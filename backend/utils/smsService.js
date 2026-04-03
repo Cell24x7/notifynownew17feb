@@ -33,9 +33,12 @@ const replacePlaceholders = (url, data) => {
     };
 
     Object.keys(replacements).forEach(key => {
-        // Match either %KEY or %KEY%
-        const regex = new RegExp(key.replace('%', '\\%') + '\\%?', 'g');
-        formatted = formatted.replace(regex, replacements[key]);
+        // 1. Try to replace %KEY% first (longest match)
+        const keyWithTrailing = key + '%';
+        formatted = formatted.split(keyWithTrailing).join(replacements[key]);
+        
+        // 2. Then replace %KEY
+        formatted = formatted.split(key).join(replacements[key]);
     });
 
     return formatted;
