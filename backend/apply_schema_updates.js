@@ -196,6 +196,10 @@ async function updateSchema() {
                 await connection.execute('ALTER TABLE dlt_templates ADD COLUMN hash_id VARCHAR(255) DEFAULT NULL');
                 console.log('Added hash_id to dlt_templates');
             }
+            if (!dltCols.some(col => col.Field === 'body')) {
+                await connection.execute('ALTER TABLE dlt_templates ADD COLUMN body TEXT AFTER temp_name');
+                console.log('Added body to dlt_templates');
+            }
             console.log('dlt_templates table ready.');
         } catch (e) {
             console.log('Error modifying dlt_templates table:', e.message);

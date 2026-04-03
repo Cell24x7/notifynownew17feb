@@ -32,13 +32,30 @@ const replacePlaceholders = (url, data) => {
         '%VENDOR': data.gatewayName || 'NotifyNow'
     };
 
-    Object.keys(replacements).forEach(key => {
-        // 1. Try to replace %KEY% first (longest match)
-        const keyWithTrailing = key + '%';
-        formatted = formatted.split(keyWithTrailing).join(replacements[key]);
+    // Sort keys by length descending to ensure longest placeholders are replaced first (e.g. %TEMPID before %TO if they overlapped)
+    const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
+
+    sortedKeys.forEach(key => {
+        // We only want to replace the EXACT placeholder.
+        // To avoid stealing a '%' from an encoded character (like %26), 
+        // we prioritize the %KEY% format if it exists, otherwise just %KEY.
         
-        // 2. Then replace %KEY
-        formatted = formatted.split(key).join(replacements[key]);
+        const keyWithTrailingPercent = key + '%';
+        if (formatted.includes(keyWithTrailingPercent)) {
+            formatted = formatted.split(keyWithTrailingPercent).join(replacements[key]);
+        }
+        
+        // Use a regex boundary or check to ensure we don't accidentally match part of an encoded char
+        // But since our keys are unique (like %TEMPID, %TO), a simple split-join on the full key is safe
+        // AS LONG AS we don't match the trailing % if it belongs to an encoded char.
+        
+        // REPAIR: Only replace %KEY if it's NOT followed by a digit (which would indicate an encoded char like %26)
+        // Actually, the simplest fix for this specific gateway style is to use a Regex.
+        const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match %KEY but NOT if followed by a digit (to protect %26, %3D etc)
+        // UNLESS the %KEY itself ends with a digit (none of ours do)
+        const regex = new RegExp(escapedKey + '(?![0-9A-F]{2})', 'g');
+        formatted = formatted.replace(regex, replacements[key]);
     });
 
     return formatted;
