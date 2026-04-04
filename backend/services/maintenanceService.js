@@ -42,24 +42,32 @@ async function runMaintenance() {
 
             // Auto-fix Gateway URLs and Headers
             const [gateways] = await query('SELECT id, name, primary_url FROM sms_gateways');
+            
+            // 🚦 FINAL DLR URL AUTO-CORRECT
+            const coreEndpoint = '/api/webhooks/sms/callback';
             for (let gw of gateways) {
-                let url = gw.primary_url || '';
-                let needsUpdate = false;
+                let url = gw.primary_url;
+                
+                // 1. Ensure Header placeholder is present
+                if (url.includes('from=NOTIFY')) url = url.replace('from=NOTIFY', 'from=%FROM');
+                
+                // 2. Ensure Error code reporting is enabled
+                if (!url.includes('err=%E')) url += (url.includes('?') ? '&' : '?') + 'err=%E';
 
-                // Replace hardcoded NOTIFY with dynamic placeholder
-                if (url.includes('from=NOTIFY')) {
-                    url = url.replace('from=NOTIFY', 'from=%FROM');
-                    needsUpdate = true;
-                }
-
-                // Append Error Code placeholder if missing (Kannel specific)
-                if (!url.includes('err=') && url.includes('cgi-bin/sendsms')) {
-                    url = url.includes('?') ? (url + '&err=%E') : (url + '?err=%E');
-                    needsUpdate = true;
-                }
-
-                if (needsUpdate) {
-                    await query('UPDATE sms_gateways SET primary_url = ? WHERE id = ?', [url, gw.id]).catch(() => {});
+                // 3. Ensure DLR URL is pointed to OUR application with correct params
+                // We overwrite any existing dlr-url parameter
+                const urlObj = new URL(url);
+                const baseUrlForDlr = process.env.PUBLIC_URL || process.env.API_BASE_URL || 'http://localhost:5000';
+                const finalDlrUrl = `${baseUrlForDlr}${coreEndpoint}?msgid=%MSGID&status=%a&err=%E&mobile=%p`;
+                
+                // Set the dlr-url param (this will replace if exists)
+                urlObj.searchParams.set('dlr-url', finalDlrUrl);
+                urlObj.searchParams.set('dlr-mask', '23'); // Standard mask for Deliv, Fail, Reject
+                
+                const finalUrl = urlObj.toString().replace(/%25/g, '%'); // Decode double encoding if any
+                
+                if (finalUrl !== gw.primary_url) {
+                    await query('UPDATE sms_gateways SET primary_url = ? WHERE id = ?', [finalUrl, gw.id]);
                     console.log(`✅ [Maintenance] Corrected URL placeholders for gateway: ${gw.name}`);
                 }
             }
