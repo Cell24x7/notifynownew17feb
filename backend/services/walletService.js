@@ -31,115 +31,66 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             return { success: true, message: 'Admin: Unlimited credits' };
         }
 
-        // 2. Check if already deducted
-        if (campaign.credits_deducted) {
-            return { success: true, message: 'Credits already deducted for this campaign' };
+        // 2. ATOMIC LOCK CHECK: Use a single update to claim deduction rights
+        // This prevents race conditions where two processes see credits_deducted as 0
+        const [lockResult] = await query(
+            `UPDATE ${campaignTable} SET credits_deducted = 2 WHERE id = ? AND (credits_deducted = 0 OR credits_deducted IS NULL)`,
+            [campaignId]
+        );
+
+        if (lockResult.affectedRows === 0) {
+            // Either already deducted (1) or being processed (2)
+            return { success: true, message: 'Deduction already handled' };
         }
 
         // 3. Calculate total cost based on channel and template type
         const recipientCount = campaign.recipient_count || campaign.audience_count || 0;
-
         if (recipientCount === 0) {
-            return { success: true, message: 'No recipients to deduct credits for' };
+            await query(`UPDATE ${campaignTable} SET credits_deducted = 1 WHERE id = ?`, [campaignId]);
+            return { success: true, message: 'No recipients to deduct' };
         }
 
-        let costPerMsg = 1.0; // Default
+        let costPerMsg = 1.0; 
         const channel = (campaign.channel || '').toLowerCase();
 
         if (channel === 'rcs') {
             let templateType = (campaign.template_type || 'standard').toLowerCase();
-
-            // If template_type is missing in campaign, fetch it from message_templates
             if (!campaign.template_type && (campaign.template_id || campaign.template_name)) {
-                const [tmpl] = await query(
-                    'SELECT template_type FROM message_templates WHERE id = ? OR name = ? LIMIT 1',
-                    [campaign.template_id, campaign.template_name]
-                );
-                if (tmpl && tmpl.length > 0) {
-                    templateType = (tmpl[0].template_type || 'standard').toLowerCase();
-                    console.log(`[WalletService] Found template type: ${templateType} for campaign ${campaignId}`);
-                }
+                const [tmpl] = await query('SELECT template_type FROM message_templates WHERE id = ? OR name = ? LIMIT 1', [campaign.template_id, campaign.template_name]);
+                if (tmpl && tmpl.length > 0) templateType = (tmpl[0].template_type || 'standard').toLowerCase();
             }
-
-            if (templateType === 'standard' || templateType === 'text' || templateType === 'text_message') {
-                costPerMsg = parseFloat(campaign.rcs_text_price || 1.00);
-            } else if (templateType === 'rich_card' || templateType === 'rich-card') {
-                costPerMsg = parseFloat(campaign.rcs_rich_card_price || 1.00);
-            } else if (templateType === 'carousel') {
-                costPerMsg = parseFloat(campaign.rcs_carousel_price || 1.00);
-            }
+            if (templateType === 'standard' || templateType === 'text' || templateType === 'text_message') costPerMsg = parseFloat(campaign.rcs_text_price || 1.00);
+            else if (templateType === 'rich_card' || templateType === 'rich-card') costPerMsg = parseFloat(campaign.rcs_rich_card_price || 1.00);
+            else if (templateType === 'carousel') costPerMsg = parseFloat(campaign.rcs_carousel_price || 1.00);
         } else if (channel === 'sms') {
             let category = 'promotional';
-            const [tmpl] = await query(
-                'SELECT category FROM message_templates WHERE id = ? OR name = ? LIMIT 1',
-                [campaign.template_id || campaign.template_name, campaign.template_name || campaign.template_id]
-            );
-            
-            if (tmpl && tmpl.length > 0) {
-                category = (tmpl[0].category || 'promotional').toLowerCase();
-            }
-
-            if (category === 'transactional' || category === 'otp' || category === 'auth') {
-                costPerMsg = parseFloat(campaign.sms_transactional_price || 1.00);
-            } else if (category === 'service' || category === 'utility') {
-                costPerMsg = parseFloat(campaign.sms_service_price || 1.00);
-            } else {
-                costPerMsg = parseFloat(campaign.sms_promotional_price || 1.00);
-            }
+            const [tmpl] = await query('SELECT category FROM message_templates WHERE id = ? OR name = ? LIMIT 1', [campaign.template_id || campaign.template_name, campaign.template_name || campaign.template_id]);
+            if (tmpl && tmpl.length > 0) category = (tmpl[0].category || 'promotional').toLowerCase();
+            if (category === 'transactional' || category === 'otp' || category === 'auth') costPerMsg = parseFloat(campaign.sms_transactional_price || 1.00);
+            else if (category === 'service' || category === 'utility') costPerMsg = parseFloat(campaign.sms_service_price || 1.00);
+            else costPerMsg = parseFloat(campaign.sms_promotional_price || 1.00);
         } else if (channel === 'whatsapp') {
-            // WhatsApp per-category pricing
             let category = 'marketing';
-            const [tmpl] = await query(
-                'SELECT category FROM message_templates WHERE id = ? OR name = ? LIMIT 1',
-                [campaign.template_id || campaign.template_name, campaign.template_name || campaign.template_id]
-            );
-            
-            if (tmpl && tmpl.length > 0) {
-                category = (tmpl[0].category || 'marketing').toLowerCase();
-                console.log(`[WalletService] Found WhatsApp category: ${category} for campaign ${campaignId}`);
-            }
-
-            if (category === 'marketing') {
-                costPerMsg = parseFloat(campaign.wa_marketing_price || 1.00);
-            } else if (category === 'utility') {
-                costPerMsg = parseFloat(campaign.wa_utility_price || 1.00);
-            } else if (category === 'authentication') {
-                costPerMsg = parseFloat(campaign.wa_authentication_price || 1.00);
-            } else {
-                costPerMsg = parseFloat(campaign.wa_marketing_price || 1.00);
-            }
+            const [tmpl] = await query('SELECT category FROM message_templates WHERE id = ? OR name = ? LIMIT 1', [campaign.template_id || campaign.template_name, campaign.template_name || campaign.template_id]);
+            if (tmpl && tmpl.length > 0) category = (tmpl[0].category || 'marketing').toLowerCase();
+            if (category === 'marketing') costPerMsg = parseFloat(campaign.wa_marketing_price || 1.00);
+            else if (category === 'utility') costPerMsg = parseFloat(campaign.wa_utility_price || 1.00);
+            else if (category === 'authentication') costPerMsg = parseFloat(campaign.wa_authentication_price || 1.00);
         }
 
         const totalCost = recipientCount * costPerMsg;
+        let finalCost = isNaN(totalCost) || totalCost < 0 ? (recipientCount * 1.0) : totalCost;
+        if (finalCost === 0 && recipientCount > 0) finalCost = recipientCount * 0.01;
 
-        console.log(`[WalletService] Campaign ${campaignId} Analysis:`, {
-            recipientCount,
-            costPerMsg,
-            totalCost,
-            userBalance: campaign.wallet_balance,
-            userId: campaign.user_id
-        });
-
-        // 4. Check balance with robust validation
-        let finalCost = totalCost;
-        if (isNaN(finalCost) || finalCost < 0) {
-            console.warn(`[WalletService] Invalid cost calculated for campaign ${campaignId}. Defaulting to 1.0 per msg.`);
-            finalCost = recipientCount * 1.0;
-        }
-
-        // If cost is 0 but there are recipients, we still enforce a minimum to prevent free leaks 
-        // unless explicitly intended (not likely here).
-        if (finalCost === 0 && recipientCount > 0) {
-            finalCost = recipientCount * 0.01; 
-        }
+        console.log(`[WalletService] Campaign ${campaignId} Analysis:`, { recipientCount, costPerMsg, totalCost: finalCost, userBalance: campaign.wallet_balance });
 
         if (campaign.wallet_balance < finalCost || campaign.wallet_balance <= 0) {
-            console.warn(`[WalletService] User ${campaign.user_id} has insufficient balance (${campaign.wallet_balance}) for campaign ${campaignId} (cost: ${finalCost})`);
+            // Rollback lock if insufficient funds
+            await query(`UPDATE ${campaignTable} SET credits_deducted = 0 WHERE id = ?`, [campaignId]);
             return { success: false, message: 'Insufficient wallet balance' };
         }
 
-        // 5. Perform deduction in a transaction (conceptually, or serial queries)
-        // UPDATE user balance
+        // 4. Execute final deduction
         await query(
             `UPDATE users 
              SET credits_available = COALESCE(credits_available, 0) - ?,
@@ -149,23 +100,14 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             [finalCost, finalCost, finalCost, campaign.user_id]
         );
 
-        // CREATE single transaction record
         await query(
             `INSERT INTO transactions (user_id, type, amount, credits, description, status, created_at)
              VALUES (?, 'debit', ?, ?, ?, 'completed', NOW())`,
-            [
-                campaign.user_id,
-                totalCost,
-                totalCost,
-                `Campaign Deduction: ${campaign.name || campaignId} (${recipientCount} messages)`,
-            ]
+            [campaign.user_id, finalCost, finalCost, `Campaign Deduction: ${campaign.name || campaignId} (${recipientCount} messages)`]
         );
 
-        // MARK campaign as deducted
-        await query(
-            `UPDATE ${campaignTable} SET credits_deducted = 1 WHERE id = ?`,
-            [campaignId]
-        );
+        // Permanently mark as successfully deducted (1)
+        await query(`UPDATE ${campaignTable} SET credits_deducted = 1 WHERE id = ?`, [campaignId]);
 
         console.log(`[WalletService] Deducted ${totalCost} credits for campaign ${campaignId} (User: ${campaign.user_id})`);
         return { success: true, message: `Successfully deducted ${totalCost} credits` };

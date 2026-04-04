@@ -23,6 +23,11 @@ async function runMaintenance() {
                 await query(`ALTER TABLE campaign_queue ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
                 await query(`ALTER TABLE api_campaign_queue ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
             }
+
+            // Also ensure log tables have the 'error' column
+            await query("ALTER TABLE message_logs ADD COLUMN IF NOT EXISTS error TEXT").catch(() => {});
+            await query("ALTER TABLE api_message_logs ADD COLUMN IF NOT EXISTS error TEXT").catch(() => {});
+
             console.log('✅ [Maintenance] Database schema synchronized for high-volume engine.');
         } catch (e) { console.error('❌ [Maintenance] Could not verify queue columns:', e.message); }
 

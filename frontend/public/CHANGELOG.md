@@ -3,6 +3,8 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: exhaustive schema sync and direct processing fallback for local environments (b4061d7)
+- fix: add worker_id and updated_at to queue tables for SQL-only environments (53b0ac1)
 - fix: immediate schema update on startup (a522440)
 - fix: local setup script and environment protections (eb2da6e)
 - fix: environment isolation, local setup script, and missing dependencies (7636480)
