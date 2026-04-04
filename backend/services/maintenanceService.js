@@ -11,11 +11,13 @@ async function runMaintenance() {
         // 🛠️ AUTO SCHEMA UPDATES
         console.log('🔍 [Maintenance] Checking database schema for updates...');
         
-        // Add channel to campaign_queue and api_campaign_queue if missing
+        // Add channel and worker_id to campaign_queue and api_campaign_queue if missing
         try {
             await query("ALTER TABLE campaign_queue ADD COLUMN IF NOT EXISTS channel VARCHAR(20) DEFAULT 'sms'");
+            await query("ALTER TABLE campaign_queue ADD COLUMN IF NOT EXISTS worker_id VARCHAR(100) DEFAULT NULL");
             await query("ALTER TABLE api_campaign_queue ADD COLUMN IF NOT EXISTS channel VARCHAR(20) DEFAULT 'sms'");
-            console.log('✅ [Maintenance] Verified `channel` columns in queue tables');
+            await query("ALTER TABLE api_campaign_queue ADD COLUMN IF NOT EXISTS worker_id VARCHAR(100) DEFAULT NULL");
+            console.log('✅ [Maintenance] Verified `channel` and `worker_id` columns in queue tables');
         } catch (e) { console.error('❌ [Maintenance] Could not verify queue columns:', e.message); }
 
         // Also prune api_message_logs older than 90 days to keep performance high

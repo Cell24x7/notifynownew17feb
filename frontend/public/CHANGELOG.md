@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: immediate schema update on startup (a522440)
 - fix: local setup script and environment protections (eb2da6e)
 - fix: environment isolation, local setup script, and missing dependencies (7636480)
 - fix: auto-install pm2 in local_setup.ps1 if missing (821ba25)

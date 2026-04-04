@@ -121,7 +121,29 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         // 0. Persistent Redis for this loop
         const { redisConnection, campaignQueue } = require('../queues/campaignQueue');
         const Redis = require('ioredis');
-        redisClient = new Redis(redisConnection);
+        const { sendUniversalMessage } = require('./sendingService');
+        
+        let useRedis = true;
+        try {
+            redisClient = new Redis({
+                ...redisConnection,
+                retryStrategy: () => null, // Don't retry inside this loop if it fails
+                maxRetriesPerRequest: 0
+            });
+            
+            // Fast ping check
+            await Promise.race([
+                redisClient.ping(),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 500))
+            ]);
+        } catch (redisErr) {
+            console.log('⚠️ [Worker] Redis unavailable, using DIRECT SQL processing.');
+            useRedis = false;
+            if (redisClient) {
+                redisClient.disconnect();
+                redisClient = null;
+            }
+        }
 
         // --- 1. Auto-start scheduled campaigns ---
         await query(`
@@ -155,7 +177,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             LIMIT ?
         `;
 
-        let totalOffloaded = 0;
+        let totalProcessed = 0;
         while (true) {
             const [candidates] = await query(sql, [DRIP_BATCH_SIZE]);
             if (!candidates || candidates.length === 0) break;
@@ -184,29 +206,45 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             const validItems = failedCampaigns.size > 0 ? candidates.filter(i => !failedCampaigns.has(i.campaign_id)) : candidates;
             if (validItems.length === 0) break;
 
-            // 5. Update Redis progress counters (Faster in pipeline)
-            const pipeline = redisClient.pipeline();
-            const countsByCamp = {};
-            validItems.forEach(item => countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1);
-            Object.keys(countsByCamp).forEach(cid => pipeline.incrby(`${envSuffix}:camp_progress:${cid}`, countsByCamp[cid]));
-            await pipeline.exec();
+            if (useRedis) {
+                // 5. Update Redis progress counters (Faster in pipeline)
+                const pipeline = redisClient.pipeline();
+                const countsByCamp = {};
+                validItems.forEach(item => countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1);
+                Object.keys(countsByCamp).forEach(cid => pipeline.incrby(`${envSuffix}:camp_progress:${cid}`, countsByCamp[cid]));
+                await pipeline.exec();
 
-            // 6. BullMQ Offloading
-            const jobs = validItems.map(item => ({
-                name: `sending-${item.mobile}`,
-                data: { item: item, tableConfig },
-                opts: { jobId: `${queueTable}-${item.id}`, removeOnComplete: true } 
-            }));
-            await campaignQueue.addBulk(jobs);
+                // 6. BullMQ Offloading
+                const jobs = validItems.map(item => ({
+                    name: `sending-${item.mobile}`,
+                    data: { item: item, tableConfig },
+                    opts: { jobId: `${queueTable}-${item.id}`, removeOnComplete: true } 
+                }));
+                await campaignQueue.addBulk(jobs);
+                totalProcessed += validItems.length;
+            } else {
+                // 🏎️ DIRECT PROCESSING (NO REDIS MODE - FOR LOCAL WINDOWS)
+                for (const item of validItems) {
+                    const sendPayload = { ...item, variables: item.contact_variables };
+                    const sendRes = await sendUniversalMessage(sendPayload);
+                    
+                    // Log immediately to SQL (Slow, but fine for local small batches)
+                    await query(`
+                        INSERT INTO ${logsTable} (campaign_id, user_id, mobile, message_id, status, error)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    `, [item.campaign_id, item.user_id, item.mobile, sendRes.messageId || null, sendRes.success ? 'sent' : 'failed', sendRes.error || null]);
 
-            totalOffloaded += validItems.length;
+                    await query(`UPDATE ${queueTable} SET status = ?, processed_at = NOW() WHERE id = ?`, 
+                        [sendRes.success ? 'sent' : 'failed', item.id]);
+                }
+                totalProcessed += validItems.length;
+            }
+
             if (candidates.length < DRIP_BATCH_SIZE) break;
-            
-            // Allow event loop breathing, then continue
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        if (totalOffloaded > 0) console.log(`[${processorName}] Offloaded ${totalOffloaded} items to BullMQ.`);
+        if (totalProcessed > 0) console.log(`[${processorName}] Processed ${totalProcessed} items ${useRedis ? '(via BullMQ)' : '(DIRECT)'}.`);
     } catch (error) {
         console.error(`[${processorName}] Ingestion Error:`, error.message);
     } finally {
