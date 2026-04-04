@@ -124,21 +124,21 @@ if pm2 list | grep -q "$APP_NAME"; then
     log "  🔄 App already exists, reloading..."
     # Always reload based on ecosystem config if available
     if [ -f "ecosystem.config.js" ]; then
-        APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env production
+        APP_NAME=$APP_NAME pm2 reload ecosystem.config.js --env development
     else
         pm2 reload $APP_NAME --update-env
     fi
 else
     log "  🚀 Starting new instance..."
     if [ -f "ecosystem.config.js" ]; then
-        APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env production
+        APP_NAME=$APP_NAME pm2 start ecosystem.config.js --env development
     else
-        APP_NAME=$APP_NAME pm2 start backend/index.js --name $APP_NAME --env production
+        APP_NAME=$APP_NAME pm2 start backend/index.js --name $APP_NAME --env development
     fi
 fi
 
 pm2 save --force
-ok "Deployment Successful! Instance is live."
+ok "Deployment Successful! Instance is live in $ENV_DESC mode."
 
 echo ""
 echo -e "${GREEN}${BOLD}✨ $ENV_DESC DEPLOYMENT COMPLETE!${NC}"
