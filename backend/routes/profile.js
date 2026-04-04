@@ -23,7 +23,7 @@ router.get('/', authenticate, async (req, res) => {
     const [rows] = await query(
       `SELECT u.id, u.name, u.email, u.company, u.contact_phone, u.plan_id, 
               u.credits_available, u.wallet_balance, u.credits_used, u.status, u.created_at, u.role, u.channels_enabled,
-              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, u.rcs_config_id, u.whatsapp_config_id, p.permissions as plan_permissions
+              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, u.rcs_config_id, u.whatsapp_config_id, p.permissions as plan_permissions
        FROM users u
        LEFT JOIN plans p ON u.plan_id = p.id
        WHERE u.id = ?`,
@@ -153,7 +153,7 @@ router.put('/', authenticate, async (req, res) => {
 
     // Return updated user
     const [updated] = await query(
-      `SELECT id, name, email, company, contact_phone, plan_id, credits_available, wallet_balance, channels_enabled 
+      `SELECT id, name, email, company, contact_phone, plan_id, credits_available, wallet_balance, channels_enabled, sms_transactional_price, sms_promotional_price, sms_service_price 
        FROM users WHERE id = ?`,
       [req.user.id]
     );
@@ -222,7 +222,7 @@ router.put('/change-email', authenticate, async (req, res) => {
     await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, req.user.id]);
 
     // Generate new token with updated email
-    const [updated] = await query('SELECT id, name, email, role, company, channels_enabled FROM users WHERE id = ?', [req.user.id]);
+    const [updated] = await query('SELECT id, name, email, role, company, channels_enabled, sms_transactional_price, sms_promotional_price, sms_service_price FROM users WHERE id = ?', [req.user.id]);
     const token = jwt.sign(
       {
         id: updated[0].id,

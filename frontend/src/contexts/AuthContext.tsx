@@ -27,6 +27,9 @@ interface User {
   wa_marketing_price?: number;
   wa_utility_price?: number;
   wa_authentication_price?: number;
+  sms_transactional_price?: number;
+  sms_promotional_price?: number;
+  sms_service_price?: number;
   rcs_config_id?: number;
   whatsapp_config_id?: number;
   actual_reseller_id?: number;
@@ -80,6 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_marketing_price: decoded.wa_marketing_price,
           wa_utility_price: decoded.wa_utility_price,
           wa_authentication_price: decoded.wa_authentication_price,
+          sms_transactional_price: decoded.sms_transactional_price,
+          sms_promotional_price: decoded.sms_promotional_price,
+          sms_service_price: decoded.sms_service_price,
           rcs_config_id: decoded.rcs_config_id,
           whatsapp_config_id: decoded.whatsapp_config_id,
           actual_reseller_id: decoded.actual_reseller_id,
@@ -131,6 +137,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_marketing_price: userData.wa_marketing_price,
           wa_utility_price: userData.wa_utility_price,
           wa_authentication_price: userData.wa_authentication_price,
+          sms_transactional_price: userData.sms_transactional_price,
+          sms_promotional_price: userData.sms_promotional_price,
+          sms_service_price: userData.sms_service_price,
           rcs_config_id: userData.rcs_config_id,
           whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
@@ -178,6 +187,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_marketing_price: userData.wa_marketing_price,
           wa_utility_price: userData.wa_utility_price,
           wa_authentication_price: userData.wa_authentication_price,
+          sms_transactional_price: userData.sms_transactional_price,
+          sms_promotional_price: userData.sms_promotional_price,
+          sms_service_price: userData.sms_service_price,
           rcs_config_id: userData.rcs_config_id,
           whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
@@ -221,6 +233,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_marketing_price: userData.wa_marketing_price,
           wa_utility_price: userData.wa_utility_price,
           wa_authentication_price: userData.wa_authentication_price,
+          sms_transactional_price: userData.sms_transactional_price,
+          sms_promotional_price: userData.sms_promotional_price,
+          sms_service_price: userData.sms_service_price,
           rcs_config_id: userData.rcs_config_id,
           whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
@@ -259,6 +274,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wa_marketing_price: userData.wa_marketing_price,
       wa_utility_price: userData.wa_utility_price,
       wa_authentication_price: userData.wa_authentication_price,
+      sms_transactional_price: userData.sms_transactional_price,
+      sms_promotional_price: userData.sms_promotional_price,
+      sms_service_price: userData.sms_service_price,
       rcs_config_id: userData.rcs_config_id,
       whatsapp_config_id: userData.whatsapp_config_id,
       actual_reseller_id: userData.actual_reseller_id,
