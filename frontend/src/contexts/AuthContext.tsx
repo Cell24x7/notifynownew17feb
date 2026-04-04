@@ -91,15 +91,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           actual_reseller_id: decoded.actual_reseller_id,
         });
 
-        // CRITICAL: Hydrate from DB immediately because token might be stale or have broad defaults
-        refreshUser(); 
+        // Hydrate from DB to get the live wallet_balance immediately to prevent flashing
+        refreshUser().finally(() => {
+          setIsLoading(false);
+        });
 
       } catch (err) {
         console.error('Invalid token on load:', err);
         localStorage.removeItem('authToken');
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {

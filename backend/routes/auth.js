@@ -255,9 +255,17 @@ router.post('/login', async (req, res) => {
     `, [identifier, identifier]);
     if (!rows.length) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
-    const user = rows[0];
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    let user = null;
+    let match = false;
+    for (const row of rows) {
+      match = await bcrypt.compare(password, row.password);
+      if (match) {
+        user = row;
+        break;
+      }
+    }
+
+    if (!user || !match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     // 1. Priority: User-specific overrides
     let finalPermissions = null; // Start as null to detect absence
