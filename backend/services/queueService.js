@@ -166,7 +166,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
              COALESCE(mt.sender, c.sender) as sender,
              c.variable_mapping, u.sms_gateway_id,
              rc.auth_url, rc.api_base_url, rc.client_id, rc.client_secret, rc.bot_id,
-             wc.provider as wa_provider, wc.api_key as wa_api_key, wc.wa_token, wc.ph_no_id as wa_ph_no_id, wc.biz_acct_id as wa_biz_accnt_id
+             wc.provider as wa_provider, wc.api_key as wa_api_key, wc.wa_token, wc.ph_no_id as wa_ph_no_id, wc.wa_biz_accnt_id as wa_biz_accnt_id
              FROM ${queueTable} q
             JOIN ${campaignTable} c ON q.campaign_id = c.id
             JOIN users u ON c.user_id = u.id

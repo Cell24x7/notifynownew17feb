@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: final schema sync for DLT columns across all messaging tables (704cead)
 - fix: ensure campaign and api_campaign tables have DLT columns (fb13328)
 - fix: add missing DLT columns to message_templates table (05f8095)
 - feat: multi-template DLT header support and SQL query optimization (3dde7e0)
