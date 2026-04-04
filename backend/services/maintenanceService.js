@@ -28,6 +28,12 @@ async function runMaintenance() {
             await query("ALTER TABLE message_logs ADD COLUMN IF NOT EXISTS error TEXT").catch(() => {});
             await query("ALTER TABLE api_message_logs ADD COLUMN IF NOT EXISTS error TEXT").catch(() => {});
 
+            // 🚦 NEW: Ensure sms_gateways has sender_id column
+            await query("ALTER TABLE sms_gateways ADD COLUMN IF NOT EXISTS sender_id VARCHAR(20) DEFAULT 'NOTIFY'").catch(() => {});
+            
+            // Auto-fix JIO gateway if it exists
+            await query("UPDATE sms_gateways SET sender_id = 'CMTLTD' WHERE name = 'JIO' AND sender_id = 'NOTIFY'").catch(() => {});
+
             console.log('✅ [Maintenance] Database schema synchronized for high-volume engine.');
         } catch (e) { console.error('❌ [Maintenance] Could not verify queue columns:', e.message); }
 

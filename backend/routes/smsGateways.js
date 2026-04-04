@@ -131,15 +131,15 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
  */
 router.post('/', authenticate, requireAdmin, async (req, res) => {
     try {
-        const { name, primary_url, secondary_url, status, routing, priority } = req.body;
+        const { name, sender_id, primary_url, secondary_url, status, routing, priority } = req.body;
 
         if (!name || !primary_url) {
             return res.status(400).json({ success: false, message: 'Gateway name and primary URL are required' });
         }
 
         const [result] = await query(
-            'INSERT INTO sms_gateways (name, primary_url, secondary_url, status, routing, priority) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both']
+            'INSERT INTO sms_gateways (name, sender_id, primary_url, secondary_url, status, routing, priority) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, sender_id || 'NOTIFY', primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both']
         );
 
         res.json({ success: true, message: 'Gateway created successfully', data: { id: result.insertId } });
@@ -169,12 +169,12 @@ router.get('/:id', authenticate, requireAdmin, async (req, res) => {
  */
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     try {
-        const { name, primary_url, secondary_url, status, routing, priority } = req.body;
+        const { name, sender_id, primary_url, secondary_url, status, routing, priority } = req.body;
         const id = req.params.id;
 
         await query(
-            'UPDATE sms_gateways SET name = ?, primary_url = ?, secondary_url = ?, status = ?, routing = ?, priority = ? WHERE id = ?',
-            [name, primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both', id]
+            'UPDATE sms_gateways SET name = ?, sender_id = ?, primary_url = ?, secondary_url = ?, status = ?, routing = ?, priority = ? WHERE id = ?',
+            [name, sender_id || 'NOTIFY', primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both', id]
         );
 
         res.json({ success: true, message: 'Gateway updated successfully' });
