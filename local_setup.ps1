@@ -59,8 +59,12 @@ if (!(Get-Command nodemon -ErrorAction SilentlyContinue)) {
 Write-Host "[4/4] Starting Local Server via Nodemon..." -ForegroundColor Yellow
 Set-Location $BackendDir
 
-# Find and kill any process on port 5000 if it exists (Optional/Best Effort)
-Stop-Process -Id (Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue).OwningProcess -Force -ErrorAction SilentlyContinue
+# Find and kill any process on port 5000 if it exists
+$process = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+if ($process) {
+    Write-Host "Stopping existing process on port $Port..." -ForegroundColor Gray
+    Stop-Process -Id $process.OwningProcess -Force -ErrorAction SilentlyContinue
+}
 
 # Start the server
 npm run dev
