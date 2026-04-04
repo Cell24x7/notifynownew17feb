@@ -31,8 +31,32 @@ async function runMaintenance() {
             // 🚦 NEW: Ensure sms_gateways has sender_id column
             await query("ALTER TABLE sms_gateways ADD COLUMN IF NOT EXISTS sender_id VARCHAR(20) DEFAULT 'NOTIFY'").catch(() => {});
             
-            // Auto-fix JIO gateway if it exists
-            await query("UPDATE sms_gateways SET sender_id = 'CMTLTD' WHERE name = 'JIO' AND sender_id = 'NOTIFY'").catch(() => {});
+            // Auto-fix Gateway URLs and Headers
+            const [gateways] = await query('SELECT id, name, primary_url FROM sms_gateways');
+            for (let gw of gateways) {
+                let url = gw.primary_url || '';
+                let needsUpdate = false;
+
+                // Replace hardcoded NOTIFY with dynamic placeholder
+                if (url.includes('from=NOTIFY')) {
+                    url = url.replace('from=NOTIFY', 'from=%FROM');
+                    needsUpdate = true;
+                }
+
+                // Append Error Code placeholder if missing (Kannel specific)
+                if (!url.includes('err=') && url.includes('cgi-bin/sendsms')) {
+                    url = url.includes('?') ? (url + '&err=%E') : (url + '?err=%E');
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    await query('UPDATE sms_gateways SET primary_url = ? WHERE id = ?', [url, gw.id]).catch(() => {});
+                    console.log(`✅ [Maintenance] Corrected URL placeholders for gateway: ${gw.name}`);
+                }
+            }
+
+            // Force JIO gateway to CMTLTD if it's still on NOTIFY
+            await query("UPDATE sms_gateways SET sender_id = 'CMTLTD' WHERE name = 'JIO' AND (sender_id = 'NOTIFY' OR sender_id IS NULL)").catch(() => {});
 
             console.log('✅ [Maintenance] Database schema synchronized for high-volume engine.');
         } catch (e) { console.error('❌ [Maintenance] Could not verify queue columns:', e.message); }

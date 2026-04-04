@@ -114,7 +114,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         const data = {
             mobile: cleanMobile,
             message: message,
-            sender: options.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
+            sender: gateway.sender_id || options.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
             templateId: (options.templateId || '').toString(),
             peId: (options.peId || '').toString(),
             hashId: (options.hashId || '').toString(),

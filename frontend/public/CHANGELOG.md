@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: sms gateway header support and DLT template sync (6d5789d)
 - fix: atomic wallet deduction and complete logging fields (a21a0ac)
 - fix: exhaustive schema sync and direct processing fallback for local environments (b4061d7)
 - fix: add worker_id and updated_at to queue tables for SQL-only environments (53b0ac1)
