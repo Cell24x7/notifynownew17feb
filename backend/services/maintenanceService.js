@@ -57,7 +57,16 @@ async function runMaintenance() {
                 // 3. Ensure DLR URL is pointed to OUR application with correct params
                 // We overwrite any existing dlr-url parameter
                 const urlObj = new URL(url);
-                const baseUrlForDlr = process.env.PUBLIC_URL || process.env.API_BASE_URL || 'http://localhost:5000';
+                
+                // Priority: 1. DLR_BASE_URL, 2. API_BASE_URL, 3. Fallback to Localhost
+                let baseUrlForDlr = process.env.DLR_BASE_URL || process.env.API_BASE_URL || 'http://localhost:5000';
+                
+                // CRITICAL: If Kannel doesn't support HTTPS, force HTTP for DLR
+                // This often happens when main app is https://notifynow.in but Kannel needs http://IP:PORT
+                if (baseUrlForDlr.startsWith('https://') && !process.env.DLR_BASE_URL) {
+                    console.log(`⚠️  [Maintenance] HTTPS detected for API_BASE_URL. Kannel might fail. Suggesting DLR_BASE_URL in .env`);
+                }
+                
                 const finalDlrUrl = `${baseUrlForDlr}${coreEndpoint}?msgid=%MSGID&status=%a&err=%E&mobile=%p`;
                 
                 // Set the dlr-url param (this will replace if exists)

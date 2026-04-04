@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: set public api base url and force sync dlr callback endpoint for reporting (7d2d32b)
 - fix: restore missing sender column in queue query and ensure numeric template id support (2fa71e2)
 - fix: correct whatsapp business account id column name in queue query (a128cab)
 - fix: final schema sync for DLT columns across all messaging tables (704cead)
