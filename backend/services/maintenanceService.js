@@ -37,6 +37,7 @@ async function runMaintenance() {
                 await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS sender VARCHAR(20)`).catch(() => {});
                 await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS pe_id VARCHAR(50)`).catch(() => {});
                 await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS hash_id VARCHAR(100)`).catch(() => {});
+                await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS template_id VARCHAR(100)`).catch(() => {});
             }
 
             // Auto-fix Gateway URLs and Headers

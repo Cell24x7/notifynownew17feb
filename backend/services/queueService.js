@@ -164,6 +164,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
              COALESCE(mt.pe_id, c.pe_id) as pe_id,
              COALESCE(mt.hash_id, c.hash_id) as hash_id,
              COALESCE(mt.sender, c.sender) as sender,
+             COALESCE(mt.template_id, c.template_id) as template_id,
              c.variable_mapping, u.sms_gateway_id,
              rc.auth_url, rc.api_base_url, rc.client_id, rc.client_secret, rc.bot_id,
              wc.provider as wa_provider, wc.api_key as wa_api_key, wc.wa_token, wc.ph_no_id as wa_ph_no_id, wc.wa_biz_accnt_id as wa_biz_accnt_id
