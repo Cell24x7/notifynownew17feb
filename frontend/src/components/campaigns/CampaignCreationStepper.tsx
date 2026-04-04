@@ -261,6 +261,22 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          } else {
             costPerMsg = parseFloat(u?.wa_marketing_price) || 1.00;
          }
+      } else if (campaignData.channel === 'sms') {
+         const u = user as any;
+         const body = (selectedTemplate?.body || '').toLowerCase();
+         const name = (selectedTemplate?.name || '').toLowerCase();
+         const category = (selectedTemplate as any)?.category?.toLowerCase() || 'promotional';
+
+         // Smart Keyword Matching (Same as backend walletService.js)
+         if (category === 'transactional' || category === 'otp' || category === 'auth' || name.includes('otp') || name.includes('auth') || name.includes('verify')) {
+            costPerMsg = parseFloat(u?.sms_transactional_price) || 0.15;
+         } else if (category === 'service' || category === 'utility' || category === 'alert' || name.includes('alert') || name.includes('notice') || name.includes('order')) {
+            costPerMsg = parseFloat(u?.sms_service_price) || 0.25;
+         } else if (category === 'promotional' || name.includes('promo') || name.includes('offer') || name.includes('sale') || name.includes('marketing')) {
+            costPerMsg = parseFloat(u?.sms_promotional_price) || 0.10;
+         } else {
+            costPerMsg = parseFloat(u?.sms_transactional_price) || 0.15;
+         }
       }
       return costPerMsg;
    };
@@ -641,7 +657,15 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        >
                                           <span className="text-2xl">{channel.icon}</span>
                                           <p className="font-medium mt-1">{channel.label}</p>
-                                          <p className="text-xs text-muted-foreground">₹{channel.costPerMessage}/msg</p>
+                                          <p className="text-xs text-muted-foreground">
+                                             ₹{(() => {
+                                                const u = user as any;
+                                                if (channel.value === 'sms') return u?.sms_promotional_price || '0.10';
+                                                if (channel.value === 'whatsapp') return u?.wa_marketing_price || '0.80';
+                                                if (channel.value === 'rcs') return u?.rcs_text_price || '0.25';
+                                                return channel.costPerMessage;
+                                             })()}/msg
+                                          </p>
                                        </button>
                                     ))}
                                  </div>

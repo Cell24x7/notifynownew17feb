@@ -1,5 +1,6 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, "./.env.production") });
 const { query } = require('./config/db');
-require('dotenv').config({ path: './.env.production' });
 
 async function migrate() {
     try {
