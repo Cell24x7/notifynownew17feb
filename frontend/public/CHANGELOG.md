@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: production deploy script correctly handles DLR_BASE_URL and APP_NAME sync (9ab1525)
 - fix: production-ready DLR handling and script fixes (bdfc410)
 - fix: set corrected public IP for NotifyNow messaging and reporting (675860f)
 - fix: explicit DLR_BASE_URL for HTTP-only Kannel reporting to bypass HTTPS issues (e6285fa)
