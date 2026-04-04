@@ -314,7 +314,10 @@ router.post('/login', async (req, res) => {
         actual_reseller_id: user.actual_reseller_id,
         wa_marketing_price: user.wa_marketing_price,
         wa_utility_price: user.wa_utility_price,
-        wa_authentication_price: user.wa_authentication_price
+        wa_authentication_price: user.wa_authentication_price,
+        sms_promotional_price: user.sms_promotional_price,
+        sms_transactional_price: user.sms_transactional_price,
+        sms_service_price: user.sms_service_price
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -343,7 +346,10 @@ router.post('/login', async (req, res) => {
         actual_reseller_id: user.actual_reseller_id,
         wa_marketing_price: user.wa_marketing_price,
         wa_utility_price: user.wa_utility_price,
-        wa_authentication_price: user.wa_authentication_price
+        wa_authentication_price: user.wa_authentication_price,
+        sms_promotional_price: user.sms_promotional_price,
+        sms_transactional_price: user.sms_transactional_price,
+        sms_service_price: user.sms_service_price
       }
     });
 
@@ -779,7 +785,10 @@ router.post('/signup', async (req, res) => {
         rcs_carousel_price: finalUser.rcs_carousel_price,
         wa_marketing_price: finalUser.wa_marketing_price,
         wa_utility_price: finalUser.wa_utility_price,
-        wa_authentication_price: finalUser.wa_authentication_price
+        wa_authentication_price: finalUser.wa_authentication_price,
+        sms_promotional_price: finalUser.sms_promotional_price,
+        sms_transactional_price: finalUser.sms_transactional_price,
+        sms_service_price: finalUser.sms_service_price
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -804,7 +813,10 @@ router.post('/signup', async (req, res) => {
         rcs_carousel_price: finalUser.rcs_carousel_price,
         wa_marketing_price: finalUser.wa_marketing_price,
         wa_utility_price: finalUser.wa_utility_price,
-        wa_authentication_price: finalUser.wa_authentication_price
+        wa_authentication_price: finalUser.wa_authentication_price,
+        sms_promotional_price: finalUser.sms_promotional_price,
+        sms_transactional_price: finalUser.sms_transactional_price,
+        sms_service_price: finalUser.sms_service_price
       }
     });
 

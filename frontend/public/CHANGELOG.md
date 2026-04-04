@@ -2,7 +2,79 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-04-04]
+- fix: final final robust placeholder replacement for SMS gateway URLs (bbe2438)
+- fix: definitively eliminate hanging percents in SMS gateway URLs (bacc25a)
+- fix: definitively resolve placeholder vs URL encoding conflict and enforce http for kannel callbacks (9fd42ba)
+- fix: support both %VAR and %VAR% placeholder formats in SMS service (0db3461)
+- fix: restore cleanMobile variable in smsService (6dda5c8)
+- fix: restore https callbacks and remove protocol forcing in sms service (b64c12e)
+- fix: implement single-pass placeholder replacement to prevent URL corruption (dfe2054)
+- fix: final hardening for SMS gateway URL and callback encoding (8028b33)
+- chore: final production polish for SMS API and schema migrations (4372377)
+- fix: definitively resolve trailing percent placeholder conflict with URL encoding (8950e76)
+- fix: protect URL-encoded characters in gateway placeholders (30c18cc)
+- feat: enhance SMS V1 API with auto-DLT detection and improve production deployment script (342492f)
+
+---
+
+## [2026-04-03]
+- API Fix: Flexible Key Support for Legacy URL Calls (88713d4)
+- Safer Placeholder Replacement to protect URL encodings (5d3fb56)
+- Final Placeholder Support and Robust Webhook Handling (3dda9c9)
+- Robust SMS Webhook: Handle encoded path params and DLR protocol fix (e208ed6)
+- Fix colon in DLR callback URL protocol (35abc24)
+- Final SMS DLR Fix: Force HTTP, Robust Status Mapping and Unified MSGID (ff2f124)
+- Fix SMS Webhook DLR ID Mismatch and update Log Schema (37a1609)
+
+---
+
+## [2026-04-01]
+- Dark Mode UI: Standardized all modules and fixed Templates.tsx syntax errors (e52518d)
+- Ultra-clean Dark Mode aesthetics for Dashboard (5b6c4c0)
+- Final: Dashboard Dark mode and OTP Signup fixes (0be139f)
+- Auto-detect environment port for Signup OTP (958ffaf)
+- Force Auth OTP to use dedicated Internal SMS API (30214b4)
+- Official SMS OTP Template Integration (af7df58)
+- Add GET support for RCS API (508f832)
+- Force Developer Frontend to use Developer API URL (aa7e54a)
+
+---
+
+## [2026-03-31]
+- Final AUTO-PERMISSION and LOCKED DATABASE fix (f30bd65)
+- Hardcode both environments to prevent database crossing (30bf612)
+- Set Production DB to notifynow_db and Port to 5050 (085efd9)
+- Cleanup and proper fix for ports, blank page, and registration (a026935)
+- Final Polish: Fixed Summary Totals and Optimized Detailed Layout (e5a5d12)
+- Fixed DB Connection error for Optimization script (ee935e1)
+- Final Polish: Simplified Summary Report table and headers (bcb7d1d)
+- UI Cleanup: Simplified fonts and added 30s live refresh (4f3cfea)
+- Added Smart Deploy script with 1Cr optimization (0478255)
+- 1Cr Speed Boost: Added Database Optimizer and Auto-Pruning (5020e67)
+- Final Fix: Restored Message Log execution and visibility (2bbd205)
+- Critical Fix: Resolved ReferenceErrors in backend and frontend (adb3eb4)
+- Fix Admin Reports and stabilize Dotgo Webhook (c48cd62)
+
+---
+
 ## [2026-03-30]
+- Performance: 10x faster campaign ingestion (5k batch inserts) (d1833d9)
+- Critical Fix: Sub-second report loading for 1Cr+ scale (Keyset Pagination) (4fd4e6f)
+- Performance: Massive optimization for 1Cr+ scale (10k batches & 500 concurrency) (1102f72)
+- Performance: Massive optimization for 1Cr+ scale (10k batches & 500 concurrency) (9212bf9)
+- updated code (11bf9d7)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb # Please enter a commit message to explain why this merge is necessary, # especially if it merges an updated upstream into a topic branch. # # Lines starting with '#' will be ignored, and an empty message aborts # the commit. (b59e16e)
+- updated code (c4952c9)
+- Fix: Add missing updated_at columns to queue tables to prevent duplicate sends (100975e)
+- updated code (099e141)
+- Fix: campaign-status API now queries live counts from logs for 100% accuracy (86e31a1)
+- Add: campaign-status API endpoint for checking delivery reports (b185d56)
+- updated code (5cffb35)
+- Fix: API campaign delete + PUT/PATCH status endpoints both work (33a4faf)
+- Fix: Add missing DELETE and PATCH status endpoints for campaigns (404 fix) (b6ac077)
+- updated code (7d492ad)
+- Fix: WhatsApp header component (IMAGE/VIDEO/TEXT) in payload builder (e926d2f)
 - Fix: Hardcode APP_NAME in each deploy script - no cross-instance reload (0973488)
 - Fix: worker_id column missing, schema fix in both deploy scripts (22f561f)
 - Fix: Keep notifynow-developer, only remove stale production instance (69fb712)
@@ -423,28 +495,6 @@ This document is automatically updated based on development activity.
 ## [2026-03-05]
 - updated code (14e00fd)
 - updated code (30da4c0)
-
----
-
-## [2026-03-04]
-- updated code (ed0ca00)
-- updated code (f1f6db8)
-- sandeep update (abef612)
-- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (b6eccf0)
-- Resolve merge conflict in Reports.tsx (be9fff2)
-- updated code (2930f5c)
-- Updated Dotgo RCS template integration and frontend template UI (8f75979)
-
----
-
-## [2026-03-02]
-- updated code (4ef6b56)
-
----
-
-## [2026-02-28]
-- updated code (790569a)
-- updated code (2ea5c27)
 
 ---
 
