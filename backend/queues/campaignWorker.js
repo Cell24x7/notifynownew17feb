@@ -6,10 +6,14 @@ const Redis = require('ioredis');
 // CREATE REUSABLE REDIS FOR COUNTERS
 const redis = new Redis(redisConnection);
 
-/**
- * BullMQ Worker for High-Volume Messaging (1 Crore Scaling)
- * Optimized for high-throughput with minimized DB overhead.
- */
+// Error handlers to prevent local crashes on Windows
+redis.on('error', (err) => {
+    if (process.env.NODE_ENV !== 'production' || (process.cwd().includes('C:') || process.cwd().includes('Users'))) {
+        // Silence local Redis errors so app doesn't crash on Windows
+    } else {
+        console.error('❌ Redis Connection Error:', err.message);
+    }
+});
 
 const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 const queueName = `campaign-sending-${envSuffix}`;
@@ -147,6 +151,14 @@ const campaignWorker = new Worker(queueName, async (job) => {
     },
     removeOnFail: {
         age: 24 * 3600 // Keep failures for 24h
+    }
+});
+
+campaignWorker.on('error', (err) => {
+    if (process.env.NODE_ENV !== 'production' || (process.cwd().includes('C:') || process.cwd().includes('Users'))) {
+       // Silence local Redis errors so app doesn't crash on Windows
+    } else {
+        console.error('❌ Redis Worker Error:', err.message);
     }
 });
 

@@ -32,6 +32,7 @@ DB_NAME=$DbName
 NODE_ENV=development
 APP_NAME=$AppName
 API_BASE_URL=$AppUrl
+JWT_SECRET=your_jwt_secret_for_local_development
 "@
 $BackendEnv | Out-File -FilePath (Join-Path $BackendDir ".env") -Encoding ascii
 
@@ -48,19 +49,21 @@ VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleu
 "@
 $FrontendEnv | Out-File -FilePath (Join-Path $FrontendDir ".env") -Encoding ascii
 
-# Ensure PM2 is installed locally
-if (!(Get-Command pm2 -ErrorAction SilentlyContinue)) {
-    Write-Host "PM2 not found. Installing globally (might take a minute)..." -ForegroundColor Yellow
-    & npm install -g pm2
+# Ensure nodemon is installed for local dev
+if (!(Get-Command nodemon -ErrorAction SilentlyContinue)) {
+    Write-Host "Nodemon not found. Installing globally..." -ForegroundColor Yellow
+    & npm install -g nodemon
 }
 
-# 4. Restart Local Server
-Write-Host "[4/4] Restarting Local Server via PM2..." -ForegroundColor Yellow
+# 4. Starting Local Server
+Write-Host "[4/4] Starting Local Server via Nodemon..." -ForegroundColor Yellow
 Set-Location $BackendDir
-& pm2 delete $AppName 2>$null | Out-Null
-& pm2 start index.js --name $AppName --watch --ignore-watch="node_modules logs"
 
-& pm2 save --force | Out-Null
+# Find and kill any process on port 5000 if it exists (Optional/Best Effort)
+Stop-Process -Id (Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue).OwningProcess -Force -ErrorAction SilentlyContinue
+
+# Start the server
+npm run dev
 
 Write-Host "`n✨ LOCAL SETUP COMPLETE!" -ForegroundColor Green
 Write-Host "👉 Backend Running at: http://localhost:$Port" -ForegroundColor Gray

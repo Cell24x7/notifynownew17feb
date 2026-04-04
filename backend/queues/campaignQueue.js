@@ -30,4 +30,13 @@ const campaignQueue = new Queue(queueName, {
   }
 });
 
+campaignQueue.on('error', (err) => {
+  if (process.env.NODE_ENV !== 'production' || (process.cwd().includes('C:') || process.cwd().includes('Users'))) {
+    // Silence local Redis errors so app doesn't crash on Windows
+    console.log('🔇 Local Redis not found, continuing without high-volume queue...');
+  } else {
+    console.error('❌ Redis Queue Error:', err.message);
+  }
+});
+
 module.exports = { campaignQueue, redisConnection };

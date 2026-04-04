@@ -3,6 +3,8 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: auto-install pm2 in local_setup.ps1 if missing (821ba25)
+- fix: provide native local_setup.ps1 for windows powershell users (7c6a73d)
 - fix: ensure windows local environments never load production settings even if the environment name matches (1806989)
 - fix: force VITE_API_URL during frontend build to prevent .env.production conflicts (b52ca09)
 - fix: strictly depend on NODE_ENV for environment configuration to prevent path-based ambiguity (76526d5)
