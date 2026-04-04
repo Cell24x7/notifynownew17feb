@@ -7,14 +7,21 @@ const path = require('path');
 const dotenv = require('dotenv');
 
 // Direct Env loading: Strictly follow NODE_ENV set by PM2
+// Direct Env loading: Strictly follow NODE_ENV
 const currentPath = __dirname;
 let envFile = '.env';
 
-// If PM2 started with --env production, use .env.production
+// FORCE LOCAL: If running locally (no NODE_ENV or development mode), STAY ON .env
 if (process.env.NODE_ENV === 'production') {
+    // Only use production file if explicitly told so by PM2/System
     envFile = '.env.production';
 }
-// For any other mode (development, etc.), stay on .env
+
+// Fallback: If for some reason we are in production mode but on localhost, force .env
+if (process.env.NODE_ENV === 'production' && (currentPath.includes('C:') || currentPath.includes('Users'))) {
+    // We are on a Windows Local Machine - Force .env
+    envFile = '.env';
+}
 
 dotenv.config({ path: path.join(__dirname, envFile) });
 
