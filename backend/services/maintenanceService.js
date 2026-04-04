@@ -31,8 +31,8 @@ async function runMaintenance() {
 function startMaintenanceService() {
     console.log('📅 [Maintenance] Service started successfully.');
     
-    // Initial run on startup (optional, let's wait 1 minute for system to be stable)
-    setTimeout(runMaintenance, 60000);
+    // Initial run on startup
+    runMaintenance();
 
     // Schedule to run every 24 hours
     setInterval(runMaintenance, 24 * 60 * 60 * 1000); 
