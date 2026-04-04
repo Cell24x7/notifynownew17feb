@@ -94,7 +94,6 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                 throw new Error('No SMS gateway configured (DB or .env)');
             }
 
-            const cleanMobile = mobile.replace(/\D/g, '');
             const baseUrl = 'https://sms.cell24x7.in/otpReceiver/sendSMS';
             const url = `${baseUrl}?user=${encodeURIComponent(user)}&pwd=${encodeURIComponent(pwd)}&sender=${encodeURIComponent(sender)}&mobile=${encodeURIComponent(cleanMobile)}&msg=${encodeURIComponent(message)}&mt=0`;
             

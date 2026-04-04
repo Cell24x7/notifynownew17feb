@@ -102,12 +102,14 @@ perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
 grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
-# FORCE HTTP DLR
+
+# 🚦 STRICTLY FORCE HTTP FOR KANNEL COMPATIBILITY
 if grep -q "^DLR_BASE_URL=" "$BACKEND_DIR/$ENV_FILE"; then
     perl -i -pe "s|^DLR_BASE_URL=.*|DLR_BASE_URL=http://notifynow.in|g" "$BACKEND_DIR/$ENV_FILE"
 else
     echo "DLR_BASE_URL=http://notifynow.in" >> "$BACKEND_DIR/$ENV_FILE"
 fi
+
 grep -q "^APP_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/$ENV_FILE"
 
 chmod 600 "$BACKEND_DIR/$ENV_FILE"
