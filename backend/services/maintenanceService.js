@@ -31,6 +31,9 @@ async function runMaintenance() {
             // 🚦 NEW: Ensure sms_gateways has sender_id column
             await query("ALTER TABLE sms_gateways ADD COLUMN IF NOT EXISTS sender_id VARCHAR(20) DEFAULT 'NOTIFY'").catch(() => {});
             
+            // 🚦 NEW: Ensure message_templates has sender column
+            await query("ALTER TABLE message_templates ADD COLUMN IF NOT EXISTS sender VARCHAR(20)").catch(() => {});
+
             // Auto-fix Gateway URLs and Headers
             const [gateways] = await query('SELECT id, name, primary_url FROM sms_gateways');
             for (let gw of gateways) {

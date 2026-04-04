@@ -156,18 +156,18 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
 
         // --- 2. SQL FETCH JOINED DATA ---
         const sql = `
-            SELECT q.id, q.campaign_id, q.mobile, q.variables as contact_variables,
-            COALESCE(mt.name, c.template_name) as template_name,
-            COALESCE(mt.body, c.template_body) as template_body,
-            mt.template_type, 
-            COALESCE(mt.metadata, c.template_metadata) as template_metadata,
-            c.name as campaign_name, c.channel, c.user_id, c.credits_deducted, 
-            u.rcs_config_id, u.whatsapp_config_id,
-            rc.name as rcs_config_name, rc.auth_url, rc.api_base_url, 
-            rc.client_id, rc.client_secret, rc.bot_id,
-            wc.provider as wa_provider, wc.wa_token, wc.api_key as wa_api_key,
-            wc.ph_no_id as wa_ph_no_id, wc.wa_biz_accnt_id
-            FROM ${queueTable} q
+             SELECT q.id, q.campaign_id, q.mobile, q.variables as contact_variables,
+             c.user_id, c.channel, c.name as campaign_name,
+             COALESCE(mt.name, c.template_name) as template_name,
+             COALESCE(mt.body, c.template_body) as template_body,
+             COALESCE(mt.metadata, c.template_metadata) as template_metadata,
+             COALESCE(mt.pe_id, c.pe_id) as pe_id,
+             COALESCE(mt.hash_id, c.hash_id) as hash_id,
+             COALESCE(mt.sender, c.sender) as sender,
+             c.variable_mapping, u.sms_gateway_id,
+             rc.auth_url, rc.api_base_url, rc.client_id, rc.client_secret, rc.bot_id,
+             wc.provider as wa_provider, wc.api_key as wa_api_key, wc.wa_token, wc.ph_no_id as wa_ph_no_id, wc.biz_acct_id as wa_biz_accnt_id
+             FROM ${queueTable} q
             JOIN ${campaignTable} c ON q.campaign_id = c.id
             JOIN users u ON c.user_id = u.id
             LEFT JOIN rcs_configs rc ON u.rcs_config_id = rc.id

@@ -246,14 +246,28 @@ const sendUniversalMessage = async (item) => {
         else if (channelParsed === 'sms') {
             const body = item.template_body || item.campaign_name;
             const customMessage = replaceVariables(body, resolvedVars);
-            let templateId = item.raw_template_id || '', peId = '', hashId = '';
+            
+            // Extract DLT metadata from template metadata OR direct columns (via COALESCE in SQL)
+            let peId = item.pe_id || '';
+            let hashId = item.hash_id || '';
+            let templateId = item.template_id || ''; // This is template ID
+            const sender = item.sender || null;
+
             try {
                 const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
-                templateId = meta.templateId || meta.dlt_template_id || templateId;
-                peId = meta.peId || meta.pe_id || '';
-                hashId = meta.hashId || meta.hash_id || '';
+                peId = meta.peId || meta.pe_id || peId;
+                hashId = meta.hashId || meta.hash_id || hashId;
+                templateId = meta.templateId || meta.template_id || templateId;
             } catch(e) {}
-            const smsResult = await sendSMS(item.mobile, customMessage, { userId: item.user_id, templateId, peId, hashId });
+
+            const smsResult = await sendSMS(item.mobile, customMessage, { 
+                userId: item.user_id, 
+                templateId, 
+                peId, 
+                hashId,
+                sender // Priority 1: Template/Campaign Header
+            });
+            
             result = { 
                 success: smsResult.success, 
                 messageId: smsResult.messageId || `sms_${Date.now()}_${item.mobile.slice(-4)}`,
