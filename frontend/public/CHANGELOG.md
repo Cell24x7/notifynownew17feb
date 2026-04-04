@@ -3,6 +3,14 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: ensure windows local environments never load production settings even if the environment name matches (1806989)
+- fix: force VITE_API_URL during frontend build to prevent .env.production conflicts (b52ca09)
+- fix: strictly depend on NODE_ENV for environment configuration to prevent path-based ambiguity (76526d5)
+- fix: ensure backend index.js correctly distinguishes between production and developer environments even with shared domain names (7ed482b)
+- fix: ensure developer deployment uses development environment flag in PM2 (c16a273)
+- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (a7fc4cd)
+- fix: strictly separate developer and production deployment environments to prevent port and setting conflicts (bf33ee2)
+- Implement SMS custom pricing with Promotional, Transactional, and Service categories (6e2ede7)
 - fix: final final robust placeholder replacement for SMS gateway URLs (bbe2438)
 - fix: definitively eliminate hanging percents in SMS gateway URLs (bacc25a)
 - fix: definitively resolve placeholder vs URL encoding conflict and enforce http for kannel callbacks (9fd42ba)
@@ -494,7 +502,6 @@ This document is automatically updated based on development activity.
 
 ## [2026-03-05]
 - updated code (14e00fd)
-- updated code (30da4c0)
 
 ---
 
