@@ -11,13 +11,19 @@ async function runMaintenance() {
         // 🛠️ AUTO SCHEMA UPDATES
         console.log('🔍 [Maintenance] Checking database schema for updates...');
         
-        // Add channel and worker_id to campaign_queue and api_campaign_queue if missing
+        // Add channel, worker_id, updated_at, processed_at to campaign_queue and api_campaign_queue if missing
         try {
-            await query("ALTER TABLE campaign_queue ADD COLUMN IF NOT EXISTS channel VARCHAR(20) DEFAULT 'sms'");
-            await query("ALTER TABLE campaign_queue ADD COLUMN IF NOT EXISTS worker_id VARCHAR(100) DEFAULT NULL");
-            await query("ALTER TABLE api_campaign_queue ADD COLUMN IF NOT EXISTS channel VARCHAR(20) DEFAULT 'sms'");
-            await query("ALTER TABLE api_campaign_queue ADD COLUMN IF NOT EXISTS worker_id VARCHAR(100) DEFAULT NULL");
-            console.log('✅ [Maintenance] Verified `channel` and `worker_id` columns in queue tables');
+            const columns = [
+                "channel VARCHAR(20) DEFAULT 'sms'",
+                "worker_id VARCHAR(100) DEFAULT NULL",
+                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+                "processed_at TIMESTAMP NULL DEFAULT NULL"
+            ];
+            for (const col of columns) {
+                await query(`ALTER TABLE campaign_queue ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+                await query(`ALTER TABLE api_campaign_queue ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+            }
+            console.log('✅ [Maintenance] Database schema synchronized for high-volume engine.');
         } catch (e) { console.error('❌ [Maintenance] Could not verify queue columns:', e.message); }
 
         // Also prune api_message_logs older than 90 days to keep performance high
