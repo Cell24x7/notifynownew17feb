@@ -6,17 +6,15 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Smart env loading: prioritizes .env.production on production servers
+// Direct Env loading: Strictly follow NODE_ENV set by PM2
 const currentPath = __dirname;
 let envFile = '.env';
 
-// Only use .env.production if explicitly in the production folder and NOT in developer folder
-if (currentPath.includes('/notifynow.in/') && !currentPath.includes('developer.')) {
-    envFile = '.env.production';
-} else if (process.env.NODE_ENV === 'production' && !currentPath.includes('developer.')) {
-    // Standard PM2 production flag
+// If PM2 started with --env production, use .env.production
+if (process.env.NODE_ENV === 'production') {
     envFile = '.env.production';
 }
+// For any other mode (development, etc.), stay on .env
 
 dotenv.config({ path: path.join(__dirname, envFile) });
 
