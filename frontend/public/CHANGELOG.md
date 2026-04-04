@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: production-ready DLR handling and script fixes (bdfc410)
 - fix: set corrected public IP for NotifyNow messaging and reporting (675860f)
 - fix: explicit DLR_BASE_URL for HTTP-only Kannel reporting to bypass HTTPS issues (e6285fa)
 - fix: set public api base url and force sync dlr callback endpoint for reporting (7d2d32b)
