@@ -36,6 +36,12 @@ async function runMaintenance() {
             await query("ALTER TABLE message_templates ADD COLUMN IF NOT EXISTS pe_id VARCHAR(50)").catch(() => {});
             await query("ALTER TABLE message_templates ADD COLUMN IF NOT EXISTS hash_id VARCHAR(100)").catch(() => {});
 
+            // 🚦 NEW: Ensure campaign tables have DLT columns
+            await query("ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS pe_id VARCHAR(50)").catch(() => {});
+            await query("ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS hash_id VARCHAR(100)").catch(() => {});
+            await query("ALTER TABLE api_campaigns ADD COLUMN IF NOT EXISTS pe_id VARCHAR(50)").catch(() => {});
+            await query("ALTER TABLE api_campaigns ADD COLUMN IF NOT EXISTS hash_id VARCHAR(100)").catch(() => {});
+
             // Auto-fix Gateway URLs and Headers
             const [gateways] = await query('SELECT id, name, primary_url FROM sms_gateways');
             for (let gw of gateways) {

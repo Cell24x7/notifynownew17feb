@@ -3,6 +3,7 @@
 This document is automatically updated based on development activity.
 
 ## [2026-04-04]
+- fix: add missing DLT columns to message_templates table (05f8095)
 - feat: multi-template DLT header support and SQL query optimization (3dde7e0)
 - fix: force sms header priority and dynamic URL placeholders (4a0cbb1)
 - fix: sms gateway header support and DLT template sync (6d5789d)
