@@ -89,7 +89,7 @@ fi
 
 rm -rf dist
 npm install --silent
-npm run build
+VITE_API_URL="$APP_URL" npm run build
 ok "Frontend built successfully for $APP_URL"
 
 # ── Step 5: Database Optimization (1Cr Ready) ─────────
