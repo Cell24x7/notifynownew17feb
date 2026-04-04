@@ -1,17 +1,23 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
 
 const fixWebhookLogsTable = async () => {
-    const connection = await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS || process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
-    });
-
+    let connection;
     try {
-        console.log('🔄 Fixing webhook_logs table structure...');
+        const envPath = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+        dotenv.config({ path: path.join(__dirname, '..', envPath) });
+        
+        console.log(`🌍 MODE: ${process.env.NODE_ENV || 'development'} (using ${envPath})`);
+        
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST || 'localhost',
+            user: process.env.DB_USER,
+            password: process.env.DB_PASS || process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+        });
 
+        console.log('🔄 Fixing webhook_logs table structure...');
         const [columns] = await connection.query('SHOW COLUMNS FROM webhook_logs');
         const colNames = columns.map(c => c.Field);
 
@@ -39,7 +45,7 @@ const fixWebhookLogsTable = async () => {
     } catch (error) {
         console.error('❌ Error updating table:', error.message);
     } finally {
-        await connection.end();
+        if (connection) await connection.end();
     }
 };
 
