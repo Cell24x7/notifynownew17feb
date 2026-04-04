@@ -987,7 +987,14 @@ const handleSmsCallback = async (req, res) => {
                                 await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
                             }
                         } else if (finalStatus === 'failed') {
-                            const reason = payload.reason || payload.err_code || payload.description || payload.err || 'Gateway reported failure';
+                            // Smart Extraction: If Kannel, extract err:XXX from the status string
+                            let reason = payload.reason || payload.err_code || payload.description || payload.err;
+                            if (!reason && s.includes('err:')) {
+                                const match = s.match(/err:(\d+)/i);
+                                if (match) reason = `Gateway Error: ${match[1]}`;
+                            }
+                            reason = reason || 'Gateway reported failure';
+
                             await query(`UPDATE ${currentTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
                             if (log.campaign_id) {
                                 await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
