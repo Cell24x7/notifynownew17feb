@@ -46,6 +46,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         status, created_at, permissions, rcs_config_id, whatsapp_config_id,
         rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
         wa_marketing_price, wa_utility_price, wa_authentication_price,
+        sms_promotional_price, sms_transactional_price, sms_service_price,
         reseller_id, is_read, is_social_signup
       FROM users
       WHERE role IN ('client', 'user')
@@ -81,7 +82,8 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     email, password, plan_id = '', status = 'active',
     credits_available = 0, channels_enabled = [],
     rcs_text_price = 0.10, rcs_rich_card_price = 0.15, rcs_carousel_price = 0.20,
-    wa_marketing_price = 0.80, wa_utility_price = 0.40, wa_authentication_price = 0.30
+    wa_marketing_price = 0.80, wa_utility_price = 0.40, wa_authentication_price = 0.30,
+    sms_promotional_price = 1.00, sms_transactional_price = 1.00, sms_service_price = 1.00
   } = req.body;
 
   if (!email || !password) {
@@ -121,13 +123,15 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled, rcs_config_id, whatsapp_config_id,
         rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
         wa_marketing_price, wa_utility_price, wa_authentication_price,
+        sms_promotional_price, sms_transactional_price, sms_service_price,
         reseller_id
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, company_name, contact_phone, email, hash,
       status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), req.body.rcs_config_id || null, req.body.whatsapp_config_id || null,
       rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
       wa_marketing_price, wa_utility_price, wa_authentication_price,
+      sms_promotional_price, sms_transactional_price, sms_service_price,
       req.user.role === 'reseller' ? req.user.actual_reseller_id : (req.body.reseller_id || null)
     ]);
 
@@ -153,7 +157,8 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
     name, company_name, contact_phone, email, password,
     plan_id, status, credits_available, channels_enabled, permissions, rcs_config_id, whatsapp_config_id,
     rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
-    wa_marketing_price, wa_utility_price, wa_authentication_price
+    wa_marketing_price, wa_utility_price, wa_authentication_price,
+    sms_promotional_price, sms_transactional_price, sms_service_price
   } = req.body;
 
   const fields = [];
@@ -176,6 +181,9 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   if (wa_marketing_price !== undefined) { fields.push('wa_marketing_price = ?'); values.push(wa_marketing_price); }
   if (wa_utility_price !== undefined) { fields.push('wa_utility_price = ?'); values.push(wa_utility_price); }
   if (wa_authentication_price !== undefined) { fields.push('wa_authentication_price = ?'); values.push(wa_authentication_price); }
+  if (sms_promotional_price !== undefined) { fields.push('sms_promotional_price = ?'); values.push(sms_promotional_price); }
+  if (sms_transactional_price !== undefined) { fields.push('sms_transactional_price = ?'); values.push(sms_transactional_price); }
+  if (sms_service_price !== undefined) { fields.push('sms_service_price = ?'); values.push(sms_service_price); }
 
   if (credits_available !== undefined) {
     fields.push('wallet_balance = ?');
@@ -296,6 +304,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       SELECT u.id, u.name, u.email, u.company, u.role, u.channels_enabled, u.permissions,
              u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
              u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
+             u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
              u.whatsapp_config_id, u.rcs_config_id,
              p.permissions as plan_permissions, u.reseller_id
       FROM users u
@@ -365,6 +374,9 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       wa_marketing_price: client.wa_marketing_price,
       wa_utility_price: client.wa_utility_price,
       wa_authentication_price: client.wa_authentication_price,
+      sms_promotional_price: client.sms_promotional_price,
+      sms_transactional_price: client.sms_transactional_price,
+      sms_service_price: client.sms_service_price,
       iat: Math.floor(Date.now() / 1000)
     };
 

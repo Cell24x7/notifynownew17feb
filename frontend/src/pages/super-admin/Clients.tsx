@@ -59,6 +59,9 @@ export default function SuperAdminClients() {
     wa_marketing_price: 1.00,
     wa_utility_price: 1.00,
     wa_authentication_price: 1.00,
+    sms_promotional_price: 1.00,
+    sms_transactional_price: 1.00,
+    sms_service_price: 1.00,
   });
 
   // Fetch real plans
@@ -309,6 +312,9 @@ export default function SuperAdminClients() {
       wa_marketing_price: 1.00,
       wa_utility_price: 1.00,
       wa_authentication_price: 1.00,
+      sms_promotional_price: 1.00,
+      sms_transactional_price: 1.00,
+      sms_service_price: 1.00,
     });
   }
 
@@ -356,6 +362,9 @@ export default function SuperAdminClients() {
       wa_marketing_price: client.wa_marketing_price || 1.00,
       wa_utility_price: client.wa_utility_price || 1.00,
       wa_authentication_price: client.wa_authentication_price || 1.00,
+      sms_promotional_price: client.sms_promotional_price || 1.00,
+      sms_transactional_price: client.sms_transactional_price || 1.00,
+      sms_service_price: client.sms_service_price || 1.00,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -384,6 +393,9 @@ export default function SuperAdminClients() {
       wa_marketing_price: client.wa_marketing_price || 1.00,
       wa_utility_price: client.wa_utility_price || 1.00,
       wa_authentication_price: client.wa_authentication_price || 1.00,
+      sms_promotional_price: client.sms_promotional_price || 1.00,
+      sms_transactional_price: client.sms_transactional_price || 1.00,
+      sms_service_price: client.sms_service_price || 1.00,
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -1023,6 +1035,53 @@ export default function SuperAdminClients() {
                     disabled={modalMode === 'view'}
                   />
                   <p className="text-[10px] text-muted-foreground">OTP/Auth templates</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+            
+            {/* Section 6: SMS Custom Pricing */}
+            <div className="space-y-4 pb-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> SMS Custom Pricing (Per Message)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>Promotional (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={currentClient.sms_promotional_price}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, sms_promotional_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Bulk Marketing SMS</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Transactional (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={currentClient.sms_transactional_price}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, sms_transactional_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">OTP/Auth templates</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Service (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={currentClient.sms_service_price}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, sms_service_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Alerts/Operational</p>
                 </div>
               </div>
             </div>
