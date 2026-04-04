@@ -1,14 +1,21 @@
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { query } = require('./config/db');
-async function check() {
+require('dotenv').config({ path: './.env.production' });
+
+async function checkSchema() {
     try {
-        const [cols] = await query('DESCRIBE campaign_queue');
-        console.log(JSON.stringify(cols, null, 2));
+        console.log('🔍 Checking message_logs schema...');
+        const [columns] = await query('DESCRIBE message_logs');
+        console.log('Columns:', JSON.stringify(columns, null, 2));
+
+        console.log('\n🔍 Checking api_message_logs schema...');
+        const [apiColumns] = await query('DESCRIBE api_message_logs');
+        console.log('API Columns:', JSON.stringify(apiColumns, null, 2));
+
         process.exit(0);
-    } catch (e) {
-        console.error(e);
+    } catch (err) {
+        console.error('❌ Error:', err.message);
         process.exit(1);
     }
 }
-check();
+
+checkSchema();

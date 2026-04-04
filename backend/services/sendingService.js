@@ -13,6 +13,7 @@ const replaceVariables = (text, vars) => {
         const value = vars[key] || '';
         result = result.split(`[${key}]`).join(value);
         result = result.split(`{{${key}}}`).join(value);
+        result = result.split(`{${key}}`).join(value);
     });
     return result;
 };
@@ -71,8 +72,8 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
 const getOrderedVariables = (text, resolvedVars) => {
     const vars = [];
     if (!text) return vars;
-    // Regex for both [[X]], [X], {{X}}
-    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}/g;
+    // Regex for [[X]], [X], {{X}}, {X}
+    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}/g;
     let match;
     const foundKeys = [];
     const seen = new Set();
@@ -112,6 +113,7 @@ const sendUniversalMessage = async (item) => {
 
     try {
         if (channelParsed === 'rcs') {
+            let processedMessage = '';
             let rcsConfig = item.rcs_config_id ? {
                 id: item.rcs_config_id, name: item.rcs_config_name,
                 auth_url: item.auth_url, api_base_url: item.api_base_url,
@@ -131,14 +133,17 @@ const sendUniversalMessage = async (item) => {
                 const body = item.template_body || '';
                 const metaStr = typeof item.template_metadata === 'string' ? item.template_metadata : JSON.stringify(item.template_metadata || {});
                 const customParams = getOrderedVariables(`${body} ${metaStr}`, resolvedVars);
+                processedMessage = body; // Template messages usually don't have a single "processed text" easily accessible here, but we'll return the body
                 result = await sendRcsTemplate(item.mobile, item.template_name, rcsConfig, customParams);
             } else {
                 const body = item.template_body || '';
-                const msg = replaceVariables(body || item.campaign_name, resolvedVars);
-                result = await sendRcsMessage(item.mobile, msg, rcsConfig);
+                processedMessage = replaceVariables(body || item.campaign_name, resolvedVars);
+                result = await sendRcsMessage(item.mobile, processedMessage, rcsConfig);
             }
+            result.processedMessage = processedMessage;
         } 
         else if (channelParsed === 'whatsapp') {
+            let processedMessage = item.template_body || '';
             let waConfig = item.whatsapp_config_id ? {
                 provider: item.wa_provider, api_key: item.wa_api_key,
                 wa_token: item.wa_token, ph_no_id: item.wa_ph_no_id,
@@ -225,13 +230,19 @@ const sendUniversalMessage = async (item) => {
                         });
                     }
                 }
-                // If headerFormat is IMAGE/VIDEO/DOCUMENT but no URL → skip (WhatsApp will use template default)
             }
 
             // ── BODY COMPONENT ────────────────────────────────────────
             const waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
             if (waParams.length > 0) {
                 payloadComponents.push({ type: 'body', parameters: waParams.map(v => ({ type: 'text', text: String(v) })) });
+                
+                // Construct a readable version for logging
+                let bodyText = bodyComp?.text || item.template_body || '';
+                waParams.forEach((val, i) => {
+                    bodyText = bodyText.replace(`{{${i+1}}}`, val);
+                });
+                processedMessage = bodyText;
             }
 
             if (payloadComponents.length > 0) payload.template.components = payloadComponents;
@@ -240,12 +251,13 @@ const sendUniversalMessage = async (item) => {
             const respData = response.data;
             result = { 
                 success: true, 
-                messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${item.mobile}` 
+                messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${item.mobile}`,
+                processedMessage
             };
         } 
         else if (channelParsed === 'sms') {
             const body = item.template_body || item.campaign_name;
-            const customMessage = replaceVariables(body, resolvedVars);
+            const processedMessage = replaceVariables(body, resolvedVars);
             
             // Extract DLT metadata from template metadata OR direct columns (via COALESCE in SQL)
             let peId = item.pe_id || '';
@@ -260,7 +272,7 @@ const sendUniversalMessage = async (item) => {
                 templateId = meta.templateId || meta.template_id || templateId;
             } catch(e) {}
 
-            const smsResult = await sendSMS(item.mobile, customMessage, { 
+            const smsResult = await sendSMS(item.mobile, processedMessage, { 
                 userId: item.user_id, 
                 templateId, 
                 peId, 
@@ -271,6 +283,7 @@ const sendUniversalMessage = async (item) => {
             result = { 
                 success: smsResult.success, 
                 messageId: smsResult.messageId || `sms_${Date.now()}_${item.mobile.slice(-4)}`,
+                processedMessage,
                 error: smsResult.error 
             };
         }

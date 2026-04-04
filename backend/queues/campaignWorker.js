@@ -57,8 +57,8 @@ const campaignWorker = new Worker(queueName, async (job) => {
             try {
                 // Mandatory log to message_logs
                 await query(
-                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, now]
+                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, message_content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, result.processedMessage || msgContent, now]
                 );
 
                 // Secondary log to webhook_logs for Chat UI

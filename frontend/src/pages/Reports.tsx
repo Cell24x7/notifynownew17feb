@@ -43,6 +43,7 @@ interface WebhookLog {
     created_at: string;
     updated_at: string;
     channel?: string;
+    message_content?: string;
 }
 
 
@@ -578,6 +579,7 @@ export default function Reports() {
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">DelTime</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">ReadTime</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Template</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Message</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Campaign</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Status</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-b border-border">Reason</TableHead>
@@ -585,7 +587,7 @@ export default function Reports() {
                                     </TableHeader>
                                     <TableBody>
                                         {loadingLogs ? (
-                                            <TableRow><TableCell colSpan={10} className="text-center py-10">Fetching logs...</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={11} className="text-center py-10">Fetching logs...</TableCell></TableRow>
                                         ) : webhookLogs.length === 0 ? (
                                             <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
                                         ) : (
@@ -611,6 +613,11 @@ export default function Reports() {
                                                     </TableCell>
                                                     <TableCell className="text-[10px] border-r border-border text-center truncate max-w-[100px] px-3 py-2 font-medium text-muted-foreground" title={log.template_name}>
                                                         {log.template_name || 'N/A'}
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] border-r border-border text-left px-3 py-2 font-medium text-foreground min-w-[200px] max-w-[300px]">
+                                                        <div className="whitespace-pre-wrap break-words line-clamp-3 hover:line-clamp-none transition-all duration-200">
+                                                            {log.message_content || '-'}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-[10px] text-muted-foreground font-semibold px-3 py-2 text-center border-r border-border max-w-[120px]">
                                                         <div className="line-clamp-2 leading-tight" title={log.campaign_name}>
