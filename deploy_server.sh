@@ -51,24 +51,23 @@ log "📦 [2/6] Installing Dependencies & Setting Env..."
 cd "$BACKEND_DIR"
 npm install --production --silent
 
-# Sync environment variables across both files to be safe
-for ENV_FILE in ".env" ".env.production"; do
-    if [ ! -f "$BACKEND_DIR/$ENV_FILE" ]; then
-        touch "$BACKEND_DIR/$ENV_FILE"
-    fi
-    
-    # Use perl for more reliable in-place replacement than sed on some systems
-    # Synchronize Port, DB Name, and API URL
-    perl -i -pe "s|^PORT=.*|PORT=$APP_PORT|g" "$BACKEND_DIR/$ENV_FILE"
-    perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
-    perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
-    perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
-    
-    # Add if they don't exist
-    grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
-    grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
-    grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
-done
+# ONLY modify .env for Developer - NEVER touch .env.production here
+ENV_FILE=".env"
+if [ ! -f "$BACKEND_DIR/$ENV_FILE" ]; then
+    touch "$BACKEND_DIR/$ENV_FILE"
+fi
+
+# Use perl for safe in-place replacement
+perl -i -pe "s|^PORT=.*|PORT=$APP_PORT|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
+
+# Add if they don't exist
+grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^APP_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/$ENV_FILE"
 
 ok "Environment variables synchronized for $ENV_DESC (Port: $APP_PORT)"
 
@@ -77,17 +76,16 @@ log "🏗️  [3/6] Building Frontend for $ENV_DESC..."
 cd "$FRONTEND_DIR"
 
 # Sync Frontend Env (CRITICAL: Prevents Developer hitting Production API)
-for ENV_FILE in ".env" ".env.production"; do
-    if [ ! -f "$FRONTEND_DIR/$ENV_FILE" ]; then
-        touch "$FRONTEND_DIR/$ENV_FILE"
-    fi
-    perl -i -pe "s|^VITE_API_URL=.*|VITE_API_URL=$APP_URL|g" "$FRONTEND_DIR/$ENV_FILE"
-    grep -q "^VITE_API_URL=" "$FRONTEND_DIR/$ENV_FILE" || echo "VITE_API_URL=$APP_URL" >> "$FRONTEND_DIR/$ENV_FILE"
-    # Ensure Google Client ID is also set correctly
-    if ! grep -q "^VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/$ENV_FILE"; then
-        echo "VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com" >> "$FRONTEND_DIR/$ENV_FILE"
-    fi
-done
+ENV_FILE=".env"
+if [ ! -f "$FRONTEND_DIR/$ENV_FILE" ]; then
+    touch "$FRONTEND_DIR/$ENV_FILE"
+fi
+perl -i -pe "s|^VITE_API_URL=.*|VITE_API_URL=$APP_URL|g" "$FRONTEND_DIR/$ENV_FILE"
+grep -q "^VITE_API_URL=" "$FRONTEND_DIR/$ENV_FILE" || echo "VITE_API_URL=$APP_URL" >> "$FRONTEND_DIR/$ENV_FILE"
+# Ensure Google Client ID is also set correctly
+if ! grep -q "^VITE_GOOGLE_CLIENT_ID=" "$FRONTEND_DIR/$ENV_FILE"; then
+    echo "VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com" >> "$FRONTEND_DIR/$ENV_FILE"
+fi
 
 rm -rf dist
 npm install --silent

@@ -82,19 +82,35 @@ chmod -R 755 "$FRONTEND_DIR/dist" || true
 ok "Static assets permissions fixed."
 
 # ── Step 6: Database & Schema Sync ────────────────────────
-log "[6/8] Syncing Database Schema..."
+log "[6/8] Syncing Database Schema & Environments..."
 cd "$BACKEND_DIR"
 
 # Clean up any potentially locked environment files
-touch .env.production
-chmod 600 .env.production
+ENV_FILE=".env.production"
+if [ ! -f "$BACKEND_DIR/$ENV_FILE" ]; then
+    touch "$BACKEND_DIR/$ENV_FILE"
+fi
+
+# Strictly sync PRODUCTION settings only
+perl -i -pe "s|^PORT=.*|PORT=$APP_PORT|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
+
+# Ensure they exist if missing
+grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^APP_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/$ENV_FILE"
+
+chmod 600 "$BACKEND_DIR/$ENV_FILE"
 
 # Run all migration scripts
 NODE_ENV=production node apply_schema_updates.js
 NODE_ENV=production node fix_logs_schema.js || true
 NODE_ENV=production node scripts/fix_webhook_logs.js || true
 
-ok "Database schema is up to date."
+ok "Database schema and environment are synced for $ENV_DESC."
 
 # ── Step 7: Zero-Downtime Restart ─────────────────────────
 log "[7/8] Restarting PM2 Cluster..."
