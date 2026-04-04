@@ -1193,7 +1193,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
                                     <Card className={cn(
                                        "relative overflow-hidden",
-                                       calculateCost() > (user?.wallet_balance || 0) && "border-destructive bg-destructive/5"
+                                       calculateCost() > Number(user?.wallet_balance || 0) && "border-destructive bg-destructive/5"
                                     )}>
                                        <CardContent className="p-4 flex flex-col items-center text-center">
                                           <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Est. Cost</Label>
@@ -1201,13 +1201,13 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              <span className="text-sm font-medium text-muted-foreground">₹</span>
                                              <span className={cn(
                                                 "font-semibold text-2xl",
-                                                calculateCost() > (user?.wallet_balance || 0) ? "text-destructive" : "text-primary"
+                                                calculateCost() > Number(user?.wallet_balance || 0) ? "text-destructive" : "text-primary"
                                              )}>
                                                 {calculateCost().toFixed(2)}
                                              </span>
                                           </div>
                                           <div className="text-xs text-muted-foreground">@ ₹{getCurrentRate().toFixed(2)}/msg</div>
-                                          {calculateCost() > (user?.wallet_balance || 0) && (
+                                          {calculateCost() > Number(user?.wallet_balance || 0) && (
                                              <div className="mt-2 text-[10px] font-bold text-destructive flex items-center gap-1">
                                                 <AlertCircle className="h-3 w-3" />
                                                 INSUFFICIENT BALANCE
@@ -1217,13 +1217,13 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                     </Card>
                                  </div>
 
-                                 {calculateCost() > (user?.wallet_balance || 0) && (
+                                 {calculateCost() > Number(user?.wallet_balance || 0) && (
                                     <div className="p-4 rounded-lg border border-destructive bg-destructive/10 flex items-start gap-3 animate-pulse">
                                        <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
                                        <div>
                                           <p className="font-semibold text-destructive">Insufficient Wallet Balance</p>
                                           <p className="text-sm text-destructive/80">
-                                             Estimated cost (₹{calculateCost().toFixed(2)}) exceeds your current balance (₹{(user?.wallet_balance || 0).toFixed(2)}).
+                                             Estimated cost (₹{calculateCost().toFixed(2)}) exceeds your current balance (₹{Number(user?.wallet_balance || 0).toFixed(2)}).
                                              Please recharge your wallet to continue.
                                           </p>
                                           <Button
@@ -1432,7 +1432,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                      {currentStep === 1 && campaignData.name.trim() && !campaignData.channel && "Select channel"}
                      {currentStep === 2 && !campaignData.templateId && "Select a template"}
                      {currentStep === 3 && campaignData.recipientCount === 0 && "Select contacts"}
-                     {currentStep === 5 && campaignData.scheduleType === 'now' && calculateCost() > (user?.wallet_balance || 0) && "Insufficient wallet balance"}
+                     {currentStep === 5 && campaignData.scheduleType === 'now' && calculateCost() > Number(user?.wallet_balance || 0) && "Insufficient wallet balance"}
                      {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
                   </p>
                )}
