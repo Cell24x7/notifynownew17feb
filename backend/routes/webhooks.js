@@ -882,12 +882,10 @@ const handleSmsCallback = async (req, res) => {
         const s = String(status || '').toLowerCase();
         
         // Map common SMS status strings to internal statuses
-        // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a/%d numeric flags
-        // Kannel/Gateway mapping: 1=Delivered, 2=Failed, 4=Queued, 8=Submitted, 16=Rejected
-        // Some also use 0=Success (Delivered)
-        if (s.includes('deliver') || s === 'success' || s === '0' || s === '1' || s === 'delivered' || s === 'dlvrd' || s === 'delivrd' || s === 'sent') {
+        // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a status (full text)
+        if (s.includes('delivrd') || s.includes('dlvrd') || s.includes('delivered') || s.includes('success') || s === '0' || s === '1' || s === 'sent') {
             finalStatus = 'delivered';
-        } else if (s.includes('fail') || s.includes('reject') || s === '16' || s === '2' || s === 'failed' || s === 'undeliv' || s === 'undelivered' || s === 'rejectd') {
+        } else if (s.includes('reject') || s.includes('undeliv') || s.includes('fail') || s === '16' || s === '2' || s === 'failed') {
             finalStatus = 'failed';
         } else if (s.includes('submit') || s === '8' || s === '4' || s === 'submitted' || s === 'buffered') {
             finalStatus = 'sent';
