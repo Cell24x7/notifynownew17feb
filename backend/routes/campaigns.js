@@ -221,13 +221,28 @@ router.post('/', authenticate, async (req, res) => {
         finalMetadata.is_track_link = req.body.is_track_link || false;
         finalMetadata.sms_parts = req.body.sms_parts || 1;
 
+        let savedTemplateId = template_id; // Default
+
         if (channel === 'sms' && template_id) {
             try {
-                const [dltTpl] = await query('SELECT pe_id, hash_id, sender FROM dlt_templates WHERE temp_id = ? LIMIT 1', [template_id]);
-                if (dltTpl.length > 0) {
-                    finalMetadata.peId = dltTpl[0].pe_id;
-                    finalMetadata.hashId = dltTpl[0].hash_id;
-                    finalMetadata.sender = dltTpl[0].sender;
+                // If template_id is our internal ID (e.g. DLT_123)
+                let dltTplRows = [];
+                if (String(template_id).startsWith('DLT_')) {
+                    const internalId = template_id.replace('DLT_', '');
+                    [dltTplRows] = await query('SELECT pe_id, hash_id, sender, temp_id FROM dlt_templates WHERE id = ? LIMIT 1', [internalId]);
+                } else {
+                    // Fallback to numeric temp_id search (for direct API calls)
+                    [dltTplRows] = await query('SELECT pe_id, hash_id, sender, temp_id FROM dlt_templates WHERE temp_id = ? LIMIT 1', [template_id]);
+                }
+
+                if (dltTplRows.length > 0) {
+                    const tpl = dltTplRows[0];
+                    finalMetadata.peId = tpl.pe_id || finalMetadata.peId;
+                    finalMetadata.hashId = tpl.hash_id || finalMetadata.hashId;
+                    finalMetadata.sender = tpl.sender || finalMetadata.sender;
+                    
+                    // Always use the numeric DLT Template ID for the campaign record
+                    if (tpl.temp_id) savedTemplateId = tpl.temp_id; 
                 }
             } catch (err) {
                 console.error('Error fetching DLT template metadata:', err.message);
@@ -241,7 +256,7 @@ router.post('/', authenticate, async (req, res) => {
        schedule_type, scheduling_mode, frequency, repeat_days, end_date, next_run_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                campaignId, userId, name, channel, template_id, templateName,
+                campaignId, userId, name, channel, savedTemplateId, templateName,
                 audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
                 scheduled_at || null, JSON.stringify(variable_mapping || {}),
                 JSON.stringify(finalMetadata),
