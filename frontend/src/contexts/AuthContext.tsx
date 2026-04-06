@@ -33,6 +33,8 @@ interface User {
   rcs_config_id?: number;
   whatsapp_config_id?: number;
   actual_reseller_id?: number;
+  pe_id?: string;
+  hash_id?: string;
 }
 
 interface AuthContextType {
@@ -89,6 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_config_id: decoded.rcs_config_id,
           whatsapp_config_id: decoded.whatsapp_config_id,
           actual_reseller_id: decoded.actual_reseller_id,
+          pe_id: decoded.pe_id,
+          hash_id: decoded.hash_id,
         });
 
         // Hydrate from DB to get the live wallet_balance immediately to prevent flashing
@@ -147,6 +151,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_config_id: userData.rcs_config_id,
           whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
+          pe_id: userData.pe_id,
+          hash_id: userData.hash_id,
         });
         return true;
       }
@@ -197,6 +203,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_config_id: userData.rcs_config_id,
           whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
+          pe_id: userData.pe_id,
+          hash_id: userData.hash_id,
         });
         return true;
       }
@@ -243,6 +251,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rcs_config_id: userData.rcs_config_id,
           whatsapp_config_id: userData.whatsapp_config_id,
           actual_reseller_id: userData.actual_reseller_id,
+          pe_id: userData.pe_id,
+          hash_id: userData.hash_id,
         });
       }
     } catch (err) {
@@ -284,6 +294,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       rcs_config_id: userData.rcs_config_id,
       whatsapp_config_id: userData.whatsapp_config_id,
       actual_reseller_id: userData.actual_reseller_id,
+      pe_id: userData.pe_id,
+      hash_id: userData.hash_id,
     });
   };
 
