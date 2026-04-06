@@ -59,12 +59,13 @@ router.post('/templates', authenticate, upload.array('multimedia_files'), async 
 
     // If it's multipart, req.body might need parsing or accessing directly
     // Multer populates req.body and req.files
-    let templateData = req.body;
+    let templateData = { ...req.body };
 
     // Sometimes frontend sends rich_template_data as a string in FormData
-    if (typeof templateData.rich_template_data === 'string') {
+    if (typeof req.body.rich_template_data === 'string') {
       try {
-        templateData = JSON.parse(templateData.rich_template_data);
+        const parsed = JSON.parse(req.body.rich_template_data);
+        templateData = { ...templateData, ...parsed };
       } catch (e) {
         console.error('Error parsing rich_template_data string:', e);
       }

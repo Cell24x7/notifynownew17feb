@@ -23,7 +23,7 @@ router.get('/', authenticate, async (req, res) => {
     const [rows] = await query(
       `SELECT u.id, u.name, u.email, u.company, u.contact_phone, u.plan_id, 
               u.credits_available, u.wallet_balance, u.credits_used, u.status, u.created_at, u.role, u.channels_enabled,
-              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, u.rcs_config_id, u.whatsapp_config_id, p.permissions as plan_permissions
+              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, u.rcs_config_id, u.whatsapp_config_id, u.pe_id, u.hash_id, p.permissions as plan_permissions
        FROM users u
        LEFT JOIN plans p ON u.plan_id = p.id
        WHERE u.id = ?`,
@@ -142,6 +142,14 @@ router.put('/', authenticate, async (req, res) => {
     updates.push('channels_config = ?');
     values.push(JSON.stringify(req.body.channels_config));
   }
+  if (req.body.pe_id !== undefined) {
+    updates.push('pe_id = ?');
+    values.push(req.body.pe_id ? req.body.pe_id.trim() : null);
+  }
+  if (req.body.hash_id !== undefined) {
+    updates.push('hash_id = ?');
+    values.push(req.body.hash_id ? req.body.hash_id.trim() : null);
+  }
 
   if (!updates.length) {
     return res.status(400).json({ success: false, message: 'No changes provided' });
@@ -153,7 +161,7 @@ router.put('/', authenticate, async (req, res) => {
 
     // Return updated user
     const [updated] = await query(
-      `SELECT id, name, email, company, contact_phone, plan_id, credits_available, wallet_balance, channels_enabled, sms_transactional_price, sms_promotional_price, sms_service_price 
+      `SELECT id, name, email, company, contact_phone, plan_id, credits_available, wallet_balance, channels_enabled, sms_transactional_price, sms_promotional_price, sms_service_price, pe_id, hash_id 
        FROM users WHERE id = ?`,
       [req.user.id]
     );

@@ -32,6 +32,11 @@ export function SecuritySettings() {
     newApiPassword: '',
     confirmApiPassword: '',
   });
+  
+  const [dltDefaultsForm, setDltDefaultsForm] = useState({
+    pe_id: '',
+    hash_id: '',
+  });
 
   const [showPasswords, setShowPasswords] = useState({
     current: false,
@@ -44,11 +49,18 @@ export function SecuritySettings() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [apiPasswordLoading, setApiPasswordLoading] = useState(false);
+  const [dltLoading, setDltLoading] = useState(false);
 
   // Update current email when user changes
   useEffect(() => {
     if (user?.email) {
       setEmailForm(prev => ({ ...prev, currentEmail: user.email }));
+    }
+    if (user) {
+      setDltDefaultsForm({
+        pe_id: user.pe_id || '',
+        hash_id: user.hash_id || '',
+      });
     }
   }, [user]);
 
@@ -211,6 +223,40 @@ export function SecuritySettings() {
       });
     } finally {
       setApiPasswordLoading(false);
+    }
+  };
+
+  const handleDltDefaultsChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDltLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.put(
+        `${API_URL}/profile`,
+        { 
+          pe_id: dltDefaultsForm.pe_id,
+          hash_id: dltDefaultsForm.hash_id
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        if (response.data.user) {
+          updateUser(response.data.user);
+        }
+        toast({
+          title: 'DLT Defaults Updated',
+          description: 'Global PE ID and Hash ID have been saved.',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to update DLT defaults',
+        variant: 'destructive',
+      });
+    } finally {
+      setDltLoading(false);
     }
   };
 
@@ -450,6 +496,62 @@ export function SecuritySettings() {
                 <>
                   <Check className="h-4 w-4 mr-2" />
                   Set API Password
+                </>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* DLT Defaults */}
+      <Card className="card-elevated">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Smartphone className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>DLT Defaults (Global)</CardTitle>
+              <CardDescription>
+                Set global defaults for PE ID and Hash ID. These will be used for all templates and campaigns if not specified individually.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleDltDefaultsChange} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pe_id">Default Principal Entity (PE) ID</Label>
+                <Input
+                  id="pe_id"
+                  placeholder="e.g. 12011591900000..."
+                  value={dltDefaultsForm.pe_id}
+                  onChange={(e) => setDltDefaultsForm({ ...dltDefaultsForm, pe_id: e.target.value })}
+                  disabled={dltLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="hash_id">Default Sender (Hash) ID</Label>
+                <Input
+                  id="hash_id"
+                  placeholder="e.g. SVT_NEW"
+                  value={dltDefaultsForm.hash_id}
+                  onChange={(e) => setDltDefaultsForm({ ...dltDefaultsForm, hash_id: e.target.value })}
+                  disabled={dltLoading}
+                />
+              </div>
+            </div>
+            <Button type="submit" className="gradient-primary" disabled={dltLoading}>
+              {dltLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Save DLT Defaults
                 </>
               )}
             </Button>

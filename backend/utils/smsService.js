@@ -63,14 +63,20 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         let gateway = null;
         const userId = options.userId || '0';
 
-        // 1. Try to fetch user's assigned gateway
+        // 1. Try to fetch user's assigned gateway and DLT defaults
         if (userId && userId !== '0') {
-            const [users] = await query('SELECT sms_gateway_id FROM users WHERE id = ?', [userId]);
-            if (users.length > 0 && users[0].sms_gateway_id) {
-                const [gateways] = await query('SELECT * FROM sms_gateways WHERE id = ? AND status = "active"', [users[0].sms_gateway_id]);
-                if (gateways.length > 0) {
-                    gateway = gateways[0];
-                    console.log(`[SMS] Using assigned gateway "${gateway.name}" for user ${userId}`);
+            const [users] = await query('SELECT sms_gateway_id, pe_id, hash_id FROM users WHERE id = ?', [userId]);
+            if (users.length > 0) {
+                // Set defaults if missing in options
+                if (!options.peId) options.peId = users[0].pe_id;
+                if (!options.hashId) options.hashId = users[0].hash_id;
+
+                if (users[0].sms_gateway_id) {
+                    const [gateways] = await query('SELECT * FROM sms_gateways WHERE id = ? AND status = "active"', [users[0].sms_gateway_id]);
+                    if (gateways.length > 0) {
+                        gateway = gateways[0];
+                        console.log(`[SMS] Using assigned gateway "${gateway.name}" and defaults for user ${userId}`);
+                    }
                 }
             }
         }

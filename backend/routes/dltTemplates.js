@@ -126,10 +126,19 @@ router.get('/senders', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
+        let { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
 
         if (!sender || !template_text || !temp_id) {
             return res.status(400).json({ success: false, message: 'Sender, Template Text, and Template ID are required' });
+        }
+
+        // Use user defaults if not provided
+        if (!pe_id || !hash_id) {
+            const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [userId]);
+            if (user.length > 0) {
+                if (!pe_id) pe_id = user[0].pe_id;
+                if (!hash_id) hash_id = user[0].hash_id;
+            }
         }
 
         const [result] = await query(
@@ -154,11 +163,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
-        const { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
+        let { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
 
-        const [existing] = await query('SELECT id FROM dlt_templates WHERE id = ? AND user_id = ?', [id, userId]);
+        const [existing] = await query('SELECT id, pe_id, hash_id FROM dlt_templates WHERE id = ? AND user_id = ?', [id, userId]);
         if (existing.length === 0) {
             return res.status(404).json({ success: false, message: 'Template not found' });
+        }
+
+        // Use user defaults if not provided in request AND missing in existing record
+        if (!pe_id || !hash_id) {
+            const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [userId]);
+            if (user.length > 0) {
+                if (!pe_id && !existing[0].pe_id) pe_id = user[0].pe_id;
+                if (!hash_id && !existing[0].hash_id) hash_id = user[0].hash_id;
+            }
         }
 
         await query(
@@ -285,6 +303,17 @@ router.post('/bulk-upload', authenticateToken, upload.single('file'), async (req
             fs.unlinkSync(req.file.path);
             return res.status(400).json({ success: false, message: 'No valid data rows found in file' });
         }
+
+        // Fetch user defaults for bulk upload fallback
+        const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [userId]);
+        const userPeId = user.length > 0 ? user[0].pe_id : null;
+        const userHashId = user.length > 0 ? user[0].hash_id : null;
+
+        // Map fallbacks to rows
+        rows.forEach(r => {
+            if (!r.pe_id) r.pe_id = userPeId;
+            if (!r.hash_id) r.hash_id = userHashId;
+        });
 
         // Batch insert
         const BATCH_SIZE = 500;

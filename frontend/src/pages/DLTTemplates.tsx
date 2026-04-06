@@ -352,19 +352,11 @@ export default function DLTTemplates() {
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{template.temp_id}</code>
-                                                    {template.hash_id && (
-                                                        <code className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={template.hash_id}>
-                                                            {template.hash_id.substring(0,8)}...
-                                                        </code>
-                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-sm font-medium">{template.temp_name || '—'}</span>
-                                                    {template.pe_id && (
-                                                        <span className="text-[10px] text-muted-foreground">PE: {template.pe_id}</span>
-                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center">
@@ -488,27 +480,6 @@ export default function DLTTemplates() {
                                     placeholder="e.g. 1107111110001001"
                                     value={formData.temp_id}
                                     onChange={(e) => setFormData(p => ({ ...p, temp_id: e.target.value }))}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="pe_id" className="text-sm font-medium">PE ID (Principal Entity ID)</Label>
-                                <Input
-                                    id="pe_id"
-                                    placeholder="e.g. 1001276659..."
-                                    value={formData.pe_id}
-                                    onChange={(e) => setFormData(p => ({ ...p, pe_id: e.target.value }))}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="hash_id" className="text-sm font-medium">Template Hash ID</Label>
-                                <Input
-                                    id="hash_id"
-                                    placeholder="e.g. 31e922c61..."
-                                    value={formData.hash_id}
-                                    onChange={(e) => setFormData(p => ({ ...p, hash_id: e.target.value }))}
                                 />
                             </div>
                         </div>
