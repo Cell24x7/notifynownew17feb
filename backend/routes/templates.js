@@ -63,31 +63,61 @@ router.get('/admin', authenticate, async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
 
-        // Get total count
-        const [totalResult] = await query('SELECT COUNT(*) as total FROM message_templates');
-        const total = totalResult[0]?.total || 0;
-
+        // 1. Get Platform Templates
         const [templates] = await query(`
             SELECT mt.*, u.email as user_email, u.name as user_name 
             FROM message_templates mt
             LEFT JOIN users u ON mt.user_id = u.id
             ORDER BY mt.created_at DESC
-            LIMIT ? OFFSET ?
-        `, [limit, offset]);
+        `);
 
         const templatesWithButtons = await Promise.all(templates.map(async (t) => {
             const [buttons] = await query('SELECT * FROM template_buttons WHERE template_id = ? ORDER BY position', [t.id]);
             return { ...t, buttons };
         }));
 
+        // 2. Get DLT Templates
+        const [dltTemplates] = await query(`
+            SELECT dlt.*, u.email as user_email, u.name as user_name 
+            FROM dlt_templates dlt
+            LEFT JOIN users u ON dlt.user_id = u.id
+            ORDER BY dlt.created_at DESC
+        `);
+        const mappedDltTemplates = dltTemplates.map(t => ({
+            id: `DLT_${t.id}`,
+            user_id: t.user_id,
+            user_email: t.user_email,
+            user_name: t.user_name,
+            name: t.temp_name || `${t.sender} - ${t.temp_id}`,
+            language: 'en',
+            category: t.temp_type || 'Marketing',
+            channel: 'sms',
+            template_type: 'text_message',
+            header_type: 'text',
+            header_content: t.sender,
+            body: t.template_text,
+            footer: null,
+            status: t.status === 'Y' ? 'approved' : 'rejected',
+            created_at: t.created_at,
+            updated_at: t.updated_at,
+            buttons: [],
+            is_dlt: true
+        }));
+
+        // 3. Combine and Page
+        const allTemplates = [...templatesWithButtons, ...mappedDltTemplates];
+        const total = allTemplates.length;
+        const totalPages = Math.ceil(total / limit);
+        const paginatedTemplates = allTemplates.slice(offset, offset + limit);
+
         res.json({
             success: true,
-            templates: templatesWithButtons,
+            templates: paginatedTemplates,
             pagination: {
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
+                totalPages
             }
         });
     } catch (error) {
@@ -108,18 +138,7 @@ router.get('/', authenticate, async (req, res) => {
         const [users] = await query('SELECT whatsapp_config_id, rcs_config_id FROM users WHERE id = ?', [userId]);
         const userConfig = users[0] || { whatsapp_config_id: null, rcs_config_id: null };
 
-        // Get total count
-        const [totalResult] = await query(`
-            SELECT COUNT(*) as total FROM message_templates 
-            WHERE user_id = ? 
-            AND (
-                (channel = 'whatsapp' AND (whatsapp_config_id = ? OR whatsapp_config_id IS NULL)) OR
-                (channel = 'rcs' AND (rcs_config_id = ? OR rcs_config_id IS NULL)) OR
-                (channel NOT IN ('whatsapp', 'rcs'))
-            )
-        `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id]);
-        const total = totalResult[0]?.total || 0;
-
+        // 1. Get Platform Templates (WhatsApp, RCS, Internal SMS)
         const [templates] = await query(`
             SELECT * FROM message_templates 
             WHERE user_id = ? 
@@ -129,22 +148,64 @@ router.get('/', authenticate, async (req, res) => {
                 (channel NOT IN ('whatsapp', 'rcs'))
             )
             ORDER BY created_at DESC
-            LIMIT ? OFFSET ?
-        `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id, limit, offset]);
+        `, [userId, userConfig.whatsapp_config_id, userConfig.rcs_config_id]);
 
         const templatesWithButtons = await Promise.all(templates.map(async (t) => {
             const [buttons] = await query('SELECT * FROM template_buttons WHERE template_id = ? ORDER BY position', [t.id]);
             return { ...t, buttons };
         }));
 
+        // 2. Get DLT Templates (SMS Only)
+        const [dltTemplates] = await query('SELECT * FROM dlt_templates WHERE user_id = ?', [userId]);
+        const mappedDltTemplates = dltTemplates.map(t => ({
+            id: `DLT_${t.id}`,
+            user_id: t.user_id,
+            whatsapp_config_id: null,
+            rcs_config_id: null,
+            name: t.temp_name || `${t.sender} - ${t.temp_id}`,
+            language: 'en',
+            category: t.temp_type || 'Marketing',
+            channel: 'sms',
+            template_type: 'text_message',
+            header_type: 'text',
+            header_content: t.sender,
+            body: t.template_text,
+            footer: null,
+            status: t.status === 'Y' ? 'approved' : 'rejected',
+            rejection_reason: null,
+            usage_count: 0,
+            created_at: t.created_at,
+            updated_at: t.updated_at,
+            buttons: [],
+            is_dlt: true,
+            dlt_details: {
+                sender: t.sender,
+                temp_id: t.temp_id,
+                pe_id: t.pe_id,
+                hash_id: t.hash_id
+            }
+        }));
+
+        // 3. Combine and Page
+        const allTemplates = [...templatesWithButtons, ...mappedDltTemplates];
+        
+        // Handle Filtering (Simplified - full filtering is done on frontend but we should respect pagination)
+        // Note: The UI prefers getting everything and filtering on frontend for small datasets, 
+        // but if we have thousands of templates, we need better pagination.
+        // For now, let's just combine and return.
+
+        const total = allTemplates.length;
+        const totalPages = Math.ceil(total / limit);
+        const paginatedTemplates = allTemplates.slice(offset, offset + limit);
+
         res.json({
             success: true,
-            templates: templatesWithButtons,
+            templates: paginatedTemplates,
             pagination: {
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
+                totalPages
             }
         });
     } catch (error) {
@@ -294,6 +355,20 @@ router.delete('/:id', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
+
+        // Handle DLT Template deletion
+        if (id.startsWith('DLT_')) {
+            const numericId = id.split('_')[1];
+            
+            // Check ownership unless admin
+            if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+                const [owned] = await query('SELECT id FROM dlt_templates WHERE id = ? AND user_id = ?', [numericId, userId]);
+                if (owned.length === 0) return res.status(403).json({ success: false, message: 'Access denied' });
+            }
+            
+            await query('DELETE FROM dlt_templates WHERE id = ?', [numericId]);
+            return res.json({ success: true, message: 'DLT Template deleted successfully' });
+        }
 
         const [existing] = await query('SELECT id FROM message_templates WHERE id = ?', [id]);
         if (existing.length === 0) return res.status(404).json({ success: false, message: 'Template not found' });

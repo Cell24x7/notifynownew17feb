@@ -49,6 +49,8 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFil
                 temp_name VARCHAR(255) DEFAULT '',
                 status ENUM('Y','N') DEFAULT 'Y',
                 temp_type VARCHAR(100) DEFAULT 'Transactional',
+                pe_id VARCHAR(50) DEFAULT NULL,
+                hash_id VARCHAR(50) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_user_id (user_id),
@@ -57,6 +59,10 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFil
                 UNIQUE KEY idx_user_temp_id (user_id, temp_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
+        // Add columns if they don't exist (migrations)
+        try { await query('ALTER TABLE dlt_templates ADD COLUMN IF NOT EXISTS pe_id VARCHAR(50) AFTER temp_type'); } catch(e) {}
+        try { await query('ALTER TABLE dlt_templates ADD COLUMN IF NOT EXISTS hash_id VARCHAR(50) AFTER pe_id'); } catch(e) {}
+
         console.log('✓ dlt_templates table ready');
     } catch (err) {
         console.error('Error creating dlt_templates table:', err.message);
