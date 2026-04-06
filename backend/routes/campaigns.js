@@ -229,10 +229,10 @@ router.post('/', authenticate, async (req, res) => {
                 let dltTplRows = [];
                 if (String(template_id).startsWith('DLT_')) {
                     const internalId = template_id.replace('DLT_', '');
-                    [dltTplRows] = await query('SELECT pe_id, hash_id, sender, temp_id FROM dlt_templates WHERE id = ? LIMIT 1', [internalId]);
+                    [dltTplRows] = await query('SELECT pe_id, hash_id, sender, temp_id FROM dlt_templates WHERE id = ? AND user_id = ? LIMIT 1', [internalId, userId]);
                 } else {
                     // Fallback to numeric temp_id search (for direct API calls)
-                    [dltTplRows] = await query('SELECT pe_id, hash_id, sender, temp_id FROM dlt_templates WHERE temp_id = ? LIMIT 1', [template_id]);
+                    [dltTplRows] = await query('SELECT pe_id, hash_id, sender, temp_id FROM dlt_templates WHERE temp_id = ? AND user_id = ? LIMIT 1', [template_id, userId]);
                 }
 
                 if (dltTplRows.length > 0) {
