@@ -336,13 +336,32 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       return campaignData.recipientCount * multiplier * getCurrentRate();
    };
 
-   // Auto detect Unicode when template changes
+   // Detect if the actual template text contains Unicode characters
+   const templateIsUnicode = useMemo(() => {
+      if (campaignData.channel !== 'sms' || !selectedTemplate) return false;
+      return isUnicodeText(selectedTemplate.body || '');
+   }, [selectedTemplate, campaignData.channel]);
+
+   // Auto detect Unicode when template changes (set isUnicode flag once on template select)
+   const prevTemplateIdRef = { current: '' };
    useEffect(() => {
       if (campaignData.channel === 'sms' && selectedTemplate) {
          const hasUnicode = isUnicodeText(selectedTemplate.body || '');
          setCampaignData(prev => ({ ...prev, isUnicode: hasUnicode }));
       }
-   }, [selectedTemplate, campaignData.channel]);
+   }, [selectedTemplate?.id, campaignData.channel]);
+
+   // Unicode mismatch: user selected Unicode=false but template has Unicode chars, or vice versa
+   const unicodeMismatch = useMemo(() => {
+      if (campaignData.channel !== 'sms' || !selectedTemplate) return null;
+      if (templateIsUnicode && !campaignData.isUnicode) {
+         return { type: 'danger', message: '⚠️ This template contains Unicode/Hindi characters but "Send as Unicode" is OFF. The message will be garbled or rejected by the gateway.' };
+      }
+      if (!templateIsUnicode && campaignData.isUnicode) {
+         return { type: 'warning', message: '⚠️ This is an English template but "Send as Unicode" is ON. Unicode uses 70 chars/part instead of 160, increasing your cost. Uncheck if not needed.' };
+      }
+      return null;
+   }, [templateIsUnicode, campaignData.isUnicode, campaignData.channel, selectedTemplate]);
 
    const handleNext = () => {
       if (currentStep < 5) {
@@ -794,8 +813,35 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
                               {campaignData.channel === 'sms' && selectedTemplate && (
                                  <div className="p-4 border rounded-xl bg-card space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                                    <h3 className="font-medium text-sm">SMS Delivery Settings</h3>
-                                    
+                                    <div className="flex items-center justify-between">
+                                       <h3 className="font-medium text-sm">SMS Delivery Settings</h3>
+                                       <div className="flex items-center gap-2">
+                                          <span className="text-xs text-muted-foreground">Template Type:</span>
+                                          {templateIsUnicode ? (
+                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400">
+                                                🌐 Unicode (Hindi/Regional)
+                                             </span>
+                                          ) : (
+                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                                                🔤 English (GSM-7)
+                                             </span>
+                                          )}
+                                       </div>
+                                    </div>
+
+                                    {/* Unicode Mismatch Warning */}
+                                    {unicodeMismatch && (
+                                       <div className={cn(
+                                          "flex items-start gap-2 p-3 rounded-lg text-xs font-medium",
+                                          unicodeMismatch.type === 'danger'
+                                             ? "bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-600 dark:text-red-300"
+                                             : "bg-yellow-100 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-300"
+                                       )}>
+                                          <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                          <span>{unicodeMismatch.message}</span>
+                                       </div>
+                                    )}
+
                                     <div className="space-y-3">
                                        <div className="flex items-start space-x-3">
                                           <Checkbox
@@ -805,10 +851,14 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              className="mt-1"
                                           />
                                           <div className="grid gap-1.5 leading-none">
-                                             <Label htmlFor="isUnicode">Send as Unicode (Hindi, Marathi, etc.)</Label>
+                                             <Label htmlFor="isUnicode" className="flex items-center gap-2">
+                                                Send as Unicode (Hindi, Marathi, etc.)
+                                                {templateIsUnicode && (
+                                                   <span className="text-[10px] text-orange-600 font-semibold">(Required for this template)</span>
+                                                )}
+                                             </Label>
                                              <p className="text-xs text-muted-foreground mt-1">
-                                                Required for non-English letters. Limits first part to 70 chars. 
-                                                Auto-detected if template contains special characters.
+                                                Required for non-English letters. Unicode limits each part to 70 chars instead of 160.
                                              </p>
                                           </div>
                                        </div>
@@ -831,9 +881,12 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
                                     <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex -mx-2 items-center justify-between text-xs sm:text-sm">
                                        <div>
-                                          <span className="text-muted-foreground">Estimated length based on template:</span>
+                                          <span className="text-muted-foreground">Estimated SMS parts based on template:</span>
                                           <div className="font-semibold text-primary mt-1">
                                              {calculateSMSParts(selectedTemplate?.body || '', !!campaignData.isUnicode, !!campaignData.enableTracking, templateVariables.length)} Credit(s) per User
+                                             <span className="text-muted-foreground font-normal ml-2 text-xs">
+                                                ({selectedTemplate.body?.length || 0} chars · {campaignData.isUnicode ? 'Unicode: 70/part' : 'GSM-7: 160/part'})
+                                             </span>
                                           </div>
                                        </div>
                                     </div>
