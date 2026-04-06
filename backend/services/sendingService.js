@@ -9,12 +9,27 @@ const { sendSMS } = require('../utils/smsService');
 const replaceVariables = (text, vars) => {
     if (!text) return '';
     let result = String(text);
-    Object.keys(vars).forEach(key => {
-        const value = vars[key] || '';
-        result = result.split(`[${key}]`).join(value);
-        result = result.split(`{{${key}}}`).join(value);
-        result = result.split(`{${key}}`).join(value);
+
+    // Regex to match all generic placeholders
+    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}|\{#([^#]+)#\}/g;
+    const counts = {};
+
+    result = result.replace(regex, (match, p1, p2, p3, p4, p5) => {
+        const key = (p1 || p2 || p3 || p4 || p5).trim();
+        counts[key] = (counts[key] || 0) + 1;
+        
+        // Check if there is a specific mapped value for this occurrence
+        let mappedKey = counts[key] === 1 ? key : `${key}_${counts[key]}`;
+        
+        if (vars[mappedKey] !== undefined && vars[mappedKey] !== '') {
+            return vars[mappedKey];
+        } else if (vars[key] !== undefined && vars[key] !== '') {
+            // Fallback to the original base key if sequential mapping doesn't exist
+            return vars[key];
+        }
+        return match; // Leave unreplaced if not found
     });
+
     return result;
 };
 
@@ -72,24 +87,28 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
 const getOrderedVariables = (text, resolvedVars) => {
     const vars = [];
     if (!text) return vars;
-    // Regex for [[X]], [X], {{X}}, {X}
-    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}/g;
+    // Regex for [[X]], [X], {{X}}, {X}, {#X#}
+    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}|\{#([^#]+)#\}/g;
     let match;
     const foundKeys = [];
-    const seen = new Set();
+    const counts = {};
     
     while ((match = regex.exec(text)) !== null) {
-        const key = (match[1] || match[2] || match[3]).trim();
-        if (key && !seen.has(key)) {
-            foundKeys.push(key);
-            seen.add(key);
+        const key = (match[1] || match[2] || match[3] || match[4] || match[5]).trim();
+        if (key) {
+            counts[key] = (counts[key] || 0) + 1;
+            let mappedKey = counts[key] === 1 ? key : `${key}_${counts[key]}`;
+            foundKeys.push(mappedKey);
         }
     }
 
-    // If all keys are numeric, return a continuous array [1..maxIndex]
-    const allNumeric = foundKeys.every(k => !isNaN(parseInt(k)));
-    if (allNumeric && foundKeys.length > 0) {
-        const indices = foundKeys.map(k => parseInt(k));
+    // Attempt to handle all Numeric WA style first (e.g. {{1}}, {{2}})
+    // But since we appended _2, we should just extract the base keys for numerical checks
+    const baseKeys = foundKeys.map(k => k.split('_')[0]);
+    const allNumeric = baseKeys.every(k => !isNaN(parseInt(k)));
+    
+    if (allNumeric && baseKeys.length > 0) {
+        const indices = baseKeys.map(k => parseInt(k));
         const maxIdx = Math.max(...indices);
         const result = [];
         for (let i = 1; i <= maxIdx; i++) {
@@ -98,7 +117,11 @@ const getOrderedVariables = (text, resolvedVars) => {
         return result;
     }
 
-    return foundKeys.map(k => resolvedVars[k] || '');
+    // For non-numeric (e.g. DLT variables, RCS names), return sequentially mapped values
+    return foundKeys.map(k => {
+        const baseKey = k.split('_')[0];
+        return (resolvedVars[k] !== undefined && resolvedVars[k] !== '') ? resolvedVars[k] : (resolvedVars[baseKey] || '');
+    });
 };
 
 /**

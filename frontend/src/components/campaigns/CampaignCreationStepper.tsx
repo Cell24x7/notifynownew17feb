@@ -175,8 +175,20 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       if (!textToScan) return [];
 
       // Matches {{1}}, {1}, {{var}}, {var}, [1], [var], {#var#}, {#var_1#} patterns
-      const matches = textToScan.match(/\{\{\s*([^}\s]+)\s*\}\}|\{\s*([^}\s]+)\s*\}|\[\s*([^\]\s]+)\s*\]|\{#\s*([^#\s]+)\s*#\}/g);
-      const vars = matches ? Array.from(new Set(matches.map(m => m.replace(/\{\{|\}\}|\{|\}|\[|\]|\{#|#\}/g, '').trim()))) : [];
+      let vars: string[] = [];
+      if (matches) {
+          const counts: Record<string, number> = {};
+          matches.forEach(m => {
+              let clean = m.replace(/\{\{|\}\}|\{|\}|\[|\]|\{#|#\}/g, '').trim();
+              if (counts[clean] !== undefined) {
+                  counts[clean]++;
+                  vars.push(`${clean}_${counts[clean]}`);
+              } else {
+                  counts[clean] = 1;
+                  vars.push(clean);
+              }
+          });
+      }
 
       // Check if WhatsApp template has a media header
       const headerComp = meta.components?.find((c: any) => typeof c.type === 'string' && c.type.toUpperCase() === 'HEADER');
