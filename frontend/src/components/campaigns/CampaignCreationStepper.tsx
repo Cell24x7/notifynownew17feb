@@ -175,6 +175,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       if (!textToScan) return [];
 
       // Matches {{1}}, {1}, {{var}}, {var}, [1], [var], {#var#}, {#var_1#} patterns
+      const matches = textToScan.match(/\{\{\s*([^}\s]+)\s*\}\}|\{\s*([^}\s]+)\s*\}|\[\s*([^\]\s]+)\s*\]|\{#\s*([^#\s]+)\s*#\}/g);
       let vars: string[] = [];
       if (matches) {
           const counts: Record<string, number> = {};
