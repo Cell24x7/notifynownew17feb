@@ -881,14 +881,28 @@ const handleSmsCallback = async (req, res) => {
         let finalStatus = 'sent';
         const s = String(status || '').toLowerCase();
         
-        // Map common SMS status strings to internal statuses
-        // Support: DELIVRD, REJECTD, UNDELIV, Kannel %a status (full text)
-        if (s.includes('delivrd') || s.includes('dlvrd') || s.includes('delivered') || s.includes('success') || s === '0' || s === '1' || s === 'sent') {
-            finalStatus = 'delivered';
-        } else if (s.includes('reject') || s.includes('undeliv') || s.includes('fail') || s === '16' || s === '2' || s === 'failed') {
+        // Smart SMS status parsing
+        // If the string contains explicit SMPP 'stat:', parse it first
+        let parsedStat = '';
+        if (s.includes('stat:')) {
+            const statMatch = s.match(/stat:([a-zA-Z]+)/);
+            if (statMatch) parsedStat = statMatch[1].toLowerCase();
+        }
+
+        if (parsedStat.includes('reject') || parsedStat.includes('undeliv') || parsedStat.includes('fail')) {
             finalStatus = 'failed';
-        } else if (s.includes('submit') || s === '8' || s === '4' || s === 'submitted' || s === 'buffered') {
-            finalStatus = 'sent';
+        } else if (parsedStat.includes('deliv')) {
+            finalStatus = 'delivered';
+        } else {
+            // Fallback for general status strings or numeric codes
+            // Prioritize checking for failures first
+            if (s.includes('reject') || s.includes('undeliv') || s.includes('error') || s.includes('fail') || s === '16' || s === '2' || s === 'failed') {
+                finalStatus = 'failed';
+            } else if (s.includes('delivrd') || s.includes('delivered') || s.includes('success') || s === '0' || s === '1' || s === 'sent' || s.includes('dlvrd:001') || (s.includes('dlvrd') && !s.includes('dlvrd:000'))) {
+                finalStatus = 'delivered';
+            } else if (s.includes('submit') || s === '8' || s === '4' || s === 'submitted' || s === 'buffered') {
+                finalStatus = 'sent';
+            }
         }
 
         console.log(`📊 SMS DLR: Msg ${messageId || 'N/A'} for ${mobile || 'N/A'} is ${finalStatus} (Raw: ${status})`);
