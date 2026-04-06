@@ -18,7 +18,8 @@ const replacePlaceholders = (url, data) => {
     // Default placeholders
     const replacements = {
         '%TO': data.mobile || '',
-        '%MSGTEXT': data.isUnicode ? toUcs2Hex(data.message) : encodeURIComponent(data.message || ''),
+        '%MSGTEXT': encodeURIComponent(data.message || ''),
+        '%HEX_MSGTEXT': data.isUnicode ? toUcs2Hex(data.message) : encodeURIComponent(data.message || ''),
         '%FROM': data.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
         '%TEMPID': (data.templateId || '').toString(),
         '%PEID': (data.peId || '').toString(),
