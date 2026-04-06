@@ -217,6 +217,10 @@ router.post('/', authenticate, async (req, res) => {
         }
 
         let finalMetadata = template_metadata || {};
+        finalMetadata.is_unicode = req.body.is_unicode || false;
+        finalMetadata.is_track_link = req.body.is_track_link || false;
+        finalMetadata.sms_parts = req.body.sms_parts || 1;
+
         if (channel === 'sms' && template_id) {
             try {
                 const [dltTpl] = await query('SELECT pe_id, hash_id FROM dlt_templates WHERE temp_id = ? LIMIT 1', [template_id]);

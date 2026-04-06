@@ -28,7 +28,8 @@ const replacePlaceholders = (url, data) => {
         '%MSGID': data.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         '%CALLBACK': encodeURIComponent(data.callbackUrl || ''),
         '%DLRUSERID': data.userId || '0',
-        '%VENDOR': data.gatewayName || 'NotifyNow'
+        '%VENDOR': data.gatewayName || 'NotifyNow',
+        '%MSGTYPE': data.isUnicode ? '2' : '0'
     };
 
     // Single-Pass Replacement Strategy:
@@ -95,9 +96,10 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             }
 
             const baseUrl = 'https://sms.cell24x7.in/otpReceiver/sendSMS';
-            const url = `${baseUrl}?user=${encodeURIComponent(user)}&pwd=${encodeURIComponent(pwd)}&sender=${encodeURIComponent(sender)}&mobile=${encodeURIComponent(cleanMobile)}&msg=${encodeURIComponent(message)}&mt=0`;
+            const msgTypeParam = options.isUnicode ? '2' : '0';
+            const url = `${baseUrl}?user=${encodeURIComponent(user)}&pwd=${encodeURIComponent(pwd)}&sender=${encodeURIComponent(sender)}&mobile=${encodeURIComponent(cleanMobile)}&msg=${encodeURIComponent(message)}&mt=${msgTypeParam}`;
             
-            console.log(`[SMS] Sending fallback to ${mobile}`);
+            console.log(`[SMS] Sending fallback to ${mobile} (Unicode: ${options.isUnicode})`);
             const response = await axios.get(url, { timeout: 10000 });
             return response.data;
         }
@@ -120,7 +122,8 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             userId: options.userId || '0',
             msgId: msgId,
             callbackUrl: finalCallbackUrl,
-            gatewayName: gateway.name
+            gatewayName: gateway?.name || 'NotifyNow',
+            isUnicode: !!options.isUnicode
         };
 
         const finalUrl = replacePlaceholders(gateway.primary_url, data);

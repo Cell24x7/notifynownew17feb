@@ -51,7 +51,35 @@ export interface CampaignData {
    endTime: string;
    estimatedCost: number;
    recipientCount: number;
+   isUnicode?: boolean;
+   enableTracking?: boolean;
+   smsParts?: number;
 }
+
+// Detect if text contains non-GSM characters (Unicode)
+const isUnicodeText = (text: string) => {
+   if (!text) return false;
+   // Common GSM-7 regex pattern (simplified)
+   const gsm7Regex = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\^{}\[~\]|€ÆæßÉ !"#¤%&'()*+,\-./0123456789:;<=>?¡A-ZÄÖÑÜ§¿a-zäöñüà]*$/;
+   return !gsm7Regex.test(text);
+};
+
+// Calculate exact SMS parts considering Variables and short links
+export const calculateSMSParts = (text: string, isUnicode: boolean, hasTracking: boolean, varsCount: number) => {
+   // Assume short link takes ~25 chars
+   let length = text.length;
+   if (hasTracking) length += 25;
+   // Assume each variable takes ~15 chars avg
+   length += varsCount * 15;
+
+   if (isUnicode) {
+      if (length <= 70) return 1;
+      return Math.ceil(length / 67);
+   } else {
+      if (length <= 160) return 1;
+      return Math.ceil(length / 153);
+   }
+};
 
 const steps = [
    { id: 1, title: 'Basic Details', description: 'Name & channel selection' },
@@ -93,6 +121,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       endTime: '',
       estimatedCost: 0,
       recipientCount: 0,
+      isUnicode: false,
+      enableTracking: false,
+      smsParts: 1,
    });
 
    const [selectedAudienceId, setSelectedAudienceId] = useState('');
@@ -283,8 +314,22 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
    // Calculate estimated cost
    const calculateCost = () => {
-      return campaignData.recipientCount * getCurrentRate();
+      let multiplier = 1;
+      if (campaignData.channel === 'sms' && selectedTemplate) {
+         const hasUnicode = campaignData.isUnicode || isUnicodeText(selectedTemplate.body || '');
+         const parts = calculateSMSParts(selectedTemplate.body || '', hasUnicode, !!campaignData.enableTracking, templateVariables.length);
+         multiplier = parts;
+      }
+      return campaignData.recipientCount * multiplier * getCurrentRate();
    };
+
+   // Auto detect Unicode when template changes
+   useEffect(() => {
+      if (campaignData.channel === 'sms' && selectedTemplate) {
+         const hasUnicode = isUnicodeText(selectedTemplate.body || '');
+         setCampaignData(prev => ({ ...prev, isUnicode: hasUnicode }));
+      }
+   }, [selectedTemplate, campaignData.channel]);
 
    const handleNext = () => {
       if (currentStep < 5) {
@@ -733,6 +778,54 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                     </div>
                                  )}
                               </div>
+
+                              {campaignData.channel === 'sms' && selectedTemplate && (
+                                 <div className="p-4 border rounded-xl bg-card space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                    <h3 className="font-medium text-sm">SMS Delivery Settings</h3>
+                                    
+                                    <div className="space-y-3">
+                                       <div className="flex items-start space-x-3">
+                                          <Checkbox
+                                             id="isUnicode"
+                                             checked={campaignData.isUnicode}
+                                             onCheckedChange={(c) => setCampaignData({ ...campaignData, isUnicode: !!c })}
+                                             className="mt-1"
+                                          />
+                                          <div className="grid gap-1.5 leading-none">
+                                             <Label htmlFor="isUnicode">Send as Unicode (Hindi, Marathi, etc.)</Label>
+                                             <p className="text-xs text-muted-foreground mt-1">
+                                                Required for non-English letters. Limits first part to 70 chars. 
+                                                Auto-detected if template contains special characters.
+                                             </p>
+                                          </div>
+                                       </div>
+
+                                       <div className="flex items-start space-x-3">
+                                          <Checkbox
+                                             id="enableTracking"
+                                             checked={campaignData.enableTracking}
+                                             onCheckedChange={(c) => setCampaignData({ ...campaignData, enableTracking: !!c })}
+                                             className="mt-1"
+                                          />
+                                          <div className="grid gap-1.5 leading-none">
+                                             <Label htmlFor="enableTracking">Enable Short Link (Click Tracking)</Label>
+                                             <p className="text-xs text-muted-foreground mt-1">
+                                                Replaces CTA links with a short trackable link. Adds ~25 chars per SMS.
+                                             </p>
+                                          </div>
+                                       </div>
+                                    </div>
+
+                                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex -mx-2 items-center justify-between text-xs sm:text-sm">
+                                       <div>
+                                          <span className="text-muted-foreground">Estimated length based on template:</span>
+                                          <div className="font-semibold text-primary mt-1">
+                                             {calculateSMSParts(selectedTemplate?.body || '', !!campaignData.isUnicode, !!campaignData.enableTracking, templateVariables.length)} Credit(s) per User
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              )}
                            </div>
                         </div>
                      )}

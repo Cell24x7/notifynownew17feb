@@ -38,7 +38,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import CampaignCreationStepper, { type CampaignData } from '@/components/campaigns/CampaignCreationStepper';
+import CampaignCreationStepper, { type CampaignData, calculateSMSParts } from '@/components/campaigns/CampaignCreationStepper';
 import { dltTemplateService } from '@/services/dltTemplateService';
 import { RCSTemplateForm } from '@/components/campaigns/RCSTemplateForm';
 import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesService';
@@ -319,7 +319,10 @@ export default function Campaigns() {
         repeat_days: campaignData.repeatDays,
         end_date: (campaignData.schedulingMode === 'repeat' && campaignData.endDate) 
           ? `${campaignData.endDate}T${campaignData.endTime || '23:59:00'}` 
-          : undefined
+          : undefined,
+        is_unicode: campaignData.isUnicode,
+        is_track_link: campaignData.enableTracking,
+        sms_parts: calculateSMSParts(selectedTpl?.body || '', !!campaignData.isUnicode, !!campaignData.enableTracking, Object.keys(campaignData.fieldMapping || {}).length)
       };
 
       const createRes = await campaignService.createCampaign(campaignPayload);

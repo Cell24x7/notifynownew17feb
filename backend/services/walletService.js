@@ -87,11 +87,21 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             else costPerMsg = parseFloat(campaign.wa_marketing_price || 1.00);
         }
 
-        const totalCost = recipientCount * costPerMsg;
-        let finalCost = isNaN(totalCost) || totalCost < 0 ? (recipientCount * 1.0) : totalCost;
-        if (finalCost === 0 && recipientCount > 0) finalCost = recipientCount * 0.01;
+        let smsParts = 1;
+        if (channel === 'sms') {
+            try {
+                const meta = typeof campaign.template_metadata === 'string' ? JSON.parse(campaign.template_metadata) : (campaign.template_metadata || {});
+                if (meta.sms_parts) smsParts = parseInt(meta.sms_parts) || 1;
+            } catch (e) {
+                console.error('Error parsing template_metadata for sms parts', e);
+            }
+        }
 
-        console.log(`[WalletService] Campaign ${campaignId} Analysis:`, { recipientCount, costPerMsg, totalCost: finalCost, userBalance: campaign.wallet_balance });
+        const totalCost = recipientCount * costPerMsg * smsParts;
+        let finalCost = isNaN(totalCost) || totalCost < 0 ? (recipientCount * 1.0 * smsParts) : totalCost;
+        if (finalCost === 0 && recipientCount > 0) finalCost = recipientCount * 0.01 * smsParts;
+
+        console.log(`[WalletService] Campaign ${campaignId} Analysis:`, { recipientCount, costPerMsg, smsParts, totalCost: finalCost, userBalance: campaign.wallet_balance });
 
         if (campaign.wallet_balance < finalCost || campaign.wallet_balance <= 0) {
             // Rollback lock if insufficient funds

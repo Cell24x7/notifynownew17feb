@@ -264,20 +264,29 @@ const sendUniversalMessage = async (item) => {
             let hashId = item.hash_id || '';
             let templateId = item.template_id || ''; // This is template ID
             const sender = item.sender || null;
+            let isUnicode = false;
+            let isTrackLink = false;
 
             try {
                 const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {});
                 peId = meta.peId || meta.pe_id || peId;
                 hashId = meta.hashId || meta.hash_id || hashId;
                 templateId = meta.templateId || meta.template_id || templateId;
+                isUnicode = !!meta.is_unicode;
+                isTrackLink = !!meta.is_track_link;
             } catch(e) {}
 
+            // Short URL link tracking replacement logic 
+            // In future: Replace real URLs with a short link server endpoint inside processedMessage if isTrackLink is true
+            
             const smsResult = await sendSMS(item.mobile, processedMessage, { 
                 userId: item.user_id, 
                 templateId, 
                 peId, 
                 hashId,
-                sender // Priority 1: Template/Campaign Header
+                sender, // Priority 1: Template/Campaign Header
+                isUnicode,
+                isTrackLink
             });
             
             result = { 
