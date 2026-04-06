@@ -612,8 +612,12 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       switch (currentStep) {
          case 1:
             return campaignData.name.trim() !== '' && campaignData.channel;
-         case 2:
-            return campaignData.templateId !== '';
+         case 2: {
+            if (!campaignData.templateId) return false;
+            // Block if there is a DANGER or WARNING Unicode mismatch for SMS
+            if (unicodeMismatch !== null) return false;
+            return true;
+         }
          case 3:
             if (campaignData.contactSource === 'manual') {
                const count = campaignData.manualNumbers.split(/[\n,\s]+/).filter(n => n.trim()).length;
@@ -847,18 +851,36 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                           <Checkbox
                                              id="isUnicode"
                                              checked={campaignData.isUnicode}
-                                             onCheckedChange={(c) => setCampaignData({ ...campaignData, isUnicode: !!c })}
+                                             disabled={templateIsUnicode}
+                                             onCheckedChange={(c) => {
+                                                const wantsUnicode = !!c;
+                                                if (wantsUnicode && !templateIsUnicode) {
+                                                   // User trying to enable Unicode on English template — warn and block
+                                                   toast({
+                                                      title: '⚠️ Unicode Not Required',
+                                                      description: 'This template is in English (GSM-7). Enabling Unicode will increase your SMS cost by up to 3x. It has been auto-reset to OFF.',
+                                                      variant: 'destructive',
+                                                   });
+                                                   setCampaignData(prev => ({ ...prev, isUnicode: false }));
+                                                } else {
+                                                   setCampaignData(prev => ({ ...prev, isUnicode: wantsUnicode }));
+                                                }
+                                             }}
                                              className="mt-1"
                                           />
                                           <div className="grid gap-1.5 leading-none">
                                              <Label htmlFor="isUnicode" className="flex items-center gap-2">
                                                 Send as Unicode (Hindi, Marathi, etc.)
-                                                {templateIsUnicode && (
-                                                   <span className="text-[10px] text-orange-600 font-semibold">(Required for this template)</span>
+                                                {templateIsUnicode ? (
+                                                   <span className="text-[10px] text-orange-600 font-semibold">(Locked ON — Required for this template)</span>
+                                                ) : (
+                                                   <span className="text-[10px] text-green-600 font-semibold">(Locked OFF — English template)</span>
                                                 )}
                                              </Label>
                                              <p className="text-xs text-muted-foreground mt-1">
-                                                Required for non-English letters. Unicode limits each part to 70 chars instead of 160.
+                                                {templateIsUnicode
+                                                   ? 'This template contains Hindi/Regional characters and MUST be sent as Unicode.'
+                                                   : 'This is an English template. Unicode is automatically disabled to save cost.'}
                                              </p>
                                           </div>
                                        </div>
