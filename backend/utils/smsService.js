@@ -18,7 +18,7 @@ const replacePlaceholders = (url, data) => {
     // Default placeholders
     const replacements = {
         '%TO': data.mobile || '',
-        '%MSGTEXT': encodeURIComponent(data.message || ''),
+        '%MSGTEXT': data.isUnicode ? toUcs2Hex(data.message) : encodeURIComponent(data.message || ''),
         '%FROM': data.sender || process.env.SMS_SENDER_ID || 'NOTIFY',
         '%TEMPID': (data.templateId || '').toString(),
         '%PEID': (data.peId || '').toString(),
@@ -50,6 +50,30 @@ const replacePlaceholders = (url, data) => {
         const cleanMatch = match.endsWith('%') && !replacements[match] ? match.slice(0, -1) : match;
         return replacements[cleanMatch] !== undefined ? replacements[cleanMatch] : match;
     });
+};
+
+/**
+ * Checks if a string contains any non-GSM characters
+ * @param {string} text 
+ * @returns {boolean}
+ */
+const isUnicodeMessage = (text) => {
+    if (!text) return false;
+    // GSM 03.38 character set: A-Z a-z 0-9 @£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./:;<=>?¡¿\\[\\]^_{|}~€
+    const gsmSet = /^[A-Za-z0-9@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&'()*+,-./:;<=>?¡¿\\\[\\\]\^_{|}~€]*$/;
+    return !gsmSet.test(text);
+};
+
+/**
+ * Converts a string to UCS-2 Hexadecimal
+ * @param {string} str 
+ * @returns {string}
+ */
+const toUcs2Hex = (str) => {
+    return Array.from(str)
+        .map(char => char.charCodeAt(0).toString(16).padStart(4, '0'))
+        .join('')
+        .toUpperCase();
 };
 
 const sendSMS = async (mobile, message, templateOrOptions = {}) => {
@@ -118,6 +142,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         const finalCallbackUrl = options.callbackUrl || `${baseUrl}/api/webhooks/sms/callback`;
 
         // 5. Format the data for placeholders
+        const detectedUnicode = isUnicodeMessage(message);
         const data = {
             mobile: cleanMobile,
             message: message,
@@ -129,7 +154,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             msgId: msgId,
             callbackUrl: finalCallbackUrl,
             gatewayName: gateway?.name || 'NotifyNow',
-            isUnicode: !!options.isUnicode
+            isUnicode: options.isUnicode || detectedUnicode
         };
 
         const finalUrl = replacePlaceholders(gateway.primary_url, data);
