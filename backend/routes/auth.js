@@ -243,6 +243,8 @@ router.post('/login', async (req, res) => {
   const { identifier, password } = req.body;
   if (!identifier || !password) return res.status(400).json({ success: false, message: 'Identifier and password required' });
 
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+
   try {
     // Check email or phone with Plan Permissions and User Permissions
     const [rows] = await query(`
@@ -251,8 +253,8 @@ router.post('/login', async (req, res) => {
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
       LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
-      WHERE u.email = ? OR u.contact_phone = ?
-    `, [identifier, identifier]);
+      WHERE LOWER(u.email) = ? OR u.contact_phone = ?
+    `, [normalizedIdentifier, normalizedIdentifier]);
     if (!rows.length) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     let user = null;

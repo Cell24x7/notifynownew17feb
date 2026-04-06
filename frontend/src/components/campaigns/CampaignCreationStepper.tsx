@@ -282,10 +282,10 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    // Get current rate per message
    const getCurrentRate = () => {
       let costPerMsg = channelConfig?.costPerMessage || 0.25;
+      const u = user as any;
 
       if (campaignData.channel === 'rcs') {
          const type = (selectedTemplate as any)?.template_type || (selectedTemplate as any)?.templateType || 'standard';
-         const u = user as any;
          if (type === 'standard' || type === 'text_message') {
             costPerMsg = parseFloat(u?.rcs_text_price) || 1.00;
          } else if (type === 'rich_card' || type === 'rich-card') {
@@ -295,7 +295,6 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          }
       } else if (campaignData.channel === 'whatsapp') {
          const category = (selectedTemplate as any)?.category?.toLowerCase() || 'marketing';
-         const u = user as any;
          if (category === 'marketing') {
             costPerMsg = parseFloat(u?.wa_marketing_price) || 1.00;
          } else if (category === 'utility') {
@@ -306,8 +305,6 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             costPerMsg = parseFloat(u?.wa_marketing_price) || 1.00;
          }
       } else if (campaignData.channel === 'sms') {
-         const u = user as any;
-         const body = (selectedTemplate?.body || '').toLowerCase();
          const name = (selectedTemplate?.name || '').toLowerCase();
          const category = (selectedTemplate as any)?.category?.toLowerCase() || 'promotional';
 
@@ -322,7 +319,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             costPerMsg = parseFloat(u?.sms_transactional_price) || 0.15;
          }
       }
-      return costPerMsg;
+      return isNaN(costPerMsg) ? 1.0 : costPerMsg;
    };
 
    // Calculate estimated cost
@@ -331,9 +328,12 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       if (campaignData.channel === 'sms' && selectedTemplate) {
          const hasUnicode = campaignData.isUnicode || isUnicodeText(selectedTemplate.body || '');
          const parts = calculateSMSParts(selectedTemplate.body || '', hasUnicode, !!campaignData.enableTracking, templateVariables.length);
-         multiplier = parts;
+         multiplier = Number(parts) || 1;
       }
-      return campaignData.recipientCount * multiplier * getCurrentRate();
+      const count = Number(campaignData.recipientCount) || 0;
+      const rate = Number(getCurrentRate()) || 0;
+      const cost = count * multiplier * rate;
+      return isNaN(cost) ? 0 : cost;
    };
 
    // Detect if the actual template text contains Unicode characters

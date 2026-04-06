@@ -30,6 +30,7 @@ pool.getConnection((err, conn) => {
 });
 
 module.exports = {
+  pool,
   query: (sql, params = []) => pool.promise().query(sql, params),
   getDbError: () => dbConnectionError
 };

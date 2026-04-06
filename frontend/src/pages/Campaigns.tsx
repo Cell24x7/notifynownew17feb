@@ -378,6 +378,8 @@ export default function Campaigns() {
             title: '🚀 Campaign Started',
             description: 'Campaign is running in background.',
           });
+          // Refresh user to get updated balance after deduction
+          await refreshUser();
         }
       } else {
         const scheduleLabel = campaignData.schedulingMode === 'repeat' ? 'Recurring campaign' : 'Campaign';
@@ -404,6 +406,12 @@ export default function Campaigns() {
   const handleStatusChange = async (campaignId: string, newStatus: Campaign['status']) => {
     try {
       await campaignService.updateStatus(campaignId, newStatus);
+      
+      // Refresh user immediately to reflect balance changes if campaign started running
+      if (newStatus === 'running') {
+        await refreshUser();
+      }
+
       setCampaigns(campaigns.map((c) => (c.id === campaignId ? { ...c, status: newStatus } : c)));
 
       const statusMessages = {
@@ -473,6 +481,7 @@ export default function Campaigns() {
       const res = await campaignService.resendCampaign(campaign.id);
       if (res.success) {
         toast({ title: '🚀 Campaign Resent', description: 'A new campaign has been created and started.' });
+        await refreshUser(); // NEW: Refresh balance
         fetchData();
       }
     } catch (err: any) {

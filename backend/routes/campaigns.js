@@ -269,22 +269,36 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 
-// UPDATE campaign status (Pause/Resume/Complete)
-router.put('/:id/status', authenticate, async (req, res) => {
+// UPDATE campaign status (Pause/Resume/Complete/Cancel)
+router.patch('/:id/status', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
         const { status } = req.body;
+        
+        const allowedStatuses = ['running', 'paused', 'cancelled', 'sent', 'draft', 'completed'];
+        if (!status || !allowedStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
+        }
+
         const table = id.startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
 
-        const [existing] = await query(`SELECT id FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
-        if (existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
+        // 1. Check existence and ownership
+        const [existing] = await query(`SELECT id, status FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: 'Campaign not found' });
+        }
 
-        await query(`UPDATE ${table} SET status = ? WHERE id = ? AND user_id = ?`, [status, id, userId]);
+        const currentStatus = existing[0].status;
 
-        // If starting/resuming, deduct credits upfront
+        // 2. If status is already the same, just return success
+        if (currentStatus === status) {
+            return res.json({ success: true, message: `Campaign is already ${status}` });
+        }
+
+        // 3. Deduction logic for 'running' state
         if (status === 'running') {
-            const deductionResult = await deductCampaignCredits(id);
+            const deductionResult = await deductCampaignCredits(id, table);
             if (!deductionResult.success) {
                 return res.status(402).json({
                     success: false,
@@ -293,11 +307,28 @@ router.put('/:id/status', authenticate, async (req, res) => {
             }
         }
 
+        // 4. Update the status
+        const [updateResult] = await query(`UPDATE ${table} SET status = ? WHERE id = ? AND user_id = ?`, [status, id, userId]);
+        
+        if (updateResult.affectedRows === 0) {
+            return res.status(500).json({ success: false, message: 'Failed to update campaign status' });
+        }
+
+        console.log(`[Campaign] Status updated: ${id} (${table}) → ${status} (User: ${userId})`);
         res.json({ success: true, message: `Campaign status updated to ${status}` });
+
     } catch (error) {
         console.error('Update campaign status error:', error);
         res.status(500).json({ success: false, message: 'Failed to update campaign status' });
     }
+});
+
+// Alias PUT for backward compatibility
+router.put('/:id/status', authenticate, async (req, res) => {
+    // Forward to the PATCH handler logic
+    const patchRoute = router.stack.find(s => s.route && s.route.path === '/:id/status' && s.route.methods.patch);
+    if (patchRoute) return patchRoute.handle(req, res);
+    res.status(500).json({ success: false, message: 'Status update handler error' });
 });
 
 // DUPLICATE campaign
@@ -625,49 +656,6 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
 });
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/campaigns/:id/status  — Update campaign status (pause/resume/cancel)
-// ─────────────────────────────────────────────────────────────────────────────
-router.patch('/:id/status', authenticate, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-        const userId = req.user.id;
-
-        const allowedStatuses = ['running', 'paused', 'cancelled', 'sent', 'draft'];
-        if (!status || !allowedStatuses.includes(status)) {
-            return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
-        }
-
-        // Try manual campaigns first
-        const [manualResult] = await query(
-            'UPDATE campaigns SET status = ? WHERE id = ? AND user_id = ?',
-            [status, id, userId]
-        );
-
-        if (manualResult.affectedRows > 0) {
-            console.log(`[Campaign] Status updated: ${id} → ${status} (User: ${userId})`);
-            return res.json({ success: true, message: `Campaign status updated to '${status}'` });
-        }
-
-        // Try API campaigns
-        const [apiResult] = await query(
-            'UPDATE api_campaigns SET status = ? WHERE id = ? AND user_id = ?',
-            [status, id, userId]
-        );
-
-        if (apiResult.affectedRows > 0) {
-            console.log(`[Campaign] API Campaign status updated: ${id} → ${status} (User: ${userId})`);
-            return res.json({ success: true, message: `Campaign status updated to '${status}'` });
-        }
-
-        return res.status(404).json({ success: false, message: 'Campaign not found or not authorized' });
-
-    } catch (error) {
-        console.error('Update campaign status error:', error);
-        res.status(500).json({ success: false, message: 'Failed to update campaign status' });
-    }
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/campaigns/:id  — Delete a campaign and its queue items
@@ -706,28 +694,5 @@ router.delete('/:id', authenticate, async (req, res) => {
 });
 
 
-// PUT alias for backward compatibility (frontend may use PUT or PATCH)
-router.put('/:id/status', authenticate, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-        const userId = req.user.id;
-
-        const allowedStatuses = ['running', 'paused', 'cancelled', 'sent', 'draft'];
-        if (!status || !allowedStatuses.includes(status)) {
-            return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
-        }
-
-        const [manualResult] = await query('UPDATE campaigns SET status = ? WHERE id = ? AND user_id = ?', [status, id, userId]);
-        if (manualResult.affectedRows > 0) return res.json({ success: true, message: `Status updated to '${status}'` });
-
-        const [apiResult] = await query('UPDATE api_campaigns SET status = ? WHERE id = ? AND user_id = ?', [status, id, userId]);
-        if (apiResult.affectedRows > 0) return res.json({ success: true, message: `Status updated to '${status}'` });
-
-        return res.status(404).json({ success: false, message: 'Campaign not found or not authorized' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Failed to update campaign status' });
-    }
-});
 
 module.exports = router;

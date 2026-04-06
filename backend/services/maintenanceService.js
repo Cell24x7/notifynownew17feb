@@ -40,6 +40,10 @@ async function runMaintenance() {
                 await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS template_id VARCHAR(100)`).catch(() => {});
             }
 
+            // Ensure users table has global SMS settings
+            await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_pe_id VARCHAR(50)").catch(() => {});
+            await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_default_sender VARCHAR(20)").catch(() => {});
+
             // Auto-fix Gateway URLs and Headers
             const [gateways] = await query('SELECT id, name, primary_url FROM sms_gateways');
             
