@@ -28,6 +28,7 @@ import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesSer
 import { whatsappService } from '@/services/whatsappService';
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
 import { useAuth } from '@/contexts/AuthContext';
+import { dltTemplateService } from '@/services/dltTemplateService';
 import { useNavigate } from 'react-router-dom';
 
 export default function Templates() {
@@ -255,6 +256,39 @@ export default function Templates() {
     buttons: [],
     variables: []
   });
+
+  // SMS / DLT Template form state
+  const [smsFormData, setSmsFormData] = useState({
+    sender: '',
+    template_text: '',
+    temp_id: '',
+    temp_name: '',
+    status: 'Y' as 'Y' | 'N',
+    temp_type: 'Promotional',
+    pe_id: '',
+    hash_id: '',
+  });
+  const [savingSms, setSavingSms] = useState(false);
+
+  const handleSaveSmsTemplate = async () => {
+    if (!smsFormData.sender || !smsFormData.template_text || !smsFormData.temp_id) {
+      toast({ title: 'Validation Error', description: 'Sender ID, Template Text, and Template ID are required.', variant: 'destructive' });
+      return;
+    }
+    setSavingSms(true);
+    try {
+      await dltTemplateService.createTemplate(smsFormData);
+      toast({ title: '✅ SMS Template Saved', description: 'DLT template created and ready to use in SMS campaigns.' });
+      setIsTemplateOpen(false);
+      setSmsFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', status: 'Y', temp_type: 'Promotional', pe_id: '', hash_id: '' });
+      setTemplateStep('channel');
+      fetchTemplates();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.response?.data?.message || 'Failed to save SMS template', variant: 'destructive' });
+    } finally {
+      setSavingSms(false);
+    }
+  };
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
@@ -710,9 +744,83 @@ export default function Templates() {
                 <div className="p-6 space-y-6">
                    {newTemplate.channel === 'rcs' && <RCSTemplateForm data={newTemplate} onChange={setNewTemplate} onFileSelect={setSelectedFile} onCarouselFileSelect={(idx, file) => setCarouselFiles(p => ({ ...p, [idx]: file }))} />}
                    {newTemplate.channel === 'whatsapp' && <WhatsAppTemplateForm data={newTemplate} onChange={setNewTemplate} />}
+                   {newTemplate.channel === 'sms' && (
+                     <div className="space-y-4">
+                       <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+                         📋 SMS templates are stored in your DLT Template registry. Fill in the details exactly as registered on the DLT portal.
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                           <Label className="text-sm font-medium">Sender ID (Header) <span className="text-red-500">*</span></Label>
+                           <Input placeholder="e.g. CMTLTD" value={smsFormData.sender} onChange={(e) => setSmsFormData(p => ({ ...p, sender: e.target.value }))} />
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-sm font-medium">DLT Template ID <span className="text-red-500">*</span></Label>
+                           <Input placeholder="e.g. 1107172914970106513" value={smsFormData.temp_id} onChange={(e) => setSmsFormData(p => ({ ...p, temp_id: e.target.value }))} />
+                         </div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                           <Label className="text-sm font-medium">PE ID (Principal Entity)</Label>
+                           <Input placeholder="e.g. 1001276659256292865" value={smsFormData.pe_id} onChange={(e) => setSmsFormData(p => ({ ...p, pe_id: e.target.value }))} />
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-sm font-medium">Hash ID</Label>
+                           <Input placeholder="e.g. 31e922c61..." value={smsFormData.hash_id} onChange={(e) => setSmsFormData(p => ({ ...p, hash_id: e.target.value }))} />
+                         </div>
+                       </div>
+                       <div className="space-y-2">
+                         <Label className="text-sm font-medium">Template Name</Label>
+                         <Input placeholder="e.g. SVT_NEW" value={smsFormData.temp_name} onChange={(e) => setSmsFormData(p => ({ ...p, temp_name: e.target.value }))} />
+                       </div>
+                       <div className="space-y-2">
+                         <Label className="text-sm font-medium">Template Text <span className="text-red-500">*</span></Label>
+                         <Textarea
+                           placeholder="Your OTP is {#var#}. Valid for 10 minutes."
+                           value={smsFormData.template_text}
+                           onChange={(e) => setSmsFormData(p => ({ ...p, template_text: e.target.value }))}
+                           rows={4}
+                           className="resize-none"
+                         />
+                         <p className="text-xs text-muted-foreground">
+                           Use <code className="bg-muted px-1 rounded">{'{#var#}'}</code> or <code className="bg-muted px-1 rounded">{'{dynamic}'}</code> for variable placeholders · {smsFormData.template_text.length} chars
+                         </p>
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                           <Label className="text-sm font-medium">Template Type</Label>
+                           <Select value={smsFormData.temp_type} onValueChange={(v) => setSmsFormData(p => ({ ...p, temp_type: v }))}>
+                             <SelectTrigger><SelectValue /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="Transactional">Transactional</SelectItem>
+                               <SelectItem value="Service Implicit">Service Implicit</SelectItem>
+                               <SelectItem value="Service Explicit">Service Explicit</SelectItem>
+                               <SelectItem value="Promotional">Promotional</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-sm font-medium">Status</Label>
+                           <Select value={smsFormData.status} onValueChange={(v) => setSmsFormData(p => ({ ...p, status: v as 'Y' | 'N' }))}>
+                             <SelectTrigger><SelectValue /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="Y">✓ Active</SelectItem>
+                               <SelectItem value="N">✗ Inactive</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </div>
+                       </div>
+                     </div>
+                   )}
                    <div className="flex gap-3 pt-6">
                       <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setTemplateStep('channel')}>Back</Button>
-                      <Button className="flex-[2] h-12 rounded-xl gradient-primary" onClick={() => handleSaveTemplate(false)}>{editingTemplate ? 'Update' : 'Save & Submit'}</Button>
+                      {newTemplate.channel === 'sms' ? (
+                        <Button className="flex-[2] h-12 rounded-xl gradient-primary" onClick={handleSaveSmsTemplate} disabled={savingSms}>
+                          {savingSms ? '⏳ Saving...' : '💾 Save SMS Template'}
+                        </Button>
+                      ) : (
+                        <Button className="flex-[2] h-12 rounded-xl gradient-primary" onClick={() => handleSaveTemplate(false)}>{editingTemplate ? 'Update' : 'Save & Submit'}</Button>
+                      )}
                    </div>
                 </div>
               )}
