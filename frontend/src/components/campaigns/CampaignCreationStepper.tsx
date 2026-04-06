@@ -215,7 +215,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    useEffect(() => {
       if (user?.name && !campaignData.name) {
          const uniqueId = Math.random().toString(36).substring(2, 7).toUpperCase();
-         const generatedName = `${user.name} - NotifyNow - ${uniqueId}`;
+         const dateStr = format(new Date(), 'dd MMM yyyy');
+         const generatedName = `${user.name} - ${dateStr} - ${uniqueId}`;
          setCampaignData(prev => ({ ...prev, name: generatedName }));
       }
    }, [user, currentStep === 1]);

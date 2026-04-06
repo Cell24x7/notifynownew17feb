@@ -184,8 +184,8 @@ router.post('/send-otp', async (req, res) => {
           );
         }
       } else {
-        // Update user with new OTP
-        await query('UPDATE users SET otp = ?, otp_expiry = ?, status = "pending" WHERE id = ?', [otp, expiry, users[0].id]);
+        // Update user with new OTP - DO NOT update status here (prevents un-suspending accidentally)
+        await query('UPDATE users SET otp = ?, otp_expiry = ? WHERE id = ?', [otp, expiry, users[0].id]);
       }
     }
 

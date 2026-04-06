@@ -34,6 +34,7 @@ export default function SuperAdminClients() {
   const [plans, setPlans] = useState<any[]>([]); // State for real plans
   const [rcsConfigs, setRcsConfigs] = useState<any[]>([]); // State for RCS configs
   const [whatsappConfigs, setWhatsappConfigs] = useState<any[]>([]); // State for WhatsApp configs
+  const [smsGateways, setSmsGateways] = useState<any[]>([]); // State for SMS gateways
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('clients');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -62,6 +63,9 @@ export default function SuperAdminClients() {
     sms_promotional_price: 1.00,
     sms_transactional_price: 1.00,
     sms_service_price: 1.00,
+    sms_gateway_id: '',
+    pe_id: '',
+    hash_id: '',
   });
 
   // Fetch real plans
@@ -134,11 +138,27 @@ export default function SuperAdminClients() {
     }
   };
 
+  // Fetch SMS Gateways
+  const fetchSmsGateways = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/sms-gateways`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setSmsGateways(res.data.gateways || []);
+      }
+    } catch (err) {
+      console.error('Failed to load SMS gateways', err);
+    }
+  };
+
   useEffect(() => {
     fetchClients();
     fetchPlans();
     fetchRcsConfigs();
     fetchWhatsappConfigs();
+    fetchSmsGateways();
   }, []);
 
   // Real-time filtering
@@ -365,6 +385,9 @@ export default function SuperAdminClients() {
       sms_promotional_price: client.sms_promotional_price || 1.00,
       sms_transactional_price: client.sms_transactional_price || 1.00,
       sms_service_price: client.sms_service_price || 1.00,
+      sms_gateway_id: client.sms_gateway_id ? String(client.sms_gateway_id) : '',
+      pe_id: client.pe_id || '',
+      hash_id: client.hash_id || '',
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -396,6 +419,9 @@ export default function SuperAdminClients() {
       sms_promotional_price: client.sms_promotional_price || 1.00,
       sms_transactional_price: client.sms_transactional_price || 1.00,
       sms_service_price: client.sms_service_price || 1.00,
+      sms_gateway_id: client.sms_gateway_id ? String(client.sms_gateway_id) : '',
+      pe_id: client.pe_id || '',
+      hash_id: client.hash_id || '',
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -975,6 +1001,53 @@ export default function SuperAdminClients() {
                     </SelectContent>
                   </Select>
                   <p className="text-[10px] text-muted-foreground">Each user must have a Meta WhatsApp business account assigned to send messages.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Section: SMS Gateway & DLT Metadata */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> SMS Gateway & DLT Settings
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>SMS Gateway</Label>
+                  <Select
+                    value={currentClient.sms_gateway_id || 'default'}
+                    onValueChange={v => setCurrentClient(p => ({ ...p, sms_gateway_id: v === 'default' ? '' : v }))}
+                    disabled={modalMode === 'view'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select SMS Gateway" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">None (Use Global Default)</SelectItem>
+                      {smsGateways.map(gw => (
+                        <SelectItem key={gw.id} value={String(gw.id)}>{gw.name} ({gw.sender_id})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Default PE ID</Label>
+                  <Input
+                    placeholder="Principal Entity ID"
+                    value={currentClient.pe_id || ''}
+                    onChange={e => setCurrentClient(p => ({ ...p, pe_id: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Default Hash ID</Label>
+                  <Input
+                    placeholder="DLT Hash ID"
+                    value={currentClient.hash_id || ''}
+                    onChange={e => setCurrentClient(p => ({ ...p, hash_id: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
                 </div>
               </div>
             </div>

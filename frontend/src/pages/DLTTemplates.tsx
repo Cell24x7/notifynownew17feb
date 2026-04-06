@@ -169,7 +169,6 @@ export default function DLTTemplates() {
     // Sample Download handler
     const handleDownloadSample = () => {
         try {
-            const headers = ['SENDER', 'TEMP_NAME', 'TEMP_ID', 'TEMPLATE_TEXT', 'STATUS', 'TEMP_TYPE', 'PE_ID', 'HASH_ID'];
             const sampleData = [
                 {
                     'SENDER': 'SLCSCL',
@@ -177,9 +176,7 @@ export default function DLTTemplates() {
                     'TEMP_ID': '1107177493302050627',
                     'TEMPLATE_TEXT': 'Dear Student, சாஃப்ட்வேர் நிறுவனங்களில் (கை நிறைய சம்பாதிக்க) B.Sc CS (Data Science and Analytics) B.Sc. Computer Science* (AI and ML) Microsoft Technology Associate Certification - Data Science using Python, AI தேர்ந்தெடுங்கள். SLCS - கல்லூரி மதுரை. scls.edu.in 7339137518 8870679991',
                     'STATUS': 'Y',
-                    'TEMP_TYPE': 'Service Implicit',
-                    'PE_ID': '1001276659256292865',
-                    'HASH_ID': '99e6e220461cf7b76694385b53ecbb4054fc18f3cce99c10b4d5916390f4bd59'
+                    'TEMP_TYPE': 'Service Implicit'
                 },
                 {
                     'SENDER': 'CMTLTD',
@@ -187,13 +184,13 @@ export default function DLTTemplates() {
                     'TEMP_ID': '1101234567890',
                     'TEMPLATE_TEXT': 'Your OTP for login is {#var#}. Do not share it with anyone. {#var#} Team',
                     'STATUS': 'Y',
-                    'TEMP_TYPE': 'Transactional',
-                    'PE_ID': '',
-                    'HASH_ID': ''
+                    'TEMP_TYPE': 'Transactional'
                 }
             ];
             
-            const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
+            const worksheet = XLSX.utils.json_to_sheet(sampleData, { 
+                header: ['SENDER', 'TEMP_NAME', 'TEMP_ID', 'TEMPLATE_TEXT', 'STATUS', 'TEMP_TYPE'] 
+            });
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'DLT Templates');
             

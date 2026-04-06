@@ -96,7 +96,7 @@ export default function Campaigns() {
       let mergedTemplates = [...templatesData];
 
       // Use local user object if available, otherwise check if rcs is likely enabled
-      const isRcsEnabled = enabledChannels.includes('rcs') || user?.channels_enabled?.includes('rcs');
+      const isRcsEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'rcs') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'rcs');
 
       if (isRcsEnabled) {
         try {
@@ -170,7 +170,7 @@ export default function Campaigns() {
         }
       }
 
-      const isWhatsappEnabled = enabledChannels.includes('whatsapp') || user?.channels_enabled?.includes('whatsapp');
+      const isWhatsappEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'whatsapp') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'whatsapp');
       if (isWhatsappEnabled) {
         try {
           const waData = await whatsappService.getTemplates();
@@ -220,7 +220,7 @@ export default function Campaigns() {
           console.error('Failed to fetch WhatsApp templates:', waErr);
         }
       }
-      const isSmsEnabled = enabledChannels.includes('sms') || user?.channels_enabled?.includes('sms');
+      const isSmsEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'sms') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'sms');
       if (isSmsEnabled) {
         try {
           const smsData = await dltTemplateService.getTemplates('', 1, 1000);

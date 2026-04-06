@@ -358,7 +358,11 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
 
         const c = existing[0];
         const newId = `CAMP${Date.now()}`;
-        const newName = `${c.name} (Copy)`;
+        const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        
+        // Clean original name from previous (Copy) or (Resent) tags to avoid stacking
+        let cleanName = c.name.replace(/\s*\(Copy\)/g, '').replace(/\s*\(Resent\)/g, '');
+        const newName = `${req.user.name || 'User'} - ${dateStr} - ${cleanName} (Copy)`;
 
         await query(
             `INSERT INTO campaigns 
@@ -390,7 +394,11 @@ router.post('/:id/resend', authenticate, async (req, res) => {
 
         const c = existing[0];
         const newId = `CAMP${Date.now()}`;
-        const newName = `${c.name} (Resent)`;
+        const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        
+        // Clean original name from previous (Copy) or (Resent) tags to avoid stacking
+        let cleanName = c.name.replace(/\s*\(Copy\)/g, '').replace(/\s*\(Resent\)/g, '');
+        const newName = `${req.user.name || 'User'} - ${dateStr} - ${cleanName} (Resent)`;
 
         // 2. Insert new campaign record
         await query(
