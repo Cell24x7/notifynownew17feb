@@ -265,9 +265,8 @@ export default function Templates() {
     temp_name: '',
     status: 'Y' as 'Y' | 'N',
     temp_type: 'Promotional',
-    pe_id: '',
-    hash_id: '',
   });
+
   const [savingSms, setSavingSms] = useState(false);
 
   const handleSaveSmsTemplate = async () => {
@@ -280,7 +279,7 @@ export default function Templates() {
       await dltTemplateService.createTemplate(smsFormData);
       toast({ title: '✅ SMS Template Saved', description: 'DLT template created and ready to use in SMS campaigns.' });
       setIsTemplateOpen(false);
-      setSmsFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', status: 'Y', temp_type: 'Promotional', pe_id: '', hash_id: '' });
+      setSmsFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', status: 'Y', temp_type: 'Promotional' });
       setTemplateStep('channel');
       fetchTemplates();
     } catch (err: any) {
@@ -742,7 +741,7 @@ export default function Templates() {
                 </div>
               ) : (
                 <div className="p-6 space-y-6">
-                   {newTemplate.channel === 'rcs' && <RCSTemplateForm data={newTemplate} onChange={setNewTemplate} onFileSelect={setSelectedFile} onCarouselFileSelect={(idx, file) => setCarouselFiles(p => ({ ...p, [idx]: file }))} />}
+                   {newTemplate.channel === 'rcs' && <RCSTemplateForm data={newTemplate} onChange={setNewTemplate} onFileChange={setSelectedFile} onCarouselFileChange={(idx, file) => setCarouselFiles(p => ({ ...p, [idx]: file }))} />}
                    {newTemplate.channel === 'whatsapp' && <WhatsAppTemplateForm data={newTemplate} onChange={setNewTemplate} />}
                    {newTemplate.channel === 'sms' && (
                      <div className="space-y-4">
@@ -759,20 +758,11 @@ export default function Templates() {
                            <Input placeholder="e.g. 1107172914970106513" value={smsFormData.temp_id} onChange={(e) => setSmsFormData(p => ({ ...p, temp_id: e.target.value }))} />
                          </div>
                        </div>
-                       <div className="grid grid-cols-2 gap-4">
-                         <div className="space-y-2">
-                           <Label className="text-sm font-medium">PE ID (Principal Entity)</Label>
-                           <Input placeholder="e.g. 1001276659256292865" value={smsFormData.pe_id} onChange={(e) => setSmsFormData(p => ({ ...p, pe_id: e.target.value }))} />
-                         </div>
-                         <div className="space-y-2">
-                           <Label className="text-sm font-medium">Hash ID</Label>
-                           <Input placeholder="e.g. 31e922c61..." value={smsFormData.hash_id} onChange={(e) => setSmsFormData(p => ({ ...p, hash_id: e.target.value }))} />
-                         </div>
-                       </div>
-                       <div className="space-y-2">
-                         <Label className="text-sm font-medium">Template Name</Label>
-                         <Input placeholder="e.g. SVT_NEW" value={smsFormData.temp_name} onChange={(e) => setSmsFormData(p => ({ ...p, temp_name: e.target.value }))} />
-                       </div>
+                      {/* Removed PE_ID and HASH_ID fields as they are handled by backend inheritance */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Template Name</Label>
+                        <Input placeholder="e.g. SVT_NEW" value={smsFormData.temp_name} onChange={(e) => setSmsFormData(p => ({ ...p, temp_name: e.target.value }))} />
+                      </div>
                        <div className="space-y-2">
                          <Label className="text-sm font-medium">Template Text <span className="text-red-500">*</span></Label>
                          <Textarea

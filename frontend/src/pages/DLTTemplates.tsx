@@ -40,8 +40,6 @@ export default function DLTTemplates() {
         temp_name: '',
         status: 'Y' as 'Y' | 'N',
         temp_type: 'Transactional',
-        pe_id: '',
-        hash_id: '',
     });
     const [saving, setSaving] = useState(false);
 
@@ -102,7 +100,7 @@ export default function DLTTemplates() {
     // Open add modal
     const openAddModal = () => {
         setEditingTemplate(null);
-        setFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', status: 'Y', temp_type: 'Transactional', pe_id: '', hash_id: '' });
+        setFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', status: 'Y', temp_type: 'Transactional' });
         setIsModalOpen(true);
     };
 
@@ -116,8 +114,6 @@ export default function DLTTemplates() {
             temp_name: template.temp_name,
             status: template.status,
             temp_type: template.temp_type,
-            pe_id: template.pe_id || '',
-            hash_id: template.hash_id || '',
         });
         setIsModalOpen(true);
     };
