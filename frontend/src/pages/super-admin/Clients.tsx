@@ -456,6 +456,37 @@ export default function SuperAdminClients() {
     }
   };
 
+  const handleDeleteClient = async (client: any) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE client "${client.name}" (${client.email})? This action cannot be undone.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.delete(`${API_URL}/clients/${client.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        toast({
+          title: 'Deleted',
+          description: `Client ${client.name} has been removed.`,
+        });
+        fetchClients();
+      } else {
+        toast({ title: 'Failed', description: res.data.message || 'Could not delete client', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to delete client',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Scroll logic
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -739,9 +770,12 @@ export default function SuperAdminClients() {
                             <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
                               <LogIn className="w-4 h-4 mr-2" /> Login as Client
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSuspend(client)} className="text-red-600 focus:text-red-600">
+                            <DropdownMenuItem onClick={() => handleSuspend(client)} className="text-orange-600 focus:text-orange-600">
                               <Ban className="w-4 h-4 mr-2" />
                               {client.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600 focus:text-red-600">
+                              <Trash2 className="w-4 h-4 mr-2" /> Delete Account
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

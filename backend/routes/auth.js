@@ -268,6 +268,14 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user || !match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    
+    // Check if account is suspended
+    if (user.status === 'suspended') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Your account has been suspended. Please contact support.' 
+      });
+    }
 
     // 1. Priority: User-specific overrides
     let finalPermissions = null; // Start as null to detect absence
@@ -420,6 +428,14 @@ router.post('/google', async (req, res) => {
 
     if (rows.length > 0) {
       user = rows[0];
+
+      // Check if account is suspended
+      if (user.status === 'suspended') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Your account has been suspended. Please contact support.' 
+        });
+      }
     } else {
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
@@ -523,6 +539,14 @@ router.post('/linkedin', async (req, res) => {
 
     if (rows.length > 0) {
       user = rows[0];
+
+      // Check if account is suspended
+      if (user.status === 'suspended') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Your account has been suspended. Please contact support.' 
+        });
+      }
     } else {
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
@@ -618,6 +642,14 @@ router.post('/facebook', async (req, res) => {
 
     if (rows.length > 0) {
       user = rows[0];
+
+      // Check if account is suspended
+      if (user.status === 'suspended') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Your account has been suspended. Please contact support.' 
+        });
+      }
     } else {
       const defaultChannels = ["WhatsApp", "SMS", "RCS", "Email"];
       
