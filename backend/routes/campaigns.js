@@ -223,10 +223,11 @@ router.post('/', authenticate, async (req, res) => {
 
         if (channel === 'sms' && template_id) {
             try {
-                const [dltTpl] = await query('SELECT pe_id, hash_id FROM dlt_templates WHERE temp_id = ? LIMIT 1', [template_id]);
+                const [dltTpl] = await query('SELECT pe_id, hash_id, sender FROM dlt_templates WHERE temp_id = ? LIMIT 1', [template_id]);
                 if (dltTpl.length > 0) {
                     finalMetadata.peId = dltTpl[0].pe_id;
                     finalMetadata.hashId = dltTpl[0].hash_id;
+                    finalMetadata.sender = dltTpl[0].sender;
                 }
             } catch (err) {
                 console.error('Error fetching DLT template metadata:', err.message);

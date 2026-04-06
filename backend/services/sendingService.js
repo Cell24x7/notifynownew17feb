@@ -263,7 +263,7 @@ const sendUniversalMessage = async (item) => {
             let peId = item.pe_id || '';
             let hashId = item.hash_id || '';
             let templateId = item.template_id || ''; // This is template ID
-            const sender = item.sender || null;
+            let sender = item.sender || null;
             let isUnicode = false;
             let isTrackLink = false;
 
@@ -272,6 +272,7 @@ const sendUniversalMessage = async (item) => {
                 peId = meta.peId || meta.pe_id || peId;
                 hashId = meta.hashId || meta.hash_id || hashId;
                 templateId = meta.templateId || meta.template_id || templateId;
+                sender = meta.sender || sender;
                 isUnicode = !!meta.is_unicode;
                 isTrackLink = !!meta.is_track_link;
             } catch(e) {}
