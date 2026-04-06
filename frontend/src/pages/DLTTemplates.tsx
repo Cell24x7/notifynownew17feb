@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Upload, Plus, Search, Edit, Trash2, FileSpreadsheet, X, Check, AlertCircle, ChevronLeft, ChevronRight, Loader2, FileText } from 'lucide-react';
+import { Upload, Plus, Search, Edit, Trash2, FileSpreadsheet, X, Check, AlertCircle, ChevronLeft, ChevronRight, Loader2, FileText, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -164,6 +165,54 @@ export default function DLTTemplates() {
             setDeleting(false);
         }
     };
+    
+    // Sample Download handler
+    const handleDownloadSample = () => {
+        try {
+            const headers = ['SENDER', 'TEMP_NAME', 'TEMP_ID', 'TEMPLATE_TEXT', 'STATUS', 'TEMP_TYPE', 'PE_ID', 'HASH_ID'];
+            const sampleData = [
+                {
+                    'SENDER': 'SLCSCL',
+                    'TEMP_NAME': 'Temp_31st_mar_5',
+                    'TEMP_ID': '1107177493302050627',
+                    'TEMPLATE_TEXT': 'Dear Student, சாஃப்ட்வேர் நிறுவனங்களில் (கை நிறைய சம்பாதிக்க) B.Sc CS (Data Science and Analytics) B.Sc. Computer Science* (AI and ML) Microsoft Technology Associate Certification - Data Science using Python, AI தேர்ந்தெடுங்கள். SLCS - கல்லூரி மதுரை. scls.edu.in 7339137518 8870679991',
+                    'STATUS': 'Y',
+                    'TEMP_TYPE': 'Service Implicit',
+                    'PE_ID': '',
+                    'HASH_ID': ''
+                },
+                {
+                    'SENDER': 'CMTLTD',
+                    'TEMP_NAME': 'Login_OTP',
+                    'TEMP_ID': '1101234567890',
+                    'TEMPLATE_TEXT': 'Your OTP for login is {#var#}. Do not share it with anyone. {#var#} Team',
+                    'STATUS': 'Y',
+                    'TEMP_TYPE': 'Transactional',
+                    'PE_ID': '',
+                    'HASH_ID': ''
+                }
+            ];
+            
+            const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'DLT Templates');
+            
+            // Export as XLSX
+            XLSX.writeFile(workbook, 'dlt_templates_sample.xlsx');
+            
+            toast({
+                title: '✅ Sample Ready',
+                description: 'The DLT template sample file has been downloaded.',
+            });
+        } catch (err) {
+            console.error('Error generating sample:', err);
+            toast({
+                title: 'Error',
+                description: 'Failed to generate sample file',
+                variant: 'destructive'
+            });
+        }
+    };
 
     const tempTypeColors: Record<string, string> = {
         'Transactional': 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/20',
@@ -198,16 +247,14 @@ export default function DLTTemplates() {
                             <Label className="text-sm font-semibold flex items-center gap-2">
                                 <Upload className="h-4 w-4 text-primary" />
                                 Import DLT Template Header Data
-                                <a
-                                    href={`${API_BASE_URL.replace('/api', '')}/uploads/dlt_templates_sample.xlsx`}
-                                    download="dlt_templates_sample.xlsx"
-                                    className="text-primary text-xs font-bold underline underline-offset-2 hover:text-primary/80 ml-2 bg-primary/5 px-2 py-1 rounded-md"
-                                    onClick={(e) => {
-                                        // toast({ title: 'Downloading', description: 'Sample file download starting...' });
-                                    }}
+                                <button
+                                    type="button"
+                                    onClick={handleDownloadSample}
+                                    className="text-primary text-xs font-bold underline underline-offset-2 hover:text-primary/80 ml-2 bg-primary/5 px-2 py-1 rounded-md flex items-center gap-1 inline-flex"
                                 >
+                                    <Download className="h-3 w-3" />
                                     Download Sample File
-                                </a>
+                                </button>
                             </Label>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                                 <div className="relative flex-1">
