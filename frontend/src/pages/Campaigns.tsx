@@ -236,7 +236,8 @@ export default function Campaigns() {
               metadata: {
                 dlt_template_id: t.temp_id,
                 sender: t.sender,
-                pe_id: t.pe_id || ''
+                pe_id: t.pe_id || '',
+                hash_id: t.hash_id || ''
               },
               isExternal: true
             }));
