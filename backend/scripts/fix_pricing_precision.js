@@ -1,11 +1,18 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Load environment variables
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
-dotenv.config({ path: path.join(__dirname, '../', envFile) });
+// Smart env loading: Try .env.production first, then fallback to .env
+const envProduction = path.join(__dirname, '../../.env.production');
+const envDev = path.join(__dirname, '../../.env');
 
-console.log(`📡 Migration Environment: ${process.env.NODE_ENV || 'development'} (using ${envFile})`);
+if (require('fs').existsSync(envProduction)) {
+    dotenv.config({ path: envProduction });
+    process.env.NODE_ENV = 'production';
+} else {
+    dotenv.config({ path: envDev });
+}
+
+console.log(`📡 Migration Environment: ${process.env.NODE_ENV || 'development'}`);
 
 const mysql = require('mysql2/promise');
 

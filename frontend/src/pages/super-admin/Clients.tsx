@@ -1076,7 +1076,7 @@ export default function SuperAdminClients() {
                   <Label>Rich Card (₹)</Label>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={currentClient.rcs_rich_card_price}
                     onChange={e => setCurrentClient(prev => ({ ...prev, rcs_rich_card_price: parseFloat(e.target.value) || 0 }))}
@@ -1088,7 +1088,7 @@ export default function SuperAdminClients() {
                   <Label>Carousel (₹)</Label>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={currentClient.rcs_carousel_price}
                     onChange={e => setCurrentClient(prev => ({ ...prev, rcs_carousel_price: parseFloat(e.target.value) || 0 }))}
@@ -1123,7 +1123,7 @@ export default function SuperAdminClients() {
                   <Label>Utility (₹)</Label>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={currentClient.wa_utility_price}
                     onChange={e => setCurrentClient(prev => ({ ...prev, wa_utility_price: parseFloat(e.target.value) || 0 }))}
@@ -1135,7 +1135,7 @@ export default function SuperAdminClients() {
                   <Label>Authentication (₹)</Label>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={currentClient.wa_authentication_price}
                     onChange={e => setCurrentClient(prev => ({ ...prev, wa_authentication_price: parseFloat(e.target.value) || 0 }))}
@@ -1170,7 +1170,7 @@ export default function SuperAdminClients() {
                   <Label>Transactional (₹)</Label>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={currentClient.sms_transactional_price}
                     onChange={e => setCurrentClient(prev => ({ ...prev, sms_transactional_price: parseFloat(e.target.value) || 0 }))}
@@ -1182,7 +1182,7 @@ export default function SuperAdminClients() {
                   <Label>Service (₹)</Label>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     min="0"
                     value={currentClient.sms_service_price}
                     onChange={e => setCurrentClient(prev => ({ ...prev, sms_service_price: parseFloat(e.target.value) || 0 }))}

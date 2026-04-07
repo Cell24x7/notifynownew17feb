@@ -119,6 +119,7 @@ NODE_ENV=production node apply_schema_updates.js
 NODE_ENV=production node fix_logs_schema.js || true
 NODE_ENV=production node scripts/fix_webhook_logs.js || true
 NODE_ENV=production node migrate_reports.js || true
+NODE_ENV=production node scripts/fix_pricing_precision.js || true
 
 ok "Database schema and environment are synced for $ENV_DESC."
 
