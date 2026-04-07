@@ -755,7 +755,7 @@ export default function Campaigns() {
                     <TableCell className="text-right">
                       <span className="flex items-center justify-end gap-1 text-muted-foreground">
                         <IndianRupee className="h-3 w-3" />
-                        {Number(campaign.cost).toFixed(2)}
+                        {(Number(campaign.cost) || 0).toFixed(2)}
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(campaign.created_at), 'MMM d')}</TableCell>

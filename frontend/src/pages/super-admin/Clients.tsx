@@ -335,6 +335,9 @@ export default function SuperAdminClients() {
       sms_promotional_price: 1.00,
       sms_transactional_price: 1.00,
       sms_service_price: 1.00,
+      sms_gateway_id: '',
+      pe_id: '',
+      hash_id: '',
     });
   }
 
@@ -546,8 +549,8 @@ export default function SuperAdminClients() {
   // Stats
   const totalClients = filteredClients.length;
   const totalActiveUsers = filteredClients.filter(c => c.status === 'active').length;
-  const totalCreditsAssigned = filteredClients.reduce((sum, c) => sum + (c.credits_available || 0) + (c.credits_used || 0), 0);
-  const totalCreditsAvailable = filteredClients.reduce((sum, c) => sum + (c.credits_available || 0), 0);
+  const totalCreditsAssigned = (filteredClients || []).reduce((sum, c) => sum + (Number(c.credits_available) || 0) + (Number(c.credits_used) || 0), 0);
+  const totalCreditsAvailable = (filteredClients || []).reduce((sum, c) => sum + (Number(c.credits_available) || 0), 0);
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -587,7 +590,7 @@ export default function SuperAdminClients() {
         />
         <StatsCard
           title="Total Assigned"
-          value={(totalCreditsAssigned / 1000).toFixed(1) + 'K'}
+          value={(Number(totalCreditsAssigned || 0) / 1000).toFixed(1) + 'K'}
           icon={CreditCard}
           color="text-red-600"
           bg="bg-red-500/10"
