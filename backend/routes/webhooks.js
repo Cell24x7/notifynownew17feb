@@ -471,6 +471,7 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
 
         const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
         const isResellerRole = req.user.role === 'reseller';
+        let userIdQuery = req.query.userId || req.user.id;
 
         if (userIdQuery !== 'all') {
             if (isResellerRole && userIdQuery != req.user.id) {
@@ -484,14 +485,11 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             }
         } else if (isResellerRole) {
             // Reseller sees their own + their clients' logs
+            const actualResellerId = req.user.actual_reseller_id || req.user.id;
             conditions.push("(ml.user_id = ? OR ml.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
-            params.push(req.user.id, req.user.actual_reseller_id || req.user.id);
-        } else if (!isAdminRole) {
-            // Regular user sees only their own
-            conditions.push("ml.user_id = ?");
-            params.push(req.user.id);
+            params.push(req.user.id, actualResellerId);
         }
-        // If Admin and 'all', no user filter (see everything)
+        // If Admin and 'all', no user filter is pushed (std admin view)
 
         // Apply Keyset Pagination (FASTEST for 1Cr) or Page-based (Current UI)
         const page = parseInt(req.query.page) || 1;

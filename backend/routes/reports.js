@@ -13,10 +13,10 @@ router.get('/summary', authenticate, async (req, res) => {
     try {
         const { from, to, channel, status, userId } = req.query;
 
-        // Use targetUserId if provided and user is admin/reseller, else use own id
+        // Use targetUserId if provided and user is admin, else use own id
+        let isResellerRole = req.user.role === 'reseller';
+        let isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
         let targetUserId = req.user.id;
-        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
-        const isResellerRole = req.user.role === 'reseller';
 
         if ((isAdminRole || isResellerRole) && userId) {
             targetUserId = userId;
@@ -37,11 +37,12 @@ router.get('/summary', authenticate, async (req, res) => {
                 params.push(targetUserId);
             }
         } else if (isResellerRole) {
-            // Reseller sees themselves + all their clients
+            // Reseller wants all: include themselves and ALL their clients
             const actualResellerId = req.user.actual_reseller_id || req.user.id;
             conditions.push("(c.user_id = ? OR c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
             params.push(req.user.id, actualResellerId);
         }
+        // If Admin and targetUserId is 'all', no condition is pushed (standard admin view)
 
         if (from) {
             conditions.push("c.created_at >= ?");
@@ -144,9 +145,9 @@ router.get('/detail', authenticate, async (req, res) => {
     try {
         const { from, to, channel, status, userId } = req.query;
 
-        let targetUserId = req.user.id;
-        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
         const isResellerRole = req.user.role === 'reseller';
+        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+        let targetUserId = req.user.id;
 
         if ((isAdminRole || isResellerRole) && userId) {
             targetUserId = userId;
@@ -239,9 +240,9 @@ router.get('/export', authenticate, async (req, res) => {
         const { from, to, channel, status, format } = req.query;
         console.log('Export Request:', { from, to, channel, status, format, userId });
 
-        let targetUserId = req.user.id;
-        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
         const isResellerRole = req.user.role === 'reseller';
+        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+        let targetUserId = req.user.id;
 
         if ((isAdminRole || isResellerRole) && req.query.userId) {
             targetUserId = req.query.userId;
