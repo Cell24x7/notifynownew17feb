@@ -13,15 +13,20 @@ const isAdmin = (req, res, next) => {
     }
     if (!Array.isArray(permissions)) permissions = [];
 
+    // Super Admin/Admin always allowed
     if (role === 'admin' || role === 'superadmin') {
         return next();
     }
 
     if (role === 'reseller') {
-        const hasViewPerm = permissions.some(p => p.feature === 'RCS Configs - View' && (p.admin === true || p.admin === 1));
+        // If it's a GET request, allow Resellers to see configs (for client assignment)
+        if (req.method === 'GET') {
+            return next();
+        }
+
+        // For other methods, check specific admin-level permissions
         const hasEditPerm = permissions.some(p => p.feature === 'RCS Configs - Edit' && (p.admin === true || p.admin === 1));
-        
-        if (hasViewPerm || hasEditPerm) {
+        if (hasEditPerm) {
             return next();
         }
     }
