@@ -472,6 +472,8 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
         const isResellerRole = req.user.role === 'reseller';
         let userIdQuery = req.query.userId || req.user.id;
+        let conditions = [];
+        let params = [];
 
         if (userIdQuery !== 'all') {
             if (isResellerRole && userIdQuery != req.user.id) {
