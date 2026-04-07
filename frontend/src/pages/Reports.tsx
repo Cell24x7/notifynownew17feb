@@ -278,7 +278,7 @@ export default function Reports() {
                 if (data.success) {
                     exportData = data.data;
                     fileName = `${activeTab}_report_${format(new Date(), 'yyyyMMdd')}.csv`;
-                    headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
+                    headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Message', 'Campaign', 'Status', 'Reason'];
                     rows = exportData.map(l => [
                         l.id,
                         l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
@@ -287,6 +287,7 @@ export default function Reports() {
                         l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
                         l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
                         `"${l.template_name || ''}"`,
+                        `"${(l.message_content || '').replace(/"/g, '""')}"`,
                         `"${l.campaign_name || ''}"`,
                         l.status,
                         `"${l.failure_reason || ''}"`
