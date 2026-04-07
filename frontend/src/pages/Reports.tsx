@@ -227,43 +227,81 @@ export default function Reports() {
         };
     }, [autoRefresh, activeTab, summaryPage, detailedPage]);
 
-    const handleExport = () => {
-        if (activeTab === 'summary') {
-            const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
-            const csvContent = [
-                headers.join(','),
-                ...reports.map(r => [
-                    `"${r.name}"`,
-                    `"${r.template_id}"`,
-                    format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
-                    r.recipient_count,
-                    r.sent_count,
-                    r.delivered_count,
-                    r.read_count,
-                    r.failed_count
-                ].join(','))
-            ].join('\n');
+    const handleExport = async () => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('authToken');
+            let exportData: any[] = [];
+            let fileName = '';
+            let headers: string[] = [];
+            let rows: any[] = [];
 
-            downloadCsv(csvContent, `rcs_summary_${format(new Date(), 'yyyyMMdd')}.csv`);
-        } else if (activeTab === 'detailed' || activeTab === 'api') {
-            const headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
-            const csvContent = [
-                headers.join(','),
-                ...webhookLogs.map(l => [
-                    l.id,
-                    l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
-                    l.recipient,
-                    l.send_time ? format(new Date(l.send_time), 'HH:mm:ss') : '-',
-                    l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
-                    l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
-                    `"${l.template_name || ''}"`,
-                    `"${l.campaign_name || ''}"`,
-                    l.status,
-                    `"${l.failure_reason || ''}"`
-                ].join(','))
-            ].join('\n');
+            if (activeTab === 'summary') {
+                let url = `${API_BASE_URL}/api/rcs/reports?export=true&`;
+                if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+                if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+                if (statusFilter !== 'all') url += `status=${statusFilter}&`;
+                if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+                if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+                url += `source=manual&`;
+                if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
-            downloadCsv(csvContent, `delivery_summary_${format(new Date(), 'yyyyMMdd')}.csv`);
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) {
+                    exportData = data.reports;
+                    fileName = `rcs_summary_${format(new Date(), 'yyyyMMdd')}.csv`;
+                    headers = ['Campaign Name', 'Channel', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
+                    rows = exportData.map(r => [
+                        `"${r.name}"`,
+                        `"${r.channel || 'RCS'}"`,
+                        `"${r.template_id}"`,
+                        format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
+                        r.recipient_count || r.total_recipient || 0,
+                        r.sent_count,
+                        r.delivered_count,
+                        r.read_count,
+                        r.failed_count
+                    ]);
+                }
+            } else if (activeTab === 'detailed' || activeTab === 'api') {
+                let url = `${API_BASE_URL}/api/webhooks/message-logs?export=true&`;
+                if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+                if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+                if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+                if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+                url += `source=${activeTab === 'api' ? 'api' : 'manual'}&`;
+                if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) {
+                    exportData = data.data;
+                    fileName = `${activeTab}_report_${format(new Date(), 'yyyyMMdd')}.csv`;
+                    headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
+                    rows = exportData.map(l => [
+                        l.id,
+                        l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
+                        l.recipient,
+                        l.send_time ? format(new Date(l.send_time), 'HH:mm:ss') : '-',
+                        l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
+                        l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
+                        `"${l.template_name || ''}"`,
+                        `"${l.campaign_name || ''}"`,
+                        l.status,
+                        `"${l.failure_reason || ''}"`
+                    ]);
+                }
+            }
+
+            if (rows.length > 0) {
+                const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                downloadCsv(csvContent, fileName);
+            }
+        } catch (err) {
+            console.error('Export failed', err);
+        } finally {
+            setLoading(false);
         }
     };
 

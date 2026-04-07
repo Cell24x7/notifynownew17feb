@@ -503,16 +503,22 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml ${whereClause}`, params);
         const total = countResult[0].total;
 
-        const selectSql = `
+        const isExport = req.query.export === 'true';
+        let selectSql = `
             SELECT ml.id, ml.user_id, ml.campaign_id, ml.campaign_name, ml.message_id, ml.recipient, ml.status, ml.message_content, ml.send_time, ml.delivery_time, ml.read_time, ml.template_name, ml.failure_reason, ml.created_at, ml.updated_at, c.channel as campaign_channel 
             FROM ${logsTable} ml 
             LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id 
             ${whereClause} 
             ORDER BY ml.id DESC 
-            LIMIT ? OFFSET ?
         `;
 
-        const [rows] = await query(selectSql, [...params, limit, offset]);
+        let rows;
+        if (isExport) {
+            [rows] = await query(selectSql, params);
+        } else {
+            selectSql += ` LIMIT ? OFFSET ?`;
+            [rows] = await query(selectSql, [...params, limit, offset]);
+        }
 
         res.json({
             success: true,

@@ -196,17 +196,23 @@ router.get('/reports', authenticate, async (req, res) => {
     const [countResult] = await query(countSql, params);
     const total = countResult[0].total;
 
-    // Get paginated data
-    const selectSql = `
+    // Get data (Paginated or Full Export)
+    const isExport = req.query.export === 'true';
+    let finalSql = `
       SELECT 
         c.id, c.name, c.template_id, c.template_name, c.created_at, c.channel,
         c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status
       ${sql}
       ORDER BY c.created_at DESC
-      LIMIT ? OFFSET ?
     `;
 
-    const [reports] = await query(selectSql, [...params, limit, offset]);
+    let reports;
+    if (isExport) {
+      [reports] = await query(finalSql, params);
+    } else {
+      finalSql += ` LIMIT ? OFFSET ?`;
+      [reports] = await query(finalSql, [...params, limit, offset]);
+    }
 
     res.json({
       success: true,
