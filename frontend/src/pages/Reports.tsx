@@ -109,7 +109,7 @@ export default function Reports() {
     }, [summaryPage]);
 
     useEffect(() => {
-        if (user?.role === 'admin' || user?.role === 'superadmin') {
+        if (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') {
             fetchUsers();
         }
     }, [user]);

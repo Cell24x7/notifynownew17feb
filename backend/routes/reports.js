@@ -13,9 +13,12 @@ router.get('/summary', authenticate, async (req, res) => {
     try {
         const { from, to, channel, status, userId } = req.query;
 
-        // Use targetUserId if provided and user is admin, else use own id
+        // Use targetUserId if provided and user is admin/reseller, else use own id
         let targetUserId = req.user.id;
-        if ((req.user.role === 'superadmin' || req.user.role === 'admin') && userId) {
+        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+        const isResellerRole = req.user.role === 'reseller';
+
+        if ((isAdminRole || isResellerRole) && userId) {
             targetUserId = userId;
         }
 
@@ -24,8 +27,20 @@ router.get('/summary', authenticate, async (req, res) => {
         let params = [];
 
         if (targetUserId !== 'all') {
-            conditions.push("c.user_id = ?");
-            params.push(targetUserId);
+            if (isResellerRole && targetUserId != req.user.id) {
+                // Safety: Can only see if they are a client of this reseller
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                conditions.push("(c.user_id = ? AND c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+                params.push(targetUserId, actualResellerId);
+            } else {
+                conditions.push("c.user_id = ?");
+                params.push(targetUserId);
+            }
+        } else if (isResellerRole) {
+            // Reseller sees themselves + all their clients
+            const actualResellerId = req.user.actual_reseller_id || req.user.id;
+            conditions.push("(c.user_id = ? OR c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+            params.push(req.user.id, actualResellerId);
         }
 
         if (from) {
@@ -130,7 +145,10 @@ router.get('/detail', authenticate, async (req, res) => {
         const { from, to, channel, status, userId } = req.query;
 
         let targetUserId = req.user.id;
-        if ((req.user.role === 'superadmin' || req.user.role === 'admin') && userId) {
+        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+        const isResellerRole = req.user.role === 'reseller';
+
+        if ((isAdminRole || isResellerRole) && userId) {
             targetUserId = userId;
         }
 
@@ -138,8 +156,20 @@ router.get('/detail', authenticate, async (req, res) => {
         let params = [];
 
         if (targetUserId !== 'all') {
-            conditions.push("c.user_id = ?");
-            params.push(targetUserId);
+            if (isResellerRole && targetUserId != req.user.id) {
+                // Safety: Can only see if they are a client of this reseller
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                conditions.push("(c.user_id = ? AND c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+                params.push(targetUserId, actualResellerId);
+            } else {
+                conditions.push("c.user_id = ?");
+                params.push(targetUserId);
+            }
+        } else if (isResellerRole) {
+            // Reseller sees themselves + all their clients
+            const actualResellerId = req.user.actual_reseller_id || req.user.id;
+            conditions.push("(c.user_id = ? OR c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+            params.push(req.user.id, actualResellerId);
         }
 
         if (from) {
@@ -210,7 +240,10 @@ router.get('/export', authenticate, async (req, res) => {
         console.log('Export Request:', { from, to, channel, status, format, userId });
 
         let targetUserId = req.user.id;
-        if ((req.user.role === 'superadmin' || req.user.role === 'admin') && req.query.userId) {
+        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+        const isResellerRole = req.user.role === 'reseller';
+
+        if ((isAdminRole || isResellerRole) && req.query.userId) {
             targetUserId = req.query.userId;
         }
 
@@ -218,8 +251,20 @@ router.get('/export', authenticate, async (req, res) => {
         let params = [];
 
         if (targetUserId !== 'all') {
-            conditions.push("c.user_id = ?");
-            params.push(targetUserId);
+            if (isResellerRole && targetUserId != req.user.id) {
+                // Safety: Can only see if they are a client of this reseller
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                conditions.push("(c.user_id = ? AND c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+                params.push(targetUserId, actualResellerId);
+            } else {
+                conditions.push("c.user_id = ?");
+                params.push(targetUserId);
+            }
+        } else if (isResellerRole) {
+            // Reseller sees themselves + all their clients
+            const actualResellerId = req.user.actual_reseller_id || req.user.id;
+            conditions.push("(c.user_id = ? OR c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+            params.push(req.user.id, actualResellerId);
         }
 
         if (from) {

@@ -469,14 +469,29 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         let logsTable = (source === 'api') ? 'api_message_logs' : 'message_logs';
         let campaignsTable = (source === 'api') ? 'api_campaigns' : 'campaigns';
 
-        let userIdQuery = req.query.userId || userId;
-        let conditions = [];
-        let params = [];
+        const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
+        const isResellerRole = req.user.role === 'reseller';
 
-        if (req.user.role !== 'admin' && req.user.role !== 'superadmin' || userIdQuery !== 'all') {
+        if (userIdQuery !== 'all') {
+            if (isResellerRole && userIdQuery != req.user.id) {
+                // Safety check: Is this userId actually a client of this reseller?
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                conditions.push("(ml.user_id = ? AND ml.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+                params.push(userIdQuery, actualResellerId);
+            } else {
+                conditions.push("ml.user_id = ?");
+                params.push(userIdQuery);
+            }
+        } else if (isResellerRole) {
+            // Reseller sees their own + their clients' logs
+            conditions.push("(ml.user_id = ? OR ml.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+            params.push(req.user.id, req.user.actual_reseller_id || req.user.id);
+        } else if (!isAdminRole) {
+            // Regular user sees only their own
             conditions.push("ml.user_id = ?");
-            params.push(userIdQuery);
+            params.push(req.user.id);
         }
+        // If Admin and 'all', no user filter (see everything)
 
         // Apply Keyset Pagination (FASTEST for 1Cr) or Page-based (Current UI)
         const page = parseInt(req.query.page) || 1;

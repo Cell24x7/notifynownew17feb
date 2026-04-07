@@ -166,12 +166,29 @@ router.get('/reports', authenticate, async (req, res) => {
 
     // Filter by userId. If provided and user is admin, use targetUserId.
     // Otherwise, use authenticated userId for non-admins.
-    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
-      if (req.query.userId) {
+    const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+    const isResellerRole = req.user.role === 'reseller';
+    const userIdQuery = req.query.userId;
+
+    if (isAdminRole) {
+      if (userIdQuery && userIdQuery !== 'all') {
         sql += ` AND c.user_id = ?`;
-        params.push(req.query.userId);
+        params.push(userIdQuery);
+      }
+    } else if (isResellerRole) {
+      if (userIdQuery && userIdQuery !== 'all') {
+        // Safety: Can only see if they are a client of this reseller
+        const actualResellerId = req.user.actual_reseller_id || req.user.id;
+        sql += ` AND (c.user_id = ? AND c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))`;
+        params.push(userIdQuery, actualResellerId);
+      } else {
+        // Reseller sees themselves + all their clients
+        const actualResellerId = req.user.actual_reseller_id || req.user.id;
+        sql += ` AND (c.user_id = ? OR c.user_id IN (SELECT id FROM users WHERE reseller_id = ?))`;
+        params.push(req.user.id, actualResellerId);
       }
     } else {
+      // Regular user sees only their own
       sql += ` AND c.user_id = ?`;
       params.push(req.user.id);
     }
