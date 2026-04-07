@@ -1007,13 +1007,23 @@ const handleSmsCallback = async (req, res) => {
                                 await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
                             }
                         } else if (finalStatus === 'failed') {
-                            // Smart Extraction: If Kannel, extract err:XXX from the status string
-                            let reason = payload.reason || payload.err_code || payload.description || payload.err;
+                            // Smart Extraction: Extract actual error details instead of generic message
+                            let reason = payload.reason || payload.err_code || payload.description || payload.err || payload.errorCode || payload.error_msg || payload.err_desc;
+                            
+                            // If it's an SMPP style status string (e.g. "id:msg1 sub:001 dlvrd:000 err:001 stat:REJECTED")
                             if (!reason && s.includes('err:')) {
-                                const match = s.match(/err:(\d+)/i);
-                                if (match) reason = `Gateway Error: ${match[1]}`;
+                                const errMatch = s.match(/err:([a-zA-Z0-9]+)/i);
+                                const statMatch = s.match(/stat:([a-zA-Z0-9]+)/i);
+                                
+                                if (errMatch && statMatch) reason = `${statMatch[1]} (Error: ${errMatch[1]})`;
+                                else if (errMatch) reason = `Gateway Error: ${errMatch[1]}`;
+                                else if (statMatch) reason = `Status: ${statMatch[1]}`;
                             }
-                            reason = reason || 'Gateway reported failure';
+                            
+                            // Final Fallback: If still no reason, use the raw status string itself if it's short and useful
+                            if (!reason || reason === 'Gateway reported failure') {
+                                reason = (s.length > 0 && s.length < 50) ? s.toUpperCase() : 'REJECTED';
+                            }
 
                             await query(`UPDATE ${currentTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
                             if (log.campaign_id) {
