@@ -2,8 +2,8 @@ const path = require('path');
 const dotenv = require('dotenv');
 
 // Smart env loading: Try .env.production first, then fallback to .env
-const envProduction = path.join(__dirname, '../../.env.production');
-const envDev = path.join(__dirname, '../../.env');
+const envProduction = path.join(__dirname, '../.env.production');
+const envDev = path.join(__dirname, '../.env');
 
 if (require('fs').existsSync(envProduction)) {
     dotenv.config({ path: envProduction });
