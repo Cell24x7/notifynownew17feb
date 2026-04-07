@@ -78,6 +78,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
 // ADD client (Admin or Reseller)
 router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
   const {
+    name, company_name, contact_phone, email, password, status = 'active',
     plan_id, credits_available, channels_enabled = [], rcs_config_id = null, whatsapp_config_id = null, sms_gateway_id = null,
     rcs_text_price = 0.10, rcs_rich_card_price = 0.15, rcs_carousel_price = 0.20,
     wa_marketing_price = 0.80, wa_utility_price = 0.40, wa_authentication_price = 0.30,
