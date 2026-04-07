@@ -1062,14 +1062,14 @@ export default function SuperAdminClients() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label>Normal Message (₹)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={currentClient.rcs_text_price}
-                    onChange={e => setCurrentClient(prev => ({ ...prev, rcs_text_price: parseFloat(e.target.value) || 0 }))}
-                    disabled={modalMode === 'view'}
-                  />
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={currentClient.rcs_text_price}
+                      onChange={e => setCurrentClient(prev => ({ ...prev, rcs_text_price: parseFloat(e.target.value) || 0 }))}
+                      disabled={modalMode === 'view'}
+                    />
                   <p className="text-[10px] text-muted-foreground">Standard text templates</p>
                 </div>
                 <div className="space-y-2">
@@ -1109,14 +1109,14 @@ export default function SuperAdminClients() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label>Marketing (₹)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={currentClient.wa_marketing_price}
-                    onChange={e => setCurrentClient(prev => ({ ...prev, wa_marketing_price: parseFloat(e.target.value) || 0 }))}
-                    disabled={modalMode === 'view'}
-                  />
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={currentClient.wa_marketing_price}
+                      onChange={e => setCurrentClient(prev => ({ ...prev, wa_marketing_price: parseFloat(e.target.value) || 0 }))}
+                      disabled={modalMode === 'view'}
+                    />
                   <p className="text-[10px] text-muted-foreground">Marketing templates</p>
                 </div>
                 <div className="space-y-2">
@@ -1156,14 +1156,14 @@ export default function SuperAdminClients() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label>Promotional (₹)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={currentClient.sms_promotional_price}
-                    onChange={e => setCurrentClient(prev => ({ ...prev, sms_promotional_price: parseFloat(e.target.value) || 0 }))}
-                    disabled={modalMode === 'view'}
-                  />
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={currentClient.sms_promotional_price}
+                      onChange={e => setCurrentClient(prev => ({ ...prev, sms_promotional_price: parseFloat(e.target.value) || 0 }))}
+                      disabled={modalMode === 'view'}
+                    />
                   <p className="text-[10px] text-muted-foreground">Bulk Marketing SMS</p>
                 </div>
                 <div className="space-y-2">

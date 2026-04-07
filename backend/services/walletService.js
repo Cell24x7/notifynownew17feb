@@ -98,7 +98,7 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             await query(`UPDATE ${campaignTable} SET credits_deducted = 0 WHERE id = ?`, [campaignId]);
             return { 
                 success: false, 
-                message: `Insufficient balance. Required ₹${totalCost.toFixed(2)}, available ₹${(campaign.wallet_balance || 0).toFixed(2)}` 
+                message: `Insufficient balance. Required ₹${totalCost.toFixed(4)}, available ₹${(campaign.wallet_balance || 0).toFixed(4)}` 
             };
         }
 
@@ -129,7 +129,7 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
 
             await connection.commit();
             console.log(`✅ [WalletService] Atomic deduction successful for campaign ${campaignId}. Deducted: ${totalCost}`);
-            return { success: true, message: `Successfully deducted ₹${totalCost.toFixed(2)}` };
+            return { success: true, message: `Successfully deducted ₹${totalCost.toFixed(4)}` };
 
         } catch (innerErr) {
             await connection.rollback();

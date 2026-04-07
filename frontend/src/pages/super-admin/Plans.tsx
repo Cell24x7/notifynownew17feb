@@ -443,7 +443,7 @@ export default function SuperAdminPlans() {
                 <Input
                   id="price"
                   type="number"
-                  step="0.01"
+                  step="0.0001"
                   {...register('price', { valueAsNumber: true })}
                 />
                 {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
