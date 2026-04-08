@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, MoreVertical, Edit, Trash2, Eye, Zap, FileText, Smartphone, RefreshCw, Sparkles, ChevronRight, ChevronLeft, Shield, Image, Phone, Link, MessageSquare } from 'lucide-react';
+import { Plus, Search, MoreVertical, Edit, Trash2, Eye, Zap, FileText, Smartphone, RefreshCw, Sparkles, ChevronRight, ChevronLeft, Shield, Image as ImageIcon, Bot, Phone, Link, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -524,105 +524,159 @@ export default function Templates() {
   };
 
   const renderPhonePreview = (data: any = newTemplate) => {
-    const getHeaderIcon = () => {
-      if (data.header?.type === 'image' && data.header.content) {
-        return (
-          <div className="mb-2 rounded-lg overflow-hidden">
-            <img src={data.header.content} alt="Header" className="w-full h-auto object-cover" />
-          </div>
-        );
-      }
-      return null;
-    };
+    const isRCS = data.channel === 'rcs';
+    const isSMS = data.channel === 'sms';
+    const isWA = data.channel === 'whatsapp';
+    
+    // Header Info
+    const meta = isRCS ? (data.metadata || {}) : {};
+    const botName = isRCS ? (meta.bot_name || "Business Profile") : isSMS ? "Messaging" : "WhatsApp";
+    const botColor = isRCS ? (meta.bot_color || "#1A73E8") : isSMS ? "#2A2A2E" : "#075E54";
 
-    if (data.channel === 'rcs') {
-      const { template_type, metadata, body, buttons } = data;
-      const renderCard = (cardData: any, isCarousel = false, index?: number) => {
-        const orientation = cardData?.orientation || metadata?.orientation || 'VERTICAL';
-        const height = cardData?.height || metadata?.height || 'SHORT_HEIGHT';
-        const previewUrl = isCarousel && index !== undefined ? filePreviews[`carousel_${index}`] : filePreviews['main'];
-        const mediaSource = cardData?.mediaUrl || previewUrl;
-
-        return (
-          <div className={cn(
-            "bg-white dark:bg-[#1f2c33] rounded-2xl shadow-md overflow-hidden flex flex-col border border-black/5",
-            !isCarousel && orientation === 'HORIZONTAL' ? "flex-row h-36" : "w-[240px]"
-          )}>
-            {mediaSource && (
-              <div className={cn(
-                "bg-muted relative shrink-0",
-                !isCarousel && orientation === 'HORIZONTAL' ? "w-[40%] h-full" : "w-full",
-                height === 'SHORT_HEIGHT' ? "h-28" : "h-36"
-              )}>
-                <img src={mediaSource} className="w-full h-full object-cover" alt="Card" />
-              </div>
-            )}
-            <div className="p-3 space-y-1 flex-1 flex flex-col">
-              {(cardData?.title || cardData?.cardTitle) && (
-                <h4 className="text-[13px] font-bold text-[#111b21] dark:text-[#e9edef] truncate leading-tight">{cardData.title || cardData.cardTitle}</h4>
-              )}
-              <p className="text-[11px] text-[#667781] dark:text-[#8696a0] line-clamp-2 leading-snug">
-                {cardData?.description || body || '...'}
-              </p>
-              {buttons?.length > 0 && (
-                <div className="pt-2 flex flex-col gap-1 mt-auto">
-                  {buttons.slice(0, 2).map((btn: any, i: number) => (
-                    <div key={i} className="text-[11px] py-1.5 border-t border-[#f0f2f5] dark:border-white/5 text-[#00a884] dark:text-[#53bdeb] font-bold text-center">
-                      {btn.displayText || btn.label || 'Action'}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      };
+    const renderRCSCard = (cardData: any, isCarousel = false, index?: number) => {
+      const orientation = cardData?.orientation || (data.metadata?.orientation) || 'VERTICAL';
+      const height = cardData?.height || (data.metadata?.height) || 'SHORT_HEIGHT';
+      const previewUrl = isCarousel && index !== undefined ? filePreviews[`carousel_${index}`] : filePreviews['main'];
+      const mediaSource = cardData?.mediaUrl || previewUrl || cardData?.image_url;
 
       return (
-        <div className="flex flex-col h-full items-center justify-start py-2 overflow-y-auto no-scrollbar w-full">
-          <div className="h-full w-[310px] bg-slate-50 dark:bg-[#0b141a] rounded-[2rem] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-2xl border border-black/5 min-h-[550px]">
-              <div className="px-4 pt-5 pb-4 bg-[#1A73E8] text-white flex items-center gap-3 relative z-20">
-                <ChevronLeft className="h-5 w-5" />
-                <div className="flex-1">
-                  <p className="text-xs font-bold truncate">Business Profile</p>
-                  <p className="text-[9px] opacity-70 flex items-center gap-0.5"><Shield className="h-2.5 w-2.5" /> Verified</p>
-                </div>
-              </div>
-              <div className="flex-1 p-4 space-y-4">
-                {template_type === 'text_message' && (
-                  <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-md border border-black/5 max-w-[90%]">
-                    <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap">{body || 'Type message...'}</p>
+        <div className={cn(
+          "bg-white dark:bg-[#1f2c33] rounded-2xl shadow-md overflow-hidden flex flex-col border border-black/5 animate-in fade-in zoom-in-95 duration-300",
+          !isCarousel && orientation === 'HORIZONTAL' ? "flex-row h-36 w-full" : "w-[240px]"
+        )}>
+          {mediaSource && (
+            <div className={cn(
+              "bg-muted relative shrink-0",
+              !isCarousel && orientation === 'HORIZONTAL' ? "w-[40%] h-full" : "w-full",
+              height === 'SHORT_HEIGHT' ? "h-28" : "h-36"
+            )}>
+              <img src={mediaSource} className="w-full h-full object-cover" alt="Card" />
+            </div>
+          )}
+          <div className="p-3 space-y-1 flex-1 flex flex-col">
+            {(cardData?.title || cardData?.cardTitle) && (
+              <h4 className="text-[13px] font-bold text-[#111b21] dark:text-[#e9edef] truncate leading-tight">{cardData.title || cardData.cardTitle}</h4>
+            )}
+            <p className="text-[11px] text-[#667781] dark:text-[#8696a0] line-clamp-2 leading-snug">
+              {cardData?.description || cardData?.body || data.body || '...'}
+            </p>
+            {cardData?.buttons?.length > 0 && (
+              <div className="pt-2 flex flex-col gap-1 mt-auto">
+                {cardData.buttons.slice(0, 2).map((btn: any, i: number) => (
+                  <div key={i} className="text-[11px] py-1.5 border-t border-[#f0f2f5] dark:border-white/5 text-[#00a884] dark:text-[#53bdeb] font-bold text-center">
+                    {btn.displayText || btn.label || 'Action'}
                   </div>
-                )}
-                {template_type === 'rich_card' && renderCard(metadata)}
-                {template_type === 'carousel' && (
-                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-2 px-2">
-                    {(metadata.carouselList || []).map((card: any, i: number) => (
-                      <div key={i} className="flex-shrink-0">{renderCard(card, true, i)}</div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
+            )}
           </div>
         </div>
       );
-    }
+    };
 
     return (
-        <div className="flex flex-col h-full items-center justify-start py-8 overflow-y-auto no-scrollbar w-full">
-          <div className="w-[280px] bg-[#ECE5DD] dark:bg-[#0b141a] rounded-[2rem] shadow-2xl overflow-hidden relative border border-black/5 min-h-[500px]">
-            <div className="bg-[#075E54] text-white px-4 py-4 flex items-center gap-3 relative z-20">
-              <ChevronRight className="h-5 w-5 rotate-180" />
-              <div className="flex-1"><p className="text-sm font-medium">WhatsApp</p></div>
-            </div>
-            <div className="p-3">
-              <div className="bg-white dark:bg-[#1f2c33] rounded-lg p-3 shadow-sm max-w-[90%] space-y-2">
-                {getHeaderIcon()}
-                <p className="text-sm whitespace-pre-wrap text-[#111b21] dark:text-[#e9edef]">{data.body || 'Message body...'}</p>
-                {data.footer && <p className="text-[10px] text-muted-foreground">{data.footer}</p>}
-              </div>
-            </div>
+      <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
+        {/* Phone Frame */}
+        <div className="w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[2.5rem] p-2 shadow-2xl relative border-[6px] border-[#1e1e1e] flex flex-col">
+          {/* Notch */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 h-5 w-24 bg-black rounded-full z-20 flex items-center justify-end px-4">
+             <div className="w-1 h-1 rounded-full bg-blue-900/40" />
           </div>
+
+          <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2rem] overflow-hidden flex flex-col relative z-10 no-scrollbar">
+            {/* Dynamic Header */}
+            <div 
+              className="px-4 pt-8 pb-3 text-white flex items-center gap-3 relative z-20 shadow-md"
+              style={{ backgroundColor: botColor }}
+            >
+              <ChevronLeft className="h-5 w-5 opacity-70" />
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0 overflow-hidden">
+                 {isRCS ? <Bot className="h-4 w-4" /> : isSMS ? <Smartphone className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold truncate leading-tight">{botName}</p>
+                <p className="text-[9px] opacity-80 flex items-center gap-0.5 tracking-wide uppercase font-black">
+                  {isRCS && <Shield className="h-2.5 w-2.5 fill-white/20" />}
+                  {isRCS ? 'Verified' : isSMS ? 'DLT Registered' : 'Business'}
+                </p>
+              </div>
+              <MoreVertical className="h-4 w-4 opacity-70" />
+            </div>
+
+            {/* Message Content Area */}
+            <div className={cn("flex-1 p-4 flex flex-col gap-3 overflow-y-auto no-scrollbar pt-6", isSMS && "bg-background")}>
+               <div className="flex justify-center mb-2">
+                 <Badge variant="outline" className="text-[8px] bg-black/5 dark:bg-white/5 border-none font-bold uppercase tracking-widest text-muted-foreground">Today</Badge>
+               </div>
+
+               {isRCS ? (
+                <div className="space-y-3">
+                  {data.template_type === 'text_message' && (
+                    <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-sm border border-black/5 max-w-[85%] animate-in slide-in-from-left-2 duration-300">
+                      <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">{data.body || 'Type message...'}</p>
+                      <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40">10:45 AM</span></div>
+                    </div>
+                  )}
+                  {data.template_type === 'rich_card' && renderRCSCard(data.metadata)}
+                  {data.template_type === 'carousel' && (
+                    <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
+                      {(data.metadata?.carouselList || []).map((card: any, i: number) => (
+                        <div key={i} className="flex-shrink-0">{renderRCSCard(card, true, i)}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+               ) : isWA ? (
+                  <div className="bg-[#DCF8C6] dark:bg-[#056162] p-2.5 rounded-xl rounded-tl-sm shadow-sm self-start max-w-[90%] border border-black/5 animate-in slide-in-from-left-2 duration-300">
+                    {/* WA Components */}
+                    {(() => {
+                      const components = data.components || [];
+                      const header = components.find((c: any) => c.type === 'HEADER');
+                      const body = components.find((c: any) => c.type === 'BODY');
+                      const footer = components.find((c: any) => c.type === 'FOOTER');
+                      
+                      return (
+                        <>
+                          {header?.format === 'IMAGE' && (
+                            <div className="mb-2 rounded-lg overflow-hidden -mx-1 -mt-1 h-32 bg-muted flex items-center justify-center">
+                              {header.previewUrl || header.handle ? <img src={header.previewUrl || header.handle} className="w-full h-full object-cover" alt="WA" /> : <ImageIcon className="h-8 w-8 opacity-20" />}
+                            </div>
+                          )}
+                          <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">
+                            {body?.text || data.body || 'Message content...'}
+                          </p>
+                          {footer?.text && <p className="text-[10px] text-[#667781] dark:text-[#8696a0] mt-1 italic">{footer.text}</p>}
+                        </>
+                      );
+                    })()}
+                    <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 uppercase tracking-tighter">10:45 AM</span></div>
+                  </div>
+               ) : (
+                <div className="p-3 rounded-2xl max-w-[90%] shadow-sm relative animate-in slide-in-from-left-2 duration-300 bg-zinc-100 dark:bg-zinc-800 rounded-tl-sm border border-zinc-200 dark:border-zinc-700">
+                  <p className="text-[13px] leading-relaxed text-foreground">
+                    {data.body || data.template_text || 'SMS Message...'}
+                  </p>
+                  {data.temp_id && <p className="text-[8px] opacity-40 mt-2 font-mono tracking-tight">ID: {data.temp_id}</p>}
+                  <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 font-bold uppercase tracking-widest">10:45 AM</span></div>
+                </div>
+               )}
+
+               {/* Buttons Support */}
+               {data.buttons?.length > 0 && !isWA && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {data.buttons.map((btn: any, i: number) => (
+                        <div key={i} className="bg-white dark:bg-zinc-800 border border-blue-500/30 text-blue-500 rounded-lg px-4 py-1.5 text-[11px] font-bold shadow-sm cursor-default">
+                          {btn.displayText || btn.label}
+                        </div>
+                      ))}
+                    </div>
+               )}
+            </div>
+
+            {/* Bottom Indicator */}
+            <div className="h-6 pb-2 flex justify-center items-end bg-transparent"><div className="w-24 h-1 bg-zinc-400/30 rounded-full" /></div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -868,8 +922,8 @@ export default function Templates() {
         <DialogContent className="sm:max-w-fit w-auto p-0 bg-transparent border-none shadow-none flex items-center justify-center">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm -z-10" />
           {previewTemplate && (
-            <div className="rounded-[2.5rem] bg-background w-[320px] h-auto max-h-[85vh] shadow-2xl relative overflow-y-auto no-scrollbar border border-border">
-              {previewTemplate.channel === 'whatsapp' ? <WhatsAppPreview data={previewTemplate} /> : <div className="p-4">{renderPhonePreview(previewTemplate)}</div>}
+            <div className="flex items-center justify-center min-h-[600px] w-full">
+               {renderPhonePreview(previewTemplate)}
             </div>
           )}
         </DialogContent>
