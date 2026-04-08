@@ -1,3 +1,4 @@
+require('dotenv').config({ path: './.env.production' });
 const { query } = require('./config/db');
 
 async function cleanupFailedLogs() {
