@@ -4,28 +4,28 @@ const { query } = require('./config/db');
 
 async function cleanupFailedLogs() {
   const errorPattern = "%Template code with bot doesn't exist.%";
+  const jsonPattern = "{%"; // Any error starting with { (likely JSON)
   const shouldRetry = process.argv.includes('--retry');
   
-  console.log(`🧹 Starting DB ${shouldRetry ? 'RESET & RETRY' : 'CLEANUP'} for 'Template not found' errors...`);
+  console.log(`🧹 Starting DB ${shouldRetry ? 'RESET & RETRY' : 'CLEANUP'} for all JSON/Template errors...`);
 
   try {
     // 1. Delete/Update message_logs
     if (!shouldRetry) {
-        const res1 = await query("DELETE FROM message_logs WHERE error LIKE ?", [errorPattern]);
+        const res1 = await query("DELETE FROM message_logs WHERE error LIKE ? OR error LIKE ?", [errorPattern, jsonPattern]);
         console.log(`✅ Deleted ${res1.affectedRows} records from message_logs.`);
 
-        const res2 = await query("DELETE FROM api_message_logs WHERE error LIKE ?", [errorPattern]);
+        const res2 = await query("DELETE FROM api_message_logs WHERE error LIKE ? OR error LIKE ?", [errorPattern, jsonPattern]);
         console.log(`✅ Deleted ${res2.affectedRows} records from api_message_logs.`);
     } else {
         // Reset Queue items to pending so worker picks them up again
-        // We use a JOIN to find items in the queue that failed in the logs with this specific error
         console.log("🔄 Resetting failed items in campaign_queue...");
         const res3 = await query(`
             UPDATE campaign_queue q
             INNER JOIN message_logs l ON q.campaign_id = l.campaign_id AND q.mobile = l.recipient
             SET q.status = 'pending', q.processed_at = NULL
-            WHERE l.error LIKE ?
-        `, [errorPattern]);
+            WHERE l.error LIKE ? OR l.error LIKE ?
+        `, [errorPattern, jsonPattern]);
         console.log(`✅ Reset ${res3.affectedRows || 0} items in campaign_queue to pending.`);
 
         console.log("🔄 Resetting failed items in api_campaign_queue...");
@@ -33,13 +33,13 @@ async function cleanupFailedLogs() {
             UPDATE api_campaign_queue q
             INNER JOIN api_message_logs l ON q.campaign_id = l.campaign_id AND q.mobile = l.recipient
             SET q.status = 'pending', q.processed_at = NULL
-            WHERE l.error LIKE ?
-        `, [errorPattern]);
+            WHERE l.error LIKE ? OR l.error LIKE ?
+        `, [errorPattern, jsonPattern]);
         console.log(`✅ Reset ${res4.affectedRows || 0} items in API queue to pending.`);
         
         // Also clear the failure from logs so reports look clean during retry
-        await query("DELETE FROM message_logs WHERE error LIKE ?", [errorPattern]);
-        await query("DELETE FROM api_message_logs WHERE error LIKE ?", [errorPattern]);
+        await query("DELETE FROM message_logs WHERE error LIKE ? OR error LIKE ?", [errorPattern, jsonPattern]);
+        await query("DELETE FROM api_message_logs WHERE error LIKE ? OR error LIKE ?", [errorPattern, jsonPattern]);
         console.log(`🧹 Cleared old failure logs to make way for new attempts.`);
     }
 
