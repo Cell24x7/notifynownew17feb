@@ -13,7 +13,7 @@ router.get('/super-admin', authenticate, async (req, res) => {
             return res.status(403).json({ success: false, message: 'Unauthorized access' });
         }
 
-        const resellerId = isReseller ? req.user.actual_reseller_id : null;
+        const resellerId = isReseller ? (req.user.actual_reseller_id || req.user.id) : null;
 
         // 1. Basic Counters
         let userSql = "SELECT COUNT(*) as total FROM users WHERE role IN ('client', 'user')";

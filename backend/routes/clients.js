@@ -55,7 +55,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
 
     if (req.user.role === 'reseller') {
       sql += ' AND reseller_id = ?';
-      params.push(req.user.actual_reseller_id);
+      params.push(req.user.actual_reseller_id || req.user.id);
     }
 
     sql += ' ORDER BY id DESC';
@@ -134,7 +134,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
       wa_marketing_price, wa_utility_price, wa_authentication_price,
       sms_promotional_price, sms_transactional_price, sms_service_price,
-      req.user.role === 'reseller' ? req.user.actual_reseller_id : (req.body.reseller_id || null),
+      req.user.role === 'reseller' ? (req.user.actual_reseller_id || req.user.id) : (req.body.reseller_id || null),
       pe_id || null, hash_id || null
     ]);
 
@@ -252,7 +252,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
 
     if (req.user.role === 'reseller') {
       sql += ' AND reseller_id = ?';
-      values.push(req.user.actual_reseller_id);
+      values.push(req.user.actual_reseller_id || req.user.id);
     }
 
     const [result] = await query(sql, values);
@@ -276,7 +276,7 @@ router.delete('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => 
 
     if (req.user.role === 'reseller') {
       sql += ' AND reseller_id = ?';
-      params.push(req.user.actual_reseller_id);
+      params.push(req.user.actual_reseller_id || req.user.id);
     }
 
     const [result] = await query(sql, params);
@@ -324,7 +324,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
 
     if (req.user.role === 'reseller') {
       sql += ' AND u.reseller_id = ?';
-      params.push(req.user.actual_reseller_id);
+      params.push(req.user.actual_reseller_id || req.user.id);
     }
 
     const [rows] = await query(sql, params);
@@ -428,7 +428,7 @@ router.post('/:id/read', authenticateToken, isResellerOrAdmin, async (req, res) 
 
     if (req.user.role === 'reseller') {
       sql += " AND reseller_id = ?";
-      params.push(req.user.actual_reseller_id);
+      params.push(req.user.actual_reseller_id || req.user.id);
     }
 
     await query(sql, params);
