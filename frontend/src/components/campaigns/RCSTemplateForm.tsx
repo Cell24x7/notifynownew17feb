@@ -217,12 +217,12 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                 <Label className="text-sm font-bold text-gray-700 ml-1">Template Name <span className="text-red-500">*</span></Label>
                 <div className="relative">
                     <Input 
-                        placeholder="e.g. promotional_offer_01" 
+                        placeholder="e.g. promo_offer_01" 
                         value={data.name || ''}
+                        maxLength={20}
                         onChange={(e) => {
-                             // RCS typical template names allow alphanumeric and underscores.
                              const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-                             handleChange('name', val);
+                             handleChange('name', val.substring(0, 20)); // Ensure strictly max 20 chars
                         }}
                         className="bg-white border-gray-100 focus:ring-primary h-11 px-4 rounded-xl"
                     />
