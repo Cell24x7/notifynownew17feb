@@ -155,7 +155,7 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
 
   } catch (error) {
     // Prevent infinite loop: Only fallback if it's the first attempt
-    if (!isFallback && error.response && (error.response.status === 400 || error.response.status === 404) && (error.response.data?.code === 409 || error.response.data?.reason?.includes("Template code with bot doesn't exist"))) {
+    if (!isFallback && error.response && (error.response.status === 400 || error.response.status === 404 || error.response.status === 409) && (error.response.data?.code === 409 || error.response.data?.reason?.includes("Template code with bot doesn't exist"))) {
       console.log(`⚠️ [RCS FALLBACK] Template ${templateName} not found for Bot ${config.bot_id}. Searching others...`);
       const db = require('../config/db');
       const [otherConfigs] = await db.query('SELECT * FROM rcs_configs WHERE is_active = 1 AND id != ?', [config.id]);
