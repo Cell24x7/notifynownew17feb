@@ -122,7 +122,7 @@ const getDotgoAdminToken = async () => {
  * @param {object} [config] - Optional configuration override
  * @returns {Promise<object>}
  */
-const sendRcsTemplate = async (mobile, templateName, config, customParams = []) => {
+const sendRcsTemplate = async (mobile, templateName, config, customParams = [], isFallback = false) => {
   if (!config) return { success: false, error: "No RCS configuration assigned to this user" };
 
   try {
@@ -130,16 +130,10 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = []) 
     if (!token) return { success: false, error: "Authentication failed" };
 
     const { api_base_url: apiBaseUrl, bot_id: botId } = config;
-
-    // Ensure mobile has + prefix for Dotgo
     const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
-
-    // Use hardcoded template as per user request if not provided or for testing
-    const templateCode = templateName || "Empowering_business";
+    const templateCode = templateName;
 
     const url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
-
-    console.log(`[RCS DEBUG] BotId: ${botId}, Template: ${templateCode}, Recipient: ${formattedMobile}`);
 
     const payload = {
       contentMessage: {
@@ -150,9 +144,6 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = []) 
       }
     };
 
-    console.log(`📤 Sending Dotgo RCS Payload:`, JSON.stringify(payload, null, 2));
-    console.log(`📤 Sending Dotgo RCS (Config: ${config?.name || 'Default'}) to ${formattedMobile} (Template: ${templateCode})`);
-
     const response = await axios.post(url, payload, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -160,40 +151,33 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = []) 
       }
     });
 
-    console.log(`📥 Dotgo Response [${response.status}]:`, JSON.stringify(response.data));
+    return { success: true, messageId: response.data?.messageId, raw: response.data };
 
-    if (response.status === 200 || response.status === 201) {
-      let messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
-      if (messageId === "N/A" && response.data?.name) {
-          messageId = response.data.name.split('/').pop();
-      }
-      return { success: true, messageId: messageId, raw: response.data };
-    }
-
-    return { success: false, error: `API returned status ${response.status}`, raw: response.data };
   } catch (error) {
-    // SMART FALLBACK: If 409 (Template not found for this bot), try searching other active bots
-    if (error.response && error.response.status === 400 && (error.response.data?.code === 409 || error.response.data?.reason?.includes("Template code with bot doesn't exist"))) {
-      console.log(`⚠️ [RCS FALLBACK] Template ${templateName} not found for Bot ${config.bot_id}. Searching other active bots...`);
+    // Prevent infinite loop: Only fallback if it's the first attempt
+    if (!isFallback && error.response && (error.response.status === 400 || error.response.status === 404) && (error.response.data?.code === 409 || error.response.data?.reason?.includes("Template code with bot doesn't exist"))) {
+      console.log(`⚠️ [RCS FALLBACK] Template ${templateName} not found for Bot ${config.bot_id}. Searching others...`);
       const db = require('../config/db');
       const [otherConfigs] = await db.query('SELECT * FROM rcs_configs WHERE is_active = 1 AND id != ?', [config.id]);
       
       for (const otherCfg of otherConfigs) {
-           console.log(`🔍 [RCS FALLBACK] Retrying with Bot: ${otherCfg.name} (${otherCfg.bot_id})...`);
-           const retryResult = await sendRcsTemplate(mobile, templateName, otherCfg, customParams);
+           console.log(`🔍 [RCS FALLBACK] Trying Bot: ${otherCfg.name}...`);
+           // PASS isFallback = true to stop recursion
+           const retryResult = await sendRcsTemplate(mobile, templateName, otherCfg, customParams, true);
            if (retryResult.success) {
-               console.log(`✅ [RCS FALLBACK] SUCCESS! Found approved template on Bot: ${otherCfg.name}`);
+               console.log(`✅ [RCS FALLBACK] Found on Bot: ${otherCfg.name}`);
                return retryResult;
            }
       }
     }
 
-    console.error("❌ Dotgo Send Error:", error.message);
-    if (error.response) {
-      console.error("📦 Error Response:", JSON.stringify(error.response.data));
-      return { success: false, error: error.response.data?.message || JSON.stringify(error.response.data) };
+    if (error.response?.status === 401) {
+        console.log(`🔑 [RCS] Token expired for Bot ${config.name}. Forcing refresh...`);
+        // We might want to clear cache here, but for now just fail so next attempt refreshes
     }
-    return { success: false, error: error.message };
+
+    console.error("❌ Dotgo Send Error:", error.message);
+    return { success: false, error: error.response?.data?.message || error.message };
   }
 };
 
