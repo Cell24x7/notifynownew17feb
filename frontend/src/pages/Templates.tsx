@@ -398,14 +398,51 @@ export default function Templates() {
         channel: newTemplate.channel,
         status: isDraft ? 'draft' : 'pending',
         body: newTemplate.body,
-        buttons: mappedButtons
+        buttons: mappedButtons,
+        metadata: newTemplate.metadata,
+        template_type: newTemplate.template_type
       };
 
       if (newTemplate.channel === 'rcs' && !isDraft) {
-         const rcsDotgoPayload: any = { name: newTemplate.name, type: newTemplate.template_type, fallbackText: newTemplate.body?.substring(0, 100) || 'RCS Message' };
-         if (newTemplate.template_type === 'text_message') rcsDotgoPayload.textMessageContent = newTemplate.body;
+         const rcsDotgoPayload: any = { 
+           name: newTemplate.name, 
+           type: newTemplate.template_type, 
+           fallbackText: newTemplate.body?.substring(0, 100) || 'RCS Message' 
+         };
+
+         if (newTemplate.template_type === 'text_message') {
+           rcsDotgoPayload.textMessageContent = newTemplate.body;
+           rcsDotgoPayload.suggestions = newTemplate.buttons;
+         } else if (newTemplate.template_type === 'rich_card') {
+           rcsDotgoPayload.orientation = newTemplate.metadata?.orientation || 'VERTICAL';
+           rcsDotgoPayload.height = newTemplate.metadata?.height || 'SHORT_HEIGHT';
+           rcsDotgoPayload.standAlone = {
+             cardTitle: newTemplate.metadata?.cardTitle || 'Card Title',
+             cardDescription: newTemplate.body || '',
+             mediaUrl: newTemplate.metadata?.mediaUrl || '',
+             fileName: selectedFile ? selectedFile.name : undefined,
+             suggestions: newTemplate.buttons || []
+           };
+         } else if (newTemplate.template_type === 'carousel') {
+           rcsDotgoPayload.height = newTemplate.metadata?.height || 'SHORT_HEIGHT';
+           rcsDotgoPayload.width = newTemplate.metadata?.width || 'MEDIUM_WIDTH';
+           rcsDotgoPayload.carouselList = (newTemplate.metadata?.carouselList || []).map((card: any, idx: number) => ({
+              cardTitle: card.title || `Card ${idx + 1}`,
+              cardDescription: card.description || '',
+              mediaUrl: card.mediaUrl || '',
+              fileName: carouselFiles[idx] ? carouselFiles[idx].name : undefined,
+              suggestions: card.buttons || []
+           }));
+         }
+
          const rcsFormData = new FormData();
          rcsFormData.append('rich_template_data', JSON.stringify(rcsDotgoPayload));
+
+         if (selectedFile) rcsFormData.append('multimedia_files', selectedFile);
+         Object.values(carouselFiles).forEach(file => {
+           if (file) rcsFormData.append('multimedia_files', file);
+         });
+
          await rcsTemplatesService.createTemplate(rcsFormData);
       }
 
