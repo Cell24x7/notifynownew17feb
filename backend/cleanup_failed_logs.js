@@ -1,4 +1,5 @@
-require('dotenv').config({ path: './.env.production' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env.production') });
 const { query } = require('./config/db');
 
 async function cleanupFailedLogs() {
