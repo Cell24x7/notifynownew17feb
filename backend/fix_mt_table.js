@@ -2,9 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 // Safe environment loading
-const envPath = fs.existsSync(path.join(__dirname, '../.env.production')) 
-    ? path.join(__dirname, '../.env.production') 
-    : path.join(__dirname, '../.env');
+const envPath = fs.existsSync(path.join(__dirname, './.env.production')) 
+    ? path.join(__dirname, './.env.production') 
+    : path.join(__dirname, './.env');
 
 require('dotenv').config({ path: envPath });
 const { query } = require('./config/db');
