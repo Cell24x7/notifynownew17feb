@@ -18,11 +18,24 @@ async function cleanupFailedLogs() {
         console.log(`✅ Deleted ${res2.affectedRows} records from api_message_logs.`);
     } else {
         // Reset Queue items to pending so worker picks them up again
-        const res3 = await query("UPDATE campaign_queue SET status = 'pending', processed_at = NULL WHERE status = 'failed' AND (error LIKE ? OR error IS NULL)", [errorPattern]);
-        console.log(`🔄 Reset ${res3.affectedRows} failed items in campaign_queue to pending.`);
+        // We use a JOIN to find items in the queue that failed in the logs with this specific error
+        console.log("🔄 Resetting failed items in campaign_queue...");
+        const res3 = await query(`
+            UPDATE campaign_queue q
+            INNER JOIN message_logs l ON q.campaign_id = l.campaign_id AND q.mobile = l.recipient
+            SET q.status = 'pending', q.processed_at = NULL
+            WHERE l.error LIKE ?
+        `, [errorPattern]);
+        console.log(`✅ Reset ${res3.affectedRows || 0} items in campaign_queue to pending.`);
 
-        const res4 = await query("UPDATE api_campaign_queue SET status = 'pending', processed_at = NULL WHERE status = 'failed' AND (error LIKE ? OR error IS NULL)", [errorPattern]);
-        console.log(`🔄 Reset ${res4.affectedRows} failed items in API queue to pending.`);
+        console.log("🔄 Resetting failed items in api_campaign_queue...");
+        const res4 = await query(`
+            UPDATE api_campaign_queue q
+            INNER JOIN api_message_logs l ON q.campaign_id = l.campaign_id AND q.mobile = l.recipient
+            SET q.status = 'pending', q.processed_at = NULL
+            WHERE l.error LIKE ?
+        `, [errorPattern]);
+        console.log(`✅ Reset ${res4.affectedRows || 0} items in API queue to pending.`);
         
         // Also clear the failure from logs so reports look clean during retry
         await query("DELETE FROM message_logs WHERE error LIKE ?", [errorPattern]);
