@@ -169,12 +169,11 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
             img.src = URL.createObjectURL(file);
             img.onload = () => {
                 URL.revokeObjectURL(img.src);
+                // Dotgo recommends these dimensions, but blocking the user entirely is too strict.
                 if (img.width !== specs.width || img.height !== specs.height) {
-                    alert(`Invalid Dimensions. For ${isThumbnail ? 'Thumbnail' : specs.label}, image must be exactly ${specs.width}x${specs.height} px.\nDetected: ${img.width}x${img.height} px`);
-                    resolve(false);
-                } else {
-                    resolve(true);
+                    console.warn(`Optimal dimensions are ${specs.width}x${specs.height}. Detected: ${img.width}x${img.height}. Dotgo might resize it.`);
                 }
+                resolve(true); // Always accept the file regardless of dimensions to prevent upload blocking
             };
             img.onerror = () => {
                 alert("Invalid image file.");
