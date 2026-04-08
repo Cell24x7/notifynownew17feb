@@ -286,6 +286,7 @@ export default function SuperAdminClients() {
       }
       if (payload.rcs_config_id === '') payload.rcs_config_id = null as any;
       if (payload.whatsapp_config_id === '') payload.whatsapp_config_id = null as any;
+      if (payload.sms_gateway_id === '') payload.sms_gateway_id = null as any;
 
       const token = localStorage.getItem('authToken');
       const res = await axios.put(`${API_URL}/clients/${currentClient.id}`, payload, {

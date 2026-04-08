@@ -178,9 +178,9 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   if (credits_available !== undefined) { fields.push('credits_available = ?'); values.push(credits_available); }
   if (channels_enabled !== undefined) { fields.push('channels_enabled = ?'); values.push(JSON.stringify(channels_enabled)); }
   if (permissions !== undefined) { fields.push('permissions = ?'); values.push(JSON.stringify(permissions)); }
-  if (rcs_config_id !== undefined) { fields.push('rcs_config_id = ?'); values.push(rcs_config_id); }
-  if (whatsapp_config_id !== undefined) { fields.push('whatsapp_config_id = ?'); values.push(whatsapp_config_id); }
-  if (sms_gateway_id !== undefined) { fields.push('sms_gateway_id = ?'); values.push(sms_gateway_id); }
+  if (rcs_config_id !== undefined) { fields.push('rcs_config_id = ?'); values.push(rcs_config_id || null); }
+  if (whatsapp_config_id !== undefined) { fields.push('whatsapp_config_id = ?'); values.push(whatsapp_config_id || null); }
+  if (sms_gateway_id !== undefined) { fields.push('sms_gateway_id = ?'); values.push(sms_gateway_id || null); }
   if (rcs_text_price !== undefined) { fields.push('rcs_text_price = ?'); values.push(rcs_text_price); }
   if (rcs_rich_card_price !== undefined) { fields.push('rcs_rich_card_price = ?'); values.push(rcs_rich_card_price); }
   if (rcs_carousel_price !== undefined) { fields.push('rcs_carousel_price = ?'); values.push(rcs_carousel_price); }
@@ -214,20 +214,22 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
       const [oldUser] = await query('SELECT credits_available FROM users WHERE id = ?', [clientId]);
       const diff = parseFloat(credits_available) - parseFloat(oldUser[0]?.credits_available || 0);
 
-      if (diff !== 0) {
-        // --- START Multi-tier Reseller Check ---
-        if (req.user.role === 'reseller') {
-          if (diff > 0) {
+        // Sanitizing transaction values
+        const finalDiff = isNaN(diff) ? 0 : diff;
+        const absDiff = Math.abs(finalDiff);
+
+        if (req.user.role === 'reseller' && finalDiff !== 0) {
+          if (finalDiff > 0) {
             // Need to deduct from reseller
             const [reseller] = await query('SELECT wallet_balance FROM users WHERE id = ?', [req.user.id]);
-            if (!reseller.length || parseFloat(reseller[0].wallet_balance) < diff) {
-              return res.status(400).json({ success: false, message: `Insufficient credits in your pool to add ${diff} more.` });
+            if (!reseller.length || parseFloat(reseller[0].wallet_balance) < finalDiff) {
+              return res.status(400).json({ success: false, message: `Insufficient credits in your pool to add ${finalDiff} more.` });
             }
             await query('UPDATE users SET wallet_balance = wallet_balance - ?, credits_available = credits_available - ?, credits_used = credits_used + ? WHERE id = ?', 
-              [diff, diff, diff, req.user.id]);
+              [finalDiff, finalDiff, finalDiff, req.user.id]);
           } else {
             // Refund to reseller (diff is negative)
-            const refundAmount = Math.abs(diff);
+            const refundAmount = absDiff;
             await query('UPDATE users SET wallet_balance = wallet_balance + ?, credits_available = credits_available + ?, credits_used = credits_used - ? WHERE id = ?', 
               [refundAmount, refundAmount, refundAmount, req.user.id]);
           }
@@ -236,15 +238,16 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
           await query(`
             INSERT INTO transactions (user_id, type, amount, credits, description, status)
             VALUES (?, ?, ?, ?, ?, 'completed')
-          `, [req.user.id, diff > 0 ? 'debit' : 'credit', Math.abs(diff), Math.abs(diff), `Adjustment for client ID ${clientId}`]);
+          `, [req.user.id, finalDiff > 0 ? 'debit' : 'credit', absDiff, absDiff, `Adjustment for client ID ${clientId}`]);
         }
         // --- END Multi-tier Reseller Check ---
 
-        await query(`
-          INSERT INTO transactions (user_id, type, amount, credits, description, status)
-          VALUES (?, ?, ?, ?, 'Admin Adjustment', 'completed')
-        `, [clientId, diff > 0 ? 'credit' : 'debit', Math.abs(diff), Math.abs(diff)]);
-      }
+        if (finalDiff !== 0) {
+          await query(`
+            INSERT INTO transactions (user_id, type, amount, credits, description, status)
+            VALUES (?, ?, ?, ?, 'Admin Adjustment', 'completed')
+          `, [clientId, finalDiff > 0 ? 'credit' : 'debit', absDiff, absDiff]);
+        }
     }
 
     let sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role IN ('client', 'user')`;
@@ -261,8 +264,8 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('UPDATE CLIENT ERROR:', err.message);
-    res.status(500).json({ success: false });
+    console.error('UPDATE CLIENT ERROR:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
