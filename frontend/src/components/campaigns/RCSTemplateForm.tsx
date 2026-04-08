@@ -220,8 +220,7 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
                         value={data.name || ''}
                         maxLength={20}
                         onChange={(e) => {
-                             const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-                             handleChange('name', val.substring(0, 20)); // Ensure strictly max 20 chars
+                             handleChange('name', e.target.value.substring(0, 50)); 
                         }}
                         className="bg-white border-gray-100 focus:ring-primary h-11 px-4 rounded-xl"
                     />
