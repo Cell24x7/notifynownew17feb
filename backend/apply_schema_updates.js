@@ -294,6 +294,10 @@ async function updateSchema() {
                     { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
                     { name: 'message_content', type: 'TEXT' }
                 ]},
+                { table: 'message_templates', cols: [
+                    { name: 'rcs_config_id', type: 'INT DEFAULT NULL' },
+                    { name: 'whatsapp_config_id', type: 'INT DEFAULT NULL' }
+                ]},
                 { table: 'campaigns', cols: [
                     { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
                     { name: 'next_run_at', type: 'TIMESTAMP NULL' },
