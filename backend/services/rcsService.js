@@ -172,6 +172,22 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = []) 
 
     return { success: false, error: `API returned status ${response.status}`, raw: response.data };
   } catch (error) {
+    // SMART FALLBACK: If 409 (Template not found for this bot), try searching other active bots
+    if (error.response && error.response.status === 400 && (error.response.data?.code === 409 || error.response.data?.reason?.includes("Template code with bot doesn't exist"))) {
+      console.log(`⚠️ [RCS FALLBACK] Template ${templateName} not found for Bot ${config.bot_id}. Searching other active bots...`);
+      const db = require('../config/db');
+      const [otherConfigs] = await db.query('SELECT * FROM rcs_configs WHERE is_active = 1 AND id != ?', [config.id]);
+      
+      for (const otherCfg of otherConfigs) {
+           console.log(`🔍 [RCS FALLBACK] Retrying with Bot: ${otherCfg.name} (${otherCfg.bot_id})...`);
+           const retryResult = await sendRcsTemplate(mobile, templateName, otherCfg, customParams);
+           if (retryResult.success) {
+               console.log(`✅ [RCS FALLBACK] SUCCESS! Found approved template on Bot: ${otherCfg.name}`);
+               return retryResult;
+           }
+      }
+    }
+
     console.error("❌ Dotgo Send Error:", error.message);
     if (error.response) {
       console.error("📦 Error Response:", JSON.stringify(error.response.data));
