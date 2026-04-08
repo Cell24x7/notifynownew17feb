@@ -213,6 +213,23 @@ export const RCSTemplateForm: React.FC<RCSTemplateFormProps> = ({ data, onChange
 
     return (
         <div className="space-y-6">
+            <div className="space-y-3">
+                <Label className="text-sm font-bold text-gray-700 ml-1">Template Name <span className="text-red-500">*</span></Label>
+                <div className="relative">
+                    <Input 
+                        placeholder="e.g. promotional_offer_01" 
+                        value={data.name || ''}
+                        onChange={(e) => {
+                             // RCS typical template names allow alphanumeric and underscores.
+                             const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                             handleChange('name', val);
+                        }}
+                        className="bg-white border-gray-100 focus:ring-primary h-11 px-4 rounded-xl"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1 ml-1 leading-tight">Must contain at least one alphabet, max length 20, lowercase alphanumeric & underscores only.</p>
+                </div>
+            </div>
+
             {/* Template Type Selector */}
             <div className="space-y-3">
                 <Label className="text-sm font-bold text-gray-700 ml-1">RCS Template Type</Label>
