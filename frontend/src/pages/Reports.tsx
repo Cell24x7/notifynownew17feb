@@ -504,15 +504,15 @@ export default function Reports() {
                         />
                     </div>
 
-                    {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                    {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') && (
                         <div className="flex items-center gap-2 ml-auto">
                             <Label className="text-[10px] font-bold text-muted-foreground uppercase">View As:</Label>
                             <Select value={targetUserId} onValueChange={setTargetUserId}>
                                 <SelectTrigger className="w-[180px] h-9 text-xs font-semibold border-border bg-muted/10 shadow-sm">
-                                    <SelectValue placeholder="All Users" />
+                                    <SelectValue placeholder={user?.role === 'reseller' ? 'All My Clients' : 'All Users'} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-card border-border text-foreground">
-                                    <SelectItem value="all">All Users (Admin)</SelectItem>
+                                    <SelectItem value="all">{user?.role === 'reseller' ? 'All My Clients' : 'All Users (Admin)'}</SelectItem>
                                     {users.map(u => (
                                         <SelectItem key={u.id} value={u.id.toString()}>
                                             {u.company || u.username || u.email}
