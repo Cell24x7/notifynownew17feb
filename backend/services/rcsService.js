@@ -139,6 +139,8 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = []) 
 
     const url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
 
+    console.log(`[RCS DEBUG] BotId: ${botId}, Template: ${templateCode}, Recipient: ${formattedMobile}`);
+
     const payload = {
       contentMessage: {
         templateMessage: {
