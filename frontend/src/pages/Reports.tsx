@@ -117,12 +117,12 @@ export default function Reports() {
     const fetchUsers = async () => {
         try {
             const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_BASE_URL}/api/users`, {
+            const response = await fetch(`${API_BASE_URL}/api/clients`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
             if (data.success) {
-                setUsers(data.users);
+                setUsers(data.clients || data.users || []);
             }
         } catch (error) {
             console.error('Failed to fetch users', error);

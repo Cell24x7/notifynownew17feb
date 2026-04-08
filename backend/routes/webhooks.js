@@ -471,25 +471,37 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
 
         const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
         const isResellerRole = req.user.role === 'reseller';
-        let userIdQuery = req.query.userId || req.user.id;
+        let userIdQuery = req.query.userId || 'all';
         let conditions = [];
         let params = [];
 
         if (userIdQuery !== 'all') {
-            if (isResellerRole && userIdQuery != req.user.id) {
+            if (isAdminRole) {
+                conditions.push("ml.user_id = ?");
+                params.push(userIdQuery);
+            } else if (isResellerRole && userIdQuery != req.user.id) {
                 // Safety check: Is this userId actually a client of this reseller?
                 const actualResellerId = req.user.actual_reseller_id || req.user.id;
                 conditions.push("(ml.user_id = ? AND ml.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
                 params.push(userIdQuery, actualResellerId);
-            } else {
+            } else { // Normal user or Reseller requesting their own
                 conditions.push("ml.user_id = ?");
-                params.push(userIdQuery);
+                params.push(req.user.id);
             }
-        } else if (isResellerRole) {
-            // Reseller sees their own + their clients' logs
-            const actualResellerId = req.user.actual_reseller_id || req.user.id;
-            conditions.push("(ml.user_id = ? OR ml.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
-            params.push(req.user.id, actualResellerId);
+        } else {
+            // "all" requested or defaulted
+            if (isResellerRole) {
+                // Reseller sees their own + their clients' logs
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                conditions.push("(ml.user_id = ? OR ml.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+                params.push(req.user.id, actualResellerId);
+            } else if (isAdminRole) {
+                // Admin sees everything (no user_id filter)
+            } else {
+                // Normal user requesting 'all' (malicious or default) -> restrict to their own
+                conditions.push("ml.user_id = ?");
+                params.push(req.user.id);
+            }
         }
         // If Admin and 'all', no user filter is pushed (std admin view)
 
