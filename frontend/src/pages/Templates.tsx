@@ -400,7 +400,9 @@ export default function Templates() {
         body: newTemplate.body,
         buttons: mappedButtons,
         metadata: newTemplate.metadata,
-        template_type: newTemplate.template_type
+        template_type: newTemplate.template_type,
+        rcs_config_id: newTemplate.rcs_config_id,
+        whatsapp_config_id: newTemplate.whatsapp_config_id
       };
 
       if (newTemplate.channel === 'rcs' && !isDraft) {
