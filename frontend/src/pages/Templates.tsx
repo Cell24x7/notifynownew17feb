@@ -399,7 +399,7 @@ export default function Templates() {
         language: newTemplate.language || 'en_US',
         category: newTemplate.category || 'MARKETING',
         channel: newTemplate.channel,
-        status: isDraft ? 'draft' : 'pending',
+        status: isDraft ? 'draft' : (newTemplate.channel === 'email' ? 'approved' : 'pending'),
         body: newTemplate.body,
         buttons: mappedButtons,
         metadata: newTemplate.metadata,
@@ -770,9 +770,16 @@ export default function Templates() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {filteredTemplates.map((template) => (
             <Card key={template.id} className="rounded-xl border-border bg-card shadow-sm hover:shadow-md transition-all border-b-4 border-b-transparent hover:border-b-primary flex flex-col h-full relative">
-              {template.channel === 'rcs' && (
-                <div className="absolute top-0 right-0 bg-blue-500/10 text-blue-600 font-semibold text-[10px] uppercase px-3 py-1.5 rounded-bl-xl border-b border-l border-blue-500/20">RCS</div>
-              )}
+              {/* Channel Badge */}
+              <div className={cn(
+                "absolute top-0 right-0 font-semibold text-[9px] sm:text-[10px] uppercase px-2 sm:px-3 py-1 sm:py-1.5 rounded-bl-xl border-b border-l",
+                template.channel === 'rcs' && 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+                template.channel === 'whatsapp' && 'bg-green-500/10 text-green-600 border-green-500/20',
+                template.channel === 'sms' && 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+                template.channel === 'email' && 'bg-orange-500/10 text-orange-600 border-orange-500/20'
+              )}>
+                {template.channel === 'whatsapp' ? 'WhatsApp' : template.channel.toUpperCase()}
+              </div>
               <CardHeader className="pb-2 sm:pb-3 pt-4 sm:pt-6 px-4 sm:px-6">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1 sm:space-y-1.5 min-w-0 flex-1">
