@@ -116,18 +116,6 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: hasPermission('Wallet - View') },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
-    { 
-      icon: Send, 
-      label: 'Email', 
-      path: '/email', 
-      show: true, // Always show for now to let user see it
-      subItems: [
-        { label: 'Email Campaigns', path: '/email/campaigns' },
-        { label: 'Email Templates', path: '/email/templates' },
-        { label: 'Email Setup', path: '/email/setup' },
-        { label: 'Email Reports', path: '/reports?channel=email' }
-      ]
-    },
   ];
 
   // Mobile pe collapse mat karo – text dikhega
