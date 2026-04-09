@@ -93,6 +93,7 @@ const channelOptions = [
    { value: 'whatsapp', label: 'WhatsApp', icon: '📱', costPerMessage: 0.35 },
    { value: 'sms', label: 'SMS', icon: '📲', costPerMessage: 0.25 },
    { value: 'rcs', label: 'RCS', icon: '💬', costPerMessage: 0.30 },
+   { value: 'email', label: 'Email', icon: '📧', costPerMessage: 0.10 },
 ];
 
 export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {
@@ -319,6 +320,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          } else {
             costPerMsg = parseFloat(u?.sms_transactional_price) || 0.15;
          }
+      } else if (campaignData.channel === 'email') {
+         costPerMsg = parseFloat(u?.email_price) || 0.10;
       }
       return isNaN(costPerMsg) ? 1.0 : costPerMsg;
    };

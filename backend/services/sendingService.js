@@ -2,6 +2,7 @@ const axios = require('axios');
 const { query } = require('../config/db');
 const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
 const { sendSMS } = require('../utils/smsService');
+const { sendEmail } = require('./emailService');
 
 /**
  * Replaces placeholders [X] or {{X}} with values from index-based variables
@@ -301,6 +302,37 @@ const sendUniversalMessage = async (item) => {
                 processedMessage
             };
         } 
+        else if (channelParsed === 'email') {
+            const body = item.template_body || '';
+            const subjectTemplate = item.template_subject || 'Notification from NotifyNow';
+            const processedMessage = replaceVariables(body, resolvedVars);
+            const processedSubject = replaceVariables(subjectTemplate, resolvedVars);
+
+            // 1. Resolve Strict Email Config
+            let targetConfigId = item.email_config_id;
+            if (!targetConfigId) {
+                const [u] = await query('SELECT email_config_id FROM users WHERE id = ?', [item.user_id]);
+                targetConfigId = u[0]?.email_config_id;
+            }
+
+            if (!targetConfigId) return { success: false, error: 'No Email configuration assigned' };
+
+            const [configs] = await query('SELECT * FROM email_configs WHERE id = ? AND is_active = 1', [targetConfigId]);
+            if (!configs.length) return { success: false, error: 'Assigned email configuration not found or inactive' };
+            const emailConfig = configs[0];
+
+            // 2. Send via Email Service
+            try {
+                const emailResult = await sendEmail(item.mobile, processedSubject, processedMessage, emailConfig);
+                result = { 
+                    success: true, 
+                    messageId: emailResult.messageId, 
+                    processedMessage: processedMessage 
+                };
+            } catch (err) {
+                result = { success: false, error: `Email Error: ${err.message}` };
+            }
+        }
         else if (channelParsed === 'sms') {
             const body = item.template_body || item.campaign_name;
             const processedMessage = replaceVariables(body, resolvedVars);

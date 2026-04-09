@@ -249,6 +249,8 @@ export default function Campaigns() {
         }
       }
 
+      const isEmailEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'email') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'email');
+
       setTemplates(mergedTemplates);
 
 
