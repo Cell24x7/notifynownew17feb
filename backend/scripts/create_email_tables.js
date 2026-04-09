@@ -5,38 +5,49 @@ const dotenv = require('dotenv');
 
 /**
  * Super Robust .env Loader
- * Checks current dir, parent dir, and /backend dir
+ * Prioritizes .env.production if NODE_ENV=production
  */
 function loadEnv() {
-    const possiblePaths = [
-        path.join(process.cwd(), '.env'),
-        path.join(process.cwd(), '..', '.env'),
-        path.join(process.cwd(), 'backend', '.env'),
-        path.join(__dirname, '..', '.env'),
-        path.join(__dirname, '..', '..', '.env')
+    console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'not set (defaulting to production logic)'}`);
+    
+    // Check both .env and .env.production
+    const envFiles = [
+        process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
+        '.env.production', // Fallback to production if first fails
+        '.env'
     ];
 
-    console.log('🔍 Searching for .env file...');
+    const searchDirs = [
+        process.cwd(),
+        path.join(process.cwd(), 'backend'),
+        path.join(__dirname, '..'),
+        path.join(__dirname, '..', '..')
+    ];
+
+    console.log('🔍 Searching for environment files...');
     let found = false;
 
-    for (const p of possiblePaths) {
-        if (fs.existsSync(p)) {
-            dotenv.config({ path: p });
-            console.log(`  ✅ Found .env at: ${p}`);
-            found = true;
-            break;
+    for (const dir of searchDirs) {
+        for (const file of envFiles) {
+            const p = path.join(dir, file);
+            if (fs.existsSync(p)) {
+                dotenv.config({ path: p });
+                console.log(`  ✅ Successfully loaded CONFIG from: ${p}`);
+                found = true;
+                break;
+            }
         }
+        if (found) break;
     }
 
     if (!found) {
-        console.error('  ⚠️  WARNING: No .env file found in any expected location.');
+        console.warn('  ⚠️  WARNING: Could not find .env or .env.production. Is it in the root or /backend folder?');
     }
 }
 
 async function createEmailTables() {
     loadEnv();
 
-    // Masked Database Info for Logging
     const dbConfig = {
         host: process.env.DB_HOST || 'localhost',
         user: process.env.DB_USER || 'root',
@@ -44,10 +55,13 @@ async function createEmailTables() {
         database: process.env.DB_NAME || 'notifynow_db'
     };
 
-    console.log(`🚀 Connecting to: ${dbConfig.host} / Database: ${dbConfig.database} as User: ${dbConfig.user}`);
+    console.log(`🚀 Connection Details:`);
+    console.log(`   Host: ${dbConfig.host}`);
+    console.log(`   User: ${dbConfig.user}`);
+    console.log(`   DB  : ${dbConfig.database}`);
 
     if (!process.env.DB_USER) {
-        console.error('❌ FATAL ERROR: Database credentials (DB_USER) are missing from .env.');
+        console.error('❌ FATAL ERROR: DB_USER is missing. Credentials not loaded correctly.');
         process.exit(1);
     }
 
@@ -59,7 +73,7 @@ async function createEmailTables() {
     });
 
     try {
-        console.log('🔄 Creating Email related tables...');
+        console.log('\n🔄 Creating Email tables...');
 
         // 1. email_configs table
         await connection.query(`
@@ -80,7 +94,7 @@ async function createEmailTables() {
                 INDEX idx_user_active (user_id, is_active)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
-        console.log('✅ Table email_configs ready.');
+        console.log('  ✅ email_configs ready.');
 
         // 2. email_templates table
         await connection.query(`
@@ -97,19 +111,18 @@ async function createEmailTables() {
                 INDEX idx_user (user_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
-        console.log('✅ Table email_templates ready.');
+        console.log('  ✅ email_templates ready.');
 
-        // 3. Add email_config_id to users
-        const [cols] = await connection.query('DESCRIBE users');
-        const hasEmailId = cols.some(c => c.Field === 'email_config_id');
-        if (!hasEmailId) {
-            await connection.query('ALTER TABLE users ADD COLUMN email_config_id INT DEFAULT NULL AFTER rcs_config_id');
-            console.log('✅ Column email_config_id added to users table.');
+        // 3. Add email_config_id column to users
+        const [rows] = await connection.query(`DESCRIBE users`);
+        if (!rows.some(r => r.Field === 'email_config_id')) {
+            await connection.query(`ALTER TABLE users ADD COLUMN email_config_id INT DEFAULT NULL AFTER rcs_config_id`);
+            console.log('  ✅ email_config_id column added to users table.');
         }
 
-        console.log('\n🌟 SUCCESS: All Email channel infrastructure is ready!');
+        console.log('\n✨ MISSION SUCCESS: Email channel infrastructure is fully deployed!');
     } catch (error) {
-        console.error('❌ DATABASE ERROR:', error.message);
+        console.error('\n❌ DATABASE ERROR:', error.message);
     } finally {
         await connection.end();
     }
