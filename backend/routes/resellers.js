@@ -81,6 +81,8 @@ router.get('/whitelabel', async (req, res) => {
 router.post('/', async (req, res) => {
   console.log('RESELLER POST BODY:', req.body);
   const {
+    name, email, phone, domain, api_base_url, commission_percent, status, plan_id,
+    password, channels_enabled,
     brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
     credits_available = 0
   } = req.body;

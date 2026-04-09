@@ -131,8 +131,8 @@ export default function SuperAdminResellers() {
     // Name: only letters, space, hyphen, apostrophe
     if (!currentReseller.name.trim()) {
       errors.push('Name is required.');
-    } else if (!/^[A-Za-z\s\-']+$/.test(currentReseller.name.trim())) {
-      errors.push('Name can only contain letters, spaces, hyphens and apostrophes (no numbers/special chars).');
+    } else if (currentReseller.name.trim().length < 2) {
+      errors.push('Name must be at least 2 characters.');
     }
 
     // Email: strict format
