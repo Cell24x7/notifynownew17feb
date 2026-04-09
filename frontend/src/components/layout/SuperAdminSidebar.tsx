@@ -45,6 +45,14 @@ const menuItems = [
       { label: 'API Report', path: '/super-admin/reports?tab=api' }
     ]
   },
+  
+  // User Features added for Resellers / Business Owners
+  { icon: FileText, label: 'Templates', path: '/templates', permission: 'Template - View' },
+  { icon: Send, label: 'Campaigns', path: '/campaigns', permission: 'Campaigns - View' },
+  { icon: MessageCircle, label: 'Chats', path: '/chats', permission: 'Chat - View' },
+  { icon: Users, label: 'Contacts', path: '/contacts', permission: 'Contacts - View' },
+  { icon: Rocket, label: 'Automations', path: '/automations', permission: 'Automations - View' },
+
   { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
   { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
   { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
