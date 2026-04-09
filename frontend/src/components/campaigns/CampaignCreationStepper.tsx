@@ -54,6 +54,11 @@ export interface CampaignData {
    isUnicode?: boolean;
    enableTracking?: boolean;
    smsParts?: number;
+   // Email-specific fields
+   emailFromId?: string;
+   emailSenderName?: string;
+   emailSubject?: string;
+   emailAttachment?: File | null;
 }
 
 // Detect if text contains non-GSM characters (Unicode)
@@ -921,6 +926,77 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                     </div>
                                  </div>
                               )}
+
+                              {/* Email Delivery Settings */}
+                              {campaignData.channel === 'email' && selectedTemplate && (
+                                 <div className="p-4 border rounded-xl bg-card space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="flex items-center justify-between">
+                                       <h3 className="font-medium text-sm">📧 Email Delivery Settings</h3>
+                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400">
+                                          ✉️ Email Campaign
+                                       </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                       <div className="space-y-2">
+                                          <Label className="text-sm font-medium">From Email ID <span className="text-red-500">*</span></Label>
+                                          <Input 
+                                             placeholder="e.g. info@yourbusiness.com" 
+                                             value={campaignData.emailFromId || ''}
+                                             onChange={(e) => setCampaignData({ ...campaignData, emailFromId: e.target.value })}
+                                          />
+                                          <p className="text-[10px] text-muted-foreground">The email address recipients will see</p>
+                                       </div>
+                                       <div className="space-y-2">
+                                          <Label className="text-sm font-medium">Sender Name <span className="text-red-500">*</span></Label>
+                                          <Input 
+                                             placeholder="e.g. NotifyNow Team" 
+                                             value={campaignData.emailSenderName || ''}
+                                             onChange={(e) => setCampaignData({ ...campaignData, emailSenderName: e.target.value })}
+                                          />
+                                          <p className="text-[10px] text-muted-foreground">Display name shown to recipients</p>
+                                       </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                       <Label className="text-sm font-medium">Email Subject <span className="text-red-500">*</span></Label>
+                                       <Input 
+                                          placeholder="Enter email subject line..." 
+                                          value={campaignData.emailSubject || (selectedTemplate as any)?.metadata?.subject || ''}
+                                          onChange={(e) => setCampaignData({ ...campaignData, emailSubject: e.target.value })}
+                                       />
+                                       <p className="text-[10px] text-muted-foreground">Subject line from template can be overridden here</p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                       <Label className="text-sm font-medium">Attachment (Optional)</Label>
+                                       <div className="flex items-center gap-3">
+                                          <Input 
+                                             type="file" 
+                                             accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.xlsx,.csv"
+                                             className="flex-1"
+                                             onChange={(e) => {
+                                                const file = e.target.files?.[0] || null;
+                                                setCampaignData({ ...campaignData, emailAttachment: file });
+                                             }}
+                                          />
+                                          {campaignData.emailAttachment && (
+                                             <Button variant="ghost" size="sm" onClick={() => setCampaignData({ ...campaignData, emailAttachment: null })}>
+                                                <X className="h-4 w-4" />
+                                             </Button>
+                                          )}
+                                       </div>
+                                       <p className="text-[10px] text-muted-foreground">Supported: PDF, DOC, Images, Excel (Max 10MB)</p>
+                                       {campaignData.emailAttachment && (
+                                          <div className="flex items-center gap-2 text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 border border-primary/20">
+                                             <Paperclip className="h-3.5 w-3.5" />
+                                             <span className="font-medium">{campaignData.emailAttachment.name}</span>
+                                             <span className="text-muted-foreground">({(campaignData.emailAttachment.size / 1024).toFixed(1)} KB)</span>
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
+                              )}
                            </div>
                         </div>
                      )}
@@ -1136,10 +1212,10 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                            {campaignData.contactSource === 'manual' && (
                               <div className="space-y-4">
                                  <div className="space-y-2">
-                                    <Label>Enter Mobile Numbers</Label>
+                                    <Label>{campaignData.channel === 'email' ? 'Enter Email Addresses' : 'Enter Mobile Numbers'}</Label>
                                     <textarea
                                        className="flex min-h-[200px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                       placeholder={`919876543210\n919876543211\n919876543212`}
+                                       placeholder={campaignData.channel === 'email' ? `user1@example.com\nuser2@example.com\nuser3@example.com` : `919876543210\n919876543211\n919876543212`}
                                        value={campaignData.manualNumbers}
                                        onChange={(e) => {
                                           const val = e.target.value;
@@ -1150,9 +1226,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                  </div>
                                  <div className="flex items-center justify-between text-sm">
                                     <p className="text-muted-foreground">
-                                       Enter one number per line. Include country code (e.g., 91).
+                                       {campaignData.channel === 'email' 
+                                          ? 'Enter one email address per line.'
+                                          : 'Enter one number per line. Include country code (e.g., 91).'}
                                     </p>
-                                    <Badge variant="secondary">{campaignData.recipientCount} numbers</Badge>
+                                    <Badge variant="secondary">{campaignData.recipientCount} {campaignData.channel === 'email' ? 'emails' : 'numbers'}</Badge>
                                  </div>
                               </div>
                            )}
