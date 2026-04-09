@@ -1,7 +1,56 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config({ path: '../.env' });
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+
+/**
+ * Super Robust .env Loader
+ * Checks current dir, parent dir, and /backend dir
+ */
+function loadEnv() {
+    const possiblePaths = [
+        path.join(process.cwd(), '.env'),
+        path.join(process.cwd(), '..', '.env'),
+        path.join(process.cwd(), 'backend', '.env'),
+        path.join(__dirname, '..', '.env'),
+        path.join(__dirname, '..', '..', '.env')
+    ];
+
+    console.log('🔍 Searching for .env file...');
+    let found = false;
+
+    for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+            dotenv.config({ path: p });
+            console.log(`  ✅ Found .env at: ${p}`);
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        console.error('  ⚠️  WARNING: No .env file found in any expected location.');
+    }
+}
 
 async function createEmailTables() {
+    loadEnv();
+
+    // Masked Database Info for Logging
+    const dbConfig = {
+        host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASS ? '********' : '(no password)',
+        database: process.env.DB_NAME || 'notifynow_db'
+    };
+
+    console.log(`🚀 Connecting to: ${dbConfig.host} / Database: ${dbConfig.database} as User: ${dbConfig.user}`);
+
+    if (!process.env.DB_USER) {
+        console.error('❌ FATAL ERROR: Database credentials (DB_USER) are missing from .env.');
+        process.exit(1);
+    }
+
     const connection = await mysql.createConnection({
         host: process.env.DB_HOST,
         user: process.env.DB_USER,
@@ -58,9 +107,9 @@ async function createEmailTables() {
             console.log('✅ Column email_config_id added to users table.');
         }
 
-        console.log('\n🚀 All Email tables and columns are ready!');
+        console.log('\n🌟 SUCCESS: All Email channel infrastructure is ready!');
     } catch (error) {
-        console.error('❌ Error creating Email tables:', error.message);
+        console.error('❌ DATABASE ERROR:', error.message);
     } finally {
         await connection.end();
     }
