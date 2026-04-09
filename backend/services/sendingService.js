@@ -137,26 +137,31 @@ const sendUniversalMessage = async (item) => {
     try {
         if (channelParsed === 'rcs') {
             let processedMessage = '';
-            let rcsConfig = item.rcs_config_id ? {
-                id: item.rcs_config_id, name: item.rcs_config_name,
-                auth_url: item.auth_url, api_base_url: item.api_base_url,
-                client_id: item.client_id, client_secret: item.client_secret, bot_id: item.bot_id
-            } : null;
-
-            // Fallback: Use first active RCS config if user has none assigned
-            if (!rcsConfig) {
-                const [defaults] = await query('SELECT * FROM rcs_configs WHERE is_active = 1 LIMIT 1');
-                if (defaults.length > 0) {
-                    rcsConfig = defaults[0];
-                    console.log(`[SendingService] Using fallback RCS config: ${rcsConfig.name}`);
-                }
+            
+            // 1. Determine which RCS Config to use (Strict Routing)
+            let targetConfigId = item.rcs_config_id;
+            if (!targetConfigId) {
+                const [userProfile] = await query('SELECT rcs_config_id FROM users WHERE id = ?', [item.user_id]);
+                targetConfigId = userProfile[0]?.rcs_config_id;
             }
 
-            if (item.template_name && item.template_name.length > 5) {
+            if (!targetConfigId) {
+                return { success: false, error: 'No RCS bot assigned to this user/campaign.' };
+            }
+
+            const [assignedConfigs] = await query('SELECT * FROM rcs_configs WHERE id = ? AND is_active = 1', [targetConfigId]);
+            if (assignedConfigs.length === 0) {
+                return { success: false, error: 'Assigned RCS bot is inactive or not found.' };
+            }
+
+            const rcsConfig = assignedConfigs[0];
+            
+            // 2. Send via RCS Service Helpers
+            if (item.template_name && item.template_name.length > 2) {
                 const body = item.template_body || '';
                 const metaStr = typeof item.template_metadata === 'string' ? item.template_metadata : JSON.stringify(item.template_metadata || {});
                 const customParams = getOrderedVariables(`${body} ${metaStr}`, resolvedVars);
-                processedMessage = body; // Template messages usually don't have a single "processed text" easily accessible here, but we'll return the body
+                processedMessage = body || `Template: ${item.template_name}`;
                 result = await sendRcsTemplate(item.mobile, item.template_name, rcsConfig, customParams);
             } else {
                 const body = item.template_body || '';

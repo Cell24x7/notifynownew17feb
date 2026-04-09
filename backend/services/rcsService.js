@@ -154,21 +154,9 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
     return { success: true, messageId: response.data?.messageId, raw: response.data };
 
   } catch (error) {
-    // Prevent infinite loop: Only fallback if it's the first attempt
-    if (!isFallback && error.response && (error.response.status === 400 || error.response.status === 404 || error.response.status === 409) && (error.response.data?.code === 409 || error.response.data?.reason?.includes("Template code with bot doesn't exist"))) {
-      console.log(`⚠️ [RCS FALLBACK] Template ${templateName} not found for Bot ${config.bot_id}. Searching others...`);
-      const db = require('../config/db');
-      const [otherConfigs] = await db.query('SELECT * FROM rcs_configs WHERE is_active = 1 AND id != ?', [config.id]);
-      
-      for (const otherCfg of otherConfigs) {
-           console.log(`🔍 [RCS FALLBACK] Trying Bot: ${otherCfg.name}...`);
-           // PASS isFallback = true to stop recursion
-           const retryResult = await sendRcsTemplate(mobile, templateName, otherCfg, customParams, true);
-           if (retryResult.success) {
-               console.log(`✅ [RCS FALLBACK] Found on Bot: ${otherCfg.name}`);
-               return retryResult;
-           }
-      }
+    // Fallback removed to enforce strict routing to assigned bots only.
+    if (error.response?.status === 401) {
+        console.log(`🔑 [RCS] Token expired for Bot ${config.name}. Forcing refresh...`);
     }
 
     if (error.response?.status === 401) {
