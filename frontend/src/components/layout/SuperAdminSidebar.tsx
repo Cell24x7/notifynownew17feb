@@ -69,18 +69,29 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith('/super-admin/reports'));
   const { logout, user } = useAuth();
 
-  const hasPermission = (feature: string) => {
-    // Super Admin / Business Owner (Reseller) always has base access
-    if (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') return true;
-
+    // Platform admins always have full access
+    if (user?.role === 'admin' || user?.role === 'superadmin') return true;
+    
     // Safety check: ensure permissions is an array
     if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
-    const perm = user.permissions.find((p: any) => p.feature === feature);
-    if (!perm) return false; // Strict: if feature not found, deny
+    const target = feature.toLowerCase().trim();
 
-    return perm.admin === true || perm.admin === 1;
-  };
+    return user.permissions.some((p: any) => {
+      // Handle string permissions (e.g. from JWT)
+      if (typeof p === 'string') {
+        const f = p.toLowerCase().trim();
+        return f === target || f.split(' - ')[0] === target.split(' - ')[0];
+      }
+      // Handle object permissions
+      if (p && typeof p === 'object' && p.feature) {
+        const f = p.feature.toLowerCase().trim();
+        if (f === target || f.split(' - ')[0] === target.split(' - ')[0]) {
+          return p.admin === true || p.admin === 1;
+        }
+      }
+      return false;
+    });
 
   return (
     <aside

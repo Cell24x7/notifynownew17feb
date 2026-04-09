@@ -59,10 +59,8 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
   // Permissions check
   // Default to true if no permissions found to avoid locking out users during transition
-  const hasPermission = (featureName: string) => {
-    // Super Admin / Account Owner always has full access
-    // Platform Super Admin always has full access
-    if (user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'reseller') return true;
+    // Platform admins always have full access
+    if (user?.role === 'superadmin' || user?.role === 'admin') return true;
 
     if (!user?.permissions || !Array.isArray(user.permissions)) {
        return false;
@@ -70,20 +68,21 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
     const target = featureName.trim().toLowerCase();
 
-    // Find permission with case-insensitive matching
-    const perm = user.permissions.find((p: any) => {
-       const f = (typeof p === 'string' ? p : (p?.feature || '')).trim().toLowerCase();
-       return f === target || f.startsWith(target + ' -');
+    return user.permissions.some((p: any) => {
+      // Handle string permissions
+      if (typeof p === 'string') {
+        const f = p.trim().toLowerCase();
+        return f === target || f.split(' - ')[0] === target.split(' - ')[0];
+      }
+      // Handle object permissions
+      if (p && typeof p === 'object' && p.feature) {
+        const f = p.feature.trim().toLowerCase();
+        if (f === target || f.split(' - ')[0] === target.split(' - ')[0]) {
+          return Boolean(p.admin) || Boolean(p.manager) || Boolean(p.agent);
+        }
+      }
+      return false;
     });
-
-    if (!perm) return false;
-
-    // If it's a string from JWT, it was already filtered by the backend
-    if (typeof perm === 'string') return true;
-
-    // For objects, check access flags strictly
-    return Boolean(perm.admin) || Boolean(perm.manager) || Boolean(perm.agent);
-  };
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: hasPermission('Dashboard - View') },
