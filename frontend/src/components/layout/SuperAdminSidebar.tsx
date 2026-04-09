@@ -79,18 +79,21 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
     const target = feature.toLowerCase().trim();
 
     return user.permissions.some((p: any) => {
-      // Handle string permissions (e.g. from JWT)
-      if (typeof p === 'string') {
-        const f = p.toLowerCase().trim();
-        return f === target || f.split(' - ')[0] === target.split(' - ')[0];
-      }
-      // Handle object permissions
-      if (p && typeof p === 'object' && p.feature) {
-        const f = p.feature.toLowerCase().trim();
-        if (f === target || f.split(' - ')[0] === target.split(' - ')[0]) {
-          return p.admin === true || p.admin === 1;
-        }
-      }
+      const rawFeature = (typeof p === 'string' ? p : p?.feature || '').toLowerCase().trim();
+      
+      // 1. Direct match
+      if (rawFeature === target) return true;
+
+      // 2. Base name match (ignoring ' - view', ' - manage', etc.)
+      const baseRaw = rawFeature.split(' - ')[0].trim();
+      const baseTarget = target.split(' - ')[0].trim();
+      if (baseRaw === baseTarget) return true;
+
+      // 3. Singular/Plural support & Fuzzy matching
+      // Normalize by removing 's' at the end and spaces/dashes
+      const normalize = (s: string) => s.replace(/s\b/g, '').replace(/[\s-]/g, '');
+      if (normalize(baseRaw) === normalize(baseTarget)) return true;
+
       return false;
     });
   };

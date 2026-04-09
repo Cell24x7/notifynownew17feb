@@ -67,21 +67,24 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
        return false;
     }
 
-    const target = featureName.trim().toLowerCase();
+    const target = featureName.toLowerCase().trim();
 
     return user.permissions.some((p: any) => {
-      // Handle string permissions
-      if (typeof p === 'string') {
-        const f = p.trim().toLowerCase();
-        return f === target || f.split(' - ')[0] === target.split(' - ')[0];
-      }
-      // Handle object permissions
-      if (p && typeof p === 'object' && p.feature) {
-        const f = p.feature.trim().toLowerCase();
-        if (f === target || f.split(' - ')[0] === target.split(' - ')[0]) {
-          return Boolean(p.admin) || Boolean(p.manager) || Boolean(p.agent);
-        }
-      }
+      const rawFeature = (typeof p === 'string' ? p : p?.feature || '').toLowerCase().trim();
+      
+      // 1. Direct match
+      if (rawFeature === target) return true;
+
+      // 2. Base name match (ignoring ' - view', ' - manage', etc.)
+      const baseRaw = rawFeature.split(' - ')[0].trim();
+      const baseTarget = target.split(' - ')[0].trim();
+      if (baseRaw === baseTarget) return true;
+
+      // 3. Singular/Plural support & Fuzzy matching
+      // Normalize by removing 's' at the end and spaces/dashes
+      const normalize = (s: string) => s.replace(/s\b/g, '').replace(/[\s-]/g, '');
+      if (normalize(baseRaw) === normalize(baseTarget)) return true;
+
       return false;
     });
   };
