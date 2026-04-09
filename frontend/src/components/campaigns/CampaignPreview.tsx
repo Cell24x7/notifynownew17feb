@@ -56,11 +56,54 @@ export function CampaignPreview({ campaignData, template, variables, csvPreview,
     whatsapp: 'bg-[#075E54]',
     sms: 'bg-[#007AFF]',
     rcs: 'bg-[#1A73E8]',
+    email: 'bg-orange-600',
   }[campaignData.channel] || 'bg-slate-800';
 
   const meta = (template as any)?.metadata || {};
   const botName = meta.bot_name || meta.brand_name || meta.sender || user?.name || 'Business Account';
   const botLogo = meta.bot_logo || meta.bot_image || null;
+
+  if (campaignData.channel === 'email') {
+    return (
+      <div className="flex flex-col items-center justify-start min-h-full pt-4 pb-24 overflow-y-auto no-scrollbar w-full px-4">
+        <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-2xl overflow-hidden border border-border flex flex-col mx-auto">
+          {/* Email Subject Bar */}
+          <div className="bg-slate-50 border-b border-border px-6 py-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                {user?.name?.[0]?.toUpperCase() || 'E'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-slate-800 truncate">{meta.subject || 'No Subject'}</h3>
+                <p className="text-[10px] text-slate-500">From: {user?.name || 'Your Business'} &lt;noreply@notify.now&gt;</p>
+              </div>
+              <div className="px-2 py-0.5 rounded-full text-[9px] bg-green-50 text-green-600 border border-green-100 flex items-center gap-1 uppercase font-bold tracking-tighter">
+                <Shield className="w-2.5 h-2.5" /> Verified
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto bg-slate-100 p-4 min-h-[400px]">
+            <div 
+              className="bg-white rounded-lg shadow-sm p-6 min-h-full prose prose-sm max-w-none email-content-preview"
+              dangerouslySetInnerHTML={{ __html: resolvedBody || template?.body || '<p class="text-slate-400 italic">No content yet...</p>' }}
+            />
+          </div>
+
+          <div className="bg-slate-50 border-t border-border px-6 py-3 flex justify-between items-center text-[9px] text-slate-400">
+            <span>Powered by NotifyNow</span>
+            <div className="flex gap-4 font-medium uppercase tracking-tighter">
+              <span>Unsubscribe</span>
+              <span>Privacy Policy</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+           Desktop Preview
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-start min-h-full pt-4 pb-24 overflow-y-auto no-scrollbar w-full">

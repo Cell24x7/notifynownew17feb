@@ -25,6 +25,7 @@ const authenticate = require('../middleware/authMiddleware');
                 header_content TEXT,
                 body TEXT NOT NULL,
                 footer TEXT,
+                metadata JSON DEFAULT NULL,
                 status VARCHAR(50) DEFAULT 'pending',
                 rejection_reason TEXT,
                 usage_count INT DEFAULT 0,
@@ -46,6 +47,8 @@ const authenticate = require('../middleware/authMiddleware');
                 INDEX idx_template_id (template_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
+        // Ensure metadata column exists
+        await query(`ALTER TABLE message_templates ADD COLUMN IF NOT EXISTS metadata JSON DEFAULT NULL AFTER footer`);
         console.log('✓ message_templates table ready');
     } catch (err) {
         console.error('Error creating message_templates table:', err.message);
@@ -231,15 +234,17 @@ router.post('/', authenticate, async (req, res) => {
 
         await query(
             `INSERT INTO message_templates 
-      (id, user_id, whatsapp_config_id, rcs_config_id, name, language, category, channel, template_type, header_type, header_content, body, footer, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, whatsapp_config_id, rcs_config_id, name, language, category, channel, template_type, header_type, header_content, body, footer, metadata, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 templateId,
                 userId,
                 channel === 'whatsapp' ? currentUser.whatsapp_config_id : null,
                 channel === 'rcs' ? currentUser.rcs_config_id : null,
-                name, language, category, channel, template_type,
-                header_type, header_content || null, body, footer || null, status || 'pending'
+                name, language, category, channel, template_type || 'text_message',
+                header_type || 'none', header_content || null, body, footer || null, 
+                req.body.metadata ? JSON.stringify(req.body.metadata) : null,
+                status || 'pending'
             ]
         );
 
@@ -276,9 +281,14 @@ router.put('/:id', authenticate, async (req, res) => {
         await query(
             `UPDATE message_templates SET 
         name = ?, language = ?, category = ?, channel = ?, template_type = ?,
-        header_type = ?, header_content = ?, body = ?, footer = ?, status = ?
+        header_type = ?, header_content = ?, body = ?, footer = ?, metadata = ?, status = ?
       WHERE id = ? AND user_id = ?`,
-            [name, language, category, channel, template_type, header_type, header_content, body, footer, status, id, userId]
+            [
+                name, language, category, channel, template_type, 
+                header_type, header_content, body, footer, 
+                req.body.metadata ? JSON.stringify(req.body.metadata) : null,
+                status, id, userId
+            ]
         );
 
         await query('DELETE FROM template_buttons WHERE template_id = ?', [id]);

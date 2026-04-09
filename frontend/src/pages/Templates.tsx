@@ -30,6 +30,8 @@ import { rcsCampaignApi } from '@/services/rcsCampaignApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { dltTemplateService } from '@/services/dltTemplateService';
 import { useNavigate } from 'react-router-dom';
+import { EmailTemplateForm } from '@/components/campaigns/EmailTemplateForm';
+import { EmailPreview } from '@/components/campaigns/EmailPreview';
 
 export default function Templates() {
   const { toast } = useToast();
@@ -249,7 +251,8 @@ export default function Templates() {
       alignment: 'LEFT',
       mediaUrl: '',
       cardTitle: '',
-      carouselList: []
+      carouselList: [],
+      subject: ''
     },
     body: '',
     footer: '',
@@ -481,6 +484,8 @@ export default function Templates() {
     setCarouselFiles({});
   };
 
+  const [activePreviewType, setActivePreviewType] = useState<'phone' | 'email'>('phone');
+
   const handleEditTemplate = (template: MessageTemplate) => {
     setEditingTemplate(template);
     const savedMetadata = (template as any).metadata || {};
@@ -573,6 +578,14 @@ export default function Templates() {
         </div>
       );
     };
+
+    if (data.channel === 'email') {
+        return <EmailPreview data={{ ...data, subject: data.subject || data.metadata?.subject }} />;
+    }
+
+    if (data.channel === 'whatsapp' && data.components) {
+        return <WhatsAppPreview components={data.components} />;
+    }
 
     return (
       <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
@@ -838,6 +851,7 @@ export default function Templates() {
                 <div className="p-6 space-y-6">
                    {newTemplate.channel === 'rcs' && <RCSTemplateForm data={newTemplate} onChange={setNewTemplate} onFileChange={setSelectedFile} onCarouselFileChange={(idx, file) => setCarouselFiles(p => ({ ...p, [idx]: file }))} />}
                    {newTemplate.channel === 'whatsapp' && <WhatsAppTemplateForm data={newTemplate} onChange={setNewTemplate} />}
+                   {newTemplate.channel === 'email' && <EmailTemplateForm data={newTemplate} onChange={setNewTemplate} />}
                    {newTemplate.channel === 'sms' && (
                      <div className="space-y-4">
                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-300">

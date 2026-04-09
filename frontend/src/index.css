@@ -244,4 +244,35 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Email Editor & Preview Styles */
+  .visual-email-editor .ql-toolbar {
+    border: none !important;
+    background: hsl(var(--muted)/0.3);
+    border-bottom: 1px solid hsl(var(--border)) !important;
+    padding: 12px !important;
+  }
+
+  .visual-email-editor .ql-container {
+    border: none !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+  }
+
+  .visual-email-editor .ql-editor {
+    padding: 24px !important;
+    min-height: 300px;
+  }
+
+  .email-content-preview {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: #334155;
+  }
+
+  .email-content-preview h1 { font-size: 24px; font-weight: 800; margin-bottom: 16px; color: #0f172a; }
+  .email-content-preview h2 { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #0f172a; }
+  .email-content-preview p { margin-bottom: 16px; }
+  .email-content-preview a { color: #00a884; font-weight: 600; text-decoration: underline; }
+  .email-content-preview img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
 }
