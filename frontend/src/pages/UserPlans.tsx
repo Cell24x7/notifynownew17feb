@@ -193,7 +193,7 @@ export default function UserPlans({ embedded = false }: { embedded?: boolean }) 
                    <div className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground font-medium">Channels</span>
                       <div className="flex gap-1.5">
-                        {plan.channelsAllowed?.slice(0, 3).map(c => (
+                        {plan.channelsAllowed?.slice(0, 6).map(c => (
                            <ChannelIcon key={c} channel={c as any} className="w-4 h-4 opacity-70" />
                         ))}
                       </div>
@@ -256,7 +256,7 @@ export default function UserPlans({ embedded = false }: { embedded?: boolean }) 
                   {selectedPlan.channelsAllowed.length === 0 ? (
                     <span className="text-muted-foreground text-sm">None</span>
                   ) : (
-                    selectedPlan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs'].includes(c)).map((ch) => (
+                    selectedPlan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs', 'email'].includes(c)).map((ch) => (
                       <div
                         key={ch}
                         className="flex items-center gap-1 bg-muted px-3 py-1.5 rounded-full text-sm"

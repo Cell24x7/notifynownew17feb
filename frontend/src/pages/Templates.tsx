@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, MoreVertical, Edit, Trash2, Eye, Zap, FileText, Smartphone, RefreshCw, Sparkles, ChevronRight, ChevronLeft, Shield, Image as ImageIcon, Bot, Phone, Link, MessageSquare } from 'lucide-react';
+import { Plus, Search, MoreVertical, Edit, Trash2, Eye, Zap, FileText, Smartphone, RefreshCw, Sparkles, ChevronRight, ChevronLeft, Shield, Image as ImageIcon, Bot, Phone, Link, MessageSquare, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +42,7 @@ export default function Templates() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [templateSubTab, setTemplateSubTab] = useState<'all' | 'pending'>('all');
-  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'rcs' | 'sms'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'rcs' | 'sms' | 'email'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingTemplateId, setRefreshingTemplateId] = useState<string | null>(null);
@@ -719,6 +719,7 @@ export default function Templates() {
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="rcs">RCS</SelectItem>
                 <SelectItem value="sms">SMS</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={(v: any) => { setStatusFilter(v); setPage(1); }}>
@@ -820,15 +821,16 @@ export default function Templates() {
           <div className="flex flex-col lg:flex-row h-full overflow-hidden">
             <ScrollArea className="flex-1">
               {templateStep === 'channel' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6">
                   {[
                     { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-500/10' },
                     { id: 'rcs', name: 'RCS', icon: Sparkles, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' },
                     { id: 'sms', name: 'SMS', icon: Smartphone, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
+                    { id: 'email', name: 'Email', icon: Mail, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10' },
                   ].map((chan) => (
-                    <button key={chan.id} onClick={() => { setNewTemplate({ ...newTemplate, channel: chan.id as any }); setTemplateStep('form'); }} className="group flex flex-col items-center justify-center p-8 rounded-3xl border border-border bg-card hover:border-primary transition-all">
+                    <button key={chan.id} onClick={() => { setNewTemplate({ ...newTemplate, channel: chan.id as any }); setTemplateStep('form'); }} className="group flex flex-col items-center justify-center p-6 rounded-3xl border border-border bg-card hover:border-primary transition-all">
                         <div className={cn("p-4 rounded-2xl mb-4", chan.bg)}><chan.icon className={cn("h-8 w-8", chan.color)} /></div>
-                        <span className="font-bold text-lg">{chan.name}</span>
+                        <span className="font-bold text-base">{chan.name}</span>
                     </button>
                   ))}
                 </div>
