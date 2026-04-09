@@ -4,44 +4,44 @@ const path = require('path');
 const dotenv = require('dotenv');
 
 /**
- * Super Robust .env Loader
- * Prioritizes .env.production if NODE_ENV=production
+ * PRODUCTION-FIRST .env Loader
+ * Always prioritizes .env.production over .env to avoid 'root'@'localhost' dev data.
  */
 function loadEnv() {
-    console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'not set (defaulting to production logic)'}`);
+    console.log(`🌍 Current Mode: ${process.env.NODE_ENV || 'Not Set'}`);
     
-    // Check both .env and .env.production
-    const envFiles = [
-        process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
-        '.env.production', // Fallback to production if first fails
-        '.env'
-    ];
+    // PRIORITY: Always check .env.production FIRST because we are on a real server
+    const envFiles = ['.env.production', '.env'];
 
     const searchDirs = [
         process.cwd(),
         path.join(process.cwd(), 'backend'),
-        path.join(__dirname, '..'),
-        path.join(__dirname, '..', '..')
+        path.join(__dirname, '..'), // Parent of scripts (usually /backend)
+        path.join(__dirname, '..', '..') // Project Root
     ];
 
-    console.log('🔍 Searching for environment files...');
-    let found = false;
+    console.log('🔍 Searching for config files (Priority: .env.production > .env)...');
+    let foundPath = null;
 
+    // Outer loop search dirs, inner loop search file types
     for (const dir of searchDirs) {
         for (const file of envFiles) {
             const p = path.join(dir, file);
             if (fs.existsSync(p)) {
-                dotenv.config({ path: p });
-                console.log(`  ✅ Successfully loaded CONFIG from: ${p}`);
-                found = true;
-                break;
+                // If we haven't found anything yet, or if we found a .production file, take it!
+                if (!foundPath || p.includes('.production')) {
+                    foundPath = p;
+                    if (p.includes('.production')) break; // Stop immediately if production found
+                }
             }
         }
-        if (found) break;
     }
 
-    if (!found) {
-        console.warn('  ⚠️  WARNING: Could not find .env or .env.production. Is it in the root or /backend folder?');
+    if (foundPath) {
+        dotenv.config({ path: foundPath });
+        console.log(`  ✅ SELECTED CONFIG: ${foundPath}`);
+    } else {
+        console.warn('  ⚠️  WARNING: No config files found. Script will use default localhost/root (may fail).');
     }
 }
 
@@ -55,27 +55,25 @@ async function createEmailTables() {
         database: process.env.DB_NAME || 'notifynow_db'
     };
 
-    console.log(`🚀 Connection Details:`);
+    console.log(`🚀 Final Connection Details:`);
     console.log(`   Host: ${dbConfig.host}`);
     console.log(`   User: ${dbConfig.user}`);
     console.log(`   DB  : ${dbConfig.database}`);
 
-    if (!process.env.DB_USER) {
-        console.error('❌ FATAL ERROR: DB_USER is missing. Credentials not loaded correctly.');
-        process.exit(1);
+    if (dbConfig.user === 'root' && (process.cwd().includes('home') || process.cwd().includes('adm'))) {
+        console.warn('  ⚠️  ATTENTION: Script is using "root" on a Linux server. This is likely WRONG if your production DB has a specific user.');
     }
 
-    const connection = await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-
     try {
-        console.log('\n🔄 Creating Email tables...');
+        const connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASS,
+            database: process.env.DB_NAME,
+        });
 
-        // 1. email_configs table
+        console.log('\n🔄 Creating Email channel tables...');
+
         await connection.query(`
             CREATE TABLE IF NOT EXISTS email_configs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -94,9 +92,8 @@ async function createEmailTables() {
                 INDEX idx_user_active (user_id, is_active)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
-        console.log('  ✅ email_configs ready.');
+        console.log('  ✅ email_configs table ready.');
 
-        // 2. email_templates table
         await connection.query(`
             CREATE TABLE IF NOT EXISTS email_templates (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -111,20 +108,21 @@ async function createEmailTables() {
                 INDEX idx_user (user_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
-        console.log('  ✅ email_templates ready.');
+        console.log('  ✅ email_templates table ready.');
 
-        // 3. Add email_config_id column to users
         const [rows] = await connection.query(`DESCRIBE users`);
         if (!rows.some(r => r.Field === 'email_config_id')) {
             await connection.query(`ALTER TABLE users ADD COLUMN email_config_id INT DEFAULT NULL AFTER rcs_config_id`);
-            console.log('  ✅ email_config_id column added to users table.');
+            console.log('  ✅ User table updated with email_config_id.');
         }
 
-        console.log('\n✨ MISSION SUCCESS: Email channel infrastructure is fully deployed!');
+        console.log('\n🌟 SUCCESS: Production Email Infrastructure Deployed!');
+        await connection.end();
     } catch (error) {
         console.error('\n❌ DATABASE ERROR:', error.message);
-    } finally {
-        await connection.end();
+        if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+            console.log('\n💡 TIP: Aapki .env.production file sahi se load nahi ho rahi hai ya usme details galat hain.');
+        }
     }
 }
 
