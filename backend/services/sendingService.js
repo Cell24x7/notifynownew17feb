@@ -173,11 +173,27 @@ const sendUniversalMessage = async (item) => {
                 wa_biz_accnt_id: item.wa_biz_accnt_id
             } : null;
 
-            // Fallback: Use system WhatsApp config if missing
+            // Fallback for older campaigns - Check user's assigned default bot
+            if (!item.whatsapp_config_id) {
+                const { query } = require('../config/db');
+                const [users] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [item.user_id]);
+                const effectiveConfigId = users[0]?.whatsapp_config_id;
+                
+                if (effectiveConfigId) {
+                    const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id FROM whatsapp_configs WHERE id = ?', [effectiveConfigId]);
+                    if (userBots.length > 0) {
+                        waConfig = { ...userBots[0], wa_ph_no_id: userBots[0].ph_no_id };
+                        console.log(`[SendingService] Using User's assigned WhatsApp config: ${waConfig.ph_no_id}`);
+                    }
+                }
+            }
+
+            // Final fallback if still null (not recommended)
             if (!waConfig) {
-                const [defaults] = await query('SELECT * FROM whatsapp_configs WHERE is_active = 1 LIMIT 1');
-                if (defaults.length > 0) {
-                    waConfig = defaults[0];
+                const { query } = require('../config/db');
+                const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id FROM whatsapp_configs WHERE user_id = ? AND is_active = 1 LIMIT 1', [item.user_id]);
+                if (userBots.length > 0) {
+                    waConfig = { ...userBots[0], wa_ph_no_id: userBots[0].ph_no_id };
                     console.log(`[SendingService] Using fallback WhatsApp config: ${waConfig.provider}`);
                 }
             }

@@ -363,7 +363,6 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       }
       return null;
    }, [templateIsUnicode, campaignData.isUnicode, campaignData.channel, selectedTemplate]);
-
    const handleNext = () => {
       if (currentStep < 5) {
          setCurrentStep(currentStep + 1);
@@ -372,6 +371,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          onComplete({
             ...campaignData,
             estimatedCost: calculateCost(),
+            whatsapp_config_id: (user as any)?.whatsapp_config_id,
+            rcs_config_id: (user as any)?.rcs_config_id
          });
       }
    };
@@ -586,7 +587,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             channel: campaignData.channel,
             template_id: campaignData.templateId,
             destination: testDestination,
-            variables
+            variables,
+            whatsapp_config_id: (user as any)?.whatsapp_config_id,
+            rcs_config_id: (user as any)?.rcs_config_id
          });
 
          if (response.success) {
