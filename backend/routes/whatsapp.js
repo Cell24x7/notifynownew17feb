@@ -526,12 +526,11 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
         console.log(`[WA-UPLOAD] Received file for user ${req.user.id}: ${req.file.originalname}`);
         const config = await getWhatsAppConfig(req.user.id);
         
-        if (!config) {
-            console.log(`[WA-UPLOAD] WARN: No WhatsApp config found for user ${req.user.id}`);
-        }
+        const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
+        const host = req.get('host');
+        const fileUrl = `${protocol}://${host}/api/whatsapp/media-file/${req.file.filename}`;
 
-        // If Pinbot user, use the Resumable Upload (Session) flow to get a proper Meta Handle (4::...)
-        // This is strictly required for WhatsApp Message Templates.
+        // If Pinbot user, use the Resumable Upload (Session) flow...
         if (config && config.isPinbot) {
             console.log(`[WA-UPLOAD] Pinbot user detected. Initiating session-based upload for template handle.`);
             
@@ -548,8 +547,7 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                 if (sessionRes.data && sessionRes.data.id) {
                     const sessionId = sessionRes.data.id;
                     const sig = sessionRes.data.sig;
-                    console.log(`[WA-UPLOAD] Session created: ${sessionId}`);
-
+                    
                     const fs = require('fs');
                     const fileData = fs.readFileSync(req.file.path);
 
@@ -558,8 +556,6 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                     if (sig) {
                         uploadUrl += (uploadUrl.includes('?') ? '&' : '?') + `sig=${sig}`;
                     }
-
-                    console.log(`[WA-UPLOAD] >>> BINARY UPLOAD START >>> to: ${uploadUrl}`);
 
                     const uploadRes = await axios.post(uploadUrl, fileData, {
                         headers: { 
@@ -572,13 +568,6 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
 
                     if (uploadRes.data && (uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id)) {
                         const handle = uploadRes.data.h || uploadRes.data.handle || uploadRes.data.id;
-                        
-                        const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
-                        const host = req.get('host');
-                        // Use the API proxy route to ensure Nginx/Express serve it correctly with MIME type
-                        const fileUrl = `${protocol}://${host}/api/whatsapp/media-file/${req.file.filename}`;
-                        
-                        console.log('✅ [WA-UPLOAD] SUCCESS! Handle obtained and proxy URL generated:', handle);
                         return res.json({ success: true, url: fileUrl, handle: handle, isHandle: true });
                     }
                 }
@@ -595,7 +584,6 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
             }
         }
 
-        
         console.log(`[WA-UPLOAD] Local upload (non-Pinbot) via proxy: ${fileUrl}`);
         res.json({ success: true, url: fileUrl });
     } catch (error) {
