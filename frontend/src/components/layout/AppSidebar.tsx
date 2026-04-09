@@ -62,7 +62,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const hasPermission = (featureName: string) => {
     // Super Admin / Account Owner always has full access
     // Platform Super Admin always has full access
-    if (user?.role === 'superadmin') return true;
+    if (user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'reseller') return true;
 
     if (!user?.permissions || !Array.isArray(user.permissions)) {
        return false;

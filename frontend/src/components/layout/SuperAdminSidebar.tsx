@@ -70,8 +70,8 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const { logout, user } = useAuth();
 
   const hasPermission = (feature: string) => {
-    // Super Admin always has full access
-    if (user?.role === 'admin') return true;
+    // Super Admin / Business Owner (Reseller) always has base access
+    if (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') return true;
 
     // Safety check: ensure permissions is an array
     if (!user?.permissions || !Array.isArray(user.permissions)) return false;

@@ -115,10 +115,30 @@ router.post('/', async (req, res) => {
       }
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      const DEFAULT_RESELLER_PERMISSIONS = [
+        { feature: 'Dashboard - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Campaigns - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'WhatsApp - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'RCS - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'SMS - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Reports - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Chat - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Contacts - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'DLT Templates - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Automations - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Chatflows - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Integrations - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Reseller Users - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Reseller Branding - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Marketplace - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Wallet - View', admin: 1, manager: 1, agent: 1 },
+        { feature: 'Settings - View', admin: 1, manager: 1, agent: 1 }
+      ];
+
       const [userResult] = await query(`
-            INSERT INTO users (name, email, password, role, plan_id, status, wallet_balance, credits_available)
-            VALUES (?, ?, ?, 'reseller', ?, ?, ?, ?)
-        `, [name, email, hashedPassword, plan_id, status, credits_available, credits_available]);
+            INSERT INTO users (name, email, password, role, plan_id, status, wallet_balance, credits_available, permissions)
+            VALUES (?, ?, ?, 'reseller', ?, ?, ?, ?, ?)
+        `, [name, email, hashedPassword, plan_id, status, credits_available, credits_available, JSON.stringify(DEFAULT_RESELLER_PERMISSIONS)]);
 
       userId = userResult.insertId;
       console.log('Created User for Reseller:', userId);
