@@ -207,16 +207,16 @@ const sendUniversalMessage = async (item) => {
             const payload = {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',
-                to: item.mobile.replace(/\D/g, ''), // Ensure clean numeric mobile
+                to: item.mobile.replace(/\D/g, ''),
                 type: 'template',
                 template: {
-                    name: item.template_name,
-                    language: { code: langCode } 
+                    name: item.template_name || item.template_id,
+                    language: { code: langCode }
                 }
             };
 
-            const payloadComponents = [];
             const mtComponents = meta.components || [];
+            const payloadComponents = [];
             const bodyComp   = mtComponents.find(c => c.type?.toUpperCase() === 'BODY');
             const headerComp = mtComponents.find(c => c.type?.toUpperCase() === 'HEADER');
 
@@ -269,6 +269,8 @@ const sendUniversalMessage = async (item) => {
             }
 
             if (payloadComponents.length > 0) payload.template.components = payloadComponents;
+
+            console.log(`[Meta] Sending via Bot: ${waConfig.ph_no_id} | Template: ${payload.template.name} | Token: ${waConfig.wa_token?.substring(0, 10)}...`);
 
             const response = await axios.post(msgUrl, payload, { headers });
             const respData = response.data;
@@ -334,8 +336,9 @@ const sendUniversalMessage = async (item) => {
                 errorDetail = data;
             }
         }
-        console.error(`[SendingService] Error:`, errorDetail);
-        return { success: false, error: errorDetail };
+        const finalError = typeof errorDetail === 'object' ? JSON.stringify(errorDetail) : String(errorDetail);
+        console.error(`[SendingService] Error:`, finalError);
+        return { success: false, error: finalError };
     }
 };
 
