@@ -59,6 +59,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
   // Permissions check
   // Default to true if no permissions found to avoid locking out users during transition
+  const hasPermission = (featureName: string) => {
     // Platform admins always have full access
     if (user?.role === 'superadmin' || user?.role === 'admin') return true;
 
@@ -83,6 +84,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       }
       return false;
     });
+  };
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: hasPermission('Dashboard - View') },

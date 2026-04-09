@@ -69,6 +69,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith('/super-admin/reports'));
   const { logout, user } = useAuth();
 
+  const hasPermission = (feature: string) => {
     // Platform admins always have full access
     if (user?.role === 'admin' || user?.role === 'superadmin') return true;
     
@@ -92,6 +93,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       }
       return false;
     });
+  };
 
   return (
     <aside
