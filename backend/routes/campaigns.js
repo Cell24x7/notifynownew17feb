@@ -154,10 +154,11 @@ router.post('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const {
-            name, channel, template_id, audience_id, recipient_count,
+            name, channel, template_id, template_name, audience_id, recipient_count,
             status, scheduled_at, variable_mapping,
             template_metadata, template_body, template_type,
-            schedule_type, scheduling_mode, frequency, repeat_days, end_date
+            schedule_type, scheduling_mode, frequency, repeat_days, end_date,
+            rcs_config_id, whatsapp_config_id
         } = req.body;
 
         // Validate channel against user profile

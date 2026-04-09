@@ -305,7 +305,9 @@ async function updateSchema() {
                     { name: 'frequency', type: 'VARCHAR(50) DEFAULT "once"' },
                     { name: 'repeat_days', type: 'JSON' },
                     { name: 'end_date', type: 'TIMESTAMP NULL' },
-                    { name: 'scheduling_mode', type: 'VARCHAR(50) DEFAULT "once"' }
+                    { name: 'scheduling_mode', type: 'VARCHAR(50) DEFAULT "once"' },
+                    { name: 'rcs_config_id', type: 'INT DEFAULT NULL' },
+                    { name: 'whatsapp_config_id', type: 'INT DEFAULT NULL' }
                 ]},
                 { table: 'api_campaigns', cols: [
                     { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
@@ -314,7 +316,9 @@ async function updateSchema() {
                     { name: 'frequency', type: 'VARCHAR(50) DEFAULT "once"' },
                     { name: 'repeat_days', type: 'JSON' },
                     { name: 'end_date', type: 'TIMESTAMP NULL' },
-                    { name: 'scheduling_mode', type: 'VARCHAR(50) DEFAULT "once"' }
+                    { name: 'scheduling_mode', type: 'VARCHAR(50) DEFAULT "once"' },
+                    { name: 'rcs_config_id', type: 'INT DEFAULT NULL' },
+                    { name: 'whatsapp_config_id', type: 'INT DEFAULT NULL' }
                 ]}
             ];
 
