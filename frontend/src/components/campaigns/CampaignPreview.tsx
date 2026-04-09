@@ -65,40 +65,40 @@ export function CampaignPreview({ campaignData, template, variables, csvPreview,
 
   if (campaignData.channel === 'email') {
     return (
-      <div className="flex flex-col items-center justify-start min-h-full pt-4 pb-24 overflow-y-auto no-scrollbar w-full px-4">
-        <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-2xl overflow-hidden border border-border flex flex-col mx-auto">
+      <div className="flex flex-col items-center justify-start min-h-full pt-2 sm:pt-4 pb-16 sm:pb-24 overflow-y-auto no-scrollbar w-full px-2 sm:px-4">
+        <div className="w-full max-w-[320px] sm:max-w-[420px] md:max-w-[500px] bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-border flex flex-col mx-auto">
           {/* Email Subject Bar */}
-          <div className="bg-slate-50 border-b border-border px-6 py-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+          <div className="bg-slate-50 border-b border-border px-3 sm:px-6 py-2.5 sm:py-4">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2">
+              <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs sm:text-base">
                 {user?.name?.[0]?.toUpperCase() || 'E'}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-slate-800 truncate">{meta.subject || 'No Subject'}</h3>
-                <p className="text-[10px] text-slate-500">From: {user?.name || 'Your Business'} &lt;noreply@notify.now&gt;</p>
+                <h3 className="text-[11px] sm:text-sm font-bold text-slate-800 truncate">{meta.subject || 'No Subject'}</h3>
+                <p className="text-[8px] sm:text-[10px] text-slate-500 truncate">From: {user?.name || 'Your Business'} &lt;noreply@notify.now&gt;</p>
               </div>
-              <div className="px-2 py-0.5 rounded-full text-[9px] bg-green-50 text-green-600 border border-green-100 flex items-center gap-1 uppercase font-bold tracking-tighter">
-                <Shield className="w-2.5 h-2.5" /> Verified
+              <div className="px-1.5 sm:px-2 py-0.5 rounded-full text-[7px] sm:text-[9px] bg-green-50 text-green-600 border border-green-100 flex items-center gap-0.5 sm:gap-1 uppercase font-bold tracking-tighter shrink-0">
+                <Shield className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> Verified
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-slate-100 p-4 min-h-[400px]">
+          <div className="flex-1 overflow-y-auto bg-slate-100 p-2 sm:p-4 min-h-[250px] sm:min-h-[400px]">
             <div 
-              className="bg-white rounded-lg shadow-sm p-6 min-h-full prose prose-sm max-w-none email-content-preview"
+              className="bg-white rounded-md sm:rounded-lg shadow-sm p-3 sm:p-6 min-h-full prose prose-sm max-w-none email-content-preview text-[11px] sm:text-sm"
               dangerouslySetInnerHTML={{ __html: resolvedBody || template?.body || '<p class="text-slate-400 italic">No content yet...</p>' }}
             />
           </div>
 
-          <div className="bg-slate-50 border-t border-border px-6 py-3 flex justify-between items-center text-[9px] text-slate-400">
+          <div className="bg-slate-50 border-t border-border px-3 sm:px-6 py-2 sm:py-3 flex justify-between items-center text-[8px] sm:text-[9px] text-slate-400">
             <span>Powered by NotifyNow</span>
-            <div className="flex gap-4 font-medium uppercase tracking-tighter">
+            <div className="flex gap-2 sm:gap-4 font-medium uppercase tracking-tighter">
               <span>Unsubscribe</span>
-              <span>Privacy Policy</span>
+              <span className="hidden sm:inline">Privacy Policy</span>
             </div>
           </div>
         </div>
-        <div className="mt-4 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+        <div className="mt-2 sm:mt-4 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-primary/10 text-primary text-[8px] sm:text-[10px] font-bold uppercase tracking-wider">
            Desktop Preview
         </div>
       </div>
@@ -106,9 +106,9 @@ export function CampaignPreview({ campaignData, template, variables, csvPreview,
   }
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-full pt-4 pb-24 overflow-y-auto no-scrollbar w-full">
+    <div className="flex flex-col items-center justify-start min-h-full pt-2 sm:pt-4 pb-16 sm:pb-24 overflow-y-auto no-scrollbar w-full">
       <div
-        className="w-full max-w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[2.5rem] p-2.5 shadow-2xl relative transition-all duration-500 origin-top flex-shrink-0 flex flex-col mx-auto"
+        className="w-full max-w-[240px] sm:max-w-[280px] md:max-w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[2rem] sm:rounded-[2.5rem] p-1.5 sm:p-2.5 shadow-2xl relative transition-all duration-500 origin-top flex-shrink-0 flex flex-col mx-auto"
         style={{
           transform: 'scale(1)',
           boxShadow: '0 0 30px rgba(0, 114, 255, 0.3), inset 0 0 15px rgba(0, 114, 255, 0.1)',
@@ -119,39 +119,39 @@ export function CampaignPreview({ campaignData, template, variables, csvPreview,
         }}
       >
         {/* Hotstar Gradient Border Glow */}
-        <div className="absolute inset-0 rounded-[3rem] border border-blue-500/20 pointer-events-none" />
+        <div className="absolute inset-0 rounded-[2.5rem] sm:rounded-[3rem] border border-blue-500/20 pointer-events-none" />
 
         {/* Phone Features */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 h-6 w-24 bg-black rounded-full z-20 shadow-inner flex items-center justify-end px-4">
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-900/40" />
+        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 h-4 sm:h-6 w-16 sm:w-24 bg-black rounded-full z-20 shadow-inner flex items-center justify-end px-3 sm:px-4">
+          <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-blue-900/40" />
         </div>
 
-        <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2.5rem] overflow-hidden flex flex-col relative z-10">
+        <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden flex flex-col relative z-10">
           {/* Header */}
           <div 
-            className={cn("px-4 pt-10 pb-3 text-white flex items-center gap-3 shadow-md border-b border-white/5", !meta.bot_color && channelColor)}
+            className={cn("px-3 sm:px-4 pt-7 sm:pt-10 pb-2 sm:pb-3 text-white flex items-center gap-2 sm:gap-3 shadow-md border-b border-white/5", !meta.bot_color && channelColor)}
             style={meta.bot_color ? { backgroundColor: meta.bot_color } : {}}
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             
             {botLogo ? (
-              <img src={botLogo} alt="Bot DP" className="w-8 h-8 rounded-full object-cover border border-white/20 shadow-sm bg-white shrink-0" />
+              <img src={botLogo} alt="Bot DP" className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover border border-white/20 shadow-sm bg-white shrink-0" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
-                {campaignData.channel === 'whatsapp' ? <Store className="h-4 w-4 text-white/90" /> : <Bot className="h-4 w-4 text-white/90" />}
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-black/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+                {campaignData.channel === 'whatsapp' ? <Store className="h-3 w-3 sm:h-4 sm:w-4 text-white/90" /> : <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-white/90" />}
               </div>
             )}
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
-                <span className="text-sm font-bold truncate tracking-tight">{botName}</span>
-                {campaignData.channel === 'rcs' && <Shield className="h-3.5 w-3.5 text-blue-100 fill-blue-100/20" />}
+                <span className="text-[11px] sm:text-sm font-bold truncate tracking-tight">{botName}</span>
+                {campaignData.channel === 'rcs' && <Shield className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-100 fill-blue-100/20" />}
               </div>
-              <p className="text-[10px] opacity-90 font-medium tracking-wide">
+              <p className="text-[8px] sm:text-[10px] opacity-90 font-medium tracking-wide">
                 {campaignData.channel === 'rcs' ? 'Verified Application' : campaignData.channel === 'whatsapp' ? 'Verified Official Business' : 'SMS Sender'}
               </p>
             </div>
-            <MoreVertical className="h-4 w-4 opacity-70" />
+            <MoreVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4 opacity-70" />
           </div>
 
           {/* Message Area */}
