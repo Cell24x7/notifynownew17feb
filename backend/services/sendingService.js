@@ -325,9 +325,14 @@ const sendUniversalMessage = async (item) => {
     } catch (err) {
         let errorDetail = err.message;
         if (err.response?.data) {
-            // Extract the most useful error string (Dotgo uses 'reason', others use 'message' or 'error')
             const data = err.response.data;
-            errorDetail = data.reason || data.message || data.error || (typeof data === 'string' ? data : JSON.stringify(data));
+            if (typeof data === 'object') {
+                errorDetail = data.reason || data.message || data.error || 
+                              (data.error?.message) || (data.error_data?.details) || 
+                              JSON.stringify(data);
+            } else if (typeof data === 'string') {
+                errorDetail = data;
+            }
         }
         console.error(`[SendingService] Error:`, errorDetail);
         return { success: false, error: errorDetail };

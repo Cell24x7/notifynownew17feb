@@ -249,12 +249,17 @@ router.post('/', authenticate, async (req, res) => {
             }
         }
 
+        const [userConfigs] = await query('SELECT rcs_config_id, whatsapp_config_id FROM users WHERE id = ?', [userId]);
+        const userRcsConfigId = userConfigs[0]?.rcs_config_id || null;
+        const userWaConfigId = userConfigs[0]?.whatsapp_config_id || null;
+
         await query(
             `INSERT INTO campaigns 
       (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
        scheduled_at, variable_mapping, template_metadata, template_body, template_type,
-       schedule_type, scheduling_mode, frequency, repeat_days, end_date, next_run_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       schedule_type, scheduling_mode, frequency, repeat_days, end_date, next_run_at,
+       rcs_config_id, whatsapp_config_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 campaignId, userId, name, channel, savedTemplateId, templateName,
                 audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
@@ -267,7 +272,9 @@ router.post('/', authenticate, async (req, res) => {
                 frequency || null,
                 repeat_days ? JSON.stringify(repeat_days) : null,
                 end_date || null,
-                nextRunAt
+                nextRunAt,
+                rcs_config_id || userRcsConfigId,
+                whatsapp_config_id || userWaConfigId
             ]
         );
 
