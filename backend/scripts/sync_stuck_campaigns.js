@@ -5,10 +5,10 @@ async function syncStuckCampaigns() {
     console.log('🔍 Searching for stuck campaigns...');
     
     // Find campaigns that are 'running' but have finished sending tasks to the queue table
-    const [runningCampaigns] = await query('SELECT id, name, total_count, sent_count FROM campaigns WHERE status = "running"');
+    const [runningCampaigns] = await query('SELECT id, name, recipient_count, sent_count FROM campaigns WHERE status = "running"');
     
     for (const camp of runningCampaigns) {
-        console.log(`\n📦 Checking Campaign: ${camp.name} (Total: ${camp.total_count})`);
+        console.log(`\n📦 Checking Campaign: ${camp.name} (Total: ${camp.recipient_count})`);
         
         // Count how many entries are still "pending" for this campaign in the actual queue table
         const [pending] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "pending"', [camp.id]);
