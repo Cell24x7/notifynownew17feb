@@ -2,7 +2,128 @@
 
 This document is automatically updated based on development activity.
 
+## [2026-04-10]
+- feat: email campaign - accept email IDs, add From/Subject/Attachment fields (69fca9c)
+- feat: show channel badge on all template cards + auto-approve email templates (d4bb1bc)
+- fix: make all components fully responsive for mobile/tablet/desktop (f5f63f3)
+- feat: implement Email Template Builder and preview system (9a3611e)
+
+---
+
+## [2026-04-09]
+- Sidebar Cleanup: Removed redundant Email dropdown menu. (29ea0b5)
+- Expanded SuperAdminSidebar to include Campaigns, Templates, Chats, and Contacts for Reseller access. (f9d1920)
+- Implemented Fuzzy Permission Matching: resolving singular/plural and naming mismatches (e.g., Template vs Templates) in sidebars. (5148948)
+- Fixed ReferenceError by restoring missing hasPermission function wrappers in sidebars. (9600350)
+- Restricted Reseller permissions: Sidebar items are now correctly filtered based on actual permissions, removing Super Admin shortcuts. (d393dc6)
+- Fixed Reseller sidebar visibility by aligning roles and setting default permissions for new resellers. (5982752)
+- Fixed Reseller creation logic: corrected backend destructuring and relaxed UI name validation. (063e9fb)
+- Added Email channel toggle in Super Admin Plans management. (0e266b9)
+- Fixed DB configuration in email activation script. (8bf5fe5)
+- Enabled Email channel in Plans and Templates UI; added auto-activation script. (ffa0ecc)
+- Integrated Email channel into Campaign Wizard with SMTP support and strict routing. (331606f)
+- Enforce Strict RCS Bot Routing: Removed global fallback loops and restricted sending to user-assigned configs only. (f752a35)
+- Fix WhatsApp Meta routing by enforcing user-assigned Bot ID throughout the campaign lifecycle (723eaff)
+- Final hardening for WhatsApp Meta and Meta Error Reporting (be78974)
+- Fix 500 error on campaign creation and sync database migrations (3b0254e)
+- Force .env.production priority for database migration (b38aaf8)
+- Support .env.production in Email migration script (1443018)
+- Harden Email migration script with robust .env detection for production (9d6bbb5)
+- Fix WhatsApp Meta API routing and initiate Email channel infrastructure (ac3696f)
+- fix: resolve ReferenceError in WhatsApp media upload for Meta Graph provider (d26367c)
+- feat: improve RCS fallback status handling and add campaign cleanup script (833e4f8)
+- Utility: Script now targets all JSON-based errors for cleanup (02c72ee)
+- UI: Cleaned up error logging in reports and fixed cleanup script (58bb7d3)
+- Utility: Fixed SQL query in cleanup script (JOIN for retry) (86b33ad)
+- Utility: Fixed env path in cleanup script (db246ce)
+- Utility: Fixed DB Connection in cleanup script for production (d98f451)
+- Utility: Enhanced cleanup script with --retry support (ea69520)
+- Utility: Added cleanup script for failed RCS logs (351f83b)
+- UI: Enhanced Multi-Channel Template Previews with Premium Phone Mockups (33ed7f7)
+
+---
+
+## [2026-04-08]
+- Emergency: Fixed Infinite Fallback Loop in RCS Service (8ac9482)
+- Fix: Implemented Smart RCS Bot Fallback Search (Zero-Fail Delivery) (0c09b46)
+- Rollback: Restored stable campaign engine logic to fix Ingestion Errors (40180d1)
+- Fix: Corrected .env path in DB fix script (6da35d1)
+- Fix: Corrected module path in standalone DB fix script (327e12d)
+- Admin: Add standalone DB fix script (540cd75)
+- Final Fix: Correct schema sync and template-bot binding logic (576ce97)
+- Debug: Add detailed RCS logging (a1f79f9)
+- Final Fix: Restore campaign engine stability and allow case-sensitive template names (793edc5)
+- Fix: Add missing columns to message_templates schema (48d4771)
+- Fix: RCS template-bot linking and campaign ingestion logic (648cbfa)
+- Fix: Client update 500 error, improved RCS template submission, and sanitized form inputs (c85f7d0)
+- Bypass strict exact image dimension validation for RCS templates (79d3a11)
+- Fix RCS Template payload mapping to include rich card standalone, carousel, and multimedia files (c78821b)
+- Add maxLength limit to RCSTemplateForm name (07264bf)
+- Fix RCS Template Save Error by adding Template Name input (ac21b3d)
+- Enable client filter dropdown for Reseller in Reports (50ece36)
+- Fix reseller detailed reports and UI users fetch error (90e0db1)
+- Fix Reseller visibility for reports and clients (0a95ff5)
+
+---
+
+## [2026-04-07]
+- FixReferenceError in webhooks.js for message-logs (f036bdd)
+- Safely implement consolidated reporting for resellers while preserving admin view (bb8557f)
+- Final fix for reseller visibility and report security checks (d64c26c)
+- Fix ReferenceError in clients.js final (e4ab86e)
+- Fix ReferenceError in clients creation (34646ae)
+- Fix Reseller 403 configs permission (1174e18)
+- Finalize report export and fix NaN display (337a5a3)
+- Capture better SMS failure reasons (df4220e)
+- Fix NaN display in Campaign Cost and Admin Statistics (0db82dc)
+- Fix report export to include all data (11d14f7)
+- Correct env path fix for migration (9a9431c)
+- Finalizing environment and automation fixes (2a11d39)
+- Update pricing precision to 4 decimal places for accurate GST calculation (f9b09a7)
+- feat: add password change script and campaign naming logic (32a75a0)
+
+---
+
+## [2026-04-06]
+- SMS DLT Metadata, Account Suspension, and Campaign Naming Improvements (5882d57)
+- Include hash_id in campaign template metadata (d31018c)
+- Restore DLT metadata fields for verification and secure campaign metadata lookup (33eb538)
+- Cleanup DLT metadata UI and state from all template pages (59af530)
+- fix: specific DLT metadata mapping for individual templates to prevent Hash ID mismatch (a7af160)
+- feat: simplify DLT sample file by removing profile-inherited columns (13d89d4)
+- feat: implement dynamic DLT sample file generation with user provided data (87f6850)
+- feat: unify DLT and platform templates into a single management view (3e9f9c9)
+- feat: implement strict account suspension and client deletion (e678b3a)
+- fix: revert to UTF-8 URL encoding for proper kannel Unicode support (82a5a5f)
+- fix: implement toUcs2Hex for proper Unicode DLT matching (1480bfa)
+- fix: resolve Smartphone reference error and update User types (eb2e610)
+- feat: implement smart DLT defaults and fix Dotgo RCS submission (b49fd8a)
+- feat(billing): stabilize wallet balance with atomic transactions and harden UI cost estimation (f46e6df)
+- Add SMS/DLT template creation form in Templates page (3f87aaf)
+- Lock Unicode checkbox based on template type, block Continue on mismatch (040a30e)
+- Add Unicode auto-detect + mismatch warning in SMS campaign wizard (c7f78cd)
+- Fix matches is not defined error (c6cbcba)
+- Support independent variable mapping for repeated template placeholders (11e6c8a)
+- Fix Kannel DLR status parsing falsely mapping REJECTED to DELIVERED (94ba79e)
+- Fix Sender ID fetch from DLT Templates for SMS Routing (f984b49)
+- Support Unicode SMS and Parts Billing Calculation (f2a71b9)
+
+---
+
 ## [2026-04-04]
+- Fix login and wallet balance UI glitches (b729a81)
+- Fix TypeError toFixed is not a function on Campaign Stepper wallet balance (d434cb7)
+- Sync AuthContext and Backend Profile to fetch custom SMS pricing for dynamic campaign cost (0495f38)
+- Fix detailed reports message content and dynamic pricing (7e8fc8b)
+- Fix dynamic pricing display in campaign wizard (0a4d10b)
+- Enhance SMS variable mapping and detailed campaign reporting (d4e7a7c)
+- fix: smart template billing with keyword matching for SMS and WhatsApp (0a3bc4a)
+- feat: hardened Kannel DLR parsing with error reason extraction (97d127c)
+- fix: smarter DLR status parsing for Kannel stat:DELIVRD format (14b04b2)
+- fix: universal message sending logic, production deploy script, and webhook log repairs (d5063da)
+- fix: force HTTP for DLR_BASE_URL in production deploy script for Kannel compatibility (f722ab0)
+- fix: webhook log repair script environment loading and database connection logic (0c0efa9)
+- fix: production deploy script correctly handles DLR_BASE_URL for HTTP-only gateways (119f1bf)
 - fix: production deploy script correctly handles DLR_BASE_URL and APP_NAME sync (9ab1525)
 - fix: production-ready DLR handling and script fixes (bdfc410)
 - fix: set corrected public IP for NotifyNow messaging and reporting (675860f)
@@ -481,48 +602,6 @@ This document is automatically updated based on development activity.
 - updated code (ca5abda)
 - sandy updsted (1423ea5)
 - updated code (3cc98d2)
-- updated code (bf5d2b0)
-- sandy updsted (2891ec9)
-
----
-
-## [2026-03-10]
-- sandy updsted (79a5ee3)
-- sandeep updated code (e873f7e)
-- sandeep updated code (9320b84)
-
----
-
-## [2026-03-09]
-- sadeep updated (da40765)
-- updated code (e19d16c)
-- updated code (4d4f2e9)
-- Merge branch 'main' of https://github.com/Cell24x7/notifynownew17feb (04755a7)
-- Sandeep update whatsapp (843bbb7)
-
----
-
-## [2026-03-07]
-- updated code (4884145)
-- updated code (45f1ee9)
-- updated code (01e5ece)
-- updated code (af51853)
-
----
-
-## [2026-03-06]
-- updated code by vikas (51f10f4)
-- updated code by vikas (d642efe)
-- updated code by vikas (472ed05)
-- updated code by vikas (5df63bc)
-- updated code by vikas (3a31f07)
-- updated code by vikas (759c814)
-- updated code by vikas (8a56aab)
-
----
-
-## [2026-03-05]
-- updated code (14e00fd)
 
 ---
 
