@@ -2,23 +2,34 @@ const { query } = require('./config/db');
 
 async function fixButtonType() {
     try {
-        console.log('🚀 Fixing column lengths to prevent truncation...');
+        console.log('🚀 FORCED: Fixing column lengths in all relevant tables...');
         
-        // Fix template_buttons
-        await query('ALTER TABLE template_buttons MODIFY COLUMN type VARCHAR(100)');
-        console.log('✅ template_buttons.type expanded to 100');
+        const tablesToFix = [
+            { table: 'template_buttons', col: 'type' },
+            { table: 'message_templates', col: 'template_type' },
+            { table: 'message_templates', col: 'channel' },
+            { table: 'api_campaigns', col: 'template_type' },
+            { table: 'api_campaigns', col: 'channel' },
+            { table: 'campaigns', col: 'template_type' },
+            { table: 'campaigns', col: 'channel' },
+            { table: 'webhook_logs', col: 'type' },
+            { table: 'api_message_logs', col: 'channel' },
+            { table: 'message_logs', col: 'channel' }
+        ];
 
-        // Fix message_templates
-        await query('ALTER TABLE message_templates MODIFY COLUMN template_type VARCHAR(100)');
-        console.log('✅ message_templates.template_type expanded to 100');
+        for (const item of tablesToFix) {
+            try {
+                console.log(`Checking ${item.table}.${item.col}...`);
+                await query(`ALTER TABLE ${item.table} MODIFY COLUMN ${item.col} VARCHAR(100)`);
+                console.log(`✅ ${item.table}.${item.col} expanded successfully.`);
+            } catch (e) {
+                console.warn(`⚠️  Could not fix ${item.table}.${item.col}: ${e.message}`);
+            }
+        }
 
-        // Fix webhook_logs if any
-        await query('ALTER TABLE webhook_logs MODIFY COLUMN type VARCHAR(100)');
-        console.log('✅ webhook_logs.type expanded to 100');
-
-        console.log('✨ All columns fixed successfully!');
+        console.log('✨ All potential bottlenecks fixed!');
     } catch (err) {
-        console.error('❌ Fix failed:', err.message);
+        console.error('❌ Global fix error:', err.message);
     } finally {
         process.exit(0);
     }
