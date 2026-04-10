@@ -97,6 +97,7 @@ perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
 perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
 perl -i -pe "s|^DLR_BASE_URL=.*|DLR_BASE_URL=http://notifynow.in|g" "$BACKEND_DIR/$ENV_FILE"
 perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^WHATSAPP_VERIFY_TOKEN=.*|WHATSAPP_VERIFY_TOKEN=na|g" "$BACKEND_DIR/$ENV_FILE"
 
 # Ensure they exist if missing
 grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
@@ -111,6 +112,7 @@ else
 fi
 
 grep -q "^APP_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^WHATSAPP_VERIFY_TOKEN=" "$BACKEND_DIR/$ENV_FILE" || echo "WHATSAPP_VERIFY_TOKEN=na" >> "$BACKEND_DIR/$ENV_FILE"
 
 chmod 600 "$BACKEND_DIR/$ENV_FILE"
 
