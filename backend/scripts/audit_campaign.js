@@ -22,17 +22,40 @@ async function checkActualData() {
     console.log(`Failed: ${c.failed_count}`);
     console.log(`Status: ${c.status}`);
 
-    // Count actual rows in Queue
-    const [queueRows] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ?', [campId]);
-    const [queuePending] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "pending"', [campId]);
-    const [queueSent] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "sent"', [campId]);
-    const [queueFailed] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "failed"', [campId]);
+    // Count ALL statuses in Queue
+    const [statusCounts] = await query('SELECT status, COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? GROUP BY status', [campId]);
+    
+    console.log(`\n📦 Breakdown of rows in campaign_queue table:`);
+    statusCounts.forEach(row => {
+        console.log(`Status "${row.status}": ${row.count}`);
+    });
 
-    console.log(`\n📦 Actual Rows in campaign_queue table:`);
-    console.log(`Total Rows: ${queueRows[0].count}`);
-    console.log(`Status Sent: ${queueSent[0].count}`);
-    console.log(`Status Failed: ${queueFailed[0].count}`);
-    console.log(`Status Pending: ${queuePending[0].count}`);
+    // Check message_logs for actual truth
+    const [logStats] = await query('SELECT status, COUNT(*) as count FROM message_logs WHERE campaign_id = ? GROUP BY status', [campId]);
+    console.log(`\n📄 Actual Truth from message_logs:`);
+    let actualDelivered = 0;
+    let actualFailed = 0;
+    let actualSent = 0;
+
+    logStats.forEach(row => {
+        console.log(`Log Status "${row.status}": ${row.count}`);
+        if (row.status === 'delivered') actualDelivered += row.count;
+        if (row.status === 'sent') actualSent += row.count;
+        if (row.status === 'failed') actualFailed += row.count;
+    });
+
+    console.log(`\n🛠 REPAIRING COUNTERS...`);
+    // Rule: Total processed should never exceed recipient_count
+    // We update campaigns table with counts from message_logs (The Source of Truth)
+    const totalSent = actualSent + actualDelivered; // Total attempted
+    
+    await query('UPDATE campaigns SET sent_count = ?, delivered_count = ?, failed_count = ?, status = "sent" WHERE id = ?', 
+        [totalSent, actualDelivered, actualFailed, campId]);
+
+    console.log(`✅ Counters synchronized with message_logs.`);
+    console.log(`👉 Sent set to: ${totalSent}`);
+    console.log(`👉 Delivered set to: ${actualDelivered}`);
+    console.log(`👉 Failed set to: ${actualFailed}`);
 
     if (queueRows[0].count < c.recipient_count) {
         console.log(`\n⚠️ ANALYSIS: Database mein sirf ${queueRows[0].count} rows pahuche hain, jabki count ${c.recipient_count} set ho gaya tha.`);
