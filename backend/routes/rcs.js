@@ -771,26 +771,36 @@ const handleRcsTemplateCreate = async (req, res) => {
         if (result.success) {
             // Also insert into local message_templates for visibility in UI
             const templateId = `TPL_API_${Date.now()}`;
-            await query(
-                `INSERT INTO message_templates 
-                (id, user_id, rcs_config_id, name, channel, template_type, body, status, created_at)
-                VALUES (?, ?, ?, ?, 'rcs', ?, ?, 'pending', NOW())`,
-                [templateId, user.id, configs[0].id, name, type, body]
-            );
+            try {
+                await query(
+                    `INSERT INTO message_templates 
+                    (id, user_id, rcs_config_id, name, channel, template_type, body, status, created_at)
+                    VALUES (?, ?, ?, ?, 'rcs', ?, ?, 'pending', NOW())`,
+                    [templateId, user.id, configs[0].id, name, type, body]
+                );
+            } catch (dbErr) {
+                console.error('❌ DB Error in message_templates:', dbErr.message);
+                return res.status(500).json({ success: false, error: `Database error in message_templates table: ${dbErr.message}` });
+            }
 
             // Add buttons to local DB
             if (buttons && Array.isArray(buttons)) {
                 for (let i = 0; i < buttons.length; i++) {
                     const btn = buttons[i];
-                    await query(
-                        `INSERT INTO template_buttons (id, template_id, type, label, value, position)
-                        VALUES (?, ?, ?, ?, ?, ?)`,
-                        [`BTN_API_${Date.now()}_${i}`, templateId, btn.type || 'reply', btn.displayText || btn.label, btn.postback || btn.value || btn.url || btn.phoneNumber, i]
-                    );
+                    try {
+                        await query(
+                            `INSERT INTO template_buttons (id, template_id, type, label, value, position)
+                            VALUES (?, ?, ?, ?, ?, ?)`,
+                            [`BTN_API_${Date.now()}_${i}`, templateId, btn.type || 'reply', btn.displayText || btn.label, btn.postback || btn.value || btn.url || btn.phoneNumber, i]
+                        );
+                    } catch (btnErr) {
+                        console.error('❌ DB Error in template_buttons:', btnErr.message);
+                        return res.status(500).json({ success: false, error: `Database error in template_buttons table: ${btnErr.message}` });
+                    }
                 }
             }
 
-            res.json({ success: true, message: 'Template created and submitted for approval', data: result.data });
+            res.json({ success: true, message: 'Template created and submitted for approval', templateId, data: result.data });
         } else {
             res.status(500).json({ success: false, error: result.error });
         }
