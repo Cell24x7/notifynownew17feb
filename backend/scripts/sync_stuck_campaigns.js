@@ -1,4 +1,4 @@
-const { query } = require('./backend/config/db');
+const { query } = require('../config/db');
 
 async function syncStuckCampaigns() {
     console.log('🔍 Searching for stuck campaigns...');
