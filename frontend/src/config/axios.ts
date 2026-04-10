@@ -24,9 +24,13 @@ instance.interceptors.response.use(
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       // Global redirect to login on session expiry
       console.warn('Session expired or unauthorized. Logging out...');
-      localStorage.removeItem('authToken');
-      // Only redirect if not already on the auth page
-      if (!window.location.pathname.includes('/auth')) {
+      
+      const isAuthPage = window.location.pathname.includes('/auth');
+      
+      if (!isAuthPage) {
+        localStorage.removeItem('authToken');
+        // Notify user clearly
+        alert('Your session has expired. Please login again to continue.');
         window.location.href = '/auth';
       }
     }
