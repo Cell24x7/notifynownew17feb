@@ -32,7 +32,6 @@ This document tracks major feature releases, business logic updates, and provide
 ---
 
 ## 🛠️ Developer API Reference
-### Authenticating
 All API calls require an `api_key`. Include it in the header: `Authorization: Bearer YOUR_API_KEY`.
 
 | Channel | Endpoint | Method | Key Params |
@@ -44,64 +43,104 @@ All API calls require an `api_key`. Include it in the header: `Authorization: Be
 
 ---
 
-
-## 📅 [2026-04-10] | Email Channel & UI Responsiveness
+## 📅 Recent Release Highlights [Apr 6 - Apr 10]
 ### 📧 Email Channel (Full Launch)
 *   **Campaign Flow:** Recipients can now be targeted via **Email Addresses**. Added manual "Bulk Email" input support.
 *   **Professional Branding:** Added **Sender Name**, **From Email ID**, and **Subject Line** customization for every campaign.
 *   **Multimedia:** Support for **Attachments** (PDF, Images, Excel, DOC) up to 10MB per email.
-*   **Speed:** Email templates are now **Auto-Approved**—create and send instantly without waiting.
 
-### 🎨 Design & Experience
-*   **Full Responsiveness:** Optimized the entire platform (Dashboard, Templates, Campaign Wizard) for **Mobile, Tablet, and Desktop**.
-*   **Visual Indicators:** Added color-coded **Channel Badges** (RCS, WhatsApp, SMS, Email) on all template cards for quick identification.
-
----
-
-## 📅 [2026-04-09] | Reseller Stability & Bot Routing
 ### 👥 Reseller Management
 *   **Access Control:** Resellers can now manage **Campaigns, Templates, Chats, and Contacts** for their specific clients with strict permission isolation.
 *   **Permission Sync:** Fixed "Fuzzy Matching" for permissions—ensuring sidebars correctly show/hide based on assigned roles.
-*   **Onboarding:** Simplified the Reseller creation process with relaxed validation and better error handling.
-
-### ⚙️ Engine & Deliverability
-*   **WhatsApp Meta:** Hardened the Meta Graph API routing to ensure 100% deliverability for WhatsApp campaigns.
-*   **RCS Smart Routing:** Implemented "Strict Bot Mapping"—messages are now routed only through user-assigned bots to prevent cross-account billing issues.
-*   **Media Handling:** Fixed PDF/Image upload issues for Meta Graph providers.
 
 ---
 
-## 📅 [2026-04-08] | RCS Excellence & Optimization
-### 📱 RCS Rich Messaging
-*   **Rich Content:** Support for **RCS Carousels and Standalone Multimedia Cards**.
-*   **Smart Fallback:** Added a zero-fail delivery mechanism that intelligently searches for backup bots if the primary one is unavailable.
+<details>
+<summary>📂 <b>View All Technical Git Logs (Historical Archive)</b></summary>
+<br>
 
-### 📊 Reporting
-*   **Client Filtering:** Resellers can now filter reports by individual clients to track performance at a granular level.
-*   **Data Cleanup:** Automated script to remove failed/corrupt logs—keeping the dashboard clean and accurate.
+## [2026-04-10]
+- feat: email campaign - accept email IDs, add From/Subject/Attachment fields (69fca9c)
+- feat: show channel badge on all template cards + auto-approve email templates (d4bb1bc)
+- fix: make all components fully responsive for mobile/tablet/desktop (f5f63f3)
+- feat: implement Email Template Builder and preview system (9a3611e)
+
+## [2026-04-09]
+- Sidebar Cleanup: Removed redundant Email dropdown menu. (29ea0b5)
+- Expanded SuperAdminSidebar to include Campaigns, Templates, Chats, and Contacts for Reseller access. (f9d1920)
+- Implemented Fuzzy Permission Matching (5148948)
+- Fixed ReferenceError by restoring missing hasPermission function wrappers in sidebars. (9600350)
+- Restricted Reseller permissions: Sidebar items correctly filtered (d393dc6)
+- Fixed Reseller sidebar visibility by aligning roles (5982752)
+- Fixed Reseller creation logic (063e9fb)
+- Added Email channel toggle in Super Admin Plans management (0e266b9)
+- Fixed DB configuration in email activation script (8bf5fe5)
+- Enabled Email channel in Plans and Templates UI (ffa0ecc)
+- Integrated Email channel into Campaign Wizard (331606f)
+- Enforce Strict RCS Bot Routing (f752a35)
+- Fix WhatsApp Meta routing (723eaff)
+- Final hardening for WhatsApp Meta and Meta Error Reporting (be78974)
+- Fix 500 error on campaign creation (3b0254e)
+- Force .env.production priority for database migration (b38aaf8)
+- Support .env.production in Email migration script (1443018)
+- Harden Email migration script (9d6bbb5)
+- Fix WhatsApp Meta API routing (ac3696f)
+- fix: resolve ReferenceError in WhatsApp media upload (d26367c)
+- feat: improve RCS fallback status handling (833e4f8)
+- UI: Enhanced Multi-Channel Template Previews with Premium Phone Mockups (33ed7f7)
+
+## [2026-04-08]
+- Emergency: Fixed Infinite Fallback Loop in RCS Service (8ac9482)
+- Fix: Implemented Smart RCS Bot Fallback Search (Zero-Fail Delivery) (0c09b46)
+- Rollback: Restored stable campaign engine logic to fix Ingestion Errors (40180d1)
+- Admin: Add standalone DB fix script (540cd75)
+- Final Fix: Correct schema sync and template-bot binding logic (576ce97)
+- Debug: Add detailed RCS logging (a1f79f9)
+- Final Fix: Restore campaign engine stability (793edc5)
+- Fix: Add missing columns to message_templates schema (48d4771)
+- Fix: RCS template-bot linking and campaign ingestion logic (648cbfa)
+- Fix: Client update 500 error, improved RCS template submission (c85f7d0)
+- Bypass strict exact image dimension validation for RCS templates (79d3a11)
+- Fix RCS Template payload mapping (c78821b)
+- Enable client filter dropdown for Reseller in Reports (50ece36)
+- Fix reseller detailed reports and UI users fetch error (90e0db1)
+- Fix Reseller visibility for reports and clients (0a95ff5)
+
+## [2026-04-07]
+- FixReferenceError in webhooks.js for message-logs (f036bdd)
+- Safely implement consolidated reporting for resellers (bb8557f)
+- Final fix for reseller visibility and report security checks (d64c26c)
+- Fix report export to include all data (11d14f7)
+- pricing precision to 4 decimal places (f9b09a7)
+- feat: add password change script and campaign naming logic (32a75a0)
+
+## [2026-04-06]
+- SMS DLT Metadata, Account Suspension, and Campaign Naming Improvements (5882d57)
+- Include hash_id in campaign template metadata (d31018c)
+- fix: specific DLT metadata mapping for individual templates (a7af160)
+- feat: implement dynamic DLT sample file generation (87f6850)
+- feat: unify DLT and platform templates into a single management view (3e9f9c9)
+- feat: implement strict account suspension and client deletion (e678b3a)
+- fix: resolve Smartphone reference error and update User types (eb2e610)
+- feat(billing): stabilize wallet balance with atomic transactions (f46e6df)
+- Add Unicode auto-detect + mismatch warning in SMS campaign wizard (c7f78cd)
+- Support Unicode SMS and Parts Billing Calculation (f2a71b9)
+
+## [2026-04-04]
+- Fix: production-ready DLR handling and script fixes (bdfc410)
+- fix: set public api base url and force sync dlr callback endpoint (7d2d32b)
+- fix: correct whatsapp business account id column name (a128cab)
+- fix: final schema sync for DLT columns across all tables (704cead)
+- fix: atomic wallet deduction and complete logging fields (a21a0ac)
+- fix: exhaustive schema sync and direct processing fallback (b4061d7)
+- fix: strictly separate developer and production deployment environments (bf33ee2)
+- Implement SMS custom pricing with Promotional, Transactional, and Service categories (6e2ede7)
+- feat: enhance SMS V1 API with auto-DLT detection (342492f)
+
+## [Older 2026-03 History]
+- Technical logs for March are available in the repository git history.
+</details>
 
 ---
-
-## 📅 [2026-04-06] | Compliance & Security
-### 🛡️ Security & Suspension
-*   **Account Controls:** Implemented **Account Suspension** and **Client Deletion**—giving Admins full control over spam or non-paying accounts.
-*   **Audit Logs:** Enhanced system logs with Device Info and Location tracking for better security auditing.
-
-### 📋 SMS DLT (Compliance)
-*   **Sample Generator:** Automated generation of DLT sample files to help clients get approval faster.
-*   **Unicode Support:** Added Marathi/Hindi (Unicode) billing calculation logic to prevent credit discrepancies.
-
----
-
-## 📅 [2026-04-04] | Core Billing & Performance
-*   **Dynamic Pricing:** Implemented 4-decimal precision for GST and Credits—ensuring 100% accurate billing.
-*   **Performance:** Optimized database queries to handle **1 Crore+ records** with sub-second reporting speed.
-*   **Global Search:** Smart template billing with keyword matching for auto-categorization.
-
----
-
-> [!TIP]
-> **CEO Summary:** All core channels (SMS, WhatsApp, RCS, Email) are now live, fully responsive, and reseller-ready. The system is optimized for high-volume 1Cr+ traffic with enterprise-grade security.
-
----
-*Older git-based technical logs are archived below.*
+> [!NOTE]
+> This log is auto-generated and then curated for executive readability. For raw git history, use `git log`.
