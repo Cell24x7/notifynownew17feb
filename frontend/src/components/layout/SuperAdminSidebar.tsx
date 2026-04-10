@@ -58,7 +58,6 @@ const menuItems = [
   { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
   { icon: FileText, label: 'Usage Ledger', path: '/super-admin/ledger', permission: 'Usage Ledger - View' },
   { icon: Rocket, label: 'System Engine', path: '/super-admin/engine', permission: 'System Engine - View' },
-  { icon: Activity, label: 'Development Efficiency', path: '/super-admin/dev-progress', permission: 'System Engine - View' },
   { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
   { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
   { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'RCS Configs - View' },
