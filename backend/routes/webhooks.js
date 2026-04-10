@@ -901,15 +901,23 @@ const handleSmsCallback = async (req, res) => {
         console.log('Payload:', JSON.stringify(payload, null, 2));
         console.log('==============================================');
 
-        // Common SMS gateway DLR parameters lookup:
-        // Job ID / Msg ID: 'jobid', 'msgid', 'id', 'mid', 'fid', 'externalid', 'msg_id'
-        const messageId = payload.jobid || payload.msgid || payload.id || payload.mid || payload.fid || payload.externalid || payload.msg_id;
+        // 🆔 Job ID / Msg ID: 'jobid', 'msgid', 'id', 'mid', 'fid', 'externalid', 'msg_id', 'refid', 'uid'
+        const messageId = payload.jobid || payload.msgid || payload.id || payload.mid || payload.fid || payload.externalid || payload.msg_id || payload.refid || payload.uid;
         
-        // Status: 'status', 'dlr_status', 'state', 'stat', 'err', 'delivery_status', 'status_id'
-        const status = payload.status || payload.dlr_status || payload.state || payload.stat || payload.err || payload.delivery_status || payload.status_id;
+        // 🚦 Status: 'status', 'dlr_status', 'state', 'stat', 'err', 'delivery_status', 'status_id', 'result'
+        const status = payload.status || payload.dlr_status || payload.state || payload.stat || payload.err || payload.delivery_status || payload.status_id || payload.result;
         
-        // Mobile: 'mobile', 'msisdn', 'to', 'dest', 'phoneno', 'phone'
-        const mobile = payload.mobile || payload.msisdn || payload.to || payload.dest || payload.phoneno || payload.phone;
+        // 📱 Mobile: 'mobile', 'msisdn', 'to', 'dest', 'phoneno', 'phone', 'number', 'recipient', 'user'
+        let mobile = payload.mobile || payload.msisdn || payload.to || payload.dest || payload.phoneno || payload.phone || payload.number || payload.recipient || payload.user;
+
+        // 🧠 SMART SCAN: If mobile is still undefined, scan the entire payload object for any 10-12 digit number
+        if (!mobile) {
+            const payloadString = JSON.stringify(payload);
+            const mobileMatch = payloadString.match(/(91|0)?[6-9][0-9]{9}/);
+            if (mobileMatch) {
+                mobile = mobileMatch[0];
+            }
+        }
 
         let finalStatus = 'sent';
         const s = String(status || '').toLowerCase();
