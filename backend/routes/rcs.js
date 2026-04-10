@@ -785,7 +785,109 @@ const handleRcsSend = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/rcs/templates/create
+ * External API for Developers to create RCS templates
+ */
+const handleRcsTemplateCreate = async (req, res) => {
+    try {
+        const username = req.body.username || req.query.username;
+        const password = req.body.password || req.query.password;
+        
+        // Template Details
+        const name = req.body.name || req.query.name;
+        const type = req.body.type || req.query.type || 'text_message'; // text_message, rich_card, carousel
+        const body = req.body.body || req.body.textMessageContent || req.query.body;
+        const buttons = req.body.buttons || req.body.suggestions || [];
+        const mediaUrl = req.body.mediaUrl || req.query.mediaUrl;
+        const cardTitle = req.body.cardTitle || req.query.cardTitle;
+        const fallbackText = req.body.fallbackText || req.query.fallbackText;
+
+        if (!username || !password || !name || (!body && type === 'text_message')) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Missing fields: username, password, name, body (for text_message)',
+                received: { username: !!username, password: !!password, name: !!name, body: !!body }
+            });
+        }
+
+        // Auth
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
+        if (!users.length || !users[0].api_password) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+        const user = users[0];
+        
+        // Fetch user's assigned RCS config
+        const [configs] = await query(`
+            SELECT rc.* 
+            FROM users u 
+            JOIN rcs_configs rc ON u.rcs_config_id = rc.id 
+            WHERE u.id = ?
+        `, [user.id]);
+
+        if (!configs || configs.length === 0) {
+            return res.status(400).json({ success: false, message: 'RCS not configured for this user' });
+        }
+
+        const { submitDotgoTemplate } = require('../services/rcsService');
+        
+        // Prepare template data for submitDotgoTemplate
+        const templateData = {
+            name,
+            type,
+            body,
+            buttons,
+            fallbackText,
+            cardTitle,
+            mediaUrl,
+            // Pass metadata if it's a rich card/carousel to match expectations
+            metadata: {
+                mediaUrl,
+                cardTitle,
+                cardDescription: body,
+                buttons
+            }
+        };
+
+        const result = await submitDotgoTemplate(configs[0], templateData, []);
+
+        if (result.success) {
+            // Also insert into local message_templates for visibility in UI
+            const templateId = `TPL_API_${Date.now()}`;
+            await query(
+                `INSERT INTO message_templates 
+                (id, user_id, rcs_config_id, name, channel, template_type, body, status, created_at)
+                VALUES (?, ?, ?, ?, 'rcs', ?, ?, 'pending', NOW())`,
+                [templateId, user.id, configs[0].id, name, type, body]
+            );
+
+            // Add buttons to local DB
+            if (buttons && Array.isArray(buttons)) {
+                for (let i = 0; i < buttons.length; i++) {
+                    const btn = buttons[i];
+                    await query(
+                        `INSERT INTO template_buttons (id, template_id, type, label, value, position)
+                        VALUES (?, ?, ?, ?, ?, ?)`,
+                        [`BTN_API_${Date.now()}_${i}`, templateId, btn.type || 'reply', btn.displayText || btn.label, btn.postback || btn.value || btn.url || btn.phoneNumber, i]
+                    );
+                }
+            }
+
+            res.json({ success: true, message: 'Template created and submitted for approval', data: result.data });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        console.error('❌ RCS Template Create API Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 router.get('/send', handleRcsSend);
 router.post('/send', handleRcsSend);
+
+router.post('/templates/create', handleRcsTemplateCreate);
 
 module.exports = router;
