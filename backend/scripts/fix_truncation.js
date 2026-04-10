@@ -1,3 +1,10 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Smart env loading
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: path.join(__dirname, '..', envFile) });
+
 const { query } = require('../config/db');
 
 async function fixTruncationAggressive() {
