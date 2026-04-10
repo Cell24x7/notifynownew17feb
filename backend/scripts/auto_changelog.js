@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const changelogPath = path.join(__dirname, '..', 'frontend', 'public', 'CHANGELOG.md');
+const changelogPath = path.join(__dirname, '..', '..', 'frontend', 'public', 'CHANGELOG.md');
 
 function updateChangelog() {
     try {
