@@ -52,17 +52,9 @@ async function checkActualData() {
     await query('UPDATE campaigns SET sent_count = ?, delivered_count = ?, failed_count = ?, status = "sent" WHERE id = ?', 
         [totalSent, actualDelivered, actualFailed, campId]);
 
-    console.log(`✅ Counters synchronized with message_logs.`);
-    console.log(`👉 Sent set to: ${totalSent}`);
-    console.log(`👉 Delivered set to: ${actualDelivered}`);
-    console.log(`👉 Failed set to: ${actualFailed}`);
-
-    if (queueRows[0].count < c.recipient_count) {
-        console.log(`\n⚠️ ANALYSIS: Database mein sirf ${queueRows[0].count} rows pahuche hain, jabki count ${c.recipient_count} set ho gaya tha.`);
-        console.log(`👉 Iska matlab hai ki UPLOAD beech mein hi interrupt ho gaya tha.`);
-    } else {
-        console.log(`\n✅ Queue rows match the recipient_count.`);
-    }
+    console.log(`\n🛠 RESCUING STUCK JOBS...`);
+    const [rescueResult] = await query('UPDATE campaign_queue SET status = "pending" WHERE campaign_id = ? AND status = "processing"', [campId]);
+    console.log(`✅ Rescued ${rescueResult.affectedRows} messages from "processing" state. They will be sent soon.`);
 
     process.exit(0);
 }
