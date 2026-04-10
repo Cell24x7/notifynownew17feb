@@ -45,12 +45,16 @@ async function checkActualData() {
     });
 
     console.log(`\n🛠 REPAIRING COUNTERS...`);
-    // Rule: Total processed should never exceed recipient_count
-    // We update campaigns table with counts from message_logs (The Source of Truth)
-    const totalSent = actualSent + actualDelivered; // Total attempted
+    // Correct Rule: SENT count is (Delivered + Failed + Sent Logs)
+    const totalSent = actualSent + actualDelivered + actualFailed; 
     
-    await query('UPDATE campaigns SET sent_count = ?, delivered_count = ?, failed_count = ?, status = "sent" WHERE id = ?', 
+    await query('UPDATE campaigns SET sent_count = ?, delivered_count = ?, failed_count = ?, status = "running" WHERE id = ?', 
         [totalSent, actualDelivered, actualFailed, campId]);
+
+    console.log(`✅ Counters synchronized with message_logs.`);
+    console.log(`👉 Sent set to: ${totalSent}`);
+    console.log(`👉 Delivered set to: ${actualDelivered}`);
+    console.log(`👉 Failed set to: ${actualFailed}`);
 
     console.log(`\n🛠 RESCUING STUCK JOBS...`);
     const [rescueResult] = await query('UPDATE campaign_queue SET status = "pending" WHERE campaign_id = ? AND status = "processing"', [campId]);
