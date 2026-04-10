@@ -125,6 +125,10 @@ NODE_ENV=production node scripts/enable_email_for_all.js || true
 
 ok "Database schema and environment are synced for $ENV_DESC."
 
+# Update Changelog automatically from Git
+echo "📔 Updating Changelog from Git logs..."
+NODE_ENV=production node scripts/auto_changelog.js || true
+
 # ── Step 7: Zero-Downtime Restart ─────────────────────────
 log "[7/8] Restarting PM2 Cluster..."
 cd "$PROJECT_DIR"
