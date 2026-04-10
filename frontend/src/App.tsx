@@ -44,6 +44,7 @@ import SuperAdminWhatsappConfigs from "./pages/super-admin/WhatsappConfigs";
 import SuperAdminSmsGateways from "./pages/super-admin/SmsGateways";
 import SuperAdminUsageLedger from "./pages/super-admin/UsageLedger";
 import SuperAdminSystemEngine from "./pages/super-admin/SystemEngine";
+import SuperAdminDevelopmentReport from "./pages/super-admin/DevelopmentReport";
 import ResellerBranding from "./pages/reseller/Branding";
 import ResellerUsers from "./pages/reseller/Users";
 
@@ -118,9 +119,7 @@ const App = () => (
                     <Route path="/super-admin/sms-gateways" element={<SuperAdminSmsGateways />} />
                     <Route path="/super-admin/ledger" element={<SuperAdminUsageLedger />} />
                     <Route path="/super-admin/engine" element={<SuperAdminSystemEngine />} />
-
-
-
+                    <Route path="/super-admin/dev-progress" element={<SuperAdminDevelopmentReport />} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />

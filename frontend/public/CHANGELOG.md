@@ -1,8 +1,35 @@
 # 🚀 NotifyNow | Executive Changelog & Updates
 
-This document tracks major feature releases, infrastructure improvements, and business logic updates.
+This document tracks major feature releases, business logic updates, and provides a quick guide for Users and Developers.
 
 ---
+
+## 📖 User Quick Start Guide
+### 1. How to Send a Campaign?
+*   **Step 1:** Go to **Templates** → Create your message (SMS/WhatsApp/RCS/Email).
+*   **Step 2:** Go to **Campaigns** → Select your template.
+*   **Step 3:** Upload your **Audience (CSV)** or enter manual numbers/emails.
+*   **Step 4:** Map your Excel columns to template variables (e.g., column "A" goes to {{name}}).
+*   **Step 5:** Preview and **Send/Schedule**.
+
+### 2. Monitoring Results
+*   Check the **Reports** tab for live Delivery (DLR) counts. Use the "Download" button for detailed per-message logs.
+
+---
+
+## 🛠️ Developer API Reference
+### Authenticating
+All API calls require an `api_key`. Include it in the header: `Authorization: Bearer YOUR_API_KEY`.
+
+| Channel | Endpoint | Method | Key Params |
+|---|---|---|---|
+| **SMS** | `/api/v1/sms/send` | POST | `sender_id`, `mobile`, `message` |
+| **WhatsApp** | `/api/v1/whatsapp/send` | POST | `template_name`, `media_url`, `components` |
+| **RCS** | `/api/v1/rcs/send` | POST | `bot_id`, `card_type`, `suggestions` |
+| **Email** | `/api/v1/email/send` | POST | `subject`, `from_name`, `attachment` |
+
+---
+
 
 ## 📅 [2026-04-10] | Email Channel & UI Responsiveness
 ### 📧 Email Channel (Full Launch)
