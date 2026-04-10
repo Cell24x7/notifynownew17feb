@@ -15,6 +15,19 @@ redis.on('error', (err) => {
     }
 });
 
+// AUTO-RECOVERY: Clean up stuck jobs on startup
+async function rescueStuckJobsOnStartup() {
+    try {
+        const [res] = await query('UPDATE campaign_queue SET status = "pending" WHERE status = "processing" AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)');
+        if (res.affectedRows > 0) {
+            console.log(`[Rescue] Automatically recovered ${res.affectedRows} stuck processing jobs.`);
+        }
+    } catch (e) {
+        console.error('[Rescue] Startup recovery failed:', e.message);
+    }
+}
+rescueStuckJobsOnStartup();
+
 const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 const queueName = `campaign-sending-${envSuffix}`;
 
@@ -101,11 +114,11 @@ const campaignWorker = new Worker(queueName, async (job) => {
             }
         }
 
-        // 3. PERIODIC DB SYNC (Avoid Row Contention)
+        // 3. OPTIMIZED BATCH SYNC (Avoid Row Contention)
         const processedTotal = await redis.hincrby(`${envSuffix}:stats:${campId}`, 'total_processed', 1);
         
-        // INSTANT UPDATES for small campaigns (< 10 msgs: sync every msg, else sync every 100)
-        const syncInterval = (processedTotal < 10) ? 1 : 100;
+        // DYNAMIC SYNC: Sync every 10 for small campaigns, every 500 for large ones
+        const syncInterval = (processedTotal < 100) ? 10 : 500;
         if (processedTotal % syncInterval === 0) {
             const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [parseInt(stats.sent || 0), parseInt(stats.failed || 0), campId]);
