@@ -327,14 +327,27 @@ router.post('/dotgo', async (req, res) => {
                     const last10 = contactPhone.slice(-10);
                     console.log(`🔍 No ID match for ${messageId}. Searching by recipient (last 10): ${last10}`);
 
+                    // Try Manual Logs first
                     [logs] = await query(
                         `SELECT * FROM message_logs WHERE (recipient LIKE ? OR recipient LIKE ?) AND (message_id = 'N/A' OR message_id IS NULL OR status = 'sent') ORDER BY created_at DESC LIMIT 1`,
                         [`%${last10}`, `%${last10}%`]
                     );
 
                     if (logs.length > 0) {
-                        console.log(`✨ REPAIR: Found log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
+                        isApiLog = false;
+                        console.log(`✨ REPAIR: Found MANUAL log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
                         await query('UPDATE message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
+                    } else {
+                        // Try API Logs
+                        [logs] = await query(
+                            `SELECT * FROM api_message_logs WHERE (recipient LIKE ? OR recipient LIKE ?) AND (message_id = 'N/A' OR message_id IS NULL OR status = 'sent') ORDER BY created_at DESC LIMIT 1`,
+                            [`%${last10}`, `%${last10}%`]
+                        );
+                        if (logs.length > 0) {
+                            isApiLog = true;
+                            console.log(`✨ REPAIR: Found API log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
+                            await query('UPDATE api_message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
+                        }
                     }
                 }
 

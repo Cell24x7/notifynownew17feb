@@ -764,9 +764,9 @@ const handleRcsSend = async (req, res) => {
             const apiCampaignName = `API Send (RCS)`;
 
             await query(
-                `INSERT INTO api_message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time)
-                 VALUES (?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW())`,
-                [user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName]
+                `INSERT INTO api_message_logs (user_id, recipient, channel, status, message_id, template_name, campaign_id, campaign_name, created_at, send_time, message_content)
+                 VALUES (?, ?, 'RCS', 'sent', ?, ?, ?, ?, NOW(), NOW(), ?)`,
+                [user.id, to, result.messageId, templateName, apiCampaignId, apiCampaignName, `Template: ${templateName}`]
             );
 
             await query(

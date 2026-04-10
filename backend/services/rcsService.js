@@ -151,7 +151,12 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
       }
     });
 
-    return { success: true, messageId: response.data?.messageId, raw: response.data };
+    let messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
+    if (messageId === "N/A" && response.data?.name) {
+      messageId = response.data.name.split('/').pop();
+    }
+
+    return { success: true, messageId: messageId, raw: response.data };
 
   } catch (error) {
     // Fallback removed to enforce strict routing to assigned bots only.
