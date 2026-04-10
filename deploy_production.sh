@@ -118,8 +118,6 @@ chmod 600 "$BACKEND_DIR/$ENV_FILE"
 
 # Run all migration scripts
 NODE_ENV=production node apply_schema_updates.js
-NODE_ENV=production node deprecated_archive/fix_logs_schema.js || true
-NODE_ENV=production node scripts/fix_webhook_logs.js || true
 NODE_ENV=production node migrate_reports.js || true
 NODE_ENV=production node scripts/fix_pricing_precision.js || true
 NODE_ENV=production node scripts/enable_email_for_all.js || true
@@ -131,8 +129,8 @@ log "[7/8] Restarting PM2 Cluster..."
 cd "$PROJECT_DIR"
 
 if pm2 list | grep -q "$APP_NAME"; then
-    log "   Reloading existing instance..."
-    pm2 reload "$APP_NAME" --update-env
+    log "   Restarting existing instance to ensure new routes are loaded..."
+    pm2 restart "$APP_NAME" --update-env
 else
     log "   Spawning new production instance..."
     pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
