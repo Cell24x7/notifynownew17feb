@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env.production') });
 const { query } = require('../config/db');
 
 async function syncStuckCampaigns() {
