@@ -256,7 +256,7 @@ export default function UserPlans({ embedded = false }: { embedded?: boolean }) 
                   {selectedPlan.channelsAllowed.length === 0 ? (
                     <span className="text-muted-foreground text-sm">None</span>
                   ) : (
-                    selectedPlan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs', 'email'].includes(c)).map((ch) => (
+                    selectedPlan.channelsAllowed.filter((c: any) => ['whatsapp', 'sms', 'rcs', 'email', 'voicebot'].includes(c)).map((ch) => (
                       <div
                         key={ch}
                         className="flex items-center gap-1 bg-muted px-3 py-1.5 rounded-full text-sm"

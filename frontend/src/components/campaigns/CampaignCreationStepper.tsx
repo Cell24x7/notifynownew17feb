@@ -99,6 +99,7 @@ const channelOptions = [
    { value: 'sms', label: 'SMS', icon: '📲', costPerMessage: 0.25 },
    { value: 'rcs', label: 'RCS', icon: '💬', costPerMessage: 0.30 },
    { value: 'email', label: 'Email', icon: '📧', costPerMessage: 0.10 },
+   { value: 'voicebot', label: 'AI Voice', icon: '🎙️', costPerMessage: 1.50 },
 ];
 
 export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {
@@ -327,6 +328,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          }
       } else if (campaignData.channel === 'email') {
          costPerMsg = parseFloat(u?.email_price) || 0.10;
+      } else if (campaignData.channel === 'voicebot') {
+         costPerMsg = parseFloat(u?.voice_price) || 1.50;
       }
       return isNaN(costPerMsg) ? 1.0 : costPerMsg;
    };
@@ -756,6 +759,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                 if (channel.value === 'sms') return u?.sms_promotional_price || '0.10';
                                                 if (channel.value === 'whatsapp') return u?.wa_marketing_price || '0.80';
                                                 if (channel.value === 'rcs') return u?.rcs_text_price || '0.25';
+                                                if (channel.value === 'voicebot') return u?.voice_price || '1.50';
                                                 return channel.costPerMessage;
                                              })()}/msg
                                           </p>

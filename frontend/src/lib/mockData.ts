@@ -51,7 +51,7 @@ export interface Contact {
   lastMessageTime?: Date;
 }
 
-export type Channel = 'whatsapp' | 'sms' | 'rcs';
+export type Channel = 'whatsapp' | 'sms' | 'rcs' | 'email' | 'voicebot';
 
 export interface Message {
   id: string;

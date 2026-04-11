@@ -379,6 +379,44 @@ async function updateSchema() {
             console.log('Error optimizing status columns:', e.message);
         }
 
+        // 13. AI Voice Bot Infrastructure
+        try {
+            console.log('🚀 Syncing AI Voice Bot infrastructure...');
+            
+            // Add voice columns to users
+            if (!userCols.some(col => col.Field === 'voice_price')) {
+                console.log('Adding voice_price to users...');
+                await connection.execute('ALTER TABLE users ADD COLUMN voice_price DECIMAL(10,4) DEFAULT 1.50');
+            }
+            if (!userCols.some(col => col.Field === 'ai_voice_config_id')) {
+                console.log('Adding ai_voice_config_id to users...');
+                await connection.execute('ALTER TABLE users ADD COLUMN ai_voice_config_id INT DEFAULT NULL');
+            }
+
+            // Add voice_price to plans
+            const [planCols] = await connection.execute('DESCRIBE plans');
+            if (!planCols.some(col => col.Field === 'voice_price')) {
+                console.log('Adding voice_price to plans...');
+                await connection.execute('ALTER TABLE plans ADD COLUMN voice_price DECIMAL(10,4) DEFAULT 1.50');
+            }
+
+            // Enable voicebot channel for all users who have access to other channels
+            console.log('Ensuring voicebot channel is enabled for users...');
+            const [users] = await connection.execute('SELECT id, channels_enabled FROM users');
+            for (const user of users) {
+                let channels = user.channels_enabled || '';
+                const channelList = channels.split(',').map(c => c.trim()).filter(Boolean);
+                if (channelList.length > 0 && !channelList.includes('voicebot')) {
+                    channelList.push('voicebot');
+                    const newChannels = channelList.join(',');
+                    await connection.execute('UPDATE users SET channels_enabled = ? WHERE id = ?', [newChannels, user.id]);
+                }
+            }
+            console.log('✅ AI Voice Bot infrastructure ready.');
+        } catch (e) {
+            console.log('Error during AI Voice Bot updates:', e.message);
+        }
+
     } catch (err) {
         console.error('Error:', err.message);
     } finally {

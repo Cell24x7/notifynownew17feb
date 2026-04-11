@@ -114,6 +114,11 @@ fi
 grep -q "^APP_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^WHATSAPP_VERIFY_TOKEN=" "$BACKEND_DIR/$ENV_FILE" || echo "WHATSAPP_VERIFY_TOKEN=na" >> "$BACKEND_DIR/$ENV_FILE"
 
+# 💎 PROERO: Ensure core DB credentials exist (even if perl didn't touch them)
+grep -q "^DB_HOST=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_HOST missing in $ENV_FILE!"
+grep -q "^DB_USER=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_USER missing in $ENV_FILE!"
+grep -q "^DB_PASS=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_PASS missing in $ENV_FILE!"
+
 chmod 600 "$BACKEND_DIR/$ENV_FILE"
 
 # Run all migration scripts
@@ -122,6 +127,8 @@ NODE_ENV=production node scripts/fix_truncation.js || true
 NODE_ENV=production node migrate_reports.js || true
 NODE_ENV=production node scripts/fix_pricing_precision.js || true
 NODE_ENV=production node scripts/enable_email_for_all.js || true
+log "🎙️  Deploying AI Voice Bot Infrastructure..."
+NODE_ENV=production node apply_schema_updates.js || true
 
 ok "Database schema and environment are synced for $ENV_DESC."
 

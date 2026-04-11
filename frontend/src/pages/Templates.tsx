@@ -32,6 +32,7 @@ import { dltTemplateService } from '@/services/dltTemplateService';
 import { useNavigate } from 'react-router-dom';
 import { EmailTemplateForm } from '@/components/campaigns/EmailTemplateForm';
 import { EmailPreview } from '@/components/campaigns/EmailPreview';
+import { VoiceTemplateForm } from '@/components/campaigns/VoiceTemplateForm';
 
 export default function Templates() {
   const { toast } = useToast();
@@ -44,7 +45,7 @@ export default function Templates() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [templateSubTab, setTemplateSubTab] = useState<'all' | 'pending'>('all');
-  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'rcs' | 'sms' | 'email'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'rcs' | 'sms' | 'email' | 'voicebot'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingTemplateId, setRefreshingTemplateId] = useState<string | null>(null);
@@ -587,6 +588,62 @@ export default function Templates() {
         return <WhatsAppPreview components={data.components} />;
     }
 
+    if (data.channel === 'voicebot') {
+      return (
+        <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
+            <div className="w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[3rem] p-3 shadow-2xl relative border-[8px] border-[#1e1e1e] flex flex-col overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#1a1c1e] to-[#000000] z-0" />
+                
+                {/* Status Bar */}
+                <div className="relative z-10 flex justify-between px-6 pt-4 text-[10px] text-white/70 font-bold">
+                    <span>10:45 AM</span>
+                    <div className="flex gap-1.5 items-center">
+                        <div className="w-3 h-3 rounded-full bg-white/20" />
+                        <div className="w-4 h-2 bg-white/20 rounded-sm" />
+                    </div>
+                </div>
+
+                {/* Caller Content */}
+                <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-white text-center px-6">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mb-6 shadow-xl ring-4 ring-white/10 animate-pulse">
+                        <Bot className="h-12 w-12 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-1 tracking-tight">AI Voice Bot</h3>
+                    <p className="text-sm text-white/50 mb-8 font-medium">NotifyNow Caller ID</p>
+                    
+                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 w-full border border-white/10 mb-8 max-h-[160px] overflow-hidden">
+                        <p className="text-[12px] text-white/80 leading-relaxed italic line-clamp-4">
+                            "{data.body || 'Playing your audio message...'}"
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-12">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="w-1.5 bg-purple-500 rounded-full animate-bounce" style={{ height: `${Math.random() * 24 + 10}px`, animationDelay: `${i * 0.1}s` }} />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Call Controls */}
+                <div className="relative z-10 pb-12 flex justify-around w-full">
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-14 h-14 rounded-full bg-rose-500 flex items-center justify-center shadow-lg hover:bg-rose-600 transition-colors">
+                            <X className="h-6 w-6 text-white" />
+                        </div>
+                        <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Decline</span>
+                    </div>
+                     <div className="flex flex-col items-center gap-2">
+                        <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-colors">
+                            <Phone className="h-6 w-6 text-white" />
+                        </div>
+                        <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Accept</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
         {/* Phone Frame */}
@@ -733,6 +790,7 @@ export default function Templates() {
                 <SelectItem value="rcs">RCS</SelectItem>
                 <SelectItem value="sms">SMS</SelectItem>
                 <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="voicebot">AI VoiceBot</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={(v: any) => { setStatusFilter(v); setPage(1); }}>
@@ -776,9 +834,10 @@ export default function Templates() {
                 template.channel === 'rcs' && 'bg-blue-500/10 text-blue-600 border-blue-500/20',
                 template.channel === 'whatsapp' && 'bg-green-500/10 text-green-600 border-green-500/20',
                 template.channel === 'sms' && 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-                template.channel === 'email' && 'bg-orange-500/10 text-orange-600 border-orange-500/20'
+                template.channel === 'email' && 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+                template.channel === 'voicebot' && 'bg-purple-500/10 text-purple-600 border-purple-500/20'
               )}>
-                {template.channel === 'whatsapp' ? 'WhatsApp' : template.channel.toUpperCase()}
+                {template.channel === 'whatsapp' ? 'WhatsApp' : template.channel === 'voicebot' ? 'AI Voice' : template.channel.toUpperCase()}
               </div>
               <CardHeader className="pb-2 sm:pb-3 pt-4 sm:pt-6 px-4 sm:px-6">
                 <div className="flex items-start justify-between">
@@ -847,6 +906,7 @@ export default function Templates() {
                     { id: 'rcs', name: 'RCS', icon: Sparkles, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' },
                     { id: 'sms', name: 'SMS', icon: Smartphone, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
                     { id: 'email', name: 'Email', icon: Mail, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10' },
+                    { id: 'voicebot', name: 'AI VoiceBot', icon: Mic, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10' },
                   ].map((chan) => (
                     <button key={chan.id} onClick={() => { setNewTemplate({ ...newTemplate, channel: chan.id as any }); setTemplateStep('form'); }} className="group flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-border bg-card hover:border-primary transition-all">
                         <div className={cn("p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-2 sm:mb-4", chan.bg)}><chan.icon className={cn("h-6 w-6 sm:h-8 sm:w-8", chan.color)} /></div>
@@ -859,6 +919,7 @@ export default function Templates() {
                    {newTemplate.channel === 'rcs' && <RCSTemplateForm data={newTemplate} onChange={setNewTemplate} onFileChange={setSelectedFile} onCarouselFileChange={(idx, file) => setCarouselFiles(p => ({ ...p, [idx]: file }))} />}
                    {newTemplate.channel === 'whatsapp' && <WhatsAppTemplateForm data={newTemplate} onChange={setNewTemplate} />}
                    {newTemplate.channel === 'email' && <EmailTemplateForm data={newTemplate} onChange={setNewTemplate} />}
+                   {newTemplate.channel === 'voicebot' && <VoiceTemplateForm data={newTemplate} onChange={setNewTemplate} onFileChange={setSelectedFile} />}
                    {newTemplate.channel === 'sms' && (
                      <div className="space-y-4">
                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-300">

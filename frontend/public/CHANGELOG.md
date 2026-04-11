@@ -67,6 +67,10 @@ All API calls require an `api_key`. Include it in the header: `Authorization: Be
 - fix: granular DB error reporting in handleRcsTemplateCreate (3d149ec)
 - fix: environment variable loading for background maintenance scripts (760261f)
 - feat: enhance webhook repair logic to sync status for API-sent messages (f036bdd)
+- feat: 🎙️ Launch AI Voice Bot Channel with dynamic TTS and static audio upload support
+- feat: implement high-fidelity 'In-Call' preview for Voice templates
+- fix: automated 'Proero' migration for voice-based billing and schema expansion
+- feat: enable multi-channel visibility for Voicebot in user plans and campaigns
 
 ## [2026-04-10]
 - feat: email campaign - accept email IDs, add From/Subject/Attachment fields (69fca9c)
