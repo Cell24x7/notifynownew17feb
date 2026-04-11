@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Send, X, Zap, FileText, Smile, Paperclip } from 'lucide-react';
+import { Search, Send, X, Zap, FileText, Smile, Paperclip, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -213,7 +213,12 @@ export default function Chats() {
 
     try {
         const token = localStorage.getItem('authToken');
-        const channel = selectedChannel === 'all' ? (enabledChannels[0]?.toLowerCase() || 'rcs') : selectedChannel;
+        
+        // Smart Channel Logic: Use the conversation's own channel first, fallback to filter, then fallback to first enabled
+        let channel = (selectedConversation.channel || '').toLowerCase();
+        if (!channel || channel === 'all') {
+            channel = selectedChannel === 'all' ? (enabledChannels[0]?.toLowerCase() || 'rcs') : selectedChannel;
+        }
         
         const res = await axios.post(`${API_BASE_URL}/api/chats/send`, {
             recipient: selectedConversation.contact_phone,
@@ -225,10 +230,37 @@ export default function Chats() {
 
         if (res.data.success) {
             setNewMessage('');
-            toast({ title: "Message sent" });
+            toast({ title: "Message sent via " + channel.toUpperCase() });
         }
+    } catch (err: any) {
+        toast({ 
+            title: "Failed to send", 
+            description: err.response?.data?.message || err.message,
+            variant: "destructive" 
+        });
+    }
+  };
+
+  const handleDownloadChat = async () => {
+    if (!selectedConversation) return;
+    try {
+        const token = localStorage.getItem('authToken');
+        const phone = selectedConversation.contact_phone;
+        const response = await axios.get(`${API_BASE_URL}/api/chats/export/${phone}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'blob'
+        });
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `chat_history_${phone}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast({ title: "Report downloaded successfully" });
     } catch (err) {
-        toast({ title: "Failed to send", variant: "destructive" });
+        toast({ title: "Download failed", variant: "destructive" });
     }
   };
 
@@ -310,7 +342,7 @@ export default function Chats() {
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <StatusBadge status={conv.status as any} />
                         {conv.channel && (
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full capitalize ${getChannelColor(conv.channel)}`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${getChannelColor(conv.channel)}`}>
                             {conv.channel}
                           </span>
                         )}
@@ -361,6 +393,27 @@ export default function Chats() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    title="Refresh Chat"
+                    className="h-9 px-3 text-xs hidden sm:flex"
+                    onClick={() => fetchMessages(selectedConversation.contact_phone)}
+                >
+                    <Zap className="h-3.5 w-3.5 mr-2" /> Refresh
+                </Button>
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    title="Download Report"
+                    className="h-9 px-3 text-xs"
+                    onClick={handleDownloadChat}
+                >
+                    <Download className="h-3.5 w-3.5 mr-2" /> Download
+                </Button>
               </div>
             </div>
 

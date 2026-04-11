@@ -223,4 +223,61 @@ router.post('/send', authenticateToken, async (req, res) => {
     }
 });
 
+/**
+ * @route GET /api/chats/export/:phone
+ * @desc Export chat history with a specific contact as CSV
+ */
+router.get('/export/:phone', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const phone = req.params.phone;
+        const cleanPhone = phone.replace(/\D/g, '');
+
+        const sql = `
+            SELECT 
+                created_at as Timestamp,
+                CASE 
+                    WHEN sender = 'System' THEN 'You'
+                    ELSE sender 
+                END as Sender,
+                recipient as Recipient,
+                message_content as Message,
+                status as Status,
+                type as Channel
+            FROM webhook_logs 
+            WHERE user_id = ? AND (
+                REPLACE(REPLACE(sender, '+', ''), ' ', '') = ? OR 
+                REPLACE(REPLACE(recipient, '+', ''), ' ', '') = ? OR
+                sender = ? OR recipient = ?
+            )
+            ORDER BY created_at ASC
+        `;
+
+        const [messages] = await query(sql, [userId, cleanPhone, cleanPhone, phone, phone]);
+
+        if (messages.length === 0) {
+            return res.status(404).json({ success: false, message: 'No chat history found for this number' });
+        }
+
+        // Generate CSV content
+        const headers = Object.keys(messages[0]).join(',');
+        const rows = messages.map(m => {
+            return Object.values(m).map(val => {
+                const str = String(val || '').replace(/"/g, '""'); // Escape double quotes
+                return `"${str}"`;
+            }).join(',');
+        }).join('\n');
+
+        const csv = `${headers}\n${rows}`;
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=chat_history_${cleanPhone}.csv`);
+        res.status(200).send(csv);
+
+    } catch (error) {
+        console.error('Error exporting chat:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
 module.exports = router;
