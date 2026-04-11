@@ -3,6 +3,27 @@ import { API_BASE_URL } from './api';
 
 const instance = axios.create({
   baseURL: API_BASE_URL,
+  transformResponse: [
+    (data) => {
+      if (typeof data === 'string' && (data.trim().startsWith('{') || data.trim().startsWith('['))) {
+        try {
+          // Attempt to find the boundary of the JSON object/array
+          // to skip any leading/trailing garbage (like server logs)
+          const start = data.indexOf(data.trim().startsWith('{') ? '{' : '[');
+          const end = data.lastIndexOf(data.trim().startsWith('{') ? '}' : ']');
+          
+          if (start !== -1 && end !== -1) {
+            const cleanData = data.substring(start, end + 1);
+            return JSON.parse(cleanData);
+          }
+        } catch (e) {
+          // If our extraction fails, fall back to standard parsing
+          try { return JSON.parse(data); } catch(i) { return data; }
+        }
+      }
+      return data;
+    }
+  ],
 });
 
 // Add a request interceptor to include the auth token
