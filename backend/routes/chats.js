@@ -259,20 +259,28 @@ router.get('/export/:phone', authenticateToken, async (req, res) => {
             return res.status(404).json({ success: false, message: 'No chat history found for this number' });
         }
 
-        // Generate CSV content
-        const headers = Object.keys(messages[0]).join(',');
-        const rows = messages.map(m => {
-            return Object.values(m).map(val => {
-                const str = String(val || '').replace(/"/g, '""'); // Escape double quotes
-                return `"${str}"`;
-            }).join(',');
-        }).join('\n');
+        // 1. Generate Header Row
+        const columns = ['Timestamp', 'Sender', 'Recipient', 'Message', 'Status', 'Channel'];
+        const csvHeader = columns.join(',');
 
-        const csv = `${headers}\n${rows}`;
+        // 2. Generate Rows with proper CSV escaping
+        const csvRows = messages.map(m => {
+            return [
+                m.Timestamp ? new Date(m.Timestamp).toLocaleString() : '',
+                m.Sender || '',
+                m.Recipient || '',
+                m.Message ? `"${String(m.Message).replace(/"/g, '""')}"` : '""', // Wrapped in quotes for multi-line support
+                m.Status || '',
+                m.Channel || ''
+            ].join(',');
+        });
 
-        res.setHeader('Content-Type', 'text/csv');
+        // 3. Combine with UTF-8 BOM (\ufeff) for Excel compatibility
+        const csvContent = '\ufeff' + csvHeader + '\n' + csvRows.join('\n');
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename=chat_history_${cleanPhone}.csv`);
-        res.status(200).send(csv);
+        res.status(200).send(csvContent);
 
     } catch (error) {
         console.error('Error exporting chat:', error.message);
