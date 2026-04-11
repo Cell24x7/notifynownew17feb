@@ -60,7 +60,7 @@ async function triggerChatflow(userId, senderPhone, messageText, channel, io, ch
         const replyText = matchedFlow.body || '';
         if (!replyText) return false;
 
-        console.log(`🤖 [ChatFlow] Matched flow "${matchedFlow.name}" for keyword in: "${messageText}"`);
+        // console.log(`🤖 [ChatFlow] Matched flow "${matchedFlow.name}" for keyword in: "${messageText}"`);
 
         // 3. Send auto-reply based on channel
         let sendSuccess = false;
@@ -98,7 +98,7 @@ async function triggerChatflow(userId, senderPhone, messageText, channel, io, ch
             console.error('[ChatFlow] Failed to log auto-reply:', dbErr.message);
         }
 
-        console.log(`✅ [ChatFlow] Auto-reply ${sendSuccess ? 'sent' : 'failed'} to ${senderPhone}`);
+        // console.log(`✅ [ChatFlow] Auto-reply ${sendSuccess ? 'sent' : 'failed'} to ${senderPhone}`);
         return sendSuccess;
 
     } catch (err) {
@@ -190,7 +190,7 @@ async function sendWhatsAppAutoReply(userId, to, flow, meta = {}) {
         }
 
         const response = await axios.post(msgUrl, payload, { headers });
-        console.log(`✅ [ChatFlow] WA auto-reply sent to ${mobile} (Type: ${payload.type})`);
+        // console.log(`✅ [ChatFlow] WA auto-reply sent to ${mobile} (Type: ${payload.type})`);
         return true;
     } catch (err) {
         console.error('[ChatFlow] WA send error:', err.response?.data?.error?.message || err.message);
@@ -215,7 +215,7 @@ async function sendRcsAutoReply(userId, to, text) {
 
         const rcsConfig = configs[0];
         const result = await sendRcsMessage(to, text, rcsConfig);
-        console.log(`✅ [ChatFlow] RCS auto-reply sent to ${to}`);
+        // console.log(`✅ [ChatFlow] RCS auto-reply sent to ${to}`);
         return result.success === true;
     } catch (err) {
         console.error('[ChatFlow] RCS send error:', err.message);
@@ -249,7 +249,7 @@ async function ensureChatFlowsTable() {
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
-        console.log('✅ [ChatFlow] chat_flows table ready');
+        // console.log('✅ [ChatFlow] chat_flows table ready');
     } catch (err) {
         console.error('❌ [ChatFlow] Failed to ensure table:', err.message);
     }

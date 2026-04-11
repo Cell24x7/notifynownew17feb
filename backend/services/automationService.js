@@ -30,7 +30,7 @@ async function ensureAutomationsTable() {
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
-        console.log('✅ [AutomationService] automations table ready');
+        // console.log('✅ [AutomationService] automations table ready');
     } catch (err) {
         console.error('❌ [AutomationService] Failed to ensure table:', err.message);
     }
@@ -42,14 +42,14 @@ async function ensureAutomationsTable() {
  */
 async function processAutomation(userId, triggerType, channel, payload, io) {
     try {
-        console.log(`🤖 [AutomationService] Processing for User ${userId}, Type: ${triggerType}, Channel: ${channel}`);
+        // console.log(`🤖 [AutomationService] Processing for User ${userId}, Type: ${triggerType}, Channel: ${channel}`);
         const [automations] = await query(
             "SELECT * FROM automations WHERE user_id = ? AND status = 'active' AND channel = ?",
             [userId, channel]
         );
 
         if (!automations || automations.length === 0) {
-            console.log(`🤖 [AutomationService] No active ${channel} automations found for user ${userId}`);
+            // console.log(`🤖 [AutomationService] No active ${channel} automations found for user ${userId}`);
             return;
         }
 
@@ -62,11 +62,11 @@ async function processAutomation(userId, triggerType, channel, payload, io) {
             // 1. Detect if this is a button/list click (Continuation)
             const buttonId = payload.buttonId || payload.listId;
             if (buttonId) {
-                console.log(`🤖 [AutomationService] Button click detected: ${buttonId}. Finding branch...`);
+                // console.log(`🤖 [AutomationService] Button click detected: ${buttonId}. Finding branch...`);
                 const followEdge = edges.find(e => e.sourceHandle === buttonId);
                 if (followEdge) {
                     entryNode = nodes.find(n => n.id === followEdge.target);
-                    console.log(`🤖 [AutomationService] Continuing flow from branch target: ${entryNode?.id}`);
+                    // console.log(`🤖 [AutomationService] Continuing flow from branch target: ${entryNode?.id}`);
                 }
             }
 
@@ -77,16 +77,16 @@ async function processAutomation(userId, triggerType, channel, payload, io) {
                     console.log(`🤖 [AutomationService] Checking trigger conditions for automation: ${automation.name}`);
                     const matched = checkTriggerConditions(triggerNode, payload.message_content);
                     if (matched) {
-                        console.log(`🤖 [AutomationService] Trigger matched! Starting flow.`);
+                        // console.log(`🤖 [AutomationService] Trigger matched! Starting flow.`);
                         entryNode = triggerNode;
                     } else {
-                        console.log(`🤖 [AutomationService] Conditions NOT matched for trigger.`);
+                        // console.log(`🤖 [AutomationService] Conditions NOT matched for trigger.`);
                     }
                 }
             }
 
             if (entryNode) {
-                console.log(`🚀 [AutomationService] Executing entryNode: ${entryNode.id} for ${payload.sender}`);
+                // console.log(`🚀 [AutomationService] Executing entryNode: ${entryNode.id} for ${payload.sender}`);
                 await executeNode(userId, entryNode, nodes, edges, channel, payload, io);
                 await query("UPDATE automations SET trigger_count = trigger_count + 1, last_triggered = CURRENT_TIMESTAMP WHERE id = ?", [automation.id]);
             }
@@ -112,12 +112,12 @@ function checkTriggerConditions(node, messageText) {
 
     const text = (messageText || '').toLowerCase().trim();
     const cleanKeywords = keywords.map(kw => String(kw).toLowerCase().trim());
-    console.log(`🛠️ [AutomationService] Matching "${text}" against: [${cleanKeywords.join(', ')}]`);
+    // console.log(`🛠️ [AutomationService] Matching "${text}" against: [${cleanKeywords.join(', ')}]`);
     return cleanKeywords.some(kw => text === kw || (text.includes(kw) && kw.length > 2));
 }
 
 async function executeNode(userId, currentNode, allNodes, allEdges, channel, payload, io) {
-    console.log(`🔍 [AutomationService] Executing Node: ${currentNode.id} (Type: ${currentNode.type})`);
+    // console.log(`🔍 [AutomationService] Executing Node: ${currentNode.id} (Type: ${currentNode.type})`);
     const nextEdges = allEdges.filter(e => e.source === currentNode.id);
     
     if (currentNode.type === 'trigger') {
@@ -153,14 +153,11 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
             text = await replaceVariables(userId, mobile, text);
 
             const templateName = config.templateId || 'automation_reply';
-            console.log(`💳 [AutomationService] Deducting credit for ${templateName}...`);
             const deduction = await deductSingleMessageCredit(userId, channel, templateName);
             if (!deduction.success) {
-                console.warn(`🛑 [AutomationService] Insufficient credits for user ${userId}.`);
                 return;
             }
 
-            console.log(`📤 [AutomationService] Sending ${channel} reply to ${payload.sender}...`);
             let sent = false;
             if (channel === 'whatsapp') {
                 sent = await sendWhatsAppReply(userId, payload.sender, text, config);
@@ -174,7 +171,6 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
 
             const hasButtons = config.messageType === 'button_flow' && config.buttons && config.buttons.length > 0;
             if (hasButtons) {
-                console.log(`🛑 [AutomationService] Paused at Buttons node.`);
                 return; 
             }
             
@@ -219,7 +215,6 @@ async function logWebhook(userId, recipient, text, channel, io, status = 'sent')
 }
 
 async function addToCampaign(userId, mobile, campaignId) {
-    console.log(`📝 [AutomationService] Adding ${mobile} to campaign ${campaignId}`);
     const [existing] = await query('SELECT id FROM campaign_queue WHERE campaign_id = ? AND mobile = ?', [campaignId, mobile]);
     if (existing.length === 0) {
         await query(
@@ -230,13 +225,11 @@ async function addToCampaign(userId, mobile, campaignId) {
 }
 
 async function removeFromCampaign(mobile, campaignId) {
-    console.log(`📝 [AutomationService] Removing ${mobile} from campaign ${campaignId}`);
     await query('DELETE FROM campaign_queue WHERE campaign_id = ? AND mobile = ?', [campaignId, mobile]);
 }
 
 async function handleTags(userId, mobile, sender, action, tagName) {
     if (!tagName) return;
-    console.log(`🏷️ [AutomationService] Tag action: ${action} tag: ${tagName}`);
     const [contacts] = await query('SELECT id, labels FROM contacts WHERE user_id = ? AND (phone = ? OR phone = ?)', [userId, mobile, sender]);
     if (contacts.length > 0) {
         let labels = [];
@@ -298,9 +291,7 @@ async function sendWhatsAppReply(userId, to, text, config = {}) {
             payload.text = { body: text };
         }
 
-        console.log(`📡 [AutomationService] API Payload:`, JSON.stringify(payload));
         const res = await axios.post(msgUrl, payload, { headers: { ...headers, 'Content-Type': 'application/json' } });
-        console.log(`✅ [AutomationService] Message sent successfully! API ID:`, res.data?.messages?.[0]?.id);
         return true;
     } catch (err) {
         console.error('❌ [AutomationService] WA send error:', err.response?.data || err.message);

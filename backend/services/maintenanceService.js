@@ -1,15 +1,15 @@
 const { query } = require('../config/db');
 
 async function runMaintenance() {
-    console.log('🧹 [Maintenance] Starting daily cleanup task...');
+    // console.log('🧹 [Maintenance] Starting daily cleanup task...');
     try {
         // Prune webhook_logs only (not detailed message_logs or campaign_data)
         // Keep logs for at least 45 days for debugging
         const [result] = await query(`DELETE FROM webhook_logs WHERE created_at < NOW() - INTERVAL 45 DAY`);
-        console.log(`✅ [Maintenance] Cleaned ${result.affectedRows} old webhook log entries.`);
+        // console.log(`✅ [Maintenance] Cleaned ${result.affectedRows} old webhook log entries.`);
 
         // 🛠️ AUTO SCHEMA UPDATES
-        console.log('🔍 [Maintenance] Checking database schema for updates...');
+        // console.log('🔍 [Maintenance] Checking database schema for updates...');
         
         // Add channel, worker_id, updated_at, processed_at to campaign_queue and api_campaign_queue if missing
         try {
@@ -68,7 +68,7 @@ async function runMaintenance() {
                 // CRITICAL: If Kannel doesn't support HTTPS, force HTTP for DLR
                 // This often happens when main app is https://notifynow.in but Kannel needs http://IP:PORT
                 if (baseUrlForDlr.startsWith('https://') && !process.env.DLR_BASE_URL) {
-                    console.log(`⚠️  [Maintenance] HTTPS detected for API_BASE_URL. Kannel might fail. Suggesting DLR_BASE_URL in .env`);
+                    // console.log(`⚠️  [Maintenance] HTTPS detected for API_BASE_URL. Kannel might fail. Suggesting DLR_BASE_URL in .env`);
                 }
                 
                 const finalDlrUrl = `${baseUrlForDlr}${coreEndpoint}?msgid=%MSGID&status=%a&err=%E&mobile=%p`;
@@ -81,19 +81,18 @@ async function runMaintenance() {
                 
                 if (finalUrl !== gw.primary_url) {
                     await query('UPDATE sms_gateways SET primary_url = ? WHERE id = ?', [finalUrl, gw.id]);
-                    console.log(`✅ [Maintenance] Corrected URL placeholders for gateway: ${gw.name}`);
+                    // console.log(`✅ [Maintenance] Corrected URL placeholders for gateway: ${gw.name}`);
                 }
             }
 
             // Force JIO gateway to CMTLTD if it's still on NOTIFY
             await query("UPDATE sms_gateways SET sender_id = 'CMTLTD' WHERE name = 'JIO' AND (sender_id = 'NOTIFY' OR sender_id IS NULL)").catch(() => {});
-
-            console.log('✅ [Maintenance] Database schema synchronized for high-volume engine.');
-        } catch (e) { console.error('❌ [Maintenance] Could not verify queue columns:', e.message); }
+            // console.log('✅ [Maintenance] Database schema synchronized for high-volume engine.');
+        } catch (e) { /* console.error('❌ [Maintenance] Could not verify queue columns:', e.message); */ }
 
         // Also prune api_message_logs older than 90 days to keep performance high
         const [apiResult] = await query(`DELETE FROM api_message_logs WHERE created_at < NOW() - INTERVAL 90 DAY`);
-        console.log(`✅ [Maintenance] Cleaned ${apiResult.affectedRows} old API message logs.`);
+        // console.log(`✅ [Maintenance] Cleaned ${apiResult.affectedRows} old API message logs.`);
 
     } catch (error) {
         console.error('❌ [Maintenance] Cleanup failed:', error.message);
@@ -102,7 +101,7 @@ async function runMaintenance() {
 
 // Start a simple scheduler that runs once every 24 hours
 function startMaintenanceService() {
-    console.log('📅 [Maintenance] Service started successfully.');
+    // console.log('📅 [Maintenance] Service started successfully.');
     
     // Initial run on startup
     runMaintenance();

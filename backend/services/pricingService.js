@@ -5,7 +5,7 @@ const { query } = require('../config/db');
  */
 async function ensureWhatsAppPricingColumns() {
     try {
-        console.log('🔍 [PricingService] Checking users table for WhatsApp pricing columns...');
+        // console.log('🔍 [PricingService] Checking users table for WhatsApp pricing columns...');
         const [columns] = await query('DESCRIBE users');
         const columnNames = columns.map(c => c.Field);
 
@@ -21,12 +21,12 @@ async function ensureWhatsAppPricingColumns() {
         for (const col of columnsToAdd) {
             const colExists = columnNames.some(name => name.toLowerCase() === col.name.toLowerCase());
             if (!colExists) {
-                console.log(`➕ [PricingService] Adding column ${col.name}...`);
+                // console.log(`➕ [PricingService] Adding column ${col.name}...`);
                 await query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type} DEFAULT ${col.default} AFTER ${col.after}`);
             }
         }
 
-        console.log('✅ [PricingService] WhatsApp pricing columns ready');
+        // console.log('✅ [PricingService] WhatsApp pricing columns ready');
     } catch (err) {
         console.error('❌ [PricingService] Failed to ensure WhatsApp pricing columns:', err.message);
     }
