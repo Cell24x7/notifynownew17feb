@@ -137,7 +137,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                 new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 500))
             ]);
         } catch (redisErr) {
-            console.log('⚠️ [Worker] Redis unavailable, using DIRECT SQL processing.');
+            // console.log('⚠️ [Worker] Redis unavailable, using DIRECT SQL processing.');
             useRedis = false;
             if (redisClient) {
                 redisClient.disconnect();
@@ -255,9 +255,9 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        if (totalProcessed > 0) console.log(`[${processorName}] Processed ${totalProcessed} items ${useRedis ? '(via BullMQ)' : '(DIRECT)'}.`);
+        // if (totalProcessed > 0) console.log(`[${processorName}] Processed ${totalProcessed} items ${useRedis ? '(via BullMQ)' : '(DIRECT)'}.`);
     } catch (error) {
-        console.error(`[${processorName}] Ingestion Error:`, error.message);
+        // console.error(`[${processorName}] Ingestion Error:`, error.message);
     } finally {
         if (redisClient) await redisClient.quit().catch(() => {});
     }

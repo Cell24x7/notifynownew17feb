@@ -20,7 +20,7 @@ async function rescueStuckJobsOnStartup() {
     try {
         const [res] = await query('UPDATE campaign_queue SET status = "pending" WHERE status = "processing" AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)');
         if (res.affectedRows > 0) {
-            console.log(`[Rescue] Automatically recovered ${res.affectedRows} stuck processing jobs.`);
+            // console.log(`[Rescue] Automatically recovered ${res.affectedRows} stuck processing jobs.`);
         }
     } catch (e) {
         console.error('[Rescue] Startup recovery failed:', e.message);
@@ -40,7 +40,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         // 0. IDEMPOTENCY CHECK (CRITICAL: prevent double sending on retries)
         const [check] = await query(`SELECT status FROM ${queueTable} WHERE id = ?`, [item.id]);
         if (check.length > 0 && (check[0].status === 'sent' || check[0].status === 'failed')) {
-            console.log(`[Worker] Skipping job ${job.id} for ${item.mobile} - Already processed (Status: ${check[0].status})`);
+            // console.log(`[Worker] Skipping job ${job.id} for ${item.mobile} - Already processed (Status: ${check[0].status})`);
             return;
         }
 
@@ -138,7 +138,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
                 await redis.del(`${envSuffix}:stats:${campId}`);
                 await redis.del(`${envSuffix}:tracked:${campId}`);
                 await redis.del(`${envSuffix}:tracked_fail:${campId}`);
-                console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
+                // console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
             } else {
                 await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [campId]);
                 await redis.del(`${envSuffix}:camp_progress:${campId}`);

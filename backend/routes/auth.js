@@ -341,6 +341,19 @@ router.post('/login', async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    await logSystem(
+      'login',
+      'User Login',
+      `User ${user.role} ${user.email} logged in successfully`,
+      user.id,
+      user.name,
+      user.company,
+      ip,
+      'info',
+      deviceInfo,
+      location
+    );
+
     return res.json({
       success: true,
       token,
@@ -371,32 +384,14 @@ router.post('/login', async (req, res) => {
       }
     });
 
-    // Log Successful Login
-    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
-    const ip = formatIP(req.ip);
-    const location = await getLocation(req.ip);
-
-    await logSystem(
-      'login',
-      'User Login',
-      `User ${user.role} ${user.email} logged in successfully`,
-      user.id,
-      user.name,
-      user.company,
-      ip,
-      'info',
-      deviceInfo,
-      location
-    );
-
   } catch (err) {
-    console.error(err);
+    // console.error(err);
     const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
     const ip = formatIP(req.ip);
     const location = await getLocation(req.ip);
     
-    // res.status(500).json({ success: false, message: 'Server error' });
     if (!res.headersSent) {
+      await logSystem('error', 'Login Failed', `Error: ${err.message}`, null, null, null, ip, 'error', deviceInfo, location);
       return res.status(500).json({ success: false, message: 'Server error' });
     }
   }

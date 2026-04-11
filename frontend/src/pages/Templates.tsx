@@ -585,7 +585,15 @@ export default function Templates() {
     }
 
     if (data.channel === 'whatsapp') {
-        return <WhatsAppPreview data={data.metadata || data} />;
+        let waData;
+        try {
+            waData = typeof (data.metadata || data) === 'string' 
+              ? JSON.parse(data.metadata || data) 
+              : (data.metadata || data);
+        } catch (e) {
+            waData = data.metadata || data;
+        }
+        return <WhatsAppPreview data={waData} />;
     }
 
     if (data.channel === 'voicebot') {
