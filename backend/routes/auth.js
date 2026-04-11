@@ -296,7 +296,7 @@ router.post('/login', async (req, res) => {
     
     // 3. Last Resort: Global Defaults by Role (Only if truly null - absence of settings)
     if (finalPermissions === null) {
-      console.log(`[AUTH] No permissions found for user ${user.email}, applying role defaults for: ${user.role}`);
+      // console.log(`[AUTH] No permissions found for user ${user.email}, applying role defaults for: ${user.role}`);
       if (user.role === 'reseller') {
         finalPermissions = DEFAULT_RESELLER_PERMISSIONS;
       } else if (user.role === 'client' || user.role === 'user') {
@@ -311,7 +311,7 @@ router.post('/login', async (req, res) => {
     }
 
     const compressed = compressPermissions(finalPermissions);
-    console.log(`[AUTH] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`);
+/* console.log(`[AUTH] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`); */
 
     const token = jwt.sign(
       {

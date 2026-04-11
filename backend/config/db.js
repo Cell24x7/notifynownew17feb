@@ -24,7 +24,7 @@ pool.getConnection((err, conn) => {
     console.error(`❌ DB Connection Failed [${process.env.DB_NAME}]:`, err.message);
     dbConnectionError = err.message;
   } else {
-    console.log(`✅ MySQL Connected to Database: ${process.env.DB_NAME}`);
+    // console.log(`✅ MySQL Connected to Database: ${process.env.DB_NAME}`);
     conn.release();
   }
 });

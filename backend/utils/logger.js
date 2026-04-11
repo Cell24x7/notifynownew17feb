@@ -35,7 +35,7 @@ const logSystem = async (type, action, details, userId = null, userName = null, 
         ];
         
         await query(queryStr, params);
-        console.log(`✅ System Log Written: [${type}] ${action}`);
+        // console.log(`✅ System Log Written: [${type}] ${action}`);
     } catch (err) {
         console.error('❌ Logger Failure (Non-Fatal):', err.message);
     }
