@@ -654,7 +654,7 @@ router.get('/logs', authenticateToken, async (req, res) => {
 // WhatsApp Webhook Verification
 router.get('/whatsapp/callback', (req, res) => {
     try {
-        const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "notifynow_wa_token_123";
+        const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "na";
 
         let mode = req.query["hub.mode"];
         let token = req.query["hub.verify_token"];
@@ -662,17 +662,17 @@ router.get('/whatsapp/callback', (req, res) => {
 
         if (mode && token) {
             if (mode === "subscribe" && token === verify_token) {
-                console.log("✅ WHATSAPP WEBHOOK VERIFIED");
+                // console.log("✅ WHATSAPP WEBHOOK VERIFIED");
                 res.status(200).send(challenge);
             } else {
-                console.log("❌ WHATSAPP WEBHOOK VERIFICATION FAILED. Token mismatch.");
+                // console.log("❌ WHATSAPP WEBHOOK VERIFICATION FAILED. Token mismatch.");
                 res.sendStatus(403);
             }
         } else {
             res.status(400).send("Missing parameters");
         }
     } catch (error) {
-        console.error('❌ WhatsApp Webhook GET Error:', error.message);
+        // console.error('❌ WhatsApp Webhook GET Error:', error.message);
         res.status(500).send("Error");
     }
 });
