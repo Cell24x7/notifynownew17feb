@@ -341,6 +341,11 @@ router.post('/login', async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    // Log Successful Login
+    const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
+    const ip = formatIP(req.ip);
+    const location = await getLocation(req.ip);
+
     await logSystem(
       'login',
       'User Login',
@@ -385,7 +390,7 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (err) {
-    // console.error(err);
+    console.error('Login Error:', err);
     const deviceInfo = getDeviceFriendlyName(req.headers['user-agent']);
     const ip = formatIP(req.ip);
     const location = await getLocation(req.ip);

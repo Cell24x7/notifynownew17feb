@@ -100,7 +100,7 @@ router.get('/', authenticate, async (req, res) => {
 
     return res.json({ success: true, user: userWithPermissions });
   } catch (err) {
-    // console.error(err);
+    console.error('Profile Error:', err);
     if (!res.headersSent) {
       return res.status(500).json({ success: false, message: 'Server error' });
     }
