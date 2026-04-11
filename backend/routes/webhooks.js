@@ -669,7 +669,7 @@ router.get('/whatsapp/callback', (req, res) => {
                 res.sendStatus(403);
             }
         } else {
-            res.status(400).send("Missing parameters");
+            res.status(200).send("🚀 WhatsApp Webhook is Live & Active. Verification waiting for Meta parameters.");
         }
     } catch (error) {
         // console.error('❌ WhatsApp Webhook GET Error:', error.message);
