@@ -400,6 +400,20 @@ async function updateSchema() {
                 await connection.execute('ALTER TABLE plans ADD COLUMN voice_price DECIMAL(10,4) DEFAULT 1.50');
             }
 
+            // 💎 PROERO: Liberate channels_enabled from any restrictive legacy constraints
+            console.log('Liberating channels_enabled column from legacy constraints...');
+            try {
+                // Ensure the column is TEXT to handle growing channel lists and remove ENUM/Length limits
+                await connection.execute('ALTER TABLE users MODIFY COLUMN channels_enabled TEXT');
+                
+                // For MySQL 8+, try to drop the specific check constraint if it exists
+                // We attempt this inside a try-catch as the constraint name might vary or not exist
+                await connection.execute(`ALTER TABLE users DROP CHECK channels_enabled`).catch(() => {});
+                await connection.execute(`ALTER TABLE users DROP CONSTRAINT channels_enabled`).catch(() => {});
+            } catch (libError) {
+                console.log('Note: Column already liberated or constraint not found.');
+            }
+
             // Enable voicebot channel for all users who have access to other channels
             console.log('Ensuring voicebot channel is enabled for users...');
             const [users] = await connection.execute('SELECT id, channels_enabled FROM users');
