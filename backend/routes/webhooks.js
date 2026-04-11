@@ -164,11 +164,17 @@ router.post('/dotgo', async (req, res) => {
             else if (et === 'displayed' || et === 'read') finalStatus = 'read';
             else if (et === 'failed') finalStatus = 'failed';
             else finalStatus = et;
-        } else if (decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text)) {
+        } else if (decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text) || decodedData.suggestionResponse || (decodedData.response && decodedData.response.suggestionResponse)) {
             finalStatus = 'received';
         }
 
-        const messageContent = decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text) || null;
+        const messageContent = 
+            decodedData.text || 
+            decodedData.message || 
+            (decodedData.response && decodedData.response.text) || 
+            (decodedData.suggestionResponse && (decodedData.suggestionResponse.text || decodedData.suggestionResponse.postbackData)) ||
+            (decodedData.response && decodedData.response.suggestionResponse && (decodedData.response.suggestionResponse.text || decodedData.response.suggestionResponse.postbackData)) ||
+            null;
         
         // Identify participants
         const rawSender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
@@ -280,6 +286,15 @@ router.post('/dotgo', async (req, res) => {
                 );
                 console.log(`✅ Updated existing webhook_log (ID: ${existing[0].id}) for ${messageId}`);
             } else {
+                let reconstructedContent = messageContent;
+                if (!reconstructedContent && messageId) {
+                    const [orig] = await query(
+                        'SELECT message_content FROM message_logs WHERE message_id = ? UNION SELECT message_content FROM api_message_logs WHERE message_id = ? LIMIT 1',
+                        [messageId, messageId]
+                    );
+                    if (orig.length > 0) reconstructedContent = orig[0].message_content;
+                }
+
                 // INSERT new row as fallback
                 await query(
                     `INSERT INTO webhook_logs 
@@ -287,8 +302,8 @@ router.post('/dotgo', async (req, res) => {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rcs', ?, ?, ?, ?, ?, ?)`,
                     [
                         userId,
-                        cleanSender,
-                        messageContent,
+                        finalStatus === 'received' ? (cleanSender || contactPhone) : 'System',
+                        reconstructedContent,
                         payload.receivedTime || null,
                         contactPhone || null,
                         messageId || null,

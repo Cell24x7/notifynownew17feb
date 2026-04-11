@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Send, X, Zap, FileText, Smile, Paperclip, Download } from 'lucide-react';
+import { Search, Send, X, Zap, FileText, Smile, Paperclip, Download, Check, CheckCheck, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -422,7 +422,7 @@ export default function Chats() {
               className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth bg-[#f0f2f5] dark:bg-[#0b141a] min-h-0 scrollbar-custom"
             >
               <div className="space-y-4">
-                {messages.map((message, index) => {
+                {messages.filter(m => m.message_content && m.message_content.trim() !== '').map((message, index) => {
                   const isSystem = message.sender === 'System';
                   return (
                     <div
@@ -448,6 +448,24 @@ export default function Chats() {
                           <span className="text-[10px] uppercase font-semibold tracking-tight">
                             {formatDistanceToNow(new Date(message.created_at), { addSuffix: false })}
                           </span>
+                          {isSystem && (
+                            <>
+                              {message.status === 'read' || message.status === 'displayed' ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-blue-500" />
+                              ) : message.status === 'delivered' ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-[#667781]" />
+                              ) : message.status === 'failed' ? (
+                                <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5 text-[#667781]" />
+                              )}
+                            </>
+                          )}
+                          {!isSystem && message.type && (
+                            <span className="text-[9px] font-bold opacity-70 ml-1 uppercase">
+                                {message.type}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
