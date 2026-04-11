@@ -185,7 +185,7 @@ router.post('/templates', authenticate, async (req, res) => {
                     const matches = normalizedComp.text.match(/{{(\d+)}}/g);
                     if (matches) {
                         const count = matches.length;
-                        console.log(`[WA-TEMPLATE] 🛠️ Auto-generating examples for ${count} variables in BODY`);
+                        // console.log(`[WA-TEMPLATE] 🛠️ Auto-generating examples for ${count} variables in BODY`);
                         normalizedComp.example = {
                             body_text: [
                                 matches.map((_, i) => `SampleValue ${i+1}`)
@@ -216,8 +216,8 @@ router.post('/templates', authenticate, async (req, res) => {
             })
         };
 
-        console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName}`);
-        console.log(`[WA-TEMPLATE] Payload Sent to Provider: ${JSON.stringify(metaPayload, null, 2)}`);
+        // console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName}`);
+        // console.log(`[WA-TEMPLATE] Payload Sent to Provider: ${JSON.stringify(metaPayload, null, 2)}`);
         
         const response = await axios.post(getTemplatesUrl(config), metaPayload, {
             headers: getHeaders(config)
@@ -420,14 +420,14 @@ router.post('/header-handle/session', authenticate, async (req, res) => {
             return res.status(400).json({ success: false, message: 'file_length and file_type are required' });
         }
 
-        console.log(`📤 Creating Pinbot upload session: length=${file_length}, type=${file_type}`);
+        // console.log(`📤 Creating Pinbot upload session: length=${file_length}, type=${file_type}`);
 
         const response = await axios.post(`${PINBOT_BASE}/app/uploads`, null, {
             headers: { apikey: config.api_key },
             params: { file_length, file_type }
         });
 
-        console.log('✅ Upload session created:', response.data);
+        // console.log('✅ Upload session created:', response.data);
         res.json({ success: true, message: 'Upload session created', data: response.data });
     } catch (error) {
         console.error('❌ Error creating upload session:', error.response?.data || error.message);
@@ -455,13 +455,13 @@ router.post('/header-handle/upload', authenticate, uploadMemory.single('file'), 
         const uploadPath = session_id.startsWith('upload:') ? session_id : `upload:${session_id}`;
         const url = `${PINBOT_BASE}/${uploadPath}${sig ? `?sig=${sig}` : ''}`;
 
-        console.log(`📤 Uploading to Pinbot (raw binary): ${url}`);
-        console.log(`   File: ${req.file.originalname}, Size: ${req.file.size}, MIME: ${req.file.mimetype}`);
+        // console.log(`📤 Uploading to Pinbot (raw binary): ${url}`);
+        // console.log(`   File: ${req.file.originalname}, Size: ${req.file.size}, MIME: ${req.file.mimetype}`);
 
         // CRITICAL: Send raw binary body with the actual file MIME type
         // Pinbot Step 2 requires raw binary (no multipart), with the file's mimetype as Content-Type
         const fileMimeType = req.file.mimetype || 'application/octet-stream';
-        console.log(`   Sending Content-Type: ${fileMimeType} to Pinbot`);
+        // console.log(`   Sending Content-Type: ${fileMimeType} to Pinbot`);
 
         const response = await axios.post(url, req.file.buffer, {
             headers: {
@@ -472,7 +472,7 @@ router.post('/header-handle/upload', authenticate, uploadMemory.single('file'), 
             maxBodyLength: Infinity
         });
 
-        console.log('✅ Pinbot upload response:', response.data);
+        // console.log('✅ Pinbot upload response:', response.data);
 
         // Response contains { h: 'header_handle_value' }
         res.json({
@@ -523,7 +523,7 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
     try {
         if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
         
-        console.log(`[WA-UPLOAD] Received file for user ${req.user.id}: ${req.file.originalname}`);
+        // console.log(`[WA-UPLOAD] Received file for user ${req.user.id}: ${req.file.originalname}`);
         const config = await getWhatsAppConfig(req.user.id);
         
         const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
@@ -532,7 +532,7 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
 
         // If Pinbot user, use the Resumable Upload (Session) flow...
         if (config && config.isPinbot) {
-            console.log(`[WA-UPLOAD] Pinbot user detected. Initiating session-based upload for template handle.`);
+            // console.log(`[WA-UPLOAD] Pinbot user detected. Initiating session-based upload for template handle.`);
             
             try {
                 // Step 1: Create Upload Session
@@ -584,7 +584,7 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
             }
         }
 
-        console.log(`[WA-UPLOAD] Local upload (non-Pinbot) via proxy: ${fileUrl}`);
+        // console.log(`[WA-UPLOAD] Local upload (non-Pinbot) via proxy: ${fileUrl}`);
         res.json({ success: true, url: fileUrl });
     } catch (error) {
         console.error('[WA-UPLOAD] ❌ Fatal Error:', error);
@@ -827,7 +827,7 @@ router.post('/send-campaign', authenticate, async (req, res) => {
                         template_body || null
                     ]
                 );
-                console.log(`✅ Created WhatsApp campaign ${campaignId} for ${contacts.length} contacts`);
+                // console.log(`✅ Created WhatsApp campaign ${campaignId} for ${contacts.length} contacts`);
             } else {
                 await query('UPDATE campaigns SET recipient_count = recipient_count + ? WHERE id = ?', [contacts.length, campaignId]);
             }
@@ -846,7 +846,7 @@ router.post('/send-campaign', authenticate, async (req, res) => {
                     const batch = values.slice(i, i + BATCH_SIZE).map(v => [...v, 'whatsapp']);
                     await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [batch]);
                 }
-                console.log(`🚀 [SuperFast] Ingested ${values.length} contacts for WhatsApp campaign ${campaignId}`);
+                // console.log(`🚀 [SuperFast] Ingested ${values.length} contacts for WhatsApp campaign ${campaignId}`);
             }
         } else if (!campaignId) {
             return res.status(400).json({ success: false, message: 'No contacts provided and no campaign ID' });

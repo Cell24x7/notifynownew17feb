@@ -475,7 +475,7 @@ router.get('/usage-ledger', authenticate, async (req, res) => {
         const countParams = params.slice(2); 
         const countSql = `SELECT COUNT(DISTINCT u.id) as total FROM users u ${whereClause}`;
         
-        console.log('[UsageLedger] Count SQL:', countSql, 'Params:', countParams);
+        // console.log('[UsageLedger] Count SQL:', countSql, 'Params:', countParams);
         const [countResult] = await query(countSql, countParams);
         const totalRecords = countResult[0]?.total || 0;
 
@@ -502,7 +502,7 @@ router.get('/usage-ledger', authenticate, async (req, res) => {
         `;
 
         const finalParams = [...params, limit, offset];
-        console.log('[UsageLedger] Rows SQL Params:', finalParams);
+        // console.log('[UsageLedger] Rows SQL Params:', finalParams);
         
         const [rows] = await query(sql, finalParams);
 

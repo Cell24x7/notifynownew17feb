@@ -138,7 +138,7 @@ router.post('/send-otp', async (req, res) => {
         
         // SMART RESEND: If OTP exists and is NOT expired, and was sent recently, reuse it
         if (users[0].otp && users[0].otp_expiry && new Date() < new Date(users[0].otp_expiry)) {
-          console.log(`[AUTH] Reusing valid OTP for ${target}`);
+          // console.log(`[AUTH] Reusing valid OTP for ${target}`);
           otp = users[0].otp;
           expiry = users[0].otp_expiry;
         }
@@ -157,7 +157,7 @@ router.post('/send-otp', async (req, res) => {
       
       // Also check for existing valid OTP for forgot password
       if (users[0].otp && users[0].otp_expiry && new Date() < new Date(users[0].otp_expiry)) {
-          console.log(`[AUTH] Reusing valid Forgot Password OTP for ${target}`);
+          // console.log(`[AUTH] Reusing valid Forgot Password OTP for ${target}`);
           otp = users[0].otp;
           expiry = users[0].otp_expiry;
       }
@@ -193,17 +193,17 @@ router.post('/send-otp', async (req, res) => {
     [users] = await query(userQuery, userParams);
 
     if (users.length > 0) {
-      console.log(`[AUTH] Sending OTP to ${target} (${type})...`);
+      // console.log(`[AUTH] Sending OTP to ${target} (${type})...`);
       
       // Send the OTP
       try {
         if (type === 'email') {
-          console.log(`[AUTH] Sending Email OTP: ${otp} to ${target}`);
+          // console.log(`[AUTH] Sending Email OTP: ${otp} to ${target}`);
           // Email uses standard .env SMTP settings
           await sendEmail(target, 'Your Verification Code', `Your OTP is ${otp}. It expires in 5 minutes.`, otp);
         } else {
           // Send via Official Internal SMS API
-          console.log(`[AUTH] Sending SMS OTP: ${otp} to ${target} via Internal API...`);
+          // console.log(`[AUTH] Sending SMS OTP: ${otp} to ${target} via Internal API...`);
           const msg = `Dear Customer, Your One Time Password is ${otp} CMT`;
           const templateId = '1007939764982063485';
           const apiKey = 'nn_c44eaf15fad864bdcb6258bf566c39b945fe8de4006470ec';
@@ -214,9 +214,9 @@ router.post('/send-otp', async (req, res) => {
             const currentPort = process.env.PORT || (is_signup ? '5000' : '5050'); 
             const smsUrl = `http://localhost:${currentPort}/api/sms-v1/send?apiKey=${apiKey}&mobile=${target}&message=${encodeURIComponent(msg)}&templateId=${templateId}`;
             
-            console.log(`[AUTH] Hitting internal SMS API: ${smsUrl.replace(/apiKey=[^&]+/, 'apiKey=********')}`);
+            // console.log(`[AUTH] Hitting internal SMS API: ${smsUrl.replace(/apiKey=[^&]+/, 'apiKey=********')}`);
             const response = await axios.get(smsUrl);
-            console.log(`[AUTH] Internal SMS API Response:`, response.data);
+            // console.log(`[AUTH] Internal SMS API Response:`, response.data);
           } catch (internalErr) {
             console.warn(`[AUTH] Internal API failed at port ${process.env.PORT || 'unknown'}, falling back to direct sendService:`, internalErr.message);
             await sendSMS(target, msg, templateId);
@@ -296,7 +296,7 @@ router.post('/login', async (req, res) => {
     
     // 3. Last Resort: Global Defaults by Role (Only if truly null - absence of settings)
     if (finalPermissions === null) {
-      // console.log(`[AUTH] No permissions found for user ${user.email}, applying role defaults for: ${user.role}`);
+      // // console.log(`[AUTH] No permissions found for user ${user.email}, applying role defaults for: ${user.role}`);
       if (user.role === 'reseller') {
         finalPermissions = DEFAULT_RESELLER_PERMISSIONS;
       } else if (user.role === 'client' || user.role === 'user') {
@@ -307,11 +307,11 @@ router.post('/login', async (req, res) => {
         finalPermissions = [];
       }
     } else {
-      console.log(`[AUTH] Using explicit permissions for user ${user.email} (Count: ${finalPermissions.length})`);
+      // console.log(`[AUTH] Using explicit permissions for user ${user.email} (Count: ${finalPermissions.length})`);
     }
 
     const compressed = compressPermissions(finalPermissions);
-/* console.log(`[AUTH] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`); */
+/* // console.log(`[AUTH] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`); */
 
     const token = jwt.sign(
       {
@@ -751,7 +751,7 @@ router.post('/signup', async (req, res) => {
   const normalizedIdentifier = (identifier || '').trim().toLowerCase();
   const trimmedOtp = (otp || '').toString().trim();
 
-  console.log(`[AUTH] Signup - Identifier: ${normalizedIdentifier}, Received OTP: ${trimmedOtp}`);
+  // console.log(`[AUTH] Signup - Identifier: ${normalizedIdentifier}, Received OTP: ${trimmedOtp}`);
 
   if (!normalizedIdentifier || !password || !trimmedOtp) return res.status(400).json({ success: false, message: 'Missing fields' });
 
@@ -763,7 +763,7 @@ router.post('/signup', async (req, res) => {
     }
     const user = rows[0];
 
-    console.log(`[AUTH] Signup - User found: ${user.id}, DB OTP: ${user.otp}, Received: ${trimmedOtp}`);
+    // console.log(`[AUTH] Signup - User found: ${user.id}, DB OTP: ${user.otp}, Received: ${trimmedOtp}`);
 
     if (String(user.otp).trim() !== trimmedOtp) {
       console.warn(`[AUTH] Invalid OTP for ${normalizedIdentifier}: DB has '${user.otp}', received '${trimmedOtp}'`);
@@ -933,7 +933,7 @@ router.put('/update-profile', authenticate, async (req, res) => {
           const isPlaceholder = existingUser.email && existingUser.email.endsWith('@phone.cell24x7.com');
 
           if (isPlaceholder) {
-            console.log(`🔀 Merging placeholder account ${existingUser.id} into main account ${req.user.id}`);
+            // console.log(`🔀 Merging placeholder account ${existingUser.id} into main account ${req.user.id}`);
 
             // 1. Delete the placeholder account to free up the number
             await query('DELETE FROM users WHERE id = ?', [existingUser.id]);
@@ -942,7 +942,7 @@ router.put('/update-profile', authenticate, async (req, res) => {
             updates.push('contact_phone = ?');
             params.push(mobile);
 
-            console.log('✅ Merge complete. Number assigned to main account.');
+            // console.log('✅ Merge complete. Number assigned to main account.');
           } else {
             // It's a REAL account with a real email. Cannot merge automatically.
             return res.status(400).json({ success: false, message: 'Mobile number is already linked to another registered account.' });

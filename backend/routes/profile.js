@@ -13,8 +13,7 @@ const { sendAdminNotification } = require('../utils/emailService');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  console.error('JWT_SECRET missing in profile routes!');
-  process.exit(1);
+  console.error('⚠️ WARNING: JWT_SECRET missing in profile routes! Auth will fail.');
 }
 
 // GET /api/profile
@@ -61,7 +60,7 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     if (finalPermissions === null) {
-      // console.log(`[PROFILE] No permissions for user ${user.email}, applying defaults for: ${user.role}`);
+      // // console.log(`[PROFILE] No permissions for user ${user.email}, applying defaults for: ${user.role}`);
       if (user.role === 'reseller') {
         finalPermissions = [
           { feature: 'Dashboard - View', admin: 1, manager: 1, agent: 1 },
@@ -86,11 +85,11 @@ router.get('/', authenticate, async (req, res) => {
         finalPermissions = [];
       }
     } else {
-      // console.log(`[PROFILE] Using explicit permissions for user ${user.email} (Count: ${finalPermissions.length})`);
+      // // console.log(`[PROFILE] Using explicit permissions for user ${user.email} (Count: ${finalPermissions.length})`);
     }
 
     const compressed = compressPermissions(finalPermissions);
-    // console.log(`[PROFILE] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`);
+    // // console.log(`[PROFILE] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`);
 
     const userWithPermissions = {
       ...user,
