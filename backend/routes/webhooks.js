@@ -666,8 +666,8 @@ router.get('/whatsapp/callback', (req, res) => {
             return res.status(200).send(challenge);
         }
         
-        // Social Proof / Health Check for browser visits
-        res.status(200).json({ status: "active", channel: "whatsapp" });
+        // Ultra-minimal status for browser visits
+        res.status(200).send("Webhook Active");
     } catch (error) {
         res.status(500).send("Error");
     }
