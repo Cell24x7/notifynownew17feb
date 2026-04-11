@@ -23,7 +23,7 @@ const sendEmail = async (to, subject, text, otp = null, template = process.env.E
   const useTemplate = process.env.EMAIL_USE_TEMPLATE === 'true';
 
   if (!emailUser || !emailPass) {
-    console.log(`[DEV MODE] Email to ${to}: ${subject} \n${text}`);
+    // console.log(`[DEV MODE] Email to ${to}: ${subject} \n${text}`);
     return;
   }
 
@@ -49,17 +49,17 @@ const sendEmail = async (to, subject, text, otp = null, template = process.env.E
       params.var1 = otp; // Fallback for some providers
       params.var2 = otp; // Fallback
       params.msg = text; // Fallback for message content
-      console.log(`[EMAIL] Attempting to send OTP Email to ${to} using template: ${template}`);
+      // console.log(`[EMAIL] Attempting to send OTP Email to ${to} using template: ${template}`);
     } else {
-      console.log(`[EMAIL] Attempting to send Regular Email to ${to}`);
+      // console.log(`[EMAIL] Attempting to send Regular Email to ${to}`);
     }
 
     const response = await axios.get(apiUrl, { params, timeout: 10000 });
 
     // Debug logging (masking password)
     const logParams = { ...params, pwd: '****' };
-    console.log(`📧 [EMAIL] Request Params:`, JSON.stringify(logParams));
-    console.log(`📧 [EMAIL] API Response for ${to}:`, response.data);
+    // console.log(`📧 [EMAIL] Request Params:`, JSON.stringify(logParams));
+    // console.log(`📧 [EMAIL] API Response for ${to}:`, response.data);
     
     return response.data;
   } catch (err) {
@@ -137,7 +137,7 @@ const sendAdminNotification = async (user, type) => {
         `;
   }
 
-  console.log(`🔔 Sending ${type} notification to admins...`);
+  // console.log(`🔔 Sending ${type} notification to admins...`);
 
   // Send to all admins in parallel
   await Promise.all(

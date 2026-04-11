@@ -100,7 +100,6 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                     const [gateways] = await query('SELECT * FROM sms_gateways WHERE id = ? AND status = "active"', [users[0].sms_gateway_id]);
                     if (gateways.length > 0) {
                         gateway = gateways[0];
-                        console.log(`[SMS] Using assigned gateway "${gateway.name}" and defaults for user ${userId}`);
                     }
                 }
             }
@@ -111,13 +110,13 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             const [gateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" ORDER BY id ASC LIMIT 1');
             if (gateways.length > 0) {
                 gateway = gateways[0];
-                console.log(`[SMS] Using global default gateway "${gateway.name}"`);
+                // console.log(`[SMS] Using global default gateway "${gateway.name}"`);
             }
         }
 
         // 3. Last fallback: Use .env values with a default URL if no database gateway exists
         if (!gateway) {
-            console.warn('[SMS] No gateways found in database. Using .env fallback.');
+            // console.warn('[SMS] No gateways found in database. Using .env fallback.');
             const user = process.env.SMS_USER;
             const pwd = process.env.SMS_PASSWORD;
             const sender = process.env.SMS_SENDER_ID || 'NOTIFY';
@@ -130,7 +129,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             const msgTypeParam = options.isUnicode ? '2' : '0';
             const url = `${baseUrl}?user=${encodeURIComponent(user)}&pwd=${encodeURIComponent(pwd)}&sender=${encodeURIComponent(sender)}&mobile=${encodeURIComponent(cleanMobile)}&msg=${encodeURIComponent(message)}&mt=${msgTypeParam}`;
             
-            console.log(`[SMS] Sending fallback to ${mobile} (Unicode: ${options.isUnicode})`);
+            // console.log(`[SMS] Sending fallback to ${mobile} (Unicode: ${options.isUnicode})`);
             const response = await axios.get(url, { timeout: 10000 });
             return response.data;
         }
@@ -167,13 +166,13 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             console.warn(`[SMS-WARN] Sending to ${mobile} without Template ID via ${gateway.name}. This may fail in India.`);
         }
 
-        console.log(`[SMS-LOG] Sending to ${mobile} via ${gateway.name}`);
-        console.log(`[SMS-LOG] URL: ${loggedUrl}`);
+        // console.log(`[SMS-LOG] Sending to ${mobile} via ${gateway.name}`);
+        // console.log(`[SMS-LOG] URL: ${loggedUrl}`);
 
         const response = await axios.get(finalUrl, { timeout: 10000 });
         const result = response.data;
         
-        console.log(`[SMS-LOG] Provider Response: ${typeof result === 'object' ? JSON.stringify(result) : String(result).substring(0, 100)}`);
+        // console.log(`[SMS-LOG] Provider Response: ${typeof result === 'object' ? JSON.stringify(result) : String(result).substring(0, 100)}`);
 
         // Basic success check (Most Indian gateways return 'success', 'ok', or a Numeric ID)
         const responseStr = String(result).toLowerCase();
