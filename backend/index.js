@@ -13,13 +13,11 @@ let envFile = '.env';
 
 // FORCE LOCAL: If running locally (no NODE_ENV or development mode), STAY ON .env
 if (process.env.NODE_ENV === 'production') {
-    // Only use production file if explicitly told so by PM2/System
     envFile = '.env.production';
 }
 
-// Fallback: If for some reason we are in production mode but on localhost, force .env
-if (process.env.NODE_ENV === 'production' && (currentPath.includes('C:') || currentPath.includes('Users'))) {
-    // We are on a Windows Local Machine - Force .env
+// Only force .env if we are explicitly in development AND on Windows
+if (process.env.NODE_ENV === 'development' && (currentPath.includes('C:') || currentPath.includes('Users'))) {
     envFile = '.env';
 }
 
@@ -39,18 +37,6 @@ const cors = require('cors');
 const morgan = require('morgan');
 
 const app = express();
-
-// --- PROERO PRODUCTION STABILIZATION ---
-if (process.env.NODE_ENV === 'production') {
-    // Globally silence all console methods that write to stdout/stderr 
-    // to prevent JSON stream corruption in this environment.
-    console.log = () => {};
-    console.info = () => {};
-    console.warn = () => {};
-    console.error = () => {};
-    console.debug = () => {};
-}
-// ----------------------------------------
 
 /* ==================================
    GLOBAL LOGGING & CORS
