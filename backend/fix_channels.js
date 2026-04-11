@@ -14,7 +14,8 @@ async function fixChannels() {
             
             // If it's the recursive monster string, it usually starts with ["["[ or similar
             // We just want the unique channel names
-            const cleanChannels = ["WhatsApp", "SMS", "RCS", "Email", "voicebot"];
+            // Use lowercase to match CampaignCreationStepper.tsx expectations
+            const cleanChannels = ["whatsapp", "sms", "rcs", "email", "voicebot"];
             const jsonValue = JSON.stringify(cleanChannels);
             
             await query('UPDATE users SET channels_enabled = ? WHERE id = ?', [jsonValue, user.id]);
