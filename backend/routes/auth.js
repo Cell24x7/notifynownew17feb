@@ -222,7 +222,7 @@ router.post('/send-otp', async (req, res) => {
             await sendSMS(target, msg, templateId);
           }
         }
-        res.json({ success: true, message: 'OTP sent successfully' });
+        return res.json({ success: true, message: 'OTP sent successfully' });
       } catch (sendErr) {
         console.error(`❌ [AUTH] External Send Error:`, sendErr.message);
         throw sendErr; 
@@ -341,7 +341,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    res.json({
+    return res.json({
       success: true,
       token,
       user: {
@@ -395,9 +395,10 @@ router.post('/login', async (req, res) => {
     const ip = formatIP(req.ip);
     const location = await getLocation(req.ip);
     
-    // Log Login Error
-    await logSystem('error', 'Login Failed', `Error: ${err.message}`, null, null, null, ip, 'error', deviceInfo, location);
-    res.status(500).json({ success: false, message: 'Server error' });
+    // res.status(500).json({ success: false, message: 'Server error' });
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
   }
 });
 

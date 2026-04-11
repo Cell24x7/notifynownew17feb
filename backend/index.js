@@ -25,12 +25,14 @@ if (process.env.NODE_ENV === 'production' && (currentPath.includes('C:') || curr
 
 dotenv.config({ path: path.join(__dirname, envFile) });
 
+/*
 console.log('===================================');
 console.log(`🌍 MODE: ${process.env.NODE_ENV || 'production'}`);
 console.log(`📄 CONFIG: ${envFile}`);
 console.log(`🗄️  DATABASE: ${process.env.DB_NAME}`);
 console.log(`🔌 TARGET PORT: ${process.env.PORT}`);
 console.log('===================================');
+*/
 
 const express = require('express');
 const cors = require('cors');
@@ -42,7 +44,7 @@ const app = express();
    GLOBAL LOGGING & CORS
 ================================== */
 app.use((req, res, next) => {
-    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+    // console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
     next();
 });
 
@@ -77,9 +79,11 @@ startMaintenanceService();
 
 const PORT = process.env.PORT || 5000;
 const httpServer = app.listen(PORT, () => {
+/*
   console.log('===================================');
   console.log(`🚀 Server running on port ${PORT}`);
   console.log('===================================');
+*/
 });
 
 const { Server } = require('socket.io');
@@ -94,10 +98,10 @@ app.use((req, res, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('🔌 Socket connected:', socket.id);
+  // console.log('🔌 Socket connected:', socket.id);
   socket.on('join', (userId) => {
     socket.join(`user_${userId}`);
-    console.log(`👤 User ${userId} joined room`);
+    // console.log(`👤 User ${userId} joined room`);
   });
 });
 
