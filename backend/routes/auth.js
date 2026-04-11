@@ -218,7 +218,7 @@ router.post('/send-otp', async (req, res) => {
             const response = await axios.get(smsUrl);
             // console.log(`[AUTH] Internal SMS API Response:`, response.data);
           } catch (internalErr) {
-            console.warn(`[AUTH] Internal API failed at port ${process.env.PORT || 'unknown'}, falling back to direct sendService:`, internalErr.message);
+            // console.warn(`[AUTH] Internal API failed at port ${process.env.PORT || 'unknown'}, falling back to direct sendService:`, internalErr.message);
             await sendSMS(target, msg, templateId);
           }
         }
@@ -733,7 +733,7 @@ router.post('/verify-otp', async (req, res) => {
     const user = rows[0];
 
     if (String(user.otp).trim() !== trimmedOtp) {
-      console.warn(`[AUTH] Invalid OTP for ${normalizedIdentifier}: DB has '${user.otp}', received '${trimmedOtp}'`);
+      // console.warn(`[AUTH] Invalid OTP for ${normalizedIdentifier}: DB has '${user.otp}', received '${trimmedOtp}'`);
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
     if (new Date() > new Date(user.otp_expiry)) return res.status(400).json({ success: false, message: 'OTP expired' });
@@ -758,7 +758,7 @@ router.post('/signup', async (req, res) => {
   try {
     const [rows] = await query('SELECT * FROM users WHERE LOWER(email) = ? OR contact_phone = ?', [normalizedIdentifier, normalizedIdentifier]);
     if (!rows.length) {
-       console.warn(`[AUTH] Signup User not found for: ${normalizedIdentifier}`);
+       // console.warn(`[AUTH] Signup User not found for: ${normalizedIdentifier}`);
        return res.status(400).json({ success: false, message: 'User not found (OTP not sent?)' });
     }
     const user = rows[0];
@@ -766,7 +766,7 @@ router.post('/signup', async (req, res) => {
     // console.log(`[AUTH] Signup - User found: ${user.id}, DB OTP: ${user.otp}, Received: ${trimmedOtp}`);
 
     if (String(user.otp).trim() !== trimmedOtp) {
-      console.warn(`[AUTH] Invalid OTP for ${normalizedIdentifier}: DB has '${user.otp}', received '${trimmedOtp}'`);
+      // console.warn(`[AUTH] Invalid OTP for ${normalizedIdentifier}: DB has '${user.otp}', received '${trimmedOtp}'`);
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 

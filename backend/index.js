@@ -40,6 +40,18 @@ const morgan = require('morgan');
 
 const app = express();
 
+// --- PROERO PRODUCTION STABILIZATION ---
+if (process.env.NODE_ENV === 'production') {
+    // Globally silence all console methods that write to stdout/stderr 
+    // to prevent JSON stream corruption in this environment.
+    console.log = () => {};
+    console.info = () => {};
+    console.warn = () => {};
+    console.error = () => {};
+    console.debug = () => {};
+}
+// ----------------------------------------
+
 /* ==================================
    GLOBAL LOGGING & CORS
 ================================== */
