@@ -114,7 +114,7 @@ router.get('/team', authenticate, async (req, res) => {
       `SELECT id, name, email, role, department, status, created_at 
        FROM users`
     );
-    res.json({ success: true, users: rows });
+    return res.json({ success: true, users: rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -175,7 +175,7 @@ router.put('/', authenticate, async (req, res) => {
       console.error('Failed to send admin notification:', emailErr);
     }
 
-    res.json({ success: true, user: updated[0] });
+    return res.json({ success: true, user: updated[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Update failed' });
@@ -200,7 +200,7 @@ router.put('/change-password', authenticate, async (req, res) => {
     const hash = await bcrypt.hash(newPassword, 10);
     await query('UPDATE users SET password = ? WHERE id = ?', [hash, req.user.id]);
 
-    res.json({ success: true, message: 'Password updated' });
+    return res.json({ success: true, message: 'Password updated' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -246,7 +246,7 @@ router.put('/change-email', authenticate, async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Email updated successfully',
       token,
@@ -273,7 +273,7 @@ router.put('/api-password', authenticate, async (req, res) => {
     const hash = await bcrypt.hash(apiPassword, 10);
     await query('UPDATE users SET api_password = ? WHERE id = ?', [hash, req.user.id]);
 
-    res.json({ success: true, message: 'API Password updated successfully' });
+    return res.json({ success: true, message: 'API Password updated successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });

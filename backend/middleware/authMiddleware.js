@@ -34,16 +34,16 @@ const authenticate = async (req, res, next) => {
         req.user = decoded;
         next();
     } catch (err) {
-        console.error(`Token verification failed for token starting with ${token.substring(0, 10)}...:`, err.message);
-
         let message = 'Invalid token';
         if (err.name === 'TokenExpiredError') {
             message = 'Session expired. Please login again.';
         } else if (err.name === 'JsonWebTokenError') {
             message = 'Invalid session. Please login again.';
+        } else {
+            console.error(`Token verification failed:`, err.message);
         }
 
-        res.status(401).json({
+        return res.status(401).json({
             success: false,
             message: message,
             error_type: err.name

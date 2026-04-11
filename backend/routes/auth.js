@@ -480,7 +480,7 @@ router.post('/google', async (req, res) => {
 
     await logSystem('login', 'User Google Login', `User ${user.email} logged in via Google`, user.id, user.name, user.company, ip, 'info', deviceInfo, location);
 
-    res.json({
+    return res.json({
       success: true, token,
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
@@ -601,7 +601,7 @@ router.post('/linkedin', async (req, res) => {
 
     await logSystem('login', 'User LinkedIn Login', `User ${user.email} logged in via LinkedIn`, user.id, user.name, user.company, ip, 'info', deviceInfo, location);
 
-    res.json({
+    return res.json({
       success: true, token,
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
@@ -702,7 +702,7 @@ router.post('/facebook', async (req, res) => {
 
     await logSystem('login', 'User Facebook Login', `User ${user.email} logged in via Facebook`, user.id, user.name, user.company, ip, 'info', deviceInfo, location);
 
-    res.json({
+    return res.json({
       success: true, token,
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
@@ -738,7 +738,7 @@ router.post('/verify-otp', async (req, res) => {
     }
     if (new Date() > new Date(user.otp_expiry)) return res.status(400).json({ success: false, message: 'OTP expired' });
 
-    res.json({ success: true, message: 'OTP verified' });
+    return res.json({ success: true, message: 'OTP verified' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -975,7 +975,7 @@ router.put('/update-profile', authenticate, async (req, res) => {
       await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
     }
 
-    res.json({ success: true, message: 'Profile updated' });
+    return res.json({ success: true, message: 'Profile updated' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: req.body.mobile ? 'Failed to update mobile number' : 'Failed to update profile' });
@@ -1020,7 +1020,7 @@ router.get('/me', authenticate, async (req, res) => {
       permissions: compressPermissions(finalPermissions)
     };
 
-    res.json({ success: true, user: userWithPermissions });
+    return res.json({ success: true, user: userWithPermissions });
   } catch (err) {
     res.status(500).json({ success: false });
   }
@@ -1032,7 +1032,7 @@ router.put('/channels', authenticate, async (req, res) => {
   if (!Array.isArray(channels)) return res.status(400).json({ success: false });
   try {
     await query('UPDATE users SET channels_enabled = ? WHERE id = ?', [JSON.stringify(channels), req.user.id]);
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false });
   }
@@ -1052,7 +1052,7 @@ router.get('/users', authenticate, async (req, res) => {
     }
 
     const [rows] = await query(sql, params);
-    res.json({ success: true, users: rows });
+    return res.json({ success: true, users: rows });
   } catch (err) {
     console.error('FETCH USERS ERROR:', err.message);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -1089,7 +1089,7 @@ router.post('/forgot-password', async (req, res) => {
       await sendSMS(identifier, msg);
     }
 
-    res.json({ success: true, message: 'Reset OTP sent' });
+    return res.json({ success: true, message: 'Reset OTP sent' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -1114,7 +1114,7 @@ router.post('/reset-password', async (req, res) => {
     const hash = await bcrypt.hash(newPassword, 10);
     await query('UPDATE users SET password = ?, otp = NULL, otp_expiry = NULL WHERE id = ?', [hash, user.id]);
 
-    res.json({ success: true, message: 'Password reset successful' });
+    return res.json({ success: true, message: 'Password reset successful' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
