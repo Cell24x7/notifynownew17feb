@@ -447,15 +447,26 @@ async function updateSchema() {
             }
 
             // Enable voicebot channel for all users who have access to other channels
-            console.log('Ensuring voicebot channel is enabled for users...');
+            console.log('Ensuring voicebot channel is enabled for users (Idempotent JSON)...');
             const [users] = await connection.execute('SELECT id, channels_enabled FROM users');
             for (const user of users) {
-                let channels = user.channels_enabled || '';
-                const channelList = channels.split(',').map(c => c.trim()).filter(Boolean);
-                if (channelList.length > 0 && !channelList.includes('voicebot')) {
-                    channelList.push('voicebot');
-                    const newChannels = channelList.join(',');
-                    await connection.execute('UPDATE users SET channels_enabled = ? WHERE id = ?', [newChannels, user.id]);
+                let channels = [];
+                try {
+                    const raw = user.channels_enabled || '[]';
+                    channels = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    if (!Array.isArray(channels)) {
+                        channels = String(raw).split(',').map(c => c.trim()).filter(Boolean);
+                    }
+                } catch (e) {
+                    channels = String(user.channels_enabled || '').split(',').map(c => c.trim()).filter(Boolean);
+                }
+
+                // Deduplicate and ensure voicebot exists
+                const channelSet = new Set(channels);
+                if (channelSet.size > 0 && !channelSet.has('voicebot')) {
+                    channelSet.add('voicebot');
+                    const updated = JSON.stringify(Array.from(channelSet));
+                    await connection.execute('UPDATE users SET channels_enabled = ? WHERE id = ?', [updated, user.id]);
                 }
             }
             console.log('✅ AI Voice Bot infrastructure ready.');

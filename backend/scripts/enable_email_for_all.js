@@ -19,9 +19,10 @@ async function enableEmailForAll() {
                 channels = String(user.channels_enabled || '').split(',').map(s => s.trim());
             }
 
-            if (!channels.includes('email')) {
-                channels.push('email');
-                const updated = JSON.stringify(channels);
+            const channelSet = new Set(channels);
+            if (!channelSet.has('email')) {
+                channelSet.add('email');
+                const updated = JSON.stringify(Array.from(channelSet));
                 await query('UPDATE users SET channels_enabled = ? WHERE id = ?', [updated, user.id]);
                 console.log(`✅ User ${user.id} updated with Email support.`);
             }
@@ -41,9 +42,10 @@ async function enableEmailForAll() {
                  channels = String(plan.channels_allowed || '').split(',').map(s => s.trim());
              }
 
-             if (!channels.includes('email')) {
-                 channels.push('email');
-                 const updated = JSON.stringify(channels);
+             const channelSet = new Set(channels);
+             if (!channelSet.has('email')) {
+                 channelSet.add('email');
+                 const updated = JSON.stringify(Array.from(channelSet));
                  await query('UPDATE plans SET channels_allowed = ? WHERE id = ?', [updated, plan.id]);
                  console.log(`✅ Plan ${plan.id} updated with Email support.`);
              }
