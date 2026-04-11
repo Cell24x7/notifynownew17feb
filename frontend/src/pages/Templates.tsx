@@ -584,8 +584,8 @@ export default function Templates() {
         return <EmailPreview data={{ ...data, subject: data.subject || data.metadata?.subject }} />;
     }
 
-    if (data.channel === 'whatsapp' && data.components) {
-        return <WhatsAppPreview components={data.components} />;
+    if (data.channel === 'whatsapp') {
+        return <WhatsAppPreview data={data.metadata || data} />;
     }
 
     if (data.channel === 'voicebot') {
@@ -935,7 +935,6 @@ export default function Templates() {
                            <Input placeholder="e.g. 1107172914970106513" value={smsFormData.temp_id} onChange={(e) => setSmsFormData(p => ({ ...p, temp_id: e.target.value }))} />
                          </div>
                        </div>
-                      {/* Removed PE_ID and HASH_ID fields as they are handled by backend inheritance */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Template Name</Label>
                         <Input placeholder="e.g. SVT_NEW" value={smsFormData.temp_name} onChange={(e) => setSmsFormData(p => ({ ...p, temp_name: e.target.value }))} />
@@ -995,7 +994,7 @@ export default function Templates() {
             {templateStep !== 'channel' && (
               <div className="hidden lg:flex flex-col bg-muted/20 p-4 h-full border-l border-border min-w-[280px] xl:min-w-[320px]">
                 <h3 className="text-center font-bold text-muted-foreground uppercase text-[10px] tracking-widest mb-4">Live Preview</h3>
-                <div className="flex-1 flex flex-col items-center justify-center overflow-y-auto no-scrollbar">{newTemplate.channel === 'whatsapp' ? <WhatsAppPreview data={newTemplate} /> : renderPhonePreview()}</div>
+                <div className="flex-1 flex flex-col items-center justify-center overflow-y-auto no-scrollbar">{renderPhonePreview()}</div>
               </div>
             )}
           </div>

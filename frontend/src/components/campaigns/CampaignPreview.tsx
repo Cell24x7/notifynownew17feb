@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { MessageTemplate } from '@/lib/mockData';
 import { CampaignData } from './CampaignCreationStepper';
-import { Shield, ChevronLeft, MoreVertical, Plus, Smile, Image as ImageIcon, Send, Link, Phone, FileText, Bot, Store } from 'lucide-react';
+import { Shield, ChevronLeft, MoreVertical, Plus, Smile, Image as ImageIcon, Send, Link, Phone, FileText, Bot, Store, Mic, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CampaignPreviewProps {
@@ -62,6 +62,86 @@ export function CampaignPreview({ campaignData, template, variables, csvPreview,
   const meta = (template as any)?.metadata || {};
   const botName = meta.bot_name || meta.brand_name || meta.sender || user?.name || 'Business Account';
   const botLogo = meta.bot_logo || meta.bot_image || null;
+
+  if (campaignData.channel === 'voicebot') {
+    return (
+      <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
+        <div className="w-[280px] sm:w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[3rem] p-3 shadow-2xl relative border-[8px] border-[#1e1e1e] flex flex-col overflow-hidden mx-auto">
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1c1e] to-[#000000] z-0" />
+          
+          {/* Status Bar */}
+          <div className="relative z-10 flex justify-between px-6 pt-4 text-[10px] text-white/70 font-bold">
+            <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <div className="flex gap-1.5 items-center">
+              <div className="w-3 h-2.5 bg-white/20 rounded-sm overflow-hidden flex flex-col justify-end gap-[1px] p-[1px]">
+                  <div className="w-full h-1/2 bg-white" />
+                  <div className="w-full h-1/4 bg-white/50" />
+              </div>
+              <div className="w-4 h-2 bg-white/20 rounded-sm relative">
+                  <div className="absolute left-0 top-0 bottom-0 bg-green-500 rounded-sm w-[80%]" />
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 flex-1 flex flex-col items-center justify-between py-12 px-6">
+            <div className="text-center space-y-4 pt-8">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-600/20 flex items-center justify-center border border-white/10 shadow-2xl mx-auto backdrop-blur-md relative group">
+                <div className="absolute inset-0 rounded-full animate-ping bg-purple-500/10 duration-[3000ms]" />
+                <Mic className="h-10 w-10 text-white animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-white text-xl font-bold tracking-tight">{botName}</h4>
+                <p className="text-purple-400 text-[10px] font-black uppercase tracking-[0.2em]">Calling via AI Bot</p>
+              </div>
+            </div>
+
+            <div className="w-full space-y-8 pb-10">
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex gap-1 items-center h-4">
+                  {[1, 2, 3, 4, 1, 2, 3, 4, 1, 2].map((h, i) => (
+                    <div key={i} 
+                      className="w-1 bg-white/40 rounded-full animate-bounce" 
+                      style={{ height: `${h * 4}px`, animationDelay: `${i * 100}ms` }} 
+                    />
+                  ))}
+                </div>
+                <p className="text-white/40 text-[10px] font-medium uppercase tracking-widest italic animate-pulse">Transcribing in Real-time...</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6">
+                {[
+                  { icon: Mic, label: 'Mute', active: false },
+                  { icon: X, label: 'End', active: true, color: 'bg-rose-500' },
+                  { icon: Phone, label: 'Speaker', active: false },
+                ].map((btn, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <div className={cn(
+                      "w-12 h-12 rounded-full flex items-center justify-center transition-all",
+                      btn.active ? (btn.color || "bg-primary") : "bg-white/10 hover:bg-white/20"
+                    )}>
+                      <btn.icon className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="text-[9px] text-white/60 font-medium uppercase tracking-tighter">{btn.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="absolute bottom-8 left-0 right-0 px-8 z-10">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl">
+                  <p className="text-white/80 text-[11px] leading-relaxed italic text-center">
+                      "{resolvedBody || template?.body || 'Hello! I am your AI assistant...'}"
+                  </p>
+              </div>
+          </div>
+        </div>
+        <div className="mt-4 px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 text-[10px] font-bold uppercase tracking-wider">
+           In-Call Simulation (Mobile)
+        </div>
+      </div>
+    );
+  }
 
   if (campaignData.channel === 'email') {
     return (
