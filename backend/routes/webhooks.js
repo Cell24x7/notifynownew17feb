@@ -646,6 +646,60 @@ router.get('/logs', authenticateToken, async (req, res) => {
     }
 });
 
+// GET /api/webhooks/voice/callback 
+// Simple status receiver
+router.get('/voice/callback', (req, res) => {
+    res.status(200).send("Voice Webhook Active");
+});
+
+// POST /api/webhooks/voice/callback
+// AI Voice Campaign CDR Receiver
+router.post('/voice/callback', async (req, res) => {
+    try {
+        const payload = req.body;
+        console.log('🎙️ Received Voice Webhook:', JSON.stringify(payload));
+
+        const { mobile, status, duration, call_time, disconnect_time, audio_id, campaign_id, user_id } = payload;
+        
+        if (!mobile) return res.status(200).send("OK"); // Meta/Carrier heartbeat
+
+        // Normalize status to our system (sent, delivered, failed)
+        let normalizedStatus = 'sent';
+        if (status?.toLowerCase().includes('success') || status?.toLowerCase() === 'answered') {
+            normalizedStatus = 'delivered';
+        } else if (status?.toLowerCase().includes('failed') || status?.toLowerCase() === 'no-answer') {
+            normalizedStatus = 'failed';
+        }
+
+        // Update logs with call metrics
+        const updateSql = `
+            UPDATE message_logs 
+            SET status = ?, 
+                delivery_time = ?, 
+                extension_count = ?, 
+                failure_reason = ?
+            WHERE recipient = ? AND campaign_id = ?
+            LIMIT 1
+        `;
+
+        const logMsg = `Duration: ${duration || 0}s | Disconnect: ${disconnect_time || 'N/A'}`;
+        
+        await query(updateSql, [
+            normalizedStatus, 
+            new Date(), 
+            duration || 0, // Reuse extension_count as duration
+            logMsg, 
+            mobile.slice(-10), 
+            campaign_id
+        ]);
+
+        res.status(200).send("OK");
+    } catch (err) {
+        console.error('❌ Voice Webhook Error:', err);
+        res.status(500).send("Error");
+    }
+});
+
 // ==========================================
 // WHATSAPP WEBHOOKS
 // ==========================================

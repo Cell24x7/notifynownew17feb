@@ -383,7 +383,9 @@ const sendUniversalMessage = async (item) => {
             
             const options = {
                 retries: meta.retries || 2,
-                interval: meta.retry_interval || meta.interval || 5
+                interval: meta.retry_interval || meta.interval || 5,
+                campaignId: item.campaign_id,
+                userId: item.user_id
             };
 
             const voiceConfig = {

@@ -89,8 +89,12 @@ const sendVoiceCall = async (mobile, audioId, options = {}, config = {}) => {
         const retries = options.retries || 2;
         const interval = options.interval || 5;
 
-        // API URL provided by user
-        const url = `https://voice.cell24x7.com/voiceReceiver/api?user=${user}&pwd=${pwd}&mobile=${cleanMobile}&audio=${audioId}&retries=${retries}&retryinterval=${interval}`;
+        // Build Callback URL
+        const baseSystemUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace('https://', 'http://');
+        const callbackUrl = encodeURIComponent(`${baseSystemUrl}/api/webhooks/voice/callback?campaign_id=${options.campaignId || 'manual'}&user_id=${options.userId || 0}`);
+
+        // API URL updated to include callback
+        const url = `https://voice.cell24x7.com/voiceReceiver/api?user=${user}&pwd=${pwd}&mobile=${cleanMobile}&audio=${audioId}&retries=${retries}&retryinterval=${interval}&callback=${callbackUrl}`;
         
         console.log(`📡 Sending Voice Call to ${cleanMobile}...`);
         console.log(`🔗 URL: ${url}`);
