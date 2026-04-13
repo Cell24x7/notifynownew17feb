@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useBranding } from '@/contexts/BrandingContext';
 
 // ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
 import logo from '@/assets/logo-full.png';
@@ -78,6 +79,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const location = useLocation();
   const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith('/super-admin/reports'));
   const { logout, user } = useAuth();
+  const { settings } = useBranding();
 
   const hasPermission = (feature: string) => {
     // Platform admins always have full access
@@ -119,17 +121,17 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b border-border">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <img src={logo} alt="NotifyNow" className="w-8 h-8 rounded-lg" />
+            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
             <div className="flex flex-col">
-              <span className="font-bold text-sm">NotifyNow</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              <span className="font-bold text-sm leading-tight">{settings?.brand_name || "NotifyNow"}</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
                 {user?.role === 'admin' || user?.role === 'superadmin' ? 'Super Admin' : 'Business Owner'}
               </span>
             </div>
           </div>
         )}
         {collapsed && (
-          <img src={logo} alt="NotifyNow" className="w-8 h-8 rounded-lg" />
+          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
         )}
       </div>
 
