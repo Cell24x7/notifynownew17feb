@@ -150,7 +150,19 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
             alt={settings?.brand_name || "NotifyNow"}
             className="w-8 h-8 rounded-lg object-contain"
           />
-          <span className="font-bold text-xl tracking-tight">{settings?.brand_name || "NotifyNow"}</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-lg tracking-tight leading-none">{settings?.brand_name || "NotifyNow"}</span>
+            {user?.role === 'reseller' && !settings?.brand_name && (
+               <span className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
+                 Reseller Platform
+               </span>
+            )}
+            {user?.role && user.role !== 'user' && user.role !== 'reseller' && (
+               <span className="text-[10px] text-primary uppercase font-bold mt-1">
+                 {user.role} Panel
+               </span>
+            )}
+          </div>
         </div>
 
         {/* <Button

@@ -17,7 +17,15 @@ const authenticate = async (req, res, next) => {
         
         // --- Added Status Check ---
         const { query } = require('../config/db');
-        const [rows] = await query('SELECT status FROM users WHERE id = ?', [decoded.id]);
+        let rows = [];
+        try {
+            const [dbResult] = await query('SELECT status FROM users WHERE id = ?', [decoded.id]);
+            rows = dbResult;
+        } catch (dbErr) {
+            console.error('Database error in authMiddleware:', dbErr.message);
+            // Don't 401 on DB error, let it pass or return 500
+            return res.status(500).json({ success: false, message: 'Internal server status check failed' });
+        }
         
         if (rows.length === 0) {
             return res.status(401).json({ success: false, message: 'User account no longer exists.' });

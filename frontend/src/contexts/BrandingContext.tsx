@@ -30,18 +30,22 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setIsLoading(true);
         try {
             const hostname = window.location.hostname;
+            // Use actual_reseller_id if available, otherwise fallback to domain
+            const resellerId = user?.actual_reseller_id;
+            
             let url = `${API_BASE_URL}/api/resellers/whitelabel?domain=${hostname}`;
-
-            if (user?.actual_reseller_id) {
-                url += `&reseller_id=${user.actual_reseller_id}`;
+            if (resellerId) {
+                url += `&reseller_id=${resellerId}`;
             }
 
+            console.log(`📡 Fetching Branding: [ID: ${resellerId || 'None'}] [Domain: ${hostname}]`);
             const response = await axios.get(url);
 
             if (response.data.success && response.data.settings) {
                 const s = response.data.settings;
                 setSettings(s);
 
+                // Update theme and title
                 const root = document.documentElement;
                 if (s.primary_color) {
                     root.style.setProperty('--primary', s.primary_color);
@@ -56,11 +60,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         favicon.href = s.favicon_url;
                     }
                 }
-            } else if (response.data.success && !response.data.settings) {
+            } else {
                 setSettings(null);
             }
         } catch (err) {
             console.error('Failed to fetch branding settings:', err);
+            setSettings(null);
         } finally {
             setIsLoading(false);
         }

@@ -58,7 +58,7 @@ router.get('/whitelabel', async (req, res) => {
     if (reseller_id) {
       sql += " AND id = ?";
       params.push(reseller_id);
-    } else {
+    } else if (domain) {
       sql += " AND domain = ?";
       params.push(domain);
     }
