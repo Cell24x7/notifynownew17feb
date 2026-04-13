@@ -64,9 +64,9 @@ router.get('/whitelabel', async (req, res) => {
     }
 
     const [rows] = await query(sql + " LIMIT 1", params);
-
+    
+    // Silence log for non-reseller domains (standard visitors to main platform)
     if (rows.length === 0) {
-      console.log(`No active reseller found for domain: ${domain}`);
       return res.json({ success: true, settings: null });
     }
 
