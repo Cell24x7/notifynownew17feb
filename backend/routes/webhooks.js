@@ -659,43 +659,36 @@ router.post('/voice/callback', async (req, res) => {
         const payload = req.body;
         console.log('🎙️ Received Voice Webhook:', JSON.stringify(payload));
 
-        const { mobile, status, duration, call_time, disconnect_time, audio_id, campaign_id, user_id } = payload;
+        const { mobile, status, duration, campaign_id } = payload;
         
-        if (!mobile) return res.status(200).send("OK"); // Meta/Carrier heartbeat
+        if (!mobile) return res.status(200).send("OK");
 
-        // Normalize status to our system (sent, delivered, failed)
-        let normalizedStatus = 'sent';
-        if (status?.toLowerCase().includes('success') || status?.toLowerCase() === 'answered') {
-            normalizedStatus = 'delivered';
-        } else if (status?.toLowerCase().includes('failed') || status?.toLowerCase() === 'no-answer') {
+        // Normalize status
+        let normalizedStatus = 'delivered'; 
+        if (status?.toLowerCase().includes('fail') || status?.toLowerCase() === 'no-answer') {
             normalizedStatus = 'failed';
         }
 
-        // Update logs with call metrics
-        const updateSql = `
-            UPDATE message_logs 
-            SET status = ?, 
-                delivery_time = ?, 
-                extension_count = ?, 
-                failure_reason = ?
-            WHERE recipient = ? AND campaign_id = ?
-            LIMIT 1
-        `;
+        const logMsg = `Duration: ${duration || 0}s | Disconnect: ${payload.disconnect_time || 'N/A'}`;
+        const cleanMobile = mobile.slice(-10);
 
-        const logMsg = `Duration: ${duration || 0}s | Disconnect: ${disconnect_time || 'N/A'}`;
+        // Update BOTH tables to be sure
+        const tables = ['message_logs', 'api_message_logs'];
         
-        await query(updateSql, [
-            normalizedStatus, 
-            new Date(), 
-            duration || 0, // Reuse extension_count as duration
-            logMsg, 
-            mobile.slice(-10), 
-            campaign_id
-        ]);
+        for (const table of tables) {
+            await query(`
+                UPDATE ${table} 
+                SET status = ?, 
+                    delivery_time = NOW(), 
+                    extension_count = ?, 
+                    failure_reason = ?
+                WHERE recipient LIKE ? AND campaign_id = ?
+            `, [normalizedStatus, duration || 0, logMsg, `%${cleanMobile}`, campaign_id]);
+        }
 
         res.status(200).send("OK");
     } catch (err) {
-        console.error('❌ Voice Webhook Error:', err);
+        console.error('❌ Voice Webhook Error:', err.message);
         res.status(500).send("Error");
     }
 });
