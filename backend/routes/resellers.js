@@ -491,6 +491,7 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
     res.json({
       success: true,
       token: impersonateToken,
+      user: payload,
       redirectTo: '/dashboard'
     });
   } catch (err) {
