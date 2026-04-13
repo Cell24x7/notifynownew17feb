@@ -173,7 +173,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             setCampaignData(prev => ({ 
                ...prev, 
                voiceAudioId: data.audioId,
-               voiceAudioFile: file
+               voiceAudioFile: file,
+               templateId: data.audioId,
+               templateName: file.name
             }));
             toast({ 
                title: "Audio Uploaded Successfully", 

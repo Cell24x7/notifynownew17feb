@@ -229,7 +229,7 @@ router.post('/', authenticate, async (req, res) => {
             finalMetadata.retry_interval = voice_interval || 5;
         }
 
-        let savedTemplateId = template_id; // Default
+        let savedTemplateId = template_id || (channel === 'voicebot' ? voice_audio_id : null);
 
         if (channel === 'sms' && template_id) {
             try {
