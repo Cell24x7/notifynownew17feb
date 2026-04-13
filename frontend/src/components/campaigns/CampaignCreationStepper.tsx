@@ -684,6 +684,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          case 1:
             return campaignData.name.trim() !== '' && campaignData.channel;
          case 2: {
+            if (campaignData.channel === 'voicebot') return !!campaignData.voiceAudioId;
             if (!campaignData.templateId) return false;
             // Block if there is a DANGER or WARNING Unicode mismatch for SMS
             if (unicodeMismatch !== null) return false;
@@ -1793,7 +1794,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                   <p className="text-xs text-destructive font-medium animate-pulse">
                      {currentStep === 1 && !campaignData.name.trim() && "Enter campaign name"}
                      {currentStep === 1 && campaignData.name.trim() && !campaignData.channel && "Select channel"}
-                     {currentStep === 2 && !campaignData.templateId && "Select a template"}
+                     {currentStep === 2 && campaignData.channel === 'voicebot' && !campaignData.voiceAudioId && "Upload an audio file"}
+                     {currentStep === 2 && campaignData.channel !== 'voicebot' && !campaignData.templateId && "Select a template"}
                      {currentStep === 3 && campaignData.recipientCount === 0 && "Select contacts"}
                      {currentStep === 5 && campaignData.scheduleType === 'now' && calculateCost() > Number(user?.wallet_balance || 0) && "Insufficient wallet balance"}
                      {currentStep === 5 && campaignData.scheduleType === 'scheduled' && (!campaignData.scheduledDate || !campaignData.scheduledTime) && "Set schedule time"}
