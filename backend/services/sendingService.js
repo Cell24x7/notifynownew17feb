@@ -387,8 +387,8 @@ const sendUniversalMessage = async (item) => {
             };
 
             const voiceConfig = {
-                api_user: item.api_user || "mdsmedia",
-                api_password: item.api_password || "apimdsmedia"
+                api_user: item.api_user || "idpupil2024",
+                api_password: item.api_password || "apipupil2024"
             };
 
             const { sendVoiceCall } = require('./voiceService');
