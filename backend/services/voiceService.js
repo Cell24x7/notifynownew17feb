@@ -10,7 +10,7 @@ const getVoiceAuthToken = async (config) => {
     try {
         const url = 'http://43.242.212.34:2121/file/authenticate';
         const payload = {
-            username: config.api_user || "idpupil2024",
+            username: config.api_user || "Idpupil2024",
             password: config.api_password || "apipupil2024"
         };
         
@@ -82,7 +82,7 @@ const uploadVoiceAudio = async (fileBuffer, fileName, config) => {
  */
 const sendVoiceCall = async (mobile, audioId, options = {}, config = {}) => {
     try {
-        const user = config.api_user || "idpupil2024";
+        const user = config.api_user || "Idpupil2024";
         const pwd = config.api_password || "apipupil2024";
         const cleanMobile = mobile.replace(/\D/g, '').slice(-10); // Ensure 10 digits
         
@@ -91,10 +91,15 @@ const sendVoiceCall = async (mobile, audioId, options = {}, config = {}) => {
 
         // API URL provided by user
         const url = `https://voice.cell24x7.com/voiceReceiver/api?user=${user}&pwd=${pwd}&mobile=${cleanMobile}&audio=${audioId}&retries=${retries}&retryinterval=${interval}`;
+        
+        console.log(`📡 Sending Voice Call to ${cleanMobile}...`);
+        console.log(`🔗 URL: ${url}`);
 
         const response = await axios.get(url);
         
-        // Example response: "Success: 12345" or JSON
+        console.log('📥 Voice Gateway Response:', String(response.data));
+
+        // The gateway often returns text like "Success: 12345"
         const isSuccess = String(response.data).toLowerCase().includes('success') || response.status === 200;
 
         return { 

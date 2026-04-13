@@ -31,7 +31,7 @@ router.post('/upload', authenticate, upload.single('audio_file'), async (req, re
         
         // Fallback to your provided credentials if not explicitly assigned in DB
         const voiceConfig = configs[0]?.api_user ? configs[0] : { 
-            api_user: 'idpupil2024', 
+            api_user: 'Idpupil2024', 
             api_password: 'apipupil2024' 
         };
 
