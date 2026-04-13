@@ -59,6 +59,8 @@ const uploadVoiceAudio = async (fileBuffer, fileName, config) => {
             }
         });
 
+        console.log('🎙️ Voice Upload Response:', JSON.stringify(response.data));
+
         // The API returns the audio ID in the response
         return { 
             success: true, 
