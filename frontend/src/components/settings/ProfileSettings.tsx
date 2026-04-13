@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, User, Building, Phone, Mail, Globe, Save } from 'lucide-react';
-import axios from 'axios';
+import api from '@/config/axios';
 import { API_BASE_URL } from '@/config/api';
 
 export function ProfileSettings() {
@@ -44,10 +44,7 @@ export function ProfileSettings() {
     const fetchResellerBranding = async () => {
         setFetchingBranding(true);
         try {
-            const token = localStorage.getItem('authToken');
-            const res = await axios.get(`${API_BASE_URL}/api/resellers/my-branding`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get(`/api/resellers/my-branding`);
             if (res.data.success) {
                 setProfile(prev => ({
                     ...prev,
@@ -65,24 +62,18 @@ export function ProfileSettings() {
     const handleSave = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('authToken');
-            
             // 1. Update User Profile
-            const profileRes = await axios.put(`${API_BASE_URL}/api/profile`, {
+            const profileRes = await api.put(`/api/profile`, {
                 name: profile.name,
                 company: profile.company,
                 contact_phone: profile.contact_phone
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
 
             // 2. If Reseller, update Branding too
             if (user?.role === 'reseller') {
-                await axios.put(`${API_BASE_URL}/api/resellers/my-branding`, {
+                await api.put(`/api/resellers/my-branding`, {
                     brand_name: profile.brand_name,
                     logo_url: profile.logo_url
-                }, {
-                    headers: { Authorization: `Bearer ${token}` }
                 });
             }
 
