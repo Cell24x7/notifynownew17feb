@@ -325,7 +325,12 @@ export default function Campaigns() {
           : undefined,
         is_unicode: campaignData.isUnicode,
         is_track_link: campaignData.enableTracking,
-        sms_parts: calculateSMSParts(selectedTpl?.body || '', !!campaignData.isUnicode, !!campaignData.enableTracking, Object.keys(campaignData.fieldMapping || {}).length)
+        sms_parts: calculateSMSParts(selectedTpl?.body || '', !!campaignData.isUnicode, !!campaignData.enableTracking, Object.keys(campaignData.fieldMapping || {}).length),
+        // AI Voice specific fields
+        voice_audio_id: campaignData.voiceAudioId,
+        voice_retries: campaignData.voiceRetries,
+        voice_interval: campaignData.voiceInterval,
+        ai_voice_config_id: (user as any)?.ai_voice_config_id
       };
 
       const createRes = await campaignService.createCampaign(campaignPayload);

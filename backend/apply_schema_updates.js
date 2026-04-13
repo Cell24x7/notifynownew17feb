@@ -317,8 +317,8 @@ async function updateSchema() {
                     { name: 'repeat_days', type: 'JSON' },
                     { name: 'end_date', type: 'TIMESTAMP NULL' },
                     { name: 'scheduling_mode', type: 'VARCHAR(50) DEFAULT "once"' },
-                    { name: 'rcs_config_id', type: 'INT DEFAULT NULL' },
-                    { name: 'whatsapp_config_id', type: 'INT DEFAULT NULL' }
+                    { name: 'whatsapp_config_id', type: 'INT DEFAULT NULL' },
+                    { name: 'ai_voice_config_id', type: 'INT DEFAULT NULL' }
                 ]}
             ];
 
@@ -381,6 +381,19 @@ async function updateSchema() {
 
         // 13. AI Voice Bot Infrastructure
         try {
+            console.log('Ensuring voice_configs table exists...');
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS voice_configs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT DEFAULT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    api_user VARCHAR(100) NOT NULL,
+                    api_password VARCHAR(100) NOT NULL,
+                    status ENUM('active', 'inactive') DEFAULT 'active',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
          console.log('🔓 [ConstraintLiberation] Dropping ALL check constraints on users table...');
         // We drop known legacy constraint names and any that look like check constraints for this column
         const [constraints] = await connection.execute(`

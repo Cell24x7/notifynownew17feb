@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { type Channel, type MessageTemplate, audienceSegments } from '@/lib/mockData';
 import { contactService, type Contact } from '@/services/contactService';
 import { campaignService } from '@/services/campaignService';
+import { voiceService } from '@/services/voiceService';
 import { CampaignPreview } from './CampaignPreview';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -59,6 +60,11 @@ export interface CampaignData {
    emailSenderName?: string;
    emailSubject?: string;
    emailAttachment?: File | null;
+   // Voice-specific fields
+   voiceAudioId?: string;
+   voiceRetries?: number;
+   voiceInterval?: number;
+   voiceAudioFile?: File | null;
 }
 
 // Detect if text contains non-GSM characters (Unicode)
@@ -131,12 +137,61 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       isUnicode: false,
       enableTracking: false,
       smsParts: 1,
+      voiceAudioId: '',
+      voiceRetries: 2,
+      voiceInterval: 5,
+      voiceAudioFile: null,
+      emailFromId: '',
+      emailSenderName: '',
+      emailSubject: '',
+      emailAttachment: null
    });
 
    const [selectedAudienceId, setSelectedAudienceId] = useState('');
    const [csvPreview, setCsvPreview] = useState<string[][]>([]);
    const [detectedColumns, setDetectedColumns] = useState<string[]>([]);
    const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+
+   const handleVoiceFileUpload = async (file: File) => {
+      if (!file) return;
+      setIsUploadingVoice(true);
+      
+      const formData = new FormData();
+      formData.append('audio_file', file);
+
+      try {
+         const response = await fetch('/api/voice/upload', {
+            method: 'POST',
+            body: formData,
+            headers: {
+               'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+         });
+         const data = await response.json();
+         if (data.success) {
+            setCampaignData(prev => ({ 
+               ...prev, 
+               voiceAudioId: data.audioId,
+               voiceAudioFile: file
+            }));
+            toast({ 
+               title: "Audio Uploaded Successfully", 
+               description: `Assigned Audio ID: ${data.audioId}` 
+            });
+         } else {
+            throw new Error(data.message);
+         }
+      } catch (err: any) {
+         toast({ 
+            title: "Voice Gateway Error", 
+            description: err.message || "Failed to upload audio to gateway server.", 
+            variant: "destructive" 
+         });
+      } finally {
+         setIsUploadingVoice(false);
+      }
+   };
 
    // Real Contacts State
    const [contacts, setContacts] = useState<Contact[]>([]);
@@ -383,7 +438,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             ...campaignData,
             estimatedCost: calculateCost(),
             whatsapp_config_id: (user as any)?.whatsapp_config_id,
-            rcs_config_id: (user as any)?.rcs_config_id
+            rcs_config_id: (user as any)?.rcs_config_id,
+            ai_voice_config_id: (user as any)?.ai_voice_config_id
          });
       }
    };
@@ -789,7 +845,12 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                            <div className="space-y-4">
                               <div className="space-y-2">
                                  <Label>Template *</Label>
-                                 {filteredTemplates.length > 0 ? (
+                                 {campaignData.channel === 'voicebot' ? (
+                                    <div className="p-4 border border-blue-200 bg-blue-50/50 rounded-lg text-sm text-blue-700 flex items-center gap-2">
+                                       <Sparkles className="h-4 w-4" />
+                                       <span>Static Voice campaign selected. Configure your audio in the settings below.</span>
+                                    </div>
+                                 ) : filteredTemplates.length > 0 ? (
                                     <div className="grid grid-cols-1 gap-3">
                                        {filteredTemplates.map((template) => (
                                           <div
@@ -998,6 +1059,38 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              <span className="text-muted-foreground">({(campaignData.emailAttachment.size / 1024).toFixed(1)} KB)</span>
                                           </div>
                                        )}
+                                    </div>
+                                 </div>
+                              )}
+
+                              {(campaignData.channel === 'voicebot' || campaignData.channel === 'voice') && (
+                                 <div className="p-4 border rounded-xl bg-card space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                    <h3 className="font-medium text-sm">🎙️ Voice Bot Settings</h3>
+                                    <div className="space-y-4">
+                                       <div className="space-y-2">
+                                          <Label className="text-sm font-medium">Upload Audio File (.mp3 / .wav)</Label>
+                                          <div className="flex items-center gap-3">
+                                             <Input type="file" accept="audio/*" className="flex-1" onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleVoiceFileUpload(file);
+                                             }} />
+                                             {isUploadingVoice && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+                                          </div>
+                                       </div>
+                                       <div className="space-y-2">
+                                          <Label className="text-sm font-medium">Audio ID</Label>
+                                          <Input placeholder="e.g. 1130201768974975034" value={campaignData.voiceAudioId || ''} onChange={(e) => setCampaignData({ ...campaignData, voiceAudioId: e.target.value })} />
+                                       </div>
+                                       <div className="grid grid-cols-2 gap-4">
+                                          <div className="space-y-2">
+                                             <Label className="text-sm font-medium">Max Retries</Label>
+                                             <Input type="number" value={campaignData.voiceRetries} onChange={(e) => setCampaignData({ ...campaignData, voiceRetries: parseInt(e.target.value) })} />
+                                          </div>
+                                          <div className="space-y-2">
+                                             <Label className="text-sm font-medium">Interval (Min)</Label>
+                                             <Input type="number" value={campaignData.voiceInterval} onChange={(e) => setCampaignData({ ...campaignData, voiceInterval: parseInt(e.target.value) })} />
+                                          </div>
+                                       </div>
                                     </div>
                                  </div>
                               )}

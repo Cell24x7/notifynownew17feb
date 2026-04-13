@@ -133,6 +133,7 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/whatsapp-configs', require('./routes/whatsappConfigs'));
 app.use('/api/whatsapp-pinbot', require('./routes/whatsappPinbot'));
+app.use('/api/voice', require('./routes/voice'));
 app.use('/api/chatflows', require('./routes/chatflows'));
 app.use('/api/feedbacks', require('./routes/feedbacks'));
 app.use('/api/sms-v1', require('./routes/smsApiV1'));

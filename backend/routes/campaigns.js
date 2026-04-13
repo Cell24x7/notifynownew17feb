@@ -158,7 +158,8 @@ router.post('/', authenticate, async (req, res) => {
             status, scheduled_at, variable_mapping,
             template_metadata, template_body, template_type,
             schedule_type, scheduling_mode, frequency, repeat_days, end_date,
-            rcs_config_id, whatsapp_config_id
+            rcs_config_id, whatsapp_config_id, ai_voice_config_id,
+            voice_audio_id, voice_retries, voice_interval
         } = req.body;
 
         // Validate channel against user profile
@@ -186,7 +187,7 @@ router.post('/', authenticate, async (req, res) => {
 
         if (enabledChannels.length === 0) {
             console.warn(`User ${userId} has no channels enabled. Defaulting to all channels for compatibility.`);
-            enabledChannels = ['whatsapp', 'sms', 'rcs'];
+            enabledChannels = ['whatsapp', 'sms', 'rcs', 'voicebot'];
             // return res.status(403).json({
             //     success: false,
             //     message: 'No channels are enabled for your account. Please contact admin or enable channels in Settings.'
@@ -222,6 +223,12 @@ router.post('/', authenticate, async (req, res) => {
         finalMetadata.is_track_link = req.body.is_track_link || false;
         finalMetadata.sms_parts = req.body.sms_parts || 1;
 
+        if (channel === 'voicebot' || channel === 'voice') {
+            finalMetadata.audioId = voice_audio_id || template_id;
+            finalMetadata.retries = voice_retries || 2;
+            finalMetadata.retry_interval = voice_interval || 5;
+        }
+
         let savedTemplateId = template_id; // Default
 
         if (channel === 'sms' && template_id) {
@@ -250,17 +257,18 @@ router.post('/', authenticate, async (req, res) => {
             }
         }
 
-        const [userConfigs] = await query('SELECT rcs_config_id, whatsapp_config_id FROM users WHERE id = ?', [userId]);
+        const [userConfigs] = await query('SELECT rcs_config_id, whatsapp_config_id, ai_voice_config_id FROM users WHERE id = ?', [userId]);
         const userRcsConfigId = userConfigs[0]?.rcs_config_id || null;
         const userWaConfigId = userConfigs[0]?.whatsapp_config_id || null;
+        const userVoiceConfigId = userConfigs[0]?.ai_voice_config_id || null;
 
         await query(
             `INSERT INTO campaigns 
       (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
        scheduled_at, variable_mapping, template_metadata, template_body, template_type,
        schedule_type, scheduling_mode, frequency, repeat_days, end_date, next_run_at,
-       rcs_config_id, whatsapp_config_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       rcs_config_id, whatsapp_config_id, ai_voice_config_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 campaignId, userId, name, channel, savedTemplateId, templateName,
                 audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
@@ -275,8 +283,9 @@ router.post('/', authenticate, async (req, res) => {
                 end_date || null,
                 nextRunAt,
                 rcs_config_id || userRcsConfigId,
-                whatsapp_config_id || userWaConfigId
-            ]
+                whatsapp_config_id || userWaConfigId,
+                ai_voice_config_id || userVoiceConfigId
+             ]
         );
 
         console.log(`✅ Campaign ${campaignId} created for user ${userId}. Template: ${templateName}. Schedule: ${schedule_type} (${scheduling_mode})`);

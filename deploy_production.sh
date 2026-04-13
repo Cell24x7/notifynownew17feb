@@ -128,6 +128,7 @@ NODE_ENV=production node migrate_reports.js || true
 NODE_ENV=production node scripts/fix_pricing_precision.js || true
 NODE_ENV=production node scripts/enable_email_for_all.js || true
 log "🎙️  Deploying AI Voice Bot Infrastructure..."
+NODE_ENV=production node scripts/voice_bot_infrastructure.js || true
 NODE_ENV=production node apply_schema_updates.js || true
 
 ok "Database schema and environment are synced for $ENV_DESC."

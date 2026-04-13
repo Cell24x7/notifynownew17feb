@@ -47,6 +47,7 @@ const channelsList = [
   { id: 'whatsapp', name: 'WhatsApp Business', icon: MessageSquare, color: 'text-green-500', connected: false },
   { id: 'sms', name: 'SMS Gateway', icon: Phone, color: 'text-blue-500', connected: false },
   { id: 'rcs', name: 'RCS Messaging', icon: Smartphone, color: 'text-purple-500', connected: false },
+  { id: 'voicebot', name: 'AI Voice Bot', icon: Phone, color: 'text-red-500', connected: false },
 ];
 
 export default function Settings() {
@@ -264,6 +265,25 @@ export default function Settings() {
                 onCancel={() => setShowSMSConfig(false)}
               />
             </div>
+          ) : showVoiceBotConfig ? (
+            <div className="space-y-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowVoiceBotConfig(false)}
+                className="mb-4"
+              >
+                ← Back to Channels
+              </Button>
+              <VoiceBotConfiguration 
+                onSave={() => {
+                  setChannels(channels.map(c => 
+                    c.id === 'voicebot' ? { ...c, connected: true } : c
+                  ));
+                  setShowVoiceBotConfig(false);
+                }}
+                onCancel={() => setShowVoiceBotConfig(false)}
+              />
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {channels.map((channel) => (
@@ -321,6 +341,8 @@ export default function Settings() {
                               setShowRCSConfig(true);
                             } else if (channel.id === 'whatsapp' && !channel.connected) {
                               setShowWhatsAppConfig(true);
+                            } else if (channel.id === 'voicebot' && !channel.connected) {
+                              setShowVoiceBotConfig(true);
                             } else {
                               handleChannelToggle(channel.id);
                             }
@@ -340,6 +362,8 @@ export default function Settings() {
                               setShowSMSConfig(true);
                             } else if (channel.id === 'whatsapp') {
                               setShowWhatsAppConfig(true);
+                            } else if (channel.id === 'voicebot') {
+                              setShowVoiceBotConfig(true);
                             } else {
                               toast({
                                 title: 'Configure ' + channel.name,

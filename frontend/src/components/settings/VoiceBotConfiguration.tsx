@@ -35,8 +35,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface VoiceBotConfig {
   // Provider Settings
   providerType: string;
-  apiKey: string;
-  apiSecret: string;
+  apiUser: string;
+  apiPassword: string;
   
   // Phone Settings
   phoneNumber: string;
@@ -75,9 +75,9 @@ export function VoiceBotConfiguration({ onSave, onCancel }: VoiceBotConfiguratio
   const [showApiSecret, setShowApiSecret] = useState(false);
   
   const [config, setConfig] = useState<VoiceBotConfig>({
-    providerType: 'twilio',
-    apiKey: '',
-    apiSecret: '',
+    providerType: 'cell24x7',
+    apiUser: '',
+    apiPassword: '',
     phoneNumber: '',
     callerId: '',
     voiceId: 'alloy',
@@ -105,7 +105,7 @@ export function VoiceBotConfiguration({ onSave, onCancel }: VoiceBotConfiguratio
   };
 
   const handleTestConnection = async () => {
-    if (!config.apiKey || !config.apiSecret) {
+    if (!config.apiUser || !config.apiPassword) {
       toast({
         title: 'Missing Configuration',
         description: 'Please fill in API credentials before testing.',
@@ -148,21 +148,49 @@ export function VoiceBotConfiguration({ onSave, onCancel }: VoiceBotConfiguratio
     });
   };
 
-  const handleSave = () => {
-    if (!config.apiKey || !config.phoneNumber) {
+  const handleSave = async () => {
+    if (!config.apiUser || !config.apiPassword) {
       toast({
         title: 'Missing Configuration',
-        description: 'Please fill in required API and phone settings.',
+        description: 'Please fill in required API settings.',
         variant: 'destructive',
       });
       return;
     }
 
-    onSave?.(config);
-    toast({
-      title: '✅ Voice BOT Channel activated',
-      description: 'Voice BOT is now ready to use.',
-    });
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/voice/configs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: config.apiUser,
+          api_user: config.apiUser,
+          api_password: config.apiPassword,
+          status: 'active'
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        onSave?.(config);
+        toast({
+          title: '✅ Voice BOT Channel activated',
+          description: 'Voice BOT is now ready to use.',
+        });
+      } else {
+        throw new Error(data.message || 'Failed to save config');
+      }
+    } catch (err: any) {
+      console.error('Save config error:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to preserve settings.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const voiceOptions = [
@@ -210,10 +238,10 @@ export function VoiceBotConfiguration({ onSave, onCancel }: VoiceBotConfiguratio
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="cell24x7">Cell24x7/mdsmedia</SelectItem>
                   <SelectItem value="twilio">Twilio</SelectItem>
                   <SelectItem value="vonage">Vonage (Nexmo)</SelectItem>
                   <SelectItem value="plivo">Plivo</SelectItem>
-                  <SelectItem value="bandwidth">Bandwidth</SelectItem>
                   <SelectItem value="telnyx">Telnyx</SelectItem>
                 </SelectContent>
               </Select>
@@ -221,34 +249,22 @@ export function VoiceBotConfiguration({ onSave, onCancel }: VoiceBotConfiguratio
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>API Key / Account SID *</Label>
-                <div className="relative">
-                  <Input 
-                    type={showApiKey ? 'text' : 'password'}
-                    placeholder="Enter API key"
-                    value={config.apiKey}
-                    onChange={(e) => setConfig({...config, apiKey: e.target.value})}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
+                <Label>API User *</Label>
+                <Input 
+                  placeholder="Enter API User"
+                  value={config.apiUser}
+                  onChange={(e) => setConfig({...config, apiUser: e.target.value})}
+                />
               </div>
               
               <div className="space-y-2">
-                <Label>API Secret / Auth Token *</Label>
+                <Label>API Password *</Label>
                 <div className="relative">
                   <Input 
                     type={showApiSecret ? 'text' : 'password'}
                     placeholder="Enter API secret"
-                    value={config.apiSecret}
-                    onChange={(e) => setConfig({...config, apiSecret: e.target.value})}
+                    value={config.apiPassword}
+                    onChange={(e) => setConfig({...config, apiPassword: e.target.value})}
                   />
                   <Button
                     type="button"

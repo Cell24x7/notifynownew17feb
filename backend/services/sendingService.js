@@ -375,6 +375,26 @@ const sendUniversalMessage = async (item) => {
                 error: smsResult.error 
             };
         }
+        else if (channelParsed === 'voicebot' || channelParsed === 'voice') {
+            const meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata || '{}') : (item.template_metadata || {});
+            
+            // audioId can be stored in template_id or passed via body
+            const audioId = item.template_id || meta.audioId || meta.audio_id || item.template_body;
+            
+            const options = {
+                retries: meta.retries || 2,
+                interval: meta.retry_interval || meta.interval || 5
+            };
+
+            const voiceConfig = {
+                api_user: item.api_user || "mdsmedia",
+                api_password: item.api_password || "apimdsmedia"
+            };
+
+            const { sendVoiceCall } = require('./voiceService');
+            result = await sendVoiceCall(item.mobile, audioId, options, voiceConfig);
+            result.processedMessage = `Voice Call (Audio ID: ${audioId})`;
+        }
 
         return result;
     } catch (err) {
