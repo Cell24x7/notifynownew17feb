@@ -32,10 +32,13 @@ export function ProfileSettings() {
                 name: user.name,
                 company: user.company || '',
                 contact_phone: user.contact_phone || '',
-                email: user.email
+                email: user.email,
+                brand_name: user.reseller_brand_name || prev.brand_name,
+                logo_url: user.reseller_logo_url || prev.logo_url
             }));
 
-            if (user.role === 'reseller') {
+            // Optional: fallback fetch if not in profile
+            if (user.role === 'reseller' && (!user.reseller_brand_name)) {
                 fetchResellerBranding();
             }
         }
@@ -45,11 +48,11 @@ export function ProfileSettings() {
         setFetchingBranding(true);
         try {
             const res = await api.get(`/api/resellers/my-branding`);
-            if (res.data.success) {
+            if (res.data.success && res.data.settings) {
                 setProfile(prev => ({
                     ...prev,
-                    brand_name: res.data.branding.brand_name || '',
-                    logo_url: res.data.branding.logo_url || ''
+                    brand_name: res.data.settings.brand_name || '',
+                    logo_url: res.data.settings.logo_url || ''
                 }));
             }
         } catch (err) {
