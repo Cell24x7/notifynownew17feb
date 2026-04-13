@@ -10,8 +10,8 @@ const getVoiceAuthToken = async (config) => {
     try {
         const url = 'http://43.242.212.34:2121/file/authenticate';
         const payload = {
-            username: config.api_user || "mdsmedia",
-            password: config.api_password || "apimdsmedia"
+            username: config.api_user || "idpupil2024",
+            password: config.api_password || "apipupil2024"
         };
         
         console.log(`🎙️ Attempting Voice Auth for user: ${payload.username} at ${url}`);
@@ -80,8 +80,8 @@ const uploadVoiceAudio = async (fileBuffer, fileName, config) => {
  */
 const sendVoiceCall = async (mobile, audioId, options = {}, config = {}) => {
     try {
-        const user = config.api_user || "mdsmedia";
-        const pwd = config.api_password || "apimdsmedia";
+        const user = config.api_user || "idpupil2024";
+        const pwd = config.api_password || "apipupil2024";
         const cleanMobile = mobile.replace(/\D/g, '').slice(-10); // Ensure 10 digits
         
         const retries = options.retries || 2;

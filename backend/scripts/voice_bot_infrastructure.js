@@ -73,12 +73,12 @@ async function initVoiceInfrastructure() {
         }
         
         console.log('--- Phase 4: Inserting default system gateway ---');
-        const [existing] = await connection.execute('SELECT id FROM voice_configs WHERE api_user = "mdsmedia" LIMIT 1');
+        const [existing] = await connection.execute('SELECT id FROM voice_configs WHERE api_user = "idpupil2024" LIMIT 1');
         if (existing.length === 0) {
-            console.log('Inserting default mdsmedia credentials...');
+            console.log('Inserting default idpupil2024 credentials...');
             await connection.execute(
                 'INSERT INTO voice_configs (name, api_user, api_password, status) VALUES (?, ?, ?, ?)',
-                ['Default System Gateway', 'mdsmedia', 'apimdsmedia', 'active']
+                ['Default System Gateway', 'idpupil2024', 'apipupil2024', 'active']
             );
         }
 
