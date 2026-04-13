@@ -70,7 +70,9 @@ router.get('/whitelabel', async (req, res) => {
       return res.json({ success: true, settings: null });
     }
 
-    res.json({ success: true, settings: rows[0] });
+    const settings = rows[0];
+    console.log(`✨ BRANDING FOUND: ${settings.brand_name} (ID: ${reseller_id || 'By Domain'})`);
+    res.json({ success: true, settings });
   } catch (err) {
     console.error('WHITELABEL FETCH ERROR:', err.message);
     res.status(500).json({ success: false, message: 'Internal server error' });
