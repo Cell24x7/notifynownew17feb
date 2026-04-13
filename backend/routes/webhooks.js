@@ -680,10 +680,9 @@ router.post('/voice/callback', async (req, res) => {
                 UPDATE ${table} 
                 SET status = ?, 
                     delivery_time = NOW(), 
-                    extension_count = ?, 
                     failure_reason = ?
                 WHERE recipient LIKE ? AND campaign_id = ?
-            `, [normalizedStatus, duration || 0, logMsg, `%${cleanMobile}`, campaign_id]);
+            `, [normalizedStatus, logMsg, `%${cleanMobile}`, campaign_id]);
         }
 
         res.status(200).send("OK");
