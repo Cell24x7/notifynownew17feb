@@ -9,13 +9,30 @@ require('dotenv').config();
 const getVoiceAuthToken = async (config) => {
     try {
         const url = 'http://43.242.212.34:2121/file/authenticate';
-        const response = await axios.post(url, {
+        const payload = {
             username: config.api_user || "mdsmedia",
             password: config.api_password || "apimdsmedia"
-        });
-        return response.data?.token || response.data?.accessToken || null;
+        };
+        
+        console.log(`🎙️ Attempting Voice Auth for user: ${payload.username} at ${url}`);
+        
+        const response = await axios.post(url, payload);
+        const token = response.data?.token || response.data?.accessToken || null;
+        
+        if (token) {
+            console.log(`✅ Voice Auth Success for: ${payload.username}`);
+        } else {
+            console.warn(`⚠️ No token found in Voice Auth response for: ${payload.username}`);
+            console.log('Response body:', JSON.stringify(response.data));
+        }
+        
+        return token;
     } catch (error) {
         console.error('❌ Voice Auth Error:', error.message);
+        if (error.response) {
+            console.error('Error Response Data:', JSON.stringify(error.response.data));
+            console.error('Error Status:', error.response.status);
+        }
         return null;
     }
 };
