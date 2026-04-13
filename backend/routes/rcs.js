@@ -713,7 +713,16 @@ const handleRcsTemplateCreate = async (req, res) => {
         const name = req.body.name || req.query.name;
         const type = req.body.type || req.query.type || 'text_message'; // text_message, rich_card, carousel
         const body = req.body.body || req.body.textMessageContent || req.query.body;
-        const buttons = req.body.buttons || req.body.suggestions || [];
+        let buttons = req.body.buttons || req.body.suggestions || [];
+        if (typeof buttons === 'string') {
+            try { buttons = JSON.parse(buttons); } catch(e) { buttons = []; }
+        }
+
+        let carouselList = req.body.carouselList || [];
+        if (typeof carouselList === 'string') {
+            try { carouselList = JSON.parse(carouselList); } catch(e) { carouselList = []; }
+        }
+
         const mediaUrl = req.body.mediaUrl || req.query.mediaUrl;
         const cardTitle = req.body.cardTitle || req.query.cardTitle;
         const fallbackText = req.body.fallbackText || req.query.fallbackText;
@@ -750,6 +759,7 @@ const handleRcsTemplateCreate = async (req, res) => {
         
         // Prepare template data for submitDotgoTemplate
         const templateData = {
+            ...req.body, // Spread everything to capture carouselList, orientation, etc.
             name,
             type,
             body,
@@ -762,11 +772,15 @@ const handleRcsTemplateCreate = async (req, res) => {
                 mediaUrl,
                 cardTitle,
                 cardDescription: body,
-                buttons
+                buttons,
+                carouselList: carouselList || [],
+                orientation: req.body.orientation || 'VERTICAL',
+                height: req.body.height || 'SHORT_HEIGHT',
+                width: req.body.width || 'MEDIUM_WIDTH'
             }
         };
 
-        const result = await submitDotgoTemplate(configs[0], templateData, []);
+        const result = await submitDotgoTemplate(configs[0], templateData, req.files || []);
 
         if (result.success) {
             // Also insert into local message_templates for visibility in UI
@@ -810,7 +824,7 @@ const handleRcsTemplateCreate = async (req, res) => {
     }
 };
 
-router.post('/templates/create', handleRcsTemplateCreate);
+router.post('/templates/create', upload.array('multimedia_files'), handleRcsTemplateCreate);
 
 /**
  * GET & POST /api/rcs/send
