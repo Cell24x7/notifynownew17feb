@@ -299,7 +299,7 @@ export default function Auth() {
         <div className="w-full lg:w-[50%] bg-[#0052cc] p-6 lg:p-12 flex flex-col relative overflow-hidden shrink-0 h-auto lg:h-screen lg:sticky lg:top-0">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-4 lg:mb-8 relative z-10">
-            <img src={logo} alt="Logo" className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg shadow-lg" />
+            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "Logo"} className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg shadow-lg object-contain" />
             <span className="text-base lg:text-lg font-black text-white tracking-tight">{settings?.brand_name || "NotifyNow"}</span>
           </div>
 
@@ -309,44 +309,59 @@ export default function Auth() {
               <span className="absolute inset-0 bg-[#34D399] rounded-full animate-ping"></span>
               <span className="relative block w-1 h-1 bg-[#34D399] rounded-full"></span>
             </div>
-            Go Live Today : FREE WhatsApp Business API
+            Intelligent Business Messaging Solution
           </div>
 
           {/* Main Titles */}
           <div className="flex-grow flex flex-col justify-center relative z-10 mb-6 lg:mb-0">
             <h1 className="text-xl lg:text-3xl font-extrabold text-white leading-tight mb-2">
-              Intelligent Messaging Across<br />
-              <span className="text-white">SMS | </span>
-              <span className="text-[#34D399]">WhatsApp</span>
-              <span className="text-white"> | RCS</span>
+              Scale Your Business Conversations<br />
+              <span className="text-white">With </span>
+              <span className="text-[#34D399]">Smart</span>
+              <span className="text-white"> Automation</span>
             </h1>
 
             <p className="text-xs lg:text-base font-bold text-white mb-2">
-              Drive Business Growth with <span className="text-[#34D399]">AI-Powered</span> Conversations
+              Driven by <span className="text-[#34D399]">AI-Powered</span> Engagement
             </p>
 
             <p className="text-[10px] lg:text-xs text-blue-50/80 max-w-sm mb-4 leading-relaxed">
-              Engage customers faster with official WhatsApp API, 
-              bulk campaigns, and seamless automations in one powerful platform.
+              Engage customers faster with official API integrations, 
+              bulk campaigns, and seamless automations on {settings?.brand_name || "our platform"}.
             </p>
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap gap-2 mb-2">
-              <a
-                href="tel:+919892975484"
-                className="px-4 py-2 rounded-xl bg-[#00C853] text-white font-black text-[10px] shadow-lg hover:bg-[#00B248] transition-all flex items-center gap-2"
-              >
-                <Phone className="w-3.5 h-3.5 fill-white text-white" />
-                Call Now
-              </a>
+              {settings?.support_phone && (
+                <a
+                  href={`tel:${settings.support_phone}`}
+                  className="px-4 py-2 rounded-xl bg-[#00C853] text-white font-black text-[10px] shadow-lg hover:bg-[#00B248] transition-all flex items-center gap-2"
+                >
+                  <Phone className="w-3.5 h-3.5 fill-white text-white" />
+                  Support: {settings.support_phone}
+                </a>
+              )}
 
-              <a
-                href="mailto:notify@notifynow.in"
-                className="px-4 py-2 rounded-xl bg-white text-[#0052cc] font-black text-[10px] shadow-lg hover:bg-blue-50 transition-all flex items-center gap-2"
-              >
-                <Mail className="w-3.5 h-3.5" />
-                Email Now
-              </a>
+              {settings?.support_email && (
+                <a
+                  href={`mailto:${settings.support_email}`}
+                  className="px-4 py-2 rounded-xl bg-white text-[#0052cc] font-black text-[10px] shadow-lg hover:bg-blue-50 transition-all flex items-center gap-2"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Email Support
+                </a>
+              )}
+              
+              {!settings?.support_phone && !settings?.support_email && (
+                 <>
+                  <a href="tel:+919892975484" className="px-4 py-2 rounded-xl bg-[#00C853] text-white font-black text-[10px] shadow-lg hover:bg-[#00B248] transition-all flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 fill-white text-white" /> Call Now
+                  </a>
+                  <a href="mailto:notify@notifynow.in" className="px-4 py-2 rounded-xl bg-white text-[#0052cc] font-black text-[10px] shadow-lg hover:bg-blue-50 transition-all flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5" /> Email Now
+                  </a>
+                 </>
+              )}
             </div>
           </div>
 
