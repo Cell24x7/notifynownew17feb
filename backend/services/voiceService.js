@@ -61,10 +61,10 @@ const uploadVoiceAudio = async (fileBuffer, fileName, config) => {
 
         console.log('🎙️ Voice Upload Response:', JSON.stringify(response.data));
 
-        // The API returns the audio ID in the response
+        // The API returns the audio ID in the "data" field
         return { 
             success: true, 
-            audioId: response.data?.audioId || response.data?.id || response.data?.fileId,
+            audioId: response.data?.data || response.data?.audioId || response.data?.id,
             raw: response.data 
         };
     } catch (error) {
