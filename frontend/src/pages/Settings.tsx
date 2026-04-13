@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Plus, Mail, Bot, Settings2, Globe, Lock, CreditCard } from 'lucide-react';
+import { MessageSquare, Phone, Smartphone, Instagram, Facebook, Plus, Mail, Bot, Settings2, Globe, Lock, CreditCard, User } from 'lucide-react';
 import UserPlans from './UserPlans';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +27,7 @@ import { EmailConfiguration } from '@/components/settings/EmailConfiguration';
 import { VoiceBotConfiguration } from '@/components/settings/VoiceBotConfiguration';
 import { LanguageSettings } from '@/components/settings/LanguageSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
 
 interface ChannelConfig {
   smsChannelName?: string;
@@ -184,6 +185,10 @@ export default function Settings() {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 md:space-y-6">
         <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
           <TabsList className="inline-flex w-auto min-w-full md:w-auto md:min-w-0 gap-1">
+            <TabsTrigger value="profile" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
+              <User className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Profile</span>
+            </TabsTrigger>
             <TabsTrigger value="channels" className="gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3">
               <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Channels</span>
@@ -203,6 +208,11 @@ export default function Settings() {
             </TabsTrigger>
           </TabsList>
         </div>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile">
+          <ProfileSettings />
+        </TabsContent>
 
         {/* Channels Tab */}
         <TabsContent value="channels" className="space-y-4">

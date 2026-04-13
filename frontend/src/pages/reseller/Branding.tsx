@@ -7,9 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Globe, Palette, Mail, Phone, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '@/config/api';
+import { useBranding } from '@/contexts/BrandingContext';
 
 export default function ResellerBranding() {
     const { toast } = useToast();
+    const { refreshBranding } = useBranding();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [settings, setSettings] = useState({
@@ -58,8 +60,8 @@ export default function ResellerBranding() {
 
             if (res.data.success) {
                 toast({ title: 'Success', description: 'Branding settings updated successfully!' });
-                // Refresh page to apply changes (logo etc)
-                window.location.reload();
+                // Refresh context to apply changes (logo, title etc)
+                await refreshBranding();
             }
         } catch (err: any) {
             toast({
