@@ -8,33 +8,42 @@ const { deductSingleMessageCredit } = require('../services/walletService');
  * Enhanced Authentication Middleware: Support Headers, Query, and Body
  */
 const authenticateApiKey = async (req, res, next) => {
-    // Support multiple casing for apiKey
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey || req.body.apiKey || req.query.apikey || req.body.apikey;
-
-    if (!apiKey) {
-        console.warn(`[API-AUTH] Rejected: No API Key provided at ${req.method} ${req.url}`);
-        return res.status(401).json({ success: false, message: 'API Key is required. Please provide it as apiKey query parameter or x-api-key header.' });
-    }
+    const params = { ...req.query, ...req.body };
+    const apiKey = req.headers['x-api-key'] || params.apiKey || params.apikey;
+    const username = params.user || params.username;
+    const password = params.pwd || params.password;
 
     try {
-        const [users] = await query('SELECT id, name, company, role, status FROM users WHERE api_key = ?', [apiKey]);
-        
-        if (users.length === 0) {
-            console.warn(`[API-AUTH] Invalid Key: ${apiKey.substring(0, 8)}...`);
-            return res.status(403).json({ success: false, message: 'Invalid API Key' });
+        let userRecord = null;
+
+        if (apiKey) {
+            const [users] = await query('SELECT id, name, company, role, status FROM users WHERE api_key = ?', [apiKey]);
+            if (users.length > 0) userRecord = users[0];
+        } else if (username && password) {
+            const bcrypt = require('bcryptjs');
+            const [users] = await query('SELECT id, name, company, role, status, api_password FROM users WHERE email = ? OR contact_phone = ?', [username, username]);
+            if (users.length > 0) {
+                const match = await bcrypt.compare(password, users[0].api_password || "");
+                if (match) {
+                    const { api_password, ...safeUser } = users[0];
+                    userRecord = safeUser;
+                }
+            }
         }
 
-        if (users[0].status !== 'active' && users[0].status !== 'pending') {
-            console.warn(`[API-AUTH] Inactive User: ${users[0].name} (Status: ${users[0].status})`);
-            return res.status(403).json({ success: false, message: `Account is ${users[0].status}` });
+        if (!userRecord) {
+            return res.status(401).json({ success: false, message: 'Invalid Credentials (apiKey or user/pwd required)' });
         }
 
-        console.log(`[API-AUTH] Success: ${users[0].name} authenticated via key.`);
-        req.user = users[0];
+        if (userRecord.status !== 'active' && userRecord.status !== 'pending') {
+            return res.status(403).json({ success: false, message: `Account is ${userRecord.status}` });
+        }
+
+        req.user = userRecord;
         next();
     } catch (err) {
-        console.error('API Key Auth CRITICAL Error:', err);
-        res.status(500).json({ success: false, message: 'Internal Server Error during Authentication' });
+        console.error('API Key Auth Error:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 };
 
