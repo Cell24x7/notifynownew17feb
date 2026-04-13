@@ -298,10 +298,9 @@ const submitDotgoTemplate = async (config, templateData, files = [], existingNam
       };
 
       // Handle Media URL vs File Upload
-      // Priority: If fileName exists in cardContent (set by frontend when file is picked), use it.
-      // If mediaUrl is a data: URL (base64), IGNORE IT and rely on files array.
-      if (cardContent.fileName) {
-        refinedData.standAlone.fileName = cardContent.fileName;
+      const finalFileName = templateData.fileName || cardContent.fileName;
+      if (finalFileName) {
+        refinedData.standAlone.fileName = finalFileName;
         if (cardContent.thumbnailFileName) refinedData.standAlone.thumbnailFileName = cardContent.thumbnailFileName;
       } else if (cardContent.mediaUrl && !cardContent.mediaUrl.startsWith('data:')) {
         refinedData.standAlone.mediaUrl = cardContent.mediaUrl;

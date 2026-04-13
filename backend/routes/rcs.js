@@ -742,6 +742,14 @@ const handleRcsTemplateCreate = async (req, res) => {
         if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
         const user = users[0];
+
+        // If files are uploaded, auto-link the first one to the card metadata
+        if (req.files && req.files.length > 0) {
+            // If it is a rich card, we suggest using the first uploaded file
+            if (type === 'rich_card' && !req.body.mediaUrl) {
+                req.body.fileName = req.files[0].originalname;
+            }
+        }
         
         // Fetch user's assigned RCS config
         const [configs] = await query(`
