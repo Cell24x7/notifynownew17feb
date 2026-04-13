@@ -104,12 +104,17 @@ export const campaignService = {
             }
         }
 
-        const endpoint = (activeChannel === 'whatsapp')
-            ? `${API_BASE_URL}/api/whatsapp/send-campaign`
-            : `${API_BASE_URL}/api/rcs/send-campaign`;
-
-        const response = await axios.post(endpoint, { campaignId }, { headers: getAuthHeader() });
-        return response.data;
+        if (activeChannel === 'whatsapp') {
+            const response = await axios.post(`${API_BASE_URL}/api/whatsapp/send-campaign`, { campaignId }, { headers: getAuthHeader() });
+            return response.data;
+        } else if (activeChannel === 'rcs') {
+            const response = await axios.post(`${API_BASE_URL}/api/rcs/send-campaign`, { campaignId }, { headers: getAuthHeader() });
+            return response.data;
+        } else {
+            // For Voice, SMS, Email etc., just update status to 'running'
+            // The unified background worker picks up 'running' campaigns
+            return await this.updateStatus(campaignId, 'running');
+        }
     },
 
     async duplicateCampaign(id: string) {
