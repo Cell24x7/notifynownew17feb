@@ -17,7 +17,7 @@ const getVoiceAuthToken = async (config) => {
         console.log(`🎙️ Attempting Voice Auth for user: ${payload.username} at ${url}`);
         
         const response = await axios.post(url, payload);
-        const token = response.data?.token || response.data?.accessToken || null;
+        const token = response.data?.jwttoken || response.data?.token || response.data?.accessToken || null;
         
         if (token) {
             console.log(`✅ Voice Auth Success for: ${payload.username}`);
