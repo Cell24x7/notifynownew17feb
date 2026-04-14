@@ -155,9 +155,10 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         `).catch(() => {});
 
         // --- 2. SQL FETCH JOINED DATA ---
+        const varColumn = queueTable === 'api_campaign_queue' ? 'q.variables' : 'q.variables'; // Default to q.variables
         const sql = `
              SELECT q.id, q.campaign_id, q.mobile, 
-             COALESCE(q.variables, q.variable_mapping) as contact_variables,
+             ${queueTable === 'api_campaign_queue' ? 'q.variables' : 'IFNULL(q.variables, q.variable_mapping)'} as contact_variables,
              c.user_id, c.channel, c.name as campaign_name,
              COALESCE(mt.name, c.template_name) as template_name,
              COALESCE(mt.body, c.template_body) as template_body,
