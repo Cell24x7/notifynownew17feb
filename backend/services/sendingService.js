@@ -306,7 +306,7 @@ const sendUniversalMessage = async (item) => {
 
             if (payloadComponents.length > 0) payload.template.components = payloadComponents;
 
-            console.log(`[Meta] Sending via Bot: ${waConfig.ph_no_id} | Template: ${payload.template.name} | Token: ${waConfig.wa_token?.substring(0, 10)}...`);
+            console.log(`[Meta] Sending via Bot: ${waConfig.ph_no_id} | Template: ${payload.template.name} | Payload: ${JSON.stringify(payload)}`);
 
             const response = await axios.post(msgUrl, payload, { headers });
             const respData = response.data;
