@@ -280,13 +280,23 @@ const sendUniversalMessage = async (item) => {
             // ── BODY COMPONENT ────────────────────────────────────────
             let waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
             
-            // Fix for API desync: If no {{1}} found but variables "1", "2" etc exist, use them sequentially
+            // Log for debugging
+            console.log(`[WA-DEBUG] Mobile: ${item.mobile} | ResolvedVars: ${JSON.stringify(resolvedVars)}`);
+
+            // Fix for API desync: Check if we have ANY numeric keys (string "1" or number 1)
             if (waParams.length === 0) {
                 const numericKeys = Object.keys(resolvedVars)
-                                          .filter(k => !isNaN(parseInt(k)))
+                                          .filter(k => {
+                                              const n = parseInt(k);
+                                              return !isNaN(n) && n > 0 && n < 50;
+                                          })
                                           .sort((a, b) => parseInt(a) - parseInt(b));
+                
                 if (numericKeys.length > 0) {
-                    waParams = numericKeys.map(k => resolvedVars[k]);
+                    // Filter out duplicates (if both "1" and 1 exist)
+                    const uniqueIndices = [...new Set(numericKeys.map(k => parseInt(k)))].sort((a, b) => a - b);
+                    waParams = uniqueIndices.map(idx => resolvedVars[idx] || resolvedVars[String(idx)]);
+                    console.log(`[WA-DEBUG] Falling back to numeric params: ${JSON.stringify(waParams)}`);
                 }
             }
 
