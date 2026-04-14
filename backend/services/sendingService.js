@@ -130,6 +130,26 @@ const getOrderedVariables = (text, resolvedVars) => {
  * @param {object} item - The campaign item from database
  * @returns {Promise<object>} - { success, messageId, error }
  */
+/**
+ * Helper to sync outbound campaign messages to chat history (webhook_logs)
+ */
+const logToChatHistory = async (userId, mobile, content, type, status, messageId) => {
+    try {
+        if (!userId || !mobile || !content) return;
+        
+        // Use the existing database query utility
+        const { query } = require('../config/db');
+        const cleanPhone = String(mobile).replace(/\D/g, '');
+        
+        await query(
+            'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type, message_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [userId, 'System', cleanPhone, String(content), status, type, messageId]
+        );
+    } catch (err) {
+        console.error('❌ Error syncing campaign message to chat history:', err.message);
+    }
+};
+
 const sendUniversalMessage = async (item) => {
     let result = { success: false, error: 'Unknown Channel' };
     const channelParsed = (item.channel || '').toLowerCase();
@@ -420,6 +440,19 @@ const sendUniversalMessage = async (item) => {
             const { sendVoiceCall } = require('./voiceService');
             result = await sendVoiceCall(item.mobile, audioId, options, voiceConfig);
             result.processedMessage = `Voice Call (Audio ID: ${audioId})`;
+        }
+
+        // --- NEW: Sync Outbound Message to Chat History (Conversations) ---
+        if (result.success && ['whatsapp', 'rcs', 'sms'].includes(channelParsed)) {
+            // Background sync so it doesn't slow down the main sending loop
+            logToChatHistory(
+                item.user_id, 
+                item.mobile, 
+                result.processedMessage || item.template_body || 'Message Sent', 
+                channelParsed, 
+                'sent', 
+                result.messageId
+            ).catch(e => console.error('Chat Sync Failed:', e.message));
         }
 
         return result;
