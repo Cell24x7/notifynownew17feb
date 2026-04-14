@@ -278,14 +278,28 @@ const sendUniversalMessage = async (item) => {
             }
 
             // ── BODY COMPONENT ────────────────────────────────────────
-            const waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
+            let waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
+            
+            // Fix for API desync: If no {{1}} found but variables "1", "2" etc exist, use them sequentially
+            if (waParams.length === 0) {
+                const numericKeys = Object.keys(resolvedVars)
+                                          .filter(k => !isNaN(parseInt(k)))
+                                          .sort((a, b) => parseInt(a) - parseInt(b));
+                if (numericKeys.length > 0) {
+                    waParams = numericKeys.map(k => resolvedVars[k]);
+                }
+            }
+
             if (waParams.length > 0) {
                 payloadComponents.push({ type: 'body', parameters: waParams.map(v => ({ type: 'text', text: String(v) })) });
                 
                 // Construct a readable version for logging
                 let bodyText = bodyComp?.text || item.template_body || '';
                 waParams.forEach((val, i) => {
-                    bodyText = bodyText.replace(`{{${i+1}}}`, val);
+                    const placeholder = `{{${i+1}}}`;
+                    if (bodyText.includes(placeholder)) {
+                        bodyText = bodyText.split(placeholder).join(val);
+                    }
                 });
                 processedMessage = bodyText;
             }
