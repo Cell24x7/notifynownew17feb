@@ -185,6 +185,8 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         let totalProcessed = 0;
         while (true) {
             const [candidates] = await query(sql, [DRIP_BATCH_SIZE]);
+            console.log(`[Worker:${processorName}] Found ${candidates?.length || 0} candidates in ${queueTable}`);
+            
             if (!candidates || candidates.length === 0) break;
 
             const candidateIds = candidates.map(c => c.id);
