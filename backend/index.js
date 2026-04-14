@@ -38,6 +38,9 @@ const morgan = require('morgan');
 
 const app = express();
 
+// Trust proxy to get real IP from Nginx
+app.set('trust proxy', true);
+
 /* ==================================
    GLOBAL LOGGING & CORS
 ================================== */
