@@ -156,7 +156,8 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
 
         // --- 2. SQL FETCH JOINED DATA ---
         const sql = `
-             SELECT q.id, q.campaign_id, q.mobile, q.variables as contact_variables,
+             SELECT q.id, q.campaign_id, q.mobile, 
+             COALESCE(q.variables, q.variable_mapping) as contact_variables,
              c.user_id, c.channel, c.name as campaign_name,
              COALESCE(mt.name, c.template_name) as template_name,
              COALESCE(mt.body, c.template_body) as template_body,
@@ -171,14 +172,14 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
              COALESCE(c.ai_voice_config_id, u.ai_voice_config_id) as voice_config_id,
              v.api_user, v.api_password
              FROM ${queueTable} q
-            JOIN ${campaignTable} c ON q.campaign_id = c.id
-            JOIN users u ON c.user_id = u.id
-            LEFT JOIN rcs_configs rc ON IFNULL(c.rcs_config_id, u.rcs_config_id) = rc.id
-            LEFT JOIN whatsapp_configs wc ON IFNULL(c.whatsapp_config_id, u.whatsapp_config_id) = wc.id
-            LEFT JOIN voice_configs v ON IFNULL(c.ai_voice_config_id, u.ai_voice_config_id) = v.id
-            LEFT JOIN message_templates mt ON (c.template_id = mt.id OR (c.template_id = mt.name AND c.user_id = mt.user_id))
-            WHERE q.status = 'pending' AND c.status = 'running'
-            LIMIT ?
+             JOIN ${campaignTable} c ON q.campaign_id = c.id
+             JOIN users u ON c.user_id = u.id
+             LEFT JOIN rcs_configs rc ON IFNULL(c.rcs_config_id, u.rcs_config_id) = rc.id
+             LEFT JOIN whatsapp_configs wc ON IFNULL(c.whatsapp_config_id, u.whatsapp_config_id) = wc.id
+             LEFT JOIN voice_configs v ON IFNULL(c.ai_voice_config_id, u.ai_voice_config_id) = v.id
+             LEFT JOIN message_templates mt ON (c.template_id = mt.id OR (c.template_id = mt.name AND c.user_id = mt.user_id))
+             WHERE q.status = 'pending' AND c.status = 'running'
+             LIMIT ?
         `;
 
         let totalProcessed = 0;
