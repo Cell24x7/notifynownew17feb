@@ -44,6 +44,14 @@ async function ensureAutomationsTable() {
 async function processAutomation(userId, triggerType, channel, payload, io) {
     try {
         // console.log(`🤖 [AutomationService] Processing for User ${userId}, Type: ${triggerType}, Channel: ${channel}`);
+        
+        // 🤖 DIRECT FAILOVER HANDLING (Bypasses active automation check)
+        if (triggerType === 'message_failed' && payload.failover_template_id) {
+            console.log(`🚀 [AutomationService] Direct RCS Failover Triggered for ${payload.sender}. Sending SMS Fallback...`);
+            await handleSmsAction(userId, (payload.sender || '').replace(/\D/g, ''), { templateId: payload.failover_template_id }, payload, io);
+            return;
+        }
+
         const [automations] = await query(
             "SELECT * FROM automations WHERE user_id = ? AND status = 'active' AND channel = ?",
             [userId, channel]
@@ -177,41 +185,7 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
             
             await new Promise(r => setTimeout(r, 1200));
         } else if (actionType === 'send_sms') {
-            const templateId = payload.failover_template_id || config.templateId || config.template_id;
-            console.log(`🤖 Automation: Triggering SMS Failover for ${mobile}. Template ID: ${templateId}`);
-            let smsContent = config.message || config.body;
-
-            if (templateId) {
-                // Fetch template content
-                const [temps] = await query('SELECT body, metadata FROM message_templates WHERE (id = ? OR name = ?) AND channel = "sms"', [templateId, templateId]);
-                if (temps.length > 0) {
-                    smsContent = temps[0].body;
-                    try {
-                        const meta = typeof temps[0].metadata === 'string' ? JSON.parse(temps[0].metadata) : (temps[0].metadata || {});
-                        config.peId = meta.peId || meta.pe_id;
-                        config.hashId = meta.hashId || meta.hash_id;
-                    } catch(e) {}
-                }
-            }
-
-            if (smsContent) {
-                smsContent = await replaceVariables(userId, mobile, smsContent);
-                
-                const deduction = await deductSingleMessageCredit(userId, 'sms', templateId || 'failover_sms');
-                if (deduction.success) {
-                    const smsResult = await sendSMS(mobile, smsContent, {
-                        userId,
-                        templateId,
-                        peId: config.peId,
-                        hashId: config.hashId,
-                        sender: config.sender
-                    });
-                    
-                    if (smsResult.success) {
-                        await logWebhook(userId, mobile, smsContent, 'sms', io);
-                    }
-                }
-            }
+            await handleSmsAction(userId, mobile, config, payload, io);
         } else if (actionType === 'add_to_campaign') {
             if (config.campaignId) await addToCampaign(userId, mobile, config.campaignId);
         } else if (actionType === 'remove_from_campaign') {
@@ -374,6 +348,52 @@ async function replaceVariables(userId, mobile, text) {
         return newText;
     } catch (e) {
         return text;
+    }
+}
+
+
+async function handleSmsAction(userId, mobile, config, payload, io) {
+    try {
+        const templateId = payload.failover_template_id || config.templateId || config.template_id;
+        console.log(`🤖 Automation: Triggering SMS Send for ${mobile}. Template ID: ${templateId}`);
+        let smsContent = config.message || config.body;
+
+        if (templateId) {
+            // Fetch template content
+            const [temps] = await query('SELECT body, metadata FROM message_templates WHERE (id = ? OR name = ?) AND channel = "sms"', [templateId, templateId]);
+            if (temps.length > 0) {
+                smsContent = temps[0].body;
+                try {
+                    const meta = typeof temps[0].metadata === 'string' ? JSON.parse(temps[0].metadata) : (temps[0].metadata || {});
+                    config.peId = meta.peId || meta.pe_id;
+                    config.hashId = meta.hashId || meta.hash_id;
+                } catch(e) {}
+            }
+        }
+
+        if (smsContent) {
+            smsContent = await replaceVariables(userId, mobile, smsContent);
+            
+            const deduction = await deductSingleMessageCredit(userId, 'sms', templateId || 'failover_sms');
+            if (deduction.success) {
+                const smsResult = await sendSMS(mobile, smsContent, {
+                    userId,
+                    templateId,
+                    peId: config.peId,
+                    hashId: config.hashId,
+                    sender: config.sender
+                });
+                
+                if (smsResult.success) {
+                    await logWebhook(userId, mobile, smsContent, 'sms', io);
+                    console.log(`✅ [AutomationService] SMS Fallback Sent to ${mobile}`);
+                }
+            } else {
+                console.warn(`⚠️ [AutomationService] SMS Failover failed: ${deduction.message}`);
+            }
+        }
+    } catch (err) {
+        console.error('❌ [AutomationService] handleSmsAction error:', err.message);
     }
 }
 
