@@ -432,7 +432,23 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
         }
 
         if (smsContent) {
-            smsContent = await replaceVariables(userId, mobile, smsContent, payload.variables || {});
+            let finalVars = payload.variables || {};
+            // Resolve custom CSV variables using campaign's field mapping
+            if (payload.campaign_id && Object.keys(finalVars).length > 0) {
+                try {
+                    const campaignsTable = payload.is_api ? 'api_campaigns' : 'campaigns';
+                    const [cRes] = await query(`SELECT variable_mapping FROM ${campaignsTable} WHERE id = ?`, [payload.campaign_id]);
+                    if (cRes.length > 0 && cRes[0].variable_mapping) {
+                        const { resolveMappedVariables } = require('./sendingService');
+                        const mapping = typeof cRes[0].variable_mapping === 'string' ? JSON.parse(cRes[0].variable_mapping) : cRes[0].variable_mapping;
+                        finalVars = resolveMappedVariables(mapping, finalVars);
+                    }
+                } catch(e) {
+                    console.error('[AutomationService] Failed to resolve mapped variables:', e.message);
+                }
+            }
+            
+            smsContent = await replaceVariables(userId, mobile, smsContent, finalVars);
             
 
             const deduction = await deductSingleMessageCredit(userId, 'sms', templateId || 'failover_sms');
