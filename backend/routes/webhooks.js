@@ -705,45 +705,106 @@ router.get('/logs', authenticateToken, async (req, res) => {
     }
 });
 
-// GET /api/webhooks/voice/callback 
-// Simple status receiver
-router.get('/voice/callback', (req, res) => {
-    res.status(200).send("Voice Webhook Active");
-});
-
-// POST /api/webhooks/voice/callback
-// AI Voice Campaign CDR Receiver
-router.post('/voice/callback', async (req, res) => {
+// GET /api/webhooks/voice/callback
+// Voice Gateway sends CDR as GET request with query parameters
+router.get('/voice/callback', async (req, res) => {
     try {
-        const payload = req.body;
-        console.log('🎙️ Received Voice Webhook:', JSON.stringify(payload));
+        // Always respond 200 first so gateway doesn't retry
+        res.status(200).send("OK");
 
-        const { mobile, status, duration, campaign_id } = payload;
-        
-        if (!mobile) return res.status(200).send("OK");
+        // Check if this is a real CDR callback (gateway sends params in query string)
+        const q = req.query;
+        console.log('🎙️ Voice GET Callback received. Query:', JSON.stringify(q));
 
-        // Normalize status
-        let normalizedStatus = 'delivered'; 
-        if (status?.toLowerCase().includes('fail') || status?.toLowerCase() === 'no-answer') {
+        // Gateway field names vary - try all common patterns
+        const mobile    = q.mobile     || q.phone     || q.msisdn     || q.to        || q.number    || null;
+        const status    = q.status     || q.callstatus || q.call_status || q.state    || 'answered';
+        const duration  = q.duration   || q.callduration || q.call_duration || q.dur  || 0;
+        const campaignId = q.campaign_id || q.campaignid || q.cid      || null;
+        const disconnectTime = q.disconnect_time || q.disconnecttime  || q.endtime   || null;
+
+        if (!mobile) return; // No mobile = just a ping, ignore
+
+        // Normalize status → our DB values
+        let normalizedStatus = 'delivered';
+        const lStatus = String(status).toLowerCase();
+        if (lStatus.includes('fail') || lStatus === 'no-answer' || lStatus === 'noanswer' || lStatus === 'busy' || lStatus === 'not-answered') {
             normalizedStatus = 'failed';
         }
 
-        const logMsg = `Duration: ${duration || 0}s | Disconnect: ${payload.disconnect_time || 'N/A'}`;
-        const cleanMobile = mobile.slice(-10);
+        const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+        const logMsg = `Duration: ${duration}s | Disconnect: ${disconnectTime || new Date().toISOString()}`;
 
-        // Update BOTH tables to be sure
+        // Update message_logs
         const tables = ['message_logs', 'api_message_logs'];
-        
         for (const table of tables) {
-            await query(`
-                UPDATE ${table} 
-                SET status = ?, 
-                    delivery_time = NOW(), 
-                    failure_reason = ?
-                WHERE recipient LIKE ? AND campaign_id = ?
-            `, [normalizedStatus, logMsg, `%${cleanMobile}`, campaign_id]);
+            if (campaignId) {
+                await query(`
+                    UPDATE ${table}
+                    SET status = ?, delivery_time = NOW(), failure_reason = ?
+                    WHERE recipient LIKE ? AND campaign_id = ?
+                `, [normalizedStatus, logMsg, `%${cleanMobile}`, campaignId]);
+            } else {
+                // No campaign_id — match by mobile only (latest record)
+                await query(`
+                    UPDATE ${table}
+                    SET status = ?, delivery_time = NOW(), failure_reason = ?
+                    WHERE recipient LIKE ? AND channel IN ('voicebot', 'voice')
+                    ORDER BY created_at DESC LIMIT 1
+                `, [normalizedStatus, logMsg, `%${cleanMobile}`]);
+            }
         }
 
+        console.log(`✅ Voice CDR processed: ${cleanMobile} → ${normalizedStatus} | ${logMsg}`);
+    } catch (err) {
+        console.error('❌ Voice GET Callback Error:', err.message);
+    }
+});
+
+// POST /api/webhooks/voice/callback
+// AI Voice Campaign CDR Receiver (for gateways that POST)
+router.post('/voice/callback', async (req, res) => {
+    try {
+        // Merge body + query params (some gateways mix both)
+        const payload = { ...req.query, ...req.body };
+        console.log('🎙️ Received Voice POST Webhook:', JSON.stringify(payload));
+
+        const mobile     = payload.mobile || payload.phone || payload.msisdn || payload.to || null;
+        const status     = payload.status || payload.callstatus || payload.state || 'answered';
+        const duration   = payload.duration || payload.callduration || 0;
+        const campaignId = payload.campaign_id || payload.campaignid || payload.cid || null;
+        const disconnectTime = payload.disconnect_time || payload.disconnecttime || null;
+
+        if (!mobile) return res.status(200).send("OK");
+
+        let normalizedStatus = 'delivered';
+        const lStatus = String(status).toLowerCase();
+        if (lStatus.includes('fail') || lStatus === 'no-answer' || lStatus === 'noanswer' || lStatus === 'busy') {
+            normalizedStatus = 'failed';
+        }
+
+        const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+        const logMsg = `Duration: ${duration}s | Disconnect: ${disconnectTime || new Date().toISOString()}`;
+
+        const tables = ['message_logs', 'api_message_logs'];
+        for (const table of tables) {
+            if (campaignId) {
+                await query(`
+                    UPDATE ${table}
+                    SET status = ?, delivery_time = NOW(), failure_reason = ?
+                    WHERE recipient LIKE ? AND campaign_id = ?
+                `, [normalizedStatus, logMsg, `%${cleanMobile}`, campaignId]);
+            } else {
+                await query(`
+                    UPDATE ${table}
+                    SET status = ?, delivery_time = NOW(), failure_reason = ?
+                    WHERE recipient LIKE ? AND channel IN ('voicebot', 'voice')
+                    ORDER BY created_at DESC LIMIT 1
+                `, [normalizedStatus, logMsg, `%${cleanMobile}`]);
+            }
+        }
+
+        console.log(`✅ Voice CDR processed (POST): ${cleanMobile} → ${normalizedStatus}`);
         res.status(200).send("OK");
     } catch (err) {
         console.error('❌ Voice Webhook Error:', err.message);
