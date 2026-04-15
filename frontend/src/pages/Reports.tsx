@@ -644,10 +644,10 @@ export default function Reports() {
                                                     </TableCell>
                                                     <TableCell className="text-center border-r border-border px-2 py-2">
                                                         <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-black uppercase", 
-                                                            log.channel === 'sms' ? "bg-amber-50 text-amber-700" : 
-                                                            log.channel === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : 
+                                                            (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'sms' ? "bg-amber-50 text-amber-700" : 
+                                                            (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : 
                                                             "bg-blue-50 text-blue-700")}>
-                                                            {log.channel || 'rcs'}
+                                                            {log.channel || log.campaign_channel || 'rcs'}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-[10px] border-r border-border text-center px-3 py-2 font-medium text-muted-foreground">

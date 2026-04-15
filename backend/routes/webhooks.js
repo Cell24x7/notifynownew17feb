@@ -596,7 +596,7 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
 
         const isExport = req.query.export === 'true';
         let selectSql = `
-            SELECT ml.id, ml.user_id, ml.campaign_id, ml.campaign_name, ml.message_id, ml.recipient, ml.status, ml.message_content, ml.send_time, ml.delivery_time, ml.read_time, ml.template_name, ml.failure_reason, ml.created_at, ml.updated_at, c.channel as campaign_channel 
+            SELECT ml.id, ml.user_id, ml.campaign_id, ml.campaign_name, ml.message_id, ml.recipient, ml.status, ml.message_content, ml.send_time, ml.delivery_time, ml.read_time, ml.template_name, ml.failure_reason, ml.created_at, ml.updated_at, ml.channel, c.channel as campaign_channel 
             FROM ${logsTable} ml 
             LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id 
             ${whereClause} 

@@ -612,6 +612,31 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       }
    };
 
+   const handleAutoMapByIndex = () => {
+      if (detectedColumns.length === 0 || templateVariables.length === 0) return;
+      
+      setCampaignData(prev => {
+         const newMapping = { ...prev.fieldMapping };
+         // Skip common static columns like name/phone if they are usually at index 0,1
+         let colOffset = 0;
+         if (detectedColumns[0]?.toLowerCase().includes('phone') || detectedColumns[0]?.toLowerCase().includes('mobile')) colOffset = 1;
+         if (colOffset === 0 && detectedColumns[1]?.toLowerCase().includes('phone')) colOffset = 2;
+
+         templateVariables.forEach((v, idx) => {
+            const colIdx = idx + colOffset;
+            if (colIdx < detectedColumns.length) {
+               newMapping[v] = { type: 'field', value: detectedColumns[colIdx] };
+            }
+         });
+
+         toast({
+            title: "Mapped by Order",
+            description: `Successfully mapped variables to columns in spreadsheet order.`
+         });
+         return { ...prev, fieldMapping: newMapping };
+      });
+   };
+
    const downloadSampleFile = () => {
       // Create headers based on detected variables + basic fields
       const headers = ['Name', 'Phone', ...templateVariables];
@@ -1417,12 +1442,20 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        <h2 className="text-xl font-semibold mb-1">Variable Mapping</h2>
                                        <p className="text-muted-foreground">Map template variables to your data source</p>
                                     </div>
-                                    {campaignData.contactSource === 'upload' && (
-                                       <Button variant="outline" size="sm" onClick={downloadSampleFile}>
-                                          <Download className="mr-2 h-4 w-4" />
-                                          Sample CSV
-                                       </Button>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                       {campaignData.contactSource === 'upload' && detectedColumns.length > 0 && (
+                                          <Button variant="secondary" size="sm" onClick={handleAutoMapByIndex} className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20">
+                                             <Sparkles className="mr-2 h-4 w-4" />
+                                             Auto-map by Order
+                                          </Button>
+                                       )}
+                                       {campaignData.contactSource === 'upload' && (
+                                          <Button variant="outline" size="sm" onClick={downloadSampleFile}>
+                                             <Download className="mr-2 h-4 w-4" />
+                                             Sample CSV
+                                          </Button>
+                                       )}
+                                    </div>
                                  </div>
 
                                  {/* Helper Box */}
