@@ -71,7 +71,11 @@ router.post('/rcs/callback', async (req, res) => {
                                 }
                                 await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
 
-                                // 🤖 TRIGGER FAILOVER AUTOMATION
+                                console.log(`🤖 Failover Check for Log ${log.id}: Enabled=${log.is_failover_enabled}, Template=${log.failover_sms_template}`);
+                             
+                             console.log(`🤖 DotGo Failover Check for Log ${log.id}: Enabled=${log.is_failover_enabled}, Template=${log.failover_sms_template}`);
+
+                             // 🤖 TRIGGER FAILOVER AUTOMATION
                                 if (typeof processAutomation === 'function' && log.is_failover_enabled) {
                                     processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
                                         sender: log.recipient,
