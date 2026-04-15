@@ -223,18 +223,24 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       templates.find(t => t.id === campaignData.templateId),
       [templates, campaignData.templateId]);
 
-   // Dynamically extract variables from template body and metadata
-   const templateVariables = useMemo(() => {
-      if (!selectedTemplate) return [];
+   const failoverTemplate = useMemo(() =>
+      campaignData.channel === 'rcs' && campaignData.isFailoverEnabled && campaignData.failoverSmsTemplate
+         ? templates.find(t => t.id === campaignData.failoverSmsTemplate)
+         : null,
+      [templates, campaignData.channel, campaignData.isFailoverEnabled, campaignData.failoverSmsTemplate]);
 
-      const meta = (selectedTemplate as any).metadata || {};
+   // Helper function to extract variables from a template
+   const extractVars = (template: any) => {
+      if (!template) return [];
+
+      const meta = template.metadata || {};
       const carouselList = meta.carouselList || [];
 
       // Combine all text fields that might contain variables
-      const componentTexts = (selectedTemplate as any).components?.map((c: any) => c.text || c.caption || '').filter(Boolean) || [];
+      const componentTexts = template.components?.map((c: any) => c.text || c.caption || '').filter(Boolean) || [];
       
       const textToScan = [
-         selectedTemplate.body,
+         template.body,
          meta.cardTitle,
          meta.cardDescription,
          ...carouselList.map((c: any) => `${c.title || ''} ${c.description || ''}`),
@@ -278,7 +284,22 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       }
 
       return vars;
-   }, [selectedTemplate]);
+   };
+
+   // Dynamically extract variables from template body and metadata (including failover)
+   const templateVariables = useMemo(() => {
+      const vars = extractVars(selectedTemplate);
+      const failoverVars = extractVars(failoverTemplate);
+      
+      // Merge unique variables
+      failoverVars.forEach(fv => {
+         if (!vars.includes(fv)) vars.push(fv);
+      });
+      
+      return vars;
+   }, [selectedTemplate, failoverTemplate]);
+
+
 
    // Auto-fill campaign name on mount or when user changes
    useEffect(() => {
