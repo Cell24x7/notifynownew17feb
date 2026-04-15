@@ -1010,13 +1010,141 @@ export default function Templates() {
       </Dialog>
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-[100vw] sm:max-w-fit w-full sm:w-auto p-0 bg-transparent border-none shadow-none flex items-center justify-center h-[100dvh] sm:h-auto rounded-none sm:rounded-lg">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm -z-10" />
-          {previewTemplate && (
-            <div className="flex items-center justify-center min-h-[400px] sm:min-h-[600px] w-full p-4">
-               {renderPhonePreview(previewTemplate)}
-            </div>
-          )}
+        <DialogContent className="max-w-[100vw] sm:max-w-3xl w-full p-0 bg-card border-border shadow-2xl rounded-none sm:rounded-2xl h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
+          {previewTemplate && (() => {
+            const t = previewTemplate;
+            const meta = (() => { try { return typeof t.metadata === 'string' ? JSON.parse(t.metadata) : (t.metadata || {}); } catch (e2) { return {}; } })();
+            const components: any[] = (t as any).components || meta.components || [];
+            const headerComp = components.find((c: any) => c.type === 'HEADER');
+            const bodyComp   = components.find((c: any) => c.type === 'BODY');
+            const footerComp = components.find((c: any) => c.type === 'FOOTER');
+            const btnComps   = components.filter((c: any) => c.type === 'BUTTONS');
+            const bodyText   = bodyComp?.text || t.body || '';
+            const footerText = footerComp?.text || t.footer || '';
+            const channelColorMap: Record<string,string> = { whatsapp: '#25D366', rcs: '#1A73E8', sms: '#F59E0B', email: '#F97316', voicebot: '#8B5CF6' };
+            const channelColor = channelColorMap[t.channel] || '#6366F1';
+            const allBtns: any[] = [...btnComps.flatMap((b: any) => b.buttons || []), ...(t.buttons || [])];
+
+            return (
+              <>
+                {/* Header bar */}
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-card shrink-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${channelColor}22` }}>
+                      <span className="text-base">{t.channel === 'whatsapp' ? '💬' : t.channel === 'rcs' ? '✨' : t.channel === 'sms' ? '📱' : t.channel === 'email' ? '📧' : '🎙️'}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm sm:text-base text-foreground truncate">{t.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: channelColor }}>{t.channel === 'voicebot' ? 'AI Voice' : t.channel}</span>
+                        <Badge variant={t.status === 'approved' ? 'secondary' : 'outline'} className="text-[10px] capitalize">{t.status}</Badge>
+                        {t.category && <Badge variant="outline" className="text-[10px]">{t.category}</Badge>}
+                      </div>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="rounded-full shrink-0" onClick={() => setIsPreviewOpen(false)}><X className="h-4 w-4" /></Button>
+                </div>
+
+                {/* Preview + details */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col sm:flex-row gap-6 items-start justify-center bg-muted/20">
+                  {/* Phone mockup */}
+                  <div className="flex-shrink-0 mx-auto">{renderPhonePreview(t)}</div>
+
+                  {/* Details panel */}
+                  <div className="flex-1 min-w-0 space-y-3 max-w-sm mx-auto sm:mx-0 w-full">
+                    {bodyText && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Message Body</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{bodyText}</p>
+                      </div>
+                    )}
+
+                    {headerComp && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Header · {headerComp.format || headerComp.type}</p>
+                        {(headerComp.format === 'IMAGE' || headerComp.format === 'VIDEO') && (headerComp.previewUrl || meta.mediaUrl) ? (
+                          <img src={headerComp.previewUrl || meta.mediaUrl} alt="header" className="w-full rounded-lg object-cover max-h-40" />
+                        ) : headerComp.text ? (
+                          <p className="text-sm font-semibold text-foreground">{headerComp.text}</p>
+                        ) : (
+                          <div className="h-20 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs">📷 {headerComp.format || 'Media'} Header</div>
+                        )}
+                      </div>
+                    )}
+
+                    {t.channel === 'rcs' && meta.mediaUrl && !headerComp && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Media</p>
+                        <img src={meta.mediaUrl} alt="RCS media" className="w-full rounded-lg object-cover max-h-40" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+                      </div>
+                    )}
+
+                    {footerText && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Footer</p>
+                        <p className="text-xs text-muted-foreground italic">{footerText}</p>
+                      </div>
+                    )}
+
+                    {allBtns.length > 0 && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Buttons ({allBtns.length})</p>
+                        <div className="flex flex-col gap-2">
+                          {allBtns.map((btn: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30 text-sm font-medium">
+                              <span>{btn.type === 'PHONE_NUMBER' ? '📞' : btn.type === 'URL' ? '🔗' : '↩️'}</span>
+                              <span className="text-foreground">{btn.text || btn.displayText || btn.label}</span>
+                              {(btn.phone_number || btn.url || btn.value) && <span className="ml-auto text-xs text-muted-foreground truncate max-w-[100px]">{btn.phone_number || btn.url || btn.value}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {t.channel === 'rcs' && meta.carouselList?.length > 0 && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Carousel ({meta.carouselList.length} cards)</p>
+                        <div className="space-y-2">
+                          {meta.carouselList.map((card: any, i: number) => (
+                            <div key={i} className="flex gap-3 p-3 bg-muted/30 rounded-lg border border-border">
+                              {card.mediaUrl && <img src={card.mediaUrl} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />}
+                              <div className="min-w-0"><p className="text-sm font-bold text-foreground truncate">{card.title}</p><p className="text-xs text-muted-foreground line-clamp-2">{card.description}</p></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {t.channel === 'voicebot' && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Voice Config</p>
+                        <div className="space-y-1 text-sm">
+                          {(t as any).template_id && <p className="text-muted-foreground">Audio ID: <span className="font-mono text-foreground">{(t as any).template_id}</span></p>}
+                          {meta.retries && <p className="text-muted-foreground">Retries: <span className="text-foreground">{meta.retries}</span></p>}
+                          {meta.retry_interval && <p className="text-muted-foreground">Retry Interval: <span className="text-foreground">{meta.retry_interval}s</span></p>}
+                        </div>
+                      </div>
+                    )}
+
+                    {t.channel === 'sms' && (meta.dlt_template_id || meta.sender) && (
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">DLT Info</p>
+                        <div className="space-y-1 text-sm">
+                          {meta.sender && <p className="text-muted-foreground">Sender ID: <span className="font-bold text-foreground">{meta.sender}</span></p>}
+                          {meta.dlt_template_id && <p className="text-muted-foreground">DLT ID: <span className="font-mono text-foreground text-xs">{meta.dlt_template_id}</span></p>}
+                          {meta.pe_id && <p className="text-muted-foreground">PE ID: <span className="font-mono text-foreground text-xs">{meta.pe_id}</span></p>}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button className="w-full gradient-primary font-bold h-11 rounded-xl" onClick={() => { setIsPreviewOpen(false); handleCreateCampaignFromTemplate(t); }}>
+                      <Zap className="h-4 w-4 mr-2 fill-current" /> Create Campaign
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
