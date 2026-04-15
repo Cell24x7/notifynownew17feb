@@ -432,12 +432,13 @@ router.post('/dotgo', async (req, res) => {
                             await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
                             
                             // 🤖 TRIGGER FAILOVER AUTOMATION
-                            if (typeof processAutomation === 'function') {
-                                processAutomation(userId, 'message_failed', 'rcs', {
+                            if (typeof processAutomation === 'function' && log.is_failover_enabled) {
+                                processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
                                     sender: log.recipient,
                                     message_content: log.message_content,
                                     messageId: log.message_id,
-                                    failed_reason: reason
+                                    failed_reason: reason,
+                                    failover_template_id: log.failover_sms_template 
                                 }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
                             }
                         }
