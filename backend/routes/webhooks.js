@@ -583,6 +583,11 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             params.push(req.query.campaignId);
         }
 
+        if (req.query.channel && req.query.channel !== 'all') {
+            conditions.push("COALESCE(ml.channel, c.channel) = ?");
+            params.push(req.query.channel);
+        }
+
         if (req.query.search) {
             conditions.push("(ml.recipient LIKE ? OR ml.campaign_name LIKE ?)");
             params.push(`%${req.query.search}%`, `%${req.query.search}%`);
@@ -591,7 +596,7 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
         // Get total count for pagination (Admin/Small views only)
-        const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml ${whereClause}`, params);
+        const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id ${whereClause}`, params);
         const total = countResult[0].total;
 
         const isExport = req.query.export === 'true';
