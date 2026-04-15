@@ -677,8 +677,14 @@ export default function Reports() {
                                                             {log.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] text-rose-400 font-bold px-3 py-2 leading-tight max-w-[150px]">
-                                                        {log.failure_reason || '-'}
+                                                    <TableCell className="text-[10px] px-3 py-2 leading-tight max-w-[150px]">
+                                                        {log.failure_reason && log.failure_reason.startsWith('Failover from RCS:') ? (
+                                                            <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/50 w-fit font-semibold" title={log.failure_reason}>
+                                                                ⚡ RCS Fallback
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-rose-400 font-bold">{log.failure_reason || '-'}</span>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))
