@@ -65,6 +65,9 @@ export interface CampaignData {
    voiceRetries?: number;
    voiceInterval?: number;
    voiceAudioFile?: File | null;
+   // Failover fields
+   isFailoverEnabled?: boolean;
+   failoverSmsTemplate?: string;
 }
 
 // Detect if text contains non-GSM characters (Unicode)
@@ -144,7 +147,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       emailFromId: '',
       emailSenderName: '',
       emailSubject: '',
-      emailAttachment: null
+      emailAttachment: null,
+      isFailoverEnabled: false,
+      failoverSmsTemplate: ''
    });
 
    const [selectedAudienceId, setSelectedAudienceId] = useState('');
@@ -688,6 +693,12 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          case 2: {
             if (campaignData.channel === 'voicebot') return !!campaignData.voiceAudioId;
             if (!campaignData.templateId) return false;
+            
+            // Check for RCS Failover template if enabled
+            if (campaignData.channel === 'rcs' && campaignData.isFailoverEnabled) {
+               if (!campaignData.failoverSmsTemplate) return false;
+            }
+
             // Block if there is a DANGER or WARNING Unicode mismatch for SMS
             if (unicodeMismatch !== null) return false;
             return true;
@@ -997,7 +1008,58 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              </span>
                                           </div>
                                        </div>
+                                 </div>
+                              )}
+
+                              {/* RCS Failover Settings */}
+                              {campaignData.channel === 'rcs' && selectedTemplate && (
+                                 <div className="p-4 border rounded-xl bg-card space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="flex items-center justify-between">
+                                       <div className="flex items-center gap-2">
+                                          <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                                             <Smartphone className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                          </div>
+                                          <div>
+                                             <h3 className="font-medium text-sm">RCS Failover Settings</h3>
+                                             <p className="text-[10px] text-muted-foreground">Automatically send SMS if RCS delivery fails</p>
+                                          </div>
+                                       </div>
+                                       <Checkbox
+                                          id="isFailoverEnabled"
+                                          checked={campaignData.isFailoverEnabled}
+                                          onCheckedChange={(c) => setCampaignData({ ...campaignData, isFailoverEnabled: !!c })}
+                                          className="scale-125"
+                                       />
                                     </div>
+
+                                    {campaignData.isFailoverEnabled && (
+                                       <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2">
+                                          <div className="space-y-2">
+                                             <Label className="text-sm font-medium">Select Failover SMS Template *</Label>
+                                             <Select 
+                                                value={campaignData.failoverSmsTemplate} 
+                                                onValueChange={(val) => setCampaignData({ ...campaignData, failoverSmsTemplate: val })}
+                                             >
+                                                <SelectTrigger className="bg-muted/10 border-border">
+                                                   <SelectValue placeholder="Select an approved SMS template" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                   {templates.filter(t => t.channel === 'sms' && t.status === 'approved').map(t => (
+                                                      <SelectItem key={t.id} value={t.id || t.name}>
+                                                         {t.name}
+                                                      </SelectItem>
+                                                   ))}
+                                                   {templates.filter(t => t.channel === 'sms' && t.status === 'approved').length === 0 && (
+                                                      <SelectItem value="none" disabled>No SMS templates found</SelectItem>
+                                                   )}
+                                                </SelectContent>
+                                             </Select>
+                                             <p className="text-[11px] text-muted-foreground">
+                                                If RCS fails, this SMS will be sent automatically. Ensure you have sufficient SMS credits.
+                                             </p>
+                                          </div>
+                                       </div>
+                                    )}
                                  </div>
                               )}
 

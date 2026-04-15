@@ -1,6 +1,7 @@
 const { query } = require('../config/db');
 const { sendRcsMessage } = require('./rcsService');
 const { deductSingleMessageCredit } = require('./walletService');
+const { sendSMS } = require('../utils/smsService');
 const axios = require('axios');
 
 const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
@@ -175,6 +176,41 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
             }
             
             await new Promise(r => setTimeout(r, 1200));
+        } else if (actionType === 'send_sms') {
+            const templateId = payload.failover_template_id || config.templateId || config.template_id;
+            let smsContent = config.message || config.body;
+
+            if (templateId) {
+                // Fetch template content
+                const [temps] = await query('SELECT body, metadata FROM message_templates WHERE (id = ? OR name = ?) AND channel = "sms"', [templateId, templateId]);
+                if (temps.length > 0) {
+                    smsContent = temps[0].body;
+                    try {
+                        const meta = typeof temps[0].metadata === 'string' ? JSON.parse(temps[0].metadata) : (temps[0].metadata || {});
+                        config.peId = meta.peId || meta.pe_id;
+                        config.hashId = meta.hashId || meta.hash_id;
+                    } catch(e) {}
+                }
+            }
+
+            if (smsContent) {
+                smsContent = await replaceVariables(userId, mobile, smsContent);
+                
+                const deduction = await deductSingleMessageCredit(userId, 'sms', templateId || 'failover_sms');
+                if (deduction.success) {
+                    const smsResult = await sendSMS(mobile, smsContent, {
+                        userId,
+                        templateId,
+                        peId: config.peId,
+                        hashId: config.hashId,
+                        sender: config.sender
+                    });
+                    
+                    if (smsResult.success) {
+                        await logWebhook(userId, mobile, smsContent, 'sms', io);
+                    }
+                }
+            }
         } else if (actionType === 'add_to_campaign') {
             if (config.campaignId) await addToCampaign(userId, mobile, config.campaignId);
         } else if (actionType === 'remove_from_campaign') {

@@ -165,7 +165,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
              COALESCE(mt.hash_id, c.hash_id, u.hash_id) as hash_id,
              COALESCE(mt.sender, c.sender) as sender,
              COALESCE(mt.template_id, c.template_id) as template_id,
-             c.variable_mapping, u.sms_gateway_id,
+             c.variable_mapping, c.is_failover_enabled, c.failover_sms_template, u.sms_gateway_id,
              rc.auth_url, rc.api_base_url, rc.client_id, rc.client_secret, rc.bot_id,
              wc.provider as wa_provider, wc.api_key as wa_api_key, wc.wa_token, wc.ph_no_id as wa_ph_no_id, wc.wa_biz_accnt_id as wa_biz_accnt_id,
              COALESCE(c.ai_voice_config_id, u.ai_voice_config_id) as voice_config_id,
@@ -238,8 +238,8 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                     
                     // Log immediately to SQL (Slow, but fine for local small batches)
                     await query(`
-                        INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, template_name, recipient, channel, message_id, status, error, send_time)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                        INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, template_name, recipient, channel, message_id, status, error, send_time, is_failover_enabled, failover_sms_template)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
                     `, [
                         item.user_id, 
                         item.campaign_id, 
@@ -249,7 +249,9 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                         item.channel, 
                         sendRes.messageId || null, 
                         sendRes.success ? 'sent' : 'failed', 
-                        sendRes.error || null
+                        sendRes.error || null,
+                        item.is_failover_enabled || 0,
+                        item.failover_sms_template || null
                     ]);
 
                     await query(`UPDATE ${queueTable} SET status = ?, processed_at = NOW() WHERE id = ?`, 

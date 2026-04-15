@@ -23,6 +23,7 @@ const triggerTypes = [
   { value: 'new_message', label: 'New Message' },
   { value: 'new_contact', label: 'New Contact' },
   { value: 'keyword', label: 'Keyword Match' },
+  { value: 'message_failed', label: 'Message Failed' },
   { value: 'order_placed', label: 'Order Placed' },
   { value: 'cart_abandoned', label: 'Cart Abandoned' },
   { value: 'order_delivered', label: 'Order Delivered' },

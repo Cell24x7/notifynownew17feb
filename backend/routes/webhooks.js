@@ -66,11 +66,22 @@ router.post('/rcs/callback', async (req, res) => {
                                 await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
                             } 
                             else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                if (log.campaign_id) {
+                                    await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                }
                                 await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
+
+                                // 🤖 TRIGGER FAILOVER AUTOMATION
+                                if (typeof processAutomation === 'function' && log.is_failover_enabled) {
+                                    processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
+                                        sender: log.recipient,
+                                        message_content: log.message_content,
+                                        messageId: messageId,
+                                        failed_reason: error || 'Unknown error',
+                                        failover_template_id: log.failover_sms_template 
+                                    }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
+                                }
                             }
-                        }
-                    }
                     console.log(`✅ Updated RCS status for ${messageId} to ${finalStatus}`);
                 } else {
                     console.warn(`⚠️ RCS Message ID ${messageId} not found in logs after retries.`);
@@ -417,6 +428,16 @@ router.post('/dotgo', async (req, res) => {
                         } else if (finalStatus === 'failed') {
                             const reason = decodedData.reason || decodedData.description || decodedData.error || 'Provider rejected (Check raw data)';
                             await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
+                            
+                            // 🤖 TRIGGER FAILOVER AUTOMATION
+                            if (typeof processAutomation === 'function') {
+                                processAutomation(userId, 'message_failed', 'rcs', {
+                                    sender: log.recipient,
+                                    message_content: log.message_content,
+                                    messageId: log.message_id,
+                                    failed_reason: reason
+                                }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
+                            }
                         }
 
                         // Handle Campaign Counters (Real-time updates)

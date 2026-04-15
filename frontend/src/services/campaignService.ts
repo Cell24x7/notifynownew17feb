@@ -25,6 +25,8 @@ export interface Campaign {
     cost: number;
     status: 'draft' | 'scheduled' | 'running' | 'paused' | 'completed' | 'sent';
     scheduled_at: string | null;
+    is_failover_enabled?: number;
+    failover_sms_template?: string;
     created_at: string;
     updated_at: string;
 }

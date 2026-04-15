@@ -57,6 +57,7 @@ export const actionCategories = [
       { value: 'auto_reply_template', label: 'Auto Reply Template Message', icon: MessageSquare },
       { value: 'auto_reply_buttons', label: 'Auto Reply Buttons/Options/Products', icon: List },
       { value: 'auto_reply_collect_inputs', label: 'Auto Reply and Collect User Inputs', icon: FileText },
+      { value: 'send_sms', label: 'Send SMS', icon: Send },
     ],
   },
   {
@@ -336,7 +337,56 @@ const ActionNode = ({ data, selected, isConnectable }: NodeProps) => {
             </div>
           </div>
         );
-
+      case 'send_sms':
+        const smsTemplates = realTemplates.filter(t => t.channel === 'sms');
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select SMS Template</Label>
+              <Select
+                value={data.config?.templateId || ''}
+                onValueChange={(value) => {
+                  const tpl = smsTemplates.find(t => t.id === value);
+                  data.onUpdate({ 
+                    config: { 
+                      ...data.config, 
+                      templateId: value,
+                      body: tpl?.body || '',
+                      label: tpl?.name || ''
+                    } 
+                  });
+                }}
+              >
+                <SelectTrigger className="border-primary">
+                  <SelectValue placeholder={isLoading ? "Loading..." : "Select Template"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {smsTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                  {smsTemplates.length === 0 && !isLoading && <SelectItem value="none" disabled>No SMS templates found</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+            {data.config?.body && (
+              <div className="p-3 bg-muted rounded-lg space-y-2 border">
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  <Label className="text-xs font-semibold">Message Preview</Label>
+                </div>
+                <div className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{data.config.body}</div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Sender ID (Optional)</Label>
+              <Input 
+                 placeholder="e.g., NOTIFY"
+                 value={data.config?.sender || ''}
+                 onChange={(e) => data.onUpdate({ config: { ...data.config, sender: e.target.value } })}
+              />
+            </div>
+          </div>
+        );
       case 'auto_reply_buttons':
       case 'auto_reply_collect_inputs':
         return (
@@ -1181,11 +1231,13 @@ const ActionNode = ({ data, selected, isConnectable }: NodeProps) => {
           <p className="text-[10px] text-muted-foreground italic">No branches configured</p>
         );
 
-      case 'create_whatsapp_payment':
-        return config.amount ? (
-          <div className="p-2.5 bg-green-50 rounded-lg text-xs text-green-700 border border-green-100 flex items-center justify-between">
-            <span>Payment: {config.currency || 'INR'} {config.amount}</span>
-            <CreditCard className="h-3 w-3" />
+        ) : null;
+
+      case 'send_sms':
+        return config.body ? (
+          <div className="p-2.5 bg-blue-50 rounded-lg text-xs text-blue-700 border border-blue-100 flex items-center justify-between">
+            <span className="truncate flex-1">{config.body}</span>
+            <Send className="h-3 w-3 flex-shrink-0 ml-1" />
           </div>
         ) : null;
 

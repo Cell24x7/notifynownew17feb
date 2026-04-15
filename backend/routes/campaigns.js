@@ -159,7 +159,8 @@ router.post('/', authenticate, async (req, res) => {
             template_metadata, template_body, template_type,
             schedule_type, scheduling_mode, frequency, repeat_days, end_date,
             rcs_config_id, whatsapp_config_id, ai_voice_config_id,
-            voice_audio_id, voice_retries, voice_interval
+            voice_audio_id, voice_retries, voice_interval,
+            is_failover_enabled, failover_sms_template
         } = req.body;
 
         // Validate channel against user profile
@@ -267,8 +268,9 @@ router.post('/', authenticate, async (req, res) => {
       (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
        scheduled_at, variable_mapping, template_metadata, template_body, template_type,
        schedule_type, scheduling_mode, frequency, repeat_days, end_date, next_run_at,
-       rcs_config_id, whatsapp_config_id, ai_voice_config_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       rcs_config_id, whatsapp_config_id, ai_voice_config_id,
+       is_failover_enabled, failover_sms_template)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 campaignId, userId, name, channel, savedTemplateId, templateName,
                 audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
@@ -284,7 +286,9 @@ router.post('/', authenticate, async (req, res) => {
                 nextRunAt,
                 rcs_config_id || userRcsConfigId,
                 whatsapp_config_id || userWaConfigId,
-                ai_voice_config_id || userVoiceConfigId
+                ai_voice_config_id || userVoiceConfigId,
+                is_failover_enabled || 0,
+                failover_sms_template || null
              ]
         );
 
@@ -383,12 +387,13 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
 
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, status, template_metadata, template_body, template_type, variable_mapping)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, status, template_metadata, template_body, template_type, variable_mapping, is_failover_enabled, failover_sms_template)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 newId, userId, newName, c.channel, c.template_id, c.template_name,
                 c.audience_id, c.recipient_count, 'draft',
-                c.template_metadata, c.template_body, c.template_type, c.variable_mapping
+                c.template_metadata, c.template_body, c.template_type, c.variable_mapping,
+                c.is_failover_enabled, c.failover_sms_template
             ]
         );
 

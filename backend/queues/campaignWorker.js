@@ -70,8 +70,8 @@ const campaignWorker = new Worker(queueName, async (job) => {
             try {
                 // Mandatory log to message_logs
                 await query(
-                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, message_content, send_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, result.processedMessage || msgContent, now]
+                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, message_content, send_time, is_failover_enabled, failover_sms_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, result.processedMessage || msgContent, now, item.is_failover_enabled || 0, item.failover_sms_template || null]
                 );
 
                 // Secondary log to webhook_logs for Chat UI
@@ -99,8 +99,8 @@ const campaignWorker = new Worker(queueName, async (job) => {
             // Log the failure to message_logs so user knows why it failed
             try {
                 await query(
-                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time, failure_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'failed', chan, tName, now, String(result.error || 'Provider rejected').slice(0, 1000)]
+                    `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, template_name, send_time, failure_reason, is_failover_enabled, failover_sms_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'failed', chan, tName, now, String(result.error || 'Provider rejected').slice(0, 1000), item.is_failover_enabled || 0, item.failover_sms_template || null]
                 );
             } catch (failLogErr) {
                 console.error(`[Worker] FAILURE LOG FAIL for ${item.mobile}: ${failLogErr.message}`);
