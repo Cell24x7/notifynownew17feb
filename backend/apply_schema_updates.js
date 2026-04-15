@@ -487,6 +487,26 @@ async function updateSchema() {
             console.log('Error during AI Voice Bot updates:', e.message);
         }
 
+        // 14. Channel Balance Limits
+        try {
+            console.log('Ensuring channel limit columns exist...');
+            const [uCols] = await connection.execute('DESCRIBE users');
+            const limitCols = [
+                { name: 'rcs_limit', type: 'DECIMAL(15,4) DEFAULT NULL' },
+                { name: 'wa_limit', type: 'DECIMAL(15,4) DEFAULT NULL' },
+                { name: 'sms_limit', type: 'DECIMAL(15,4) DEFAULT NULL' },
+                { name: 'voice_limit', type: 'DECIMAL(15,4) DEFAULT NULL' }
+            ];
+            for (const colDef of limitCols) {
+                if (!uCols.some(c => c.Field === colDef.name)) {
+                    console.log(`Adding ${colDef.name} to users...`);
+                    await connection.execute(`ALTER TABLE users ADD COLUMN ${colDef.name} ${colDef.type}`);
+                }
+            }
+        } catch (e) {
+            console.log('Error adding limit columns:', e.message);
+        }
+
     } catch (err) {
         console.error('Error:', err.message);
     } finally {
