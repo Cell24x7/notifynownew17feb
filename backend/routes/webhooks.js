@@ -82,6 +82,8 @@ router.post('/rcs/callback', async (req, res) => {
                                     }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
                                 }
                             }
+                        }
+                    }
                     console.log(`✅ Updated RCS status for ${messageId} to ${finalStatus}`);
                 } else {
                     console.warn(`⚠️ RCS Message ID ${messageId} not found in logs after retries.`);
