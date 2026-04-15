@@ -1231,8 +1231,6 @@ const ActionNode = ({ data, selected, isConnectable }: NodeProps) => {
           <p className="text-[10px] text-muted-foreground italic">No branches configured</p>
         );
 
-        ) : null;
-
       case 'send_sms':
         return config.body ? (
           <div className="p-2.5 bg-blue-50 rounded-lg text-xs text-blue-700 border border-blue-100 flex items-center justify-between">
