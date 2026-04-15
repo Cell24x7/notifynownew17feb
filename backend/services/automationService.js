@@ -359,15 +359,15 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
         let smsContent = config.message || config.body;
 
         if (templateId) {
-            // Fetch template content (Check ID, Name, OR DLT Template ID)
+            // 1. Try matching against platform-created templates
             const [temps] = await query(
-                'SELECT id, body, metadata FROM message_templates WHERE (id = ? OR name = ? OR temp_id = ?) AND channel = "sms" AND user_id = ?', 
-                [templateId, templateId, templateId, userId]
+                'SELECT id, body, metadata FROM message_templates WHERE (id = ? OR name = ?) AND channel = "sms" AND user_id = ?', 
+                [templateId, templateId, userId]
             );
 
             if (temps.length > 0) {
                 const tpl = temps[0];
-                console.log(`🔍 [AutomationService] Template match found: ID=${tpl.id}`);
+                console.log(`🔍 [AutomationService] Platform template match found: ID=${tpl.id}`);
                 smsContent = tpl.body;
                 try {
                     const meta = typeof tpl.metadata === 'string' ? JSON.parse(tpl.metadata) : (tpl.metadata || {});
@@ -376,7 +376,23 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
                     config.sender = meta.sender || meta.senderId || config.sender;
                 } catch(e) {}
             } else {
-                console.error(`❌ [AutomationService] No SMS Template found matching ID: ${templateId}`);
+                // 2. Try matching against DLT templates (using temp_id)
+                console.log(`🔍 [AutomationService] No platform template match. Checking DLT templates for temp_id: ${templateId}...`);
+                const [dltTemps] = await query(
+                    'SELECT template_text as body, sender, pe_id, hash_id FROM dlt_templates WHERE temp_id = ? AND user_id = ?',
+                    [templateId, userId]
+                );
+
+                if (dltTemps.length > 0) {
+                    const dlt = dltTemps[0];
+                    console.log(`🔍 [AutomationService] DLT template match found for temp_id: ${templateId}`);
+                    smsContent = dlt.body;
+                    config.peId = dlt.pe_id;
+                    config.hashId = dlt.hash_id;
+                    config.sender = dlt.sender;
+                } else {
+                    console.error(`❌ [AutomationService] No SMS Template found (Platform or DLT) matching ID: ${templateId}`);
+                }
             }
         }
 
