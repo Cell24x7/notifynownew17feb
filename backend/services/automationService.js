@@ -359,15 +359,24 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
         let smsContent = config.message || config.body;
 
         if (templateId) {
-            // Fetch template content
-            const [temps] = await query('SELECT body, metadata FROM message_templates WHERE (id = ? OR name = ?) AND channel = "sms"', [templateId, templateId]);
+            // Fetch template content (Check ID, Name, OR DLT Template ID)
+            const [temps] = await query(
+                'SELECT id, body, metadata FROM message_templates WHERE (id = ? OR name = ? OR temp_id = ?) AND channel = "sms" AND user_id = ?', 
+                [templateId, templateId, templateId, userId]
+            );
+
             if (temps.length > 0) {
-                smsContent = temps[0].body;
+                const tpl = temps[0];
+                console.log(`🔍 [AutomationService] Template match found: ID=${tpl.id}`);
+                smsContent = tpl.body;
                 try {
-                    const meta = typeof temps[0].metadata === 'string' ? JSON.parse(temps[0].metadata) : (temps[0].metadata || {});
+                    const meta = typeof tpl.metadata === 'string' ? JSON.parse(tpl.metadata) : (tpl.metadata || {});
                     config.peId = meta.peId || meta.pe_id;
                     config.hashId = meta.hashId || meta.hash_id;
+                    config.sender = meta.sender || meta.senderId || config.sender;
                 } catch(e) {}
+            } else {
+                console.error(`❌ [AutomationService] No SMS Template found matching ID: ${templateId}`);
             }
         }
 
