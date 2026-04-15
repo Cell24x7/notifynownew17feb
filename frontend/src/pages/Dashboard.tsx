@@ -242,7 +242,7 @@ export default function Dashboard() {
       </div>
 
       {/* Channel Credit Allocation (Fresh from API, not stale JWT) */}
-      {(stats?.rcs_limit !== null || stats?.wa_limit !== null || stats?.sms_limit !== null || stats?.voice_limit !== null) && (
+      {stats && (stats.rcs_limit !== null || stats.wa_limit !== null || stats.sms_limit !== null || stats.voice_limit !== null) && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {stats?.rcs_limit !== null && (
             <Card className="bg-purple-50 border-purple-100 shadow-none">
