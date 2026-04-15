@@ -47,6 +47,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
+        rcs_limit, wa_limit, sms_limit, voice_limit,
         reseller_id, is_read, is_social_signup, pe_id, hash_id
       FROM users
       WHERE role IN ('client', 'user')
@@ -83,6 +84,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     rcs_text_price = 0.10, rcs_rich_card_price = 0.15, rcs_carousel_price = 0.20,
     wa_marketing_price = 0.80, wa_utility_price = 0.40, wa_authentication_price = 0.30,
     sms_promotional_price = 1.00, sms_transactional_price = 1.00, sms_service_price = 1.00,
+    rcs_limit = null, wa_limit = null, sms_limit = null, voice_limit = null,
     pe_id = null, hash_id = null
   } = req.body;
 
@@ -125,8 +127,9 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
+        rcs_limit, wa_limit, sms_limit, voice_limit,
         reseller_id, pe_id, hash_id
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, company_name, contact_phone, email, hash,
       status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), 
@@ -134,6 +137,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
       wa_marketing_price, wa_utility_price, wa_authentication_price,
       sms_promotional_price, sms_transactional_price, sms_service_price,
+      rcs_limit || null, wa_limit || null, sms_limit || null, voice_limit || null,
       req.user.role === 'reseller' ? (req.user.actual_reseller_id || req.user.id) : (req.body.reseller_id || null),
       pe_id || null, hash_id || null
     ]);
@@ -163,6 +167,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
     rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
     wa_marketing_price, wa_utility_price, wa_authentication_price,
     sms_promotional_price, sms_transactional_price, sms_service_price,
+    rcs_limit, wa_limit, sms_limit, voice_limit,
     pe_id, hash_id
   } = req.body;
 
@@ -190,6 +195,10 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   if (sms_promotional_price !== undefined) { fields.push('sms_promotional_price = ?'); values.push(sms_promotional_price); }
   if (sms_transactional_price !== undefined) { fields.push('sms_transactional_price = ?'); values.push(sms_transactional_price); }
   if (sms_service_price !== undefined) { fields.push('sms_service_price = ?'); values.push(sms_service_price); }
+  if (rcs_limit !== undefined) { fields.push('rcs_limit = ?'); values.push(rcs_limit); }
+  if (wa_limit !== undefined) { fields.push('wa_limit = ?'); values.push(wa_limit); }
+  if (sms_limit !== undefined) { fields.push('sms_limit = ?'); values.push(sms_limit); }
+  if (voice_limit !== undefined) { fields.push('voice_limit = ?'); values.push(voice_limit); }
   if (pe_id !== undefined) { fields.push('pe_id = ?'); values.push(pe_id); }
   if (hash_id !== undefined) { fields.push('hash_id = ?'); values.push(hash_id); }
 
@@ -316,6 +325,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
              u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
              u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
              u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
+             u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit,
              u.whatsapp_config_id, u.rcs_config_id, u.sms_gateway_id,
              u.pe_id, u.hash_id,
              p.permissions as plan_permissions, u.reseller_id
@@ -392,6 +402,10 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       sms_promotional_price: client.sms_promotional_price,
       sms_transactional_price: client.sms_transactional_price,
       sms_service_price: client.sms_service_price,
+      rcs_limit: client.rcs_limit,
+      wa_limit: client.wa_limit,
+      sms_limit: client.sms_limit,
+      voice_limit: client.voice_limit,
       iat: Math.floor(Date.now() / 1000)
     };
 

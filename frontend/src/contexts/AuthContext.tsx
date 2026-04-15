@@ -35,6 +35,10 @@ interface User {
   actual_reseller_id?: number;
   pe_id?: string;
   hash_id?: string;
+  rcs_limit?: number | null;
+  wa_limit?: number | null;
+  sms_limit?: number | null;
+  voice_limit?: number | null;
 }
 
 interface AuthContextType {
@@ -93,6 +97,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           actual_reseller_id: decoded.actual_reseller_id,
           pe_id: decoded.pe_id,
           hash_id: decoded.hash_id,
+          rcs_limit: decoded.rcs_limit,
+          wa_limit: decoded.wa_limit,
+          sms_limit: decoded.sms_limit,
+          voice_limit: decoded.voice_limit,
         });
 
         // Hydrate from DB to get the live wallet_balance immediately to prevent flashing
@@ -153,6 +161,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           actual_reseller_id: userData.actual_reseller_id,
           pe_id: userData.pe_id,
           hash_id: userData.hash_id,
+          rcs_limit: userData.rcs_limit,
+          wa_limit: userData.wa_limit,
+          sms_limit: userData.sms_limit,
+          voice_limit: userData.voice_limit,
         });
         return true;
       }
@@ -205,6 +217,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           actual_reseller_id: userData.actual_reseller_id,
           pe_id: userData.pe_id,
           hash_id: userData.hash_id,
+          rcs_limit: userData.rcs_limit,
+          wa_limit: userData.wa_limit,
+          sms_limit: userData.sms_limit,
+          voice_limit: userData.voice_limit,
         });
         return true;
       }
@@ -253,6 +269,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           actual_reseller_id: userData.actual_reseller_id,
           pe_id: userData.pe_id,
           hash_id: userData.hash_id,
+          rcs_limit: userData.rcs_limit,
+          wa_limit: userData.wa_limit,
+          sms_limit: userData.sms_limit,
+          voice_limit: userData.voice_limit,
         });
       }
     } catch (err) {
@@ -296,6 +316,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       actual_reseller_id: userData.actual_reseller_id,
       pe_id: userData.pe_id,
       hash_id: userData.hash_id,
+      rcs_limit: userData.rcs_limit,
+      wa_limit: userData.wa_limit,
+      sms_limit: userData.sms_limit,
+      voice_limit: userData.voice_limit,
     });
   };
 

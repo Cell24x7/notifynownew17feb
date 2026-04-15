@@ -815,11 +815,17 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                           <p className="text-xs text-muted-foreground">
                                              ₹{(() => {
                                                 const u = user as any;
-                                                if (channel.value === 'sms') return u?.sms_promotional_price || '0.10';
-                                                if (channel.value === 'whatsapp') return u?.wa_marketing_price || '0.80';
-                                                if (channel.value === 'rcs') return u?.rcs_text_price || '0.25';
-                                                if (channel.value === 'voicebot') return u?.voice_price || '1.50';
-                                                return channel.costPerMessage;
+                                                let price = 0;
+                                                if (channel.value === 'sms') price = u?.sms_promotional_price;
+                                                else if (channel.value === 'whatsapp') price = u?.wa_marketing_price;
+                                                else if (channel.value === 'rcs') price = u?.rcs_text_price;
+                                                else if (channel.value === 'voicebot' || channel.value === 'voice') price = u?.voice_price;
+                                                
+                                                // If user price is not set, fallback to channel default
+                                                if (price === undefined || price === null || isNaN(Number(price))) {
+                                                   return Number(channel.costPerMessage).toFixed(2);
+                                                }
+                                                return Number(price).toFixed(2);
                                              })()}/msg
                                           </p>
                                        </button>

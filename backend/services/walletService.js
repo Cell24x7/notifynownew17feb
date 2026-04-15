@@ -14,7 +14,8 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             `SELECT c.*, u.id as u_id, u.credits_available, u.wallet_balance, u.role, 
                     u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
                     u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
-                    u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price
+                    u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
+                    u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit
              FROM ${campaignTable} c 
              JOIN users u ON c.user_id = u.id 
              WHERE c.id = ?`,
@@ -102,20 +103,43 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             };
         }
 
+        // 4b. Channel-specific limit check
+        let channelLimit = null;
+        if (channel === 'rcs') channelLimit = campaign.rcs_limit;
+        else if (channel === 'whatsapp') channelLimit = campaign.wa_limit;
+        else if (channel === 'sms') channelLimit = campaign.sms_limit;
+        else if (channel === 'voice' || channel === 'voicebot') channelLimit = campaign.voice_limit;
+
+        if (channelLimit !== null && channelLimit < totalCost) {
+            await query(`UPDATE ${campaignTable} SET credits_deducted = 0 WHERE id = ?`, [campaignId]);
+            return {
+                success: false,
+                message: `Insufficient ${channel.toUpperCase()} allocation. Required ₹${totalCost.toFixed(4)}, allocated remaining ₹${Number(channelLimit).toFixed(4)}`
+            };
+        }
+
         // 5. START TRANSACTION FOR ATOMIC DEDUCTION
         connection = await pool.promise().getConnection();
         await connection.beginTransaction();
 
         try {
-            // A. Update User Balance
-            await connection.query(
-                `UPDATE users 
+            // A. Update User Balance and Channel Limit
+            let updateQuery = `UPDATE users 
                  SET credits_available = COALESCE(credits_available, 0) - ?,
                      wallet_balance = COALESCE(wallet_balance, 0) - ?,
-                     credits_used = COALESCE(credits_used, 0) + ?
-                 WHERE id = ?`,
-                [totalCost, totalCost, totalCost, campaign.u_id]
-            );
+                     credits_used = COALESCE(credits_used, 0) + ?`;
+            
+            const updateValues = [totalCost, totalCost, totalCost];
+
+            if (channel === 'rcs' && campaign.rcs_limit !== null) { updateQuery += `, rcs_limit = rcs_limit - ?`; updateValues.push(totalCost); }
+            else if (channel === 'whatsapp' && campaign.wa_limit !== null) { updateQuery += `, wa_limit = wa_limit - ?`; updateValues.push(totalCost); }
+            else if (channel === 'sms' && campaign.sms_limit !== null) { updateQuery += `, sms_limit = sms_limit - ?`; updateValues.push(totalCost); }
+            else if ((channel === 'voice' || channel === 'voicebot') && campaign.voice_limit !== null) { updateQuery += `, voice_limit = voice_limit - ?`; updateValues.push(totalCost); }
+
+            updateQuery += ` WHERE id = ?`;
+            updateValues.push(campaign.u_id);
+
+            await connection.query(updateQuery, updateValues);
 
             // B. Log Transaction
             await connection.query(
@@ -161,7 +185,8 @@ const deductSingleMessageCredit = async (userId, channel, templateName, template
             `SELECT id, wallet_balance, role, 
                     rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
                     wa_marketing_price, wa_utility_price, wa_authentication_price,
-                    sms_promotional_price, sms_transactional_price, sms_service_price
+                    sms_promotional_price, sms_transactional_price, sms_service_price,
+                    rcs_limit, wa_limit, sms_limit, voice_limit
              FROM users WHERE id = ?`, 
             [userId]
         );
@@ -212,19 +237,38 @@ const deductSingleMessageCredit = async (userId, channel, templateName, template
             return { success: false, message: 'Insufficient wallet balance' };
         }
 
+        // Channel-specific limit check
+        let chanLimit = null;
+        if (chan === 'rcs') chanLimit = user.rcs_limit;
+        else if (chan === 'whatsapp') chanLimit = user.wa_limit;
+        else if (chan === 'sms') chanLimit = user.sms_limit;
+        else if (chan === 'voice' || chan === 'voicebot') chanLimit = user.voice_limit;
+
+        if (chanLimit !== null && chanLimit < cost) {
+            return { success: false, message: `Insufficient ${chan.toUpperCase()} allocation` };
+        }
+
         // START TRANSACTION
         connection = await pool.promise().getConnection();
         await connection.beginTransaction();
 
         try {
-            await connection.query(
-                `UPDATE users 
+            let upQuery = `UPDATE users 
                  SET credits_available = COALESCE(credits_available, 0) - ?,
                      wallet_balance = COALESCE(wallet_balance, 0) - ?,
-                     credits_used = COALESCE(credits_used, 0) + ?
-                 WHERE id = ?`,
-                [cost, cost, cost, userId]
-            );
+                     credits_used = COALESCE(credits_used, 0) + ?`;
+            
+            const upValues = [cost, cost, cost];
+
+            if (chan === 'rcs' && user.rcs_limit !== null) { upQuery += `, rcs_limit = rcs_limit - ?`; upValues.push(cost); }
+            else if (chan === 'whatsapp' && user.wa_limit !== null) { upQuery += `, wa_limit = wa_limit - ?`; upValues.push(cost); }
+            else if (chan === 'sms' && user.sms_limit !== null) { upQuery += `, sms_limit = sms_limit - ?`; upValues.push(cost); }
+            else if ((chan === 'voice' || chan === 'voicebot') && user.voice_limit !== null) { upQuery += `, voice_limit = voice_limit - ?`; upValues.push(cost); }
+
+            upQuery += ` WHERE id = ?`;
+            upValues.push(userId);
+
+            await connection.query(upQuery, upValues);
 
             await connection.query(
                 `INSERT INTO transactions (user_id, type, amount, credits, description, status, created_at)
