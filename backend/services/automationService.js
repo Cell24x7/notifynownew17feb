@@ -178,6 +178,7 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
             await new Promise(r => setTimeout(r, 1200));
         } else if (actionType === 'send_sms') {
             const templateId = payload.failover_template_id || config.templateId || config.template_id;
+            console.log(`🤖 Automation: Triggering SMS Failover for ${mobile}. Template ID: ${templateId}`);
             let smsContent = config.message || config.body;
 
             if (templateId) {
