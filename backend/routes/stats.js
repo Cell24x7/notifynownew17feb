@@ -278,8 +278,8 @@ router.get('/stats', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // 1. Get user's enabled channels (Keep existing logic as fallback/metadata)
-        const [userRows] = await query('SELECT channels_enabled FROM users WHERE id = ?', [userId]);
+        // 1. Get user's enabled channels + fresh allocation limits from DB
+        const [userRows] = await query('SELECT channels_enabled, rcs_limit, wa_limit, sms_limit, voice_limit FROM users WHERE id = ?', [userId]);
         let enabledChannels = [];
         try {
             if (userRows[0]?.channels_enabled) {
@@ -288,6 +288,12 @@ router.get('/stats', authenticate, async (req, res) => {
         } catch (e) {
             enabledChannels = [];
         }
+        const freshLimits = {
+            rcs_limit: userRows[0]?.rcs_limit ?? null,
+            wa_limit: userRows[0]?.wa_limit ?? null,
+            sms_limit: userRows[0]?.sms_limit ?? null,
+            voice_limit: userRows[0]?.voice_limit ?? null,
+        };
 
         // 2. Total Conversations (Audience Count from completed/running campaigns)
         const [totalStats] = await query(`
@@ -425,7 +431,12 @@ router.get('/stats', authenticate, async (req, res) => {
             channelPercentages: Object.entries(channelDist).map(([key, value]) => ({
                 name: key.charAt(0).toUpperCase() + key.slice(1),
                 value: Number(value)
-            }))
+            })),
+            // Fresh channel allocation limits from DB (not from stale JWT)
+            rcs_limit: freshLimits.rcs_limit,
+            wa_limit: freshLimits.wa_limit,
+            sms_limit: freshLimits.sms_limit,
+            voice_limit: freshLimits.voice_limit
         };
 
         res.json({ success: true, stats });

@@ -241,49 +241,49 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Channel Credit Allocation (If set) */}
-      {(user?.rcs_limit !== null || user?.wa_limit !== null || user?.sms_limit !== null || user?.voice_limit !== null) && (
+      {/* Channel Credit Allocation (Fresh from API, not stale JWT) */}
+      {(stats?.rcs_limit !== null || stats?.wa_limit !== null || stats?.sms_limit !== null || stats?.voice_limit !== null) && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {user?.rcs_limit !== null && (
+          {stats?.rcs_limit !== null && (
             <Card className="bg-purple-50 border-purple-100 shadow-none">
               <CardContent className="p-4">
                 <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-1">RCS Allocation</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm font-medium text-purple-700">₹</span>
-                  <p className="text-xl font-bold text-purple-900">{(user.rcs_limit || 0).toFixed(2)}</p>
+                  <p className="text-xl font-bold text-purple-900">{Number(stats.rcs_limit || 0).toFixed(2)}</p>
                 </div>
               </CardContent>
             </Card>
           )}
-          {user?.wa_limit !== null && (
+          {stats?.wa_limit !== null && (
             <Card className="bg-emerald-50 border-emerald-100 shadow-none">
               <CardContent className="p-4">
                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">WhatsApp Allocation</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm font-medium text-emerald-700">₹</span>
-                  <p className="text-xl font-bold text-emerald-900">{(user.wa_limit || 0).toFixed(2)}</p>
+                  <p className="text-xl font-bold text-emerald-900">{Number(stats.wa_limit || 0).toFixed(2)}</p>
                 </div>
               </CardContent>
             </Card>
           )}
-          {user?.sms_limit !== null && (
+          {stats?.sms_limit !== null && (
             <Card className="bg-blue-50 border-blue-100 shadow-none">
               <CardContent className="p-4">
                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">SMS Allocation</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm font-medium text-blue-700">₹</span>
-                  <p className="text-xl font-bold text-blue-900">{(user.sms_limit || 0).toFixed(2)}</p>
+                  <p className="text-xl font-bold text-blue-900">{Number(stats.sms_limit || 0).toFixed(2)}</p>
                 </div>
               </CardContent>
             </Card>
           )}
-          {user?.voice_limit !== null && (
+          {stats?.voice_limit !== null && (
             <Card className="bg-amber-50 border-amber-100 shadow-none">
               <CardContent className="p-4">
                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">Voice Allocation</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm font-medium text-amber-700">₹</span>
-                  <p className="text-xl font-bold text-amber-900">{(user.voice_limit || 0).toFixed(2)}</p>
+                  <p className="text-xl font-bold text-amber-900">{Number(stats.voice_limit || 0).toFixed(2)}</p>
                 </div>
               </CardContent>
             </Card>
