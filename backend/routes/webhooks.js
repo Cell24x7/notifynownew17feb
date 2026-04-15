@@ -212,6 +212,7 @@ router.post('/dotgo', async (req, res) => {
         }
 
         console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
+        console.log(`🔍 LOG DEBUG: messageID=${messageId}, contact=${contactPhone}, finalStatus=${finalStatus}`);
         if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${cleanSender}`);
 
         // userId needs to be available for both webhook_logs AND message_logs sections
@@ -398,6 +399,7 @@ router.post('/dotgo', async (req, res) => {
                     const log = logs[0];
                     const oldStatus = (log.status || '').toLowerCase();
 
+                    console.log(`🔍 LOG DATA for ${log.id}: Enabled: ${log.is_failover_enabled}, Template: ${log.failover_sms_template}, Campaign: ${log.campaign_id}`);
                     // Only update if status is actually different
                     if (oldStatus !== finalStatus) {
                         // Hierarchy Protection: Don't downgrade status (e.g., if 'sent' comes after 'delivered')
