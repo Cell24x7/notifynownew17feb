@@ -161,9 +161,9 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         
         // Log the outgoing URL (masking sensitive keys)
         const loggedUrl = finalUrl.replace(/(user|pass|password|pwd|key|apikey|sid|auth|token)=([^&]+)/gi, '$1=*******');
+        console.log(`📡 [SMS] Sending via Gateway: ${gateway.name} | URL: ${loggedUrl}`);
         
         if (!data.templateId && process.env.NODE_ENV === 'production') {
-            console.warn(`[SMS-WARN] Sending to ${mobile} without Template ID via ${gateway.name}. This may fail in India.`);
         }
 
         // console.log(`[SMS-LOG] Sending to ${mobile} via ${gateway.name}`);

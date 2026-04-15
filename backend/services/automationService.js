@@ -386,7 +386,9 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
                 
                 if (smsResult.success) {
                     await logWebhook(userId, mobile, smsContent, 'sms', io);
-                    console.log(`✅ [AutomationService] SMS Fallback Sent to ${mobile}`);
+                    console.log(`✅ [AutomationService] SMS Fallback Sent to ${mobile}. MsgID: ${smsResult.messageId}`);
+                } else {
+                    console.error(`❌ [AutomationService] SMS Fallback Failed for ${mobile}:`, smsResult.error || 'Unknown Error');
                 }
             } else {
                 console.warn(`⚠️ [AutomationService] SMS Failover failed: ${deduction.message}`);
