@@ -326,24 +326,59 @@ async function sendRcsReply(userId, to, text) {
     }
 }
 
-async function replaceVariables(userId, mobile, text) {
-    if (!text || !text.includes('{{')) return text;
+async function replaceVariables(userId, mobile, text, customVars = {}) {
+    if (!text) return text;
+    // Check if there are any variable patterns in the text
+    if (!/\{|\[/.test(text)) return text;
+    
     try {
-        const [contacts] = await query('SELECT * FROM contacts WHERE user_id = ? AND (phone = ? OR phone = ?)', [userId, mobile, mobile]);
-        if (contacts.length === 0) return text;
-        
-        const contact = contacts[0];
         let newText = text;
-        const vars = {
-            name: contact.name || 'User',
-            first_name: (contact.name || 'User').split(' ')[0],
-            phone: contact.phone,
-            email: contact.email || ''
+        
+        // 1. First, replace custom map variables (from payload.variables)
+        if (customVars && typeof customVars === 'object') {
+            for (const [key, val] of Object.entries(customVars)) {
+                // Matches {{key}}, {key}, [key], {#key#}
+                const regexes = [
+                    new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'),
+                    new RegExp(`\\{\\s*${key}\\s*\\}`, 'gi'),
+                    new RegExp(`\\[\\s*${key}\\s*\\]`, 'gi'),
+                    new RegExp(`\\{#\\s*${key}\\s*#\\}`, 'gi')
+                ];
+                regexes.forEach(regex => {
+                    newText = newText.replace(regex, val != null ? String(val) : '');
+                });
+            }
+        }
+
+        // 2. Then fallback to contact table data
+        const [contacts] = await query('SELECT * FROM contacts WHERE user_id = ? AND (phone = ? OR phone = ?)', [userId, mobile, mobile]);
+        let contactVars = {
+            name: 'User',
+            first_name: 'User',
+            phone: mobile,
+            email: ''
         };
 
-        for (const [key, val] of Object.entries(vars)) {
-            const regex = new RegExp(`{{${key}}}`, 'gi');
-            newText = newText.replace(regex, val || '');
+        if (contacts.length > 0) {
+            const contact = contacts[0];
+            contactVars = {
+                name: contact.name || 'User',
+                first_name: (contact.name || 'User').split(' ')[0],
+                phone: contact.phone,
+                email: contact.email || ''
+            };
+        }
+
+        for (const [key, val] of Object.entries(contactVars)) {
+            const regexes = [
+                new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'),
+                new RegExp(`\\{\\s*${key}\\s*\\}`, 'gi'),
+                new RegExp(`\\[\\s*${key}\\s*\\]`, 'gi'),
+                new RegExp(`\\{#\\s*${key}\\s*#\\}`, 'gi')
+            ];
+            regexes.forEach(regex => {
+                newText = newText.replace(regex, val || '');
+            });
         }
         return newText;
     } catch (e) {
@@ -397,8 +432,9 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
         }
 
         if (smsContent) {
-            smsContent = await replaceVariables(userId, mobile, smsContent);
+            smsContent = await replaceVariables(userId, mobile, smsContent, payload.variables || {});
             
+
             const deduction = await deductSingleMessageCredit(userId, 'sms', templateId || 'failover_sms');
             if (deduction.success) {
                 const smsResult = await sendSMS(mobile, smsContent, {

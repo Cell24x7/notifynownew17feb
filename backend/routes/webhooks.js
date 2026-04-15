@@ -73,10 +73,17 @@ router.post('/rcs/callback', async (req, res) => {
 
                                 console.log(`🤖 Failover Check for Log ${log.id}: Enabled=${log.is_failover_enabled}, Template=${log.failover_sms_template}`);
                              
-                             console.log(`🤖 DotGo Failover Check for Log ${log.id}: Enabled=${log.is_failover_enabled}, Template=${log.failover_sms_template}`);
-
                                 // 🤖 TRIGGER FAILOVER AUTOMATION
                                 if (typeof processAutomation === 'function' && log.is_failover_enabled) {
+                                    let mappedVariables = {};
+                                    try {
+                                        const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
+                                        const [qRes] = await query(`SELECT variables FROM ${queueTable} WHERE message_id = ? LIMIT 1`, [messageId]);
+                                        if (qRes.length > 0 && qRes[0].variables) {
+                                            mappedVariables = typeof qRes[0].variables === 'string' ? JSON.parse(qRes[0].variables) : qRes[0].variables;
+                                        }
+                                    } catch(e) {}
+
                                     processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
                                         sender: log.recipient,
                                         message_content: log.message_content,
@@ -85,6 +92,7 @@ router.post('/rcs/callback', async (req, res) => {
                                         failover_template_id: log.failover_sms_template,
                                         campaign_id: log.campaign_id,
                                         campaign_name: log.campaign_name,
+                                        variables: mappedVariables,
                                         is_api: isApiLog
                                     }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
                                 }
@@ -442,6 +450,15 @@ router.post('/dotgo', async (req, res) => {
                             
                             // 🤖 TRIGGER FAILOVER AUTOMATION
                              if (typeof processAutomation === 'function' && log.is_failover_enabled) {
+                                 let mappedVariables = {};
+                                 try {
+                                     const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
+                                     const [qRes] = await query(`SELECT variables FROM ${queueTable} WHERE message_id = ? LIMIT 1`, [log.message_id]);
+                                     if (qRes.length > 0 && qRes[0].variables) {
+                                         mappedVariables = typeof qRes[0].variables === 'string' ? JSON.parse(qRes[0].variables) : qRes[0].variables;
+                                     }
+                                 } catch(e) {}
+
                                  processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
                                      sender: log.recipient,
                                      message_content: log.message_content,
@@ -450,6 +467,7 @@ router.post('/dotgo', async (req, res) => {
                                      failover_template_id: log.failover_sms_template,
                                      campaign_id: log.campaign_id,
                                      campaign_name: log.campaign_name,
+                                     variables: mappedVariables,
                                      is_api: isApiLog
                                  }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
                              }
