@@ -410,8 +410,32 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
                 });
                 
                 if (smsResult.success) {
+                    // 1. Log to webhook_logs (For Live Chat)
                     await logWebhook(userId, mobile, smsContent, 'sms', io);
                     console.log(`✅ [AutomationService] SMS Fallback Sent to ${mobile}. MsgID: ${smsResult.messageId}`);
+
+                    // 2. Log to message_logs (For Detailed Reports)
+                    const campaignId = payload.campaign_id || null;
+                    const campaignName = payload.campaign_name || 'Failover Campaign';
+                    const originalMsgId = payload.messageId || 'N/A';
+                    const isApiLog = payload.is_api === true;
+                    const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                    const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+
+                    try {
+                        await query(
+                            `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, message_id, message_content, failure_reason, send_time, template_name) 
+                             VALUES (?, ?, ?, ?, 'sent', 'sms', ?, ?, ?, NOW(), ?)`,
+                            [userId, campaignId, campaignName, mobile, smsResult.messageId, smsContent, `Failover from RCS: ${originalMsgId}`, templateId]
+                        );
+
+                        // 3. Update Campaign Sent Count
+                        if (campaignId) {
+                            await query(`UPDATE ${campaignsTable} SET sent_count = sent_count + 1 WHERE id = ?`, [campaignId]);
+                        }
+                    } catch (logErr) {
+                        console.error('❌ [AutomationService] Failed to log failover SMS to message_logs:', logErr.message);
+                    }
                 } else {
                     console.error(`❌ [AutomationService] SMS Fallback Failed for ${mobile}:`, smsResult.error || 'Unknown Error');
                 }

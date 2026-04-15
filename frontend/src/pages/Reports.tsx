@@ -614,6 +614,7 @@ export default function Reports() {
                                             <TableHead className="w-[60px] font-semibold text-foreground border-r border-b border-border px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Rtime</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Mobile</TableHead>
+                                            <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Channel</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">SendTime</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">DelTime</TableHead>
                                             <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">ReadTime</TableHead>
@@ -640,6 +641,14 @@ export default function Reports() {
                                                     </TableCell>
                                                     <TableCell className="text-[11px] border-r border-border text-center px-3 py-2 font-bold text-foreground">
                                                         {log.recipient?.replace(/^\+/, '')}
+                                                    </TableCell>
+                                                    <TableCell className="text-center border-r border-border px-2 py-2">
+                                                        <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-black uppercase", 
+                                                            log.channel === 'sms' ? "bg-amber-50 text-amber-700" : 
+                                                            log.channel === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : 
+                                                            "bg-blue-50 text-blue-700")}>
+                                                            {log.channel || 'rcs'}
+                                                        </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-[10px] border-r border-border text-center px-3 py-2 font-medium text-muted-foreground">
                                                         {log.send_time ? format(new Date(log.send_time), 'HH:mm') : '-'}

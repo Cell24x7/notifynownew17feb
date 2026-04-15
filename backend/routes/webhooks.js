@@ -75,14 +75,17 @@ router.post('/rcs/callback', async (req, res) => {
                              
                              console.log(`🤖 DotGo Failover Check for Log ${log.id}: Enabled=${log.is_failover_enabled}, Template=${log.failover_sms_template}`);
 
-                             // 🤖 TRIGGER FAILOVER AUTOMATION
+                                // 🤖 TRIGGER FAILOVER AUTOMATION
                                 if (typeof processAutomation === 'function' && log.is_failover_enabled) {
                                     processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
                                         sender: log.recipient,
                                         message_content: log.message_content,
                                         messageId: messageId,
                                         failed_reason: error || 'Unknown error',
-                                        failover_template_id: log.failover_sms_template 
+                                        failover_template_id: log.failover_sms_template,
+                                        campaign_id: log.campaign_id,
+                                        campaign_name: log.campaign_name,
+                                        is_api: isApiLog
                                     }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
                                 }
                             }
@@ -438,15 +441,18 @@ router.post('/dotgo', async (req, res) => {
                             await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
                             
                             // 🤖 TRIGGER FAILOVER AUTOMATION
-                            if (typeof processAutomation === 'function' && log.is_failover_enabled) {
-                                processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
-                                    sender: log.recipient,
-                                    message_content: log.message_content,
-                                    messageId: log.message_id,
-                                    failed_reason: reason,
-                                    failover_template_id: log.failover_sms_template 
-                                }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
-                            }
+                             if (typeof processAutomation === 'function' && log.is_failover_enabled) {
+                                 processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
+                                     sender: log.recipient,
+                                     message_content: log.message_content,
+                                     messageId: log.message_id,
+                                     failed_reason: reason,
+                                     failover_template_id: log.failover_sms_template,
+                                     campaign_id: log.campaign_id,
+                                     campaign_name: log.campaign_name,
+                                     is_api: isApiLog
+                                 }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
+                             }
                         }
 
                         // Handle Campaign Counters (Real-time updates)
