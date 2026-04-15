@@ -1008,6 +1008,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              </span>
                                           </div>
                                        </div>
+                                    </div>
                                  </div>
                               )}
 
