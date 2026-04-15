@@ -977,6 +977,65 @@ export default function SuperAdminClients() {
 
             <div className="h-px bg-border" />
 
+            {/* Channel Quotas / Allocations */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <CreditCard className="w-4 h-4" /> Channel Allocations (Budget Limits)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="space-y-2">
+                  <Label>RCS Limit (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Unlimited if empty"
+                    value={currentClient.rcs_limit === null ? '' : currentClient.rcs_limit}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, rcs_limit: e.target.value === '' ? null : parseFloat(e.target.value) }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>WhatsApp Limit (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Unlimited if empty"
+                    value={currentClient.wa_limit === null ? '' : currentClient.wa_limit}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, wa_limit: e.target.value === '' ? null : parseFloat(e.target.value) }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SMS Limit (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Unlimited if empty"
+                    value={currentClient.sms_limit === null ? '' : currentClient.sms_limit}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, sms_limit: e.target.value === '' ? null : parseFloat(e.target.value) }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Voice Limit (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Unlimited if empty"
+                    value={currentClient.voice_limit === null ? '' : currentClient.voice_limit}
+                    onChange={e => setCurrentClient(prev => ({ ...prev, voice_limit: e.target.value === '' ? null : parseFloat(e.target.value) }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
             {/* Section 3: RCS Configuration */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
