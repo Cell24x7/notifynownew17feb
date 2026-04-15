@@ -1,4 +1,6 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const path = require('path');
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: path.join(__dirname, '../', envFile) });
 const { query } = require('../config/db');
 
 async function migrate() {

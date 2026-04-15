@@ -1,4 +1,7 @@
 const axios = require('axios');
+const path = require('path');
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: path.join(__dirname, '../', envFile) });
 
 const testWebhook = async () => {
   const url = 'http://localhost:5000/api/webhooks/rcs/callback';
