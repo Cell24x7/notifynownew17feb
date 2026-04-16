@@ -501,9 +501,12 @@ router.get('/usage-ledger', authenticate, async (req, res) => {
                 r.name as reseller_name,
                 SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE 0 END) as total_spent,
                 SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE 0 END) as total_added,
-                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM campaigns WHERE user_id = u.id AND channel = 'sms' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as sms_count,
-                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM campaigns WHERE user_id = u.id AND channel = 'whatsapp' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as wa_count,
-                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM campaigns WHERE user_id = u.id AND channel = 'rcs' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as rcs_count,
+                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM campaigns WHERE user_id = u.id AND channel = 'sms' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as sms_bulk,
+                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM api_campaigns WHERE user_id = u.id AND channel = 'sms' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as sms_api,
+                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM campaigns WHERE user_id = u.id AND channel = 'whatsapp' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as wa_bulk,
+                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM api_campaigns WHERE user_id = u.id AND channel = 'whatsapp' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as wa_api,
+                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM campaigns WHERE user_id = u.id AND channel = 'rcs' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as rcs_bulk,
+                COALESCE((SELECT SUM(GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0))) FROM api_campaigns WHERE user_id = u.id AND channel = 'rcs' AND MONTH(created_at) = ? AND YEAR(created_at) = ?), 0) as rcs_api,
                 MAX(t.created_at) as last_activity
             FROM users u
             LEFT JOIN resellers r ON u.reseller_id = r.id
@@ -516,7 +519,7 @@ router.get('/usage-ledger', authenticate, async (req, res) => {
             LIMIT ? OFFSET ?
         `;
 
-        const finalParams = [month, year, month, year, month, year, month, year, ...params.slice(2), limit, offset];
+        const finalParams = [month, year, month, year, month, year, month, year, month, year, month, year, month, year, ...params.slice(2), limit, offset];
         
         const [rows] = await query(sql, finalParams);
 
@@ -527,9 +530,12 @@ router.get('/usage-ledger', authenticate, async (req, res) => {
                 total_spent: Number(r.total_spent || 0),
                 total_added: Number(r.total_added || 0),
                 wallet_balance: Number(r.wallet_balance || 0),
-                sms_count: Number(r.sms_count || 0),
-                wa_count: Number(r.wa_count || 0),
-                rcs_count: Number(r.rcs_count || 0)
+                sms_bulk: Number(r.sms_bulk || 0),
+                sms_api: Number(r.sms_api || 0),
+                wa_bulk: Number(r.wa_bulk || 0),
+                wa_api: Number(r.wa_api || 0),
+                rcs_bulk: Number(r.rcs_bulk || 0),
+                rcs_api: Number(r.rcs_api || 0)
             })),
             pagination: {
                 total: totalRecords,

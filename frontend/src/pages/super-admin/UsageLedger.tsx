@@ -23,9 +23,12 @@ interface LedgerEntry {
     total_added: number;
     last_activity: string | null;
     account_created: string;
-    sms_count: number;
-    wa_count: number;
-    rcs_count: number;
+    sms_bulk: number;
+    sms_api: number;
+    wa_bulk: number;
+    wa_api: number;
+    rcs_bulk: number;
+    rcs_api: number;
 }
 
 interface Reseller {
@@ -134,16 +137,22 @@ export default function UsageLedger() {
     const totalSpentInView = ledger.reduce((sum, item) => sum + item.total_spent, 0);
 
     const handleExport = () => {
-        const headers = ['ID', 'Organization', 'Email', 'Reseller', 'Onboarded', 'SMS Msg', 'WA Msg', 'RCS Msg', 'Total Spent', 'Recharged', 'Closing Balance'];
+        const headers = [
+            'ID', 'Organization', 'Email', 'Reseller', 'Onboarded', 
+            'SMS Bulk', 'SMS API', 
+            'WA Bulk', 'WA API', 
+            'RCS Bulk', 'RCS API', 
+            'Total Spent', 'Recharged', 'Closing Balance'
+        ];
         const csv = ledger.map(i => [
             i.id, 
             i.company || 'Personal', 
             i.email, 
             i.reseller_name || 'Direct', 
             i.account_created ? format(new Date(i.account_created), 'yyyy-MM-dd') : 'N/A',
-            i.sms_count,
-            i.wa_count,
-            i.rcs_count,
+            i.sms_bulk, i.sms_api,
+            i.wa_bulk, i.wa_api,
+            i.rcs_bulk, i.rcs_api,
             i.total_spent, 
             i.total_added,
             i.wallet_balance
@@ -152,7 +161,7 @@ export default function UsageLedger() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `detailed_usage_audit_${month}_${year}.csv`;
+        a.download = `api_vs_bulk_audit_${month}_${year}.csv`;
         a.click();
     };
 
@@ -318,10 +327,42 @@ export default function UsageLedger() {
                                         </TableCell>
                                         <TableCell className="border-r border-slate-100">
                                             <div className="flex flex-wrap gap-1.5 justify-start">
-                                                {item.wa_count > 0 && <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-none text-[9px] font-black px-1.5 h-4">WA: {item.wa_count}</Badge>}
-                                                {item.sms_count > 0 && <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-none text-[9px] font-black px-1.5 h-4">SMS: {item.sms_count}</Badge>}
-                                                {item.rcs_count > 0 && <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-none text-[9px] font-black px-1.5 h-4">RCS: {item.rcs_count}</Badge>}
-                                                {item.wa_count === 0 && item.sms_count === 0 && item.rcs_count === 0 && <span className="text-[10px] text-slate-300 italic">No activity</span>}
+                                                {/* WhatsApp Section */}
+                                                {(item.wa_bulk > 0 || item.wa_api > 0) && (
+                                                    <div className="flex flex-col gap-1 pr-2 border-r border-slate-100 last:border-0 border-dashed">
+                                                        <span className="text-[7px] font-black text-emerald-600 uppercase">WhatsApp</span>
+                                                        <div className="flex gap-1">
+                                                            {item.wa_bulk > 0 && <Badge className="bg-emerald-50 text-emerald-700 border-none text-[8px] font-black px-1 h-3.5">B:{item.wa_bulk}</Badge>}
+                                                            {item.wa_api > 0 && <Badge className="bg-emerald-600 text-white border-none text-[8px] font-black px-1 h-3.5">API:{item.wa_api}</Badge>}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* SMS Section */}
+                                                {(item.sms_bulk > 0 || item.sms_api > 0) && (
+                                                    <div className="flex flex-col gap-1 pr-2 border-r border-slate-100 last:border-0 border-dashed">
+                                                        <span className="text-[7px] font-black text-blue-600 uppercase">SMS</span>
+                                                        <div className="flex gap-1">
+                                                            {item.sms_bulk > 0 && <Badge className="bg-blue-50 text-blue-700 border-none text-[8px] font-black px-1 h-3.5">B:{item.sms_bulk}</Badge>}
+                                                            {item.sms_api > 0 && <Badge className="bg-blue-600 text-white border-none text-[8px] font-black px-1 h-3.5">API:{item.sms_api}</Badge>}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* RCS Section */}
+                                                {(item.rcs_bulk > 0 || item.rcs_api > 0) && (
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-[7px] font-black text-indigo-600 uppercase">RCS</span>
+                                                        <div className="flex gap-1">
+                                                            {item.rcs_bulk > 0 && <Badge className="bg-indigo-50 text-indigo-700 border-none text-[8px] font-black px-1 h-3.5">B:{item.rcs_bulk}</Badge>}
+                                                            {item.rcs_api > 0 && <Badge className="bg-indigo-600 text-white border-none text-[8px] font-black px-1 h-3.5">API:{item.rcs_api}</Badge>}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {item.wa_bulk === 0 && item.wa_api === 0 && item.sms_bulk === 0 && item.sms_api === 0 && item.rcs_bulk === 0 && item.rcs_api === 0 && (
+                                                    <span className="text-[10px] text-slate-300 italic">No consumption</span>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="border-r border-slate-100 text-right font-black text-slate-900">
