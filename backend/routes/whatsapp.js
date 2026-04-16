@@ -964,9 +964,9 @@ router.post('/api/send-bulk', async (req, res) => {
 
         // Create Campaign initially as checking_credits in api_campaigns
         await query(
-            `INSERT INTO api_campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, audience_count, status, template_metadata, template_body)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'checking_credits', ?, ?)`,
-            [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length, contacts.length, template?.metadata, template?.body]
+            `INSERT INTO api_campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, audience_count, status, template_metadata, template_body, is_failover_enabled, failover_sms_template)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'checking_credits', ?, ?, ?, ?)`,
+            [campaignId, userId, cName, 'whatsapp', templateName, templateName, contacts.length, contacts.length, template?.metadata, template?.body, req.body.failover_enabled ? 1 : 0, req.body.failover_sms_template_id || null]
         );
 
         // Perform Credit Check
@@ -1124,7 +1124,7 @@ router.post('/api/campaign-status', async (req, res) => {
  */
 router.post('/api/send-single', async (req, res) => {
     try {
-        const { username, password, to, templateName, variables, mediaUrl } = req.body;
+        const { username, password, to, templateName, variables, mediaUrl, failover_enabled, failover_sms_template_id, failover_variables } = req.body;
 
         if (!username || !password || !templateName || !to) {
             return res.status(400).json({ success: false, message: 'Missing required fields: username, password, templateName, to' });
@@ -1174,18 +1174,39 @@ router.post('/api/send-single', async (req, res) => {
             return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
         }
 
-        const response = await axios.post(getMessagesUrl(config), payload, { headers: getHeaders(config) });
-        const messageId = response.data.messages?.[0]?.id || response.data.message_id;
+        const failoverVariablesStr = failover_variables ? JSON.stringify(failover_variables) : JSON.stringify(variables || {});
 
-        // Log to api_message_logs
-        await query(
-            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)',
-            [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp', `Template: ${templateName}`]
-        );
+        try {
+            const response = await axios.post(getMessagesUrl(config), payload, { headers: getHeaders(config) });
+            const messageId = response.data.messages?.[0]?.id || response.data.message_id;
 
-        res.json({ success: true, messageId });
+            // Log to api_message_logs with failover settings
+            await query(
+                'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content, is_failover_enabled, failover_sms_template) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)',
+                [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp', `Template: ${templateName}`, failover_enabled ? 1 : 0, failover_sms_template_id || null]
+            );
+
+            res.json({ success: true, messageId });
+        } catch (error) {
+            // IMMEDIATE FAILOVER Logic
+            if (failover_enabled && failover_sms_template_id) {
+                console.log(`[WhatsApp API] WA failed instantly. Triggering immediate SMS Failover for ${to}...`);
+                const { processAutomation } = require('../services/automationService');
+                const ioDummy = req.io || { to: () => ({ emit: () => {} }) };
+                
+                await processAutomation(user.id, 'message_failed', {
+                    recipient: to,
+                    failover_template_id: failover_sms_template_id,
+                    metadata: { variables: failover_variables || variables || {} }
+                }, ioDummy).catch(e => console.error('[AutomationService] Immediate WA->SMS failover trigger error:', e.message));
+
+                res.json({ success: true, messageId: `sms_failover_${Date.now()}`, isFallbacked: true });
+            } else {
+                res.status(500).json({ success: false, error: error.response?.data || error.message });
+            }
+        }
     } catch (error) {
-        res.status(500).json({ success: false, error: error.response?.data || error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

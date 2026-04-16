@@ -926,6 +926,27 @@ router.post('/whatsapp/callback', async (req, res) => {
                                                     await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
                                                 }
                                             }
+
+                                            // 🤖 WHATSAPP -> SMS FAILOVER TRIGGER (If Failed)
+                                            if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                                if (log.is_failover_enabled && log.failover_sms_template) {
+                                                    console.log(`🤖 Whatsapp Failover Triggered via webhook for ${log.recipient}. Template=${log.failover_sms_template}`);
+                                                    const { processAutomation } = require('../services/automationService');
+                                                    
+                                                    // We mock the IO instance if not available
+                                                    const ioDummy = req.io || { to: () => ({ emit: () => {} }) };
+                                                    
+                                                    try {
+                                                        await processAutomation(log.user_id, 'message_failed', {
+                                                            ...log,
+                                                            original_channel: 'whatsapp',
+                                                            failover_template_id: log.failover_sms_template
+                                                        }, ioDummy);
+                                                    } catch (e) {
+                                                        console.error('[AutomationService] WA failover trigger error:', e.message);
+                                                    }
+                                                }
+                                            }
                                         }
                                     // 📡 REAL-TIME CHAT STATUS UPDATE (Manual only)
                                     if (['delivered', 'read', 'failed'].includes(finalStatus) && req.io && !log.campaign_id) {
