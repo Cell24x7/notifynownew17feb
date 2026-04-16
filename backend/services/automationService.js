@@ -41,7 +41,20 @@ async function ensureAutomationsTable() {
  * processAutomation
  * Traverses the graph starting from the appropriate entry point (trigger or button branch).
  */
-async function processAutomation(userId, triggerType, channel, payload, io) {
+async function processAutomation(userId, triggerType, arg3, arg4, arg5) {
+    // Logic to handle 4 vs 5 arguments
+    let channel, payload, io;
+    if (typeof arg3 === 'string') {
+        channel = arg3;
+        payload = arg4;
+        io = arg5;
+    } else {
+        // Shorthand call: processAutomation(userId, triggerType, payload, io)
+        payload = arg3;
+        io = arg4;
+        channel = payload?.channel || 'whatsapp';
+    }
+
     try {
         // console.log(`🤖 [AutomationService] Processing for User ${userId}, Type: ${triggerType}, Channel: ${channel}`);
         
