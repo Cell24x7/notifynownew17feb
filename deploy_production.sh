@@ -132,6 +132,7 @@ NODE_ENV=production node scripts/fix_emojis.js || true
 NODE_ENV=production node scripts/fix_collation_crash.js || true
 NODE_ENV=production node scripts/fix_api_campaigns_schema.js || true
 NODE_ENV=production node scripts/add_failover_lock.js || true
+NODE_ENV=production node scripts/turbo_speed_optimize.js || true
 log "🎙️  Deploying AI Voice Bot Infrastructure..."
 NODE_ENV=production node scripts/voice_bot_infrastructure.js || true
 NODE_ENV=production node scripts/add_failover_cols.js || true
