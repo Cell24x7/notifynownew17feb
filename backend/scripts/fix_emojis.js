@@ -28,7 +28,7 @@ async function fixEmojis() {
                 console.log('✅ Done');
             } catch (err) {
                 if (err.code === 'ER_BAD_TABLE_ERROR') {
-                    console.log('⚠️ Skipping (Table doesn\\'t exist)');
+                    console.log("⚠️ Skipping (Table doesn't exist)");
                 } else {
                     console.log(`❌ Failed: ${err.message}`);
                 }
