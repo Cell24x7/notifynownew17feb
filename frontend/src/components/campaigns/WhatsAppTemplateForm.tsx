@@ -110,7 +110,7 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
             if (typeof indexOrType === 'string') {
                 // Main template header
                 updateComponent('HEADER', { 
-                    example: { header_handle: [headerHandle] }, 
+                    example: { header_handle: headerHandle ? [headerHandle] : [] }, 
                     file_url: fileUrl, // Store for QueueProcessor fallback
                     previewUrl 
                 });
@@ -120,15 +120,15 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                 const cardComp = [...(newCards[indexOrType as number].components || [])];
                 const hIdx = cardComp.findIndex((c: any) => c.type === 'HEADER');
                 if (hIdx > -1) {
-                    cardComp[hIdx] = { ...cardComp[hIdx], example: { header_handle: [headerHandle] }, previewUrl };
+                    cardComp[hIdx] = { ...cardComp[hIdx], example: { header_handle: headerHandle ? [headerHandle] : [] }, previewUrl };
                 } else {
-                    cardComp.push({ type: 'HEADER', format: 'IMAGE', example: { header_handle: [headerHandle] }, previewUrl });
+                    cardComp.push({ type: 'HEADER', format: 'IMAGE', example: { header_handle: headerHandle ? [headerHandle] : [] }, previewUrl });
                 }
                 newCards[indexOrType as number] = { ...newCards[indexOrType as number], components: cardComp };
                 updateComponent('CAROUSEL', { cards: newCards });
             }
 
-            toast({ title: '✅ Upload successful', description: `Handle: ${headerHandle.substring(0, 20)}...` });
+            toast({ title: '✅ Upload successful', description: headerHandle ? `Handle: ${headerHandle.substring(0, 20)}...` : `File uploaded successfully` });
         } catch (err: any) {
             console.error('File upload failed:', err);
             toast({ title: '❌ Upload failed', description: err.message, variant: 'destructive' });
