@@ -582,6 +582,33 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                     error: pinError
                 });
             }
+        } else if (config) {
+            // Meta Graph API path: Upload media to get a media ID for header_handle
+            try {
+                const FormData = require('form-data');
+                const form = new FormData();
+                const fs = require('fs');
+                form.append('file', fs.createReadStream(req.file.path));
+                form.append('messaging_product', 'whatsapp');
+
+                const uploadRes = await axios.post(
+                    `${GRAPH_BASE}/${config.ph_no_id}/media`,
+                    form,
+                    { 
+                        headers: { 
+                            Authorization: `Bearer ${config.wa_token}`, 
+                            ...form.getHeaders() 
+                        } 
+                    }
+                );
+                
+                if (uploadRes.data && uploadRes.data.id) {
+                    return res.json({ success: true, url: fileUrl, handle: uploadRes.data.id, isHandle: true });
+                }
+            } catch (metaErr) {
+                console.error('[WA-UPLOAD] ⚠️ Meta Graph API Upload Failed, using local fallback:', metaErr.response?.data || metaErr.message);
+                // Fallback to purely local if needed
+            }
         }
 
         // console.log(`[WA-UPLOAD] Local upload (non-Pinbot) via proxy: ${fileUrl}`);

@@ -121,7 +121,8 @@ const campaignWorker = new Worker(queueName, async (job) => {
         const syncInterval = (processedTotal < 100) ? 10 : 500;
         if (processedTotal % syncInterval === 0) {
             const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
-            await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [parseInt(stats.sent || 0), parseInt(stats.failed || 0), campId]);
+            const totalSent = parseInt(stats.sent || 0) + parseInt(stats.failed || 0);
+            await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [totalSent, parseInt(stats.failed || 0), campId]);
         }
 
         // 4. COMPLETION CHECK
@@ -130,8 +131,9 @@ const campaignWorker = new Worker(queueName, async (job) => {
             // Final Sync
             const finalStats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
             if (Object.keys(finalStats).length > 0) {
+                const finalTotalSent = parseInt(finalStats.sent || 0) + parseInt(finalStats.failed || 0);
                 await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
-                    [parseInt(finalStats.sent || 0), parseInt(finalStats.failed || 0), campId]);
+                    [finalTotalSent, parseInt(finalStats.failed || 0), campId]);
                 
                 // Cleanup Redis
                 await redis.del(`${envSuffix}:camp_progress:${campId}`);
