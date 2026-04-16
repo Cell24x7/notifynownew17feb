@@ -35,6 +35,16 @@ Credits are the currency of NotifyNow.
 2. **Frontend**: `npm run dev` (Frontend on port 5173).
 3. **Database**: Migration scripts are available in the root to update schema (`migrate_variables.js`, etc.).
 
+## 6. Smart Failover System 📲
+NotifyNow features an automated fallback engine for high-criticality messages (like OTPs).
+1.  **Triggers:** Failover can be triggered by:
+    - `API Rejection`: Instant failure during the provider request.
+    - `Webhook Status`: When Meta or Dotgo returns a `failed` or `undelivered` status later.
+2.  **Idempotency (Double-Send Prevention):**
+    - To prevent duplicate SMS sends, the engine uses a `failover_triggered` flag in the log table.
+    - An atomic SQL update (`UPDATE ... SET failover_triggered=1 WHERE id=? AND failover_triggered=0`) acts as a lock.
+3.  **UI Feedback:** Failover messages are logged with a specific `failure_reason` (e.g., `Failover from WHATSAPP`), which the frontend uses to display the `⚡ Fallback` badge.
+
 ---
 
 > [!IMPORTANT]
