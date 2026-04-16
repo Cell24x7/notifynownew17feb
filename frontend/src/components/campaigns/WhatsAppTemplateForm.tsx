@@ -110,7 +110,7 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
             if (typeof indexOrType === 'string') {
                 // Main template header
                 updateComponent('HEADER', { 
-                    example: { header_handle: headerHandle ? [headerHandle] : [] }, 
+                    example: headerHandle ? { header_handle: [headerHandle] } : { header_url: [fileUrl] }, 
                     file_url: fileUrl, // Store for QueueProcessor fallback
                     previewUrl 
                 });
@@ -120,9 +120,9 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                 const cardComp = [...(newCards[indexOrType as number].components || [])];
                 const hIdx = cardComp.findIndex((c: any) => c.type === 'HEADER');
                 if (hIdx > -1) {
-                    cardComp[hIdx] = { ...cardComp[hIdx], example: { header_handle: headerHandle ? [headerHandle] : [] }, previewUrl };
+                    cardComp[hIdx] = { ...cardComp[hIdx], example: headerHandle ? { header_handle: [headerHandle] } : { header_url: [fileUrl] }, previewUrl };
                 } else {
-                    cardComp.push({ type: 'HEADER', format: 'IMAGE', example: { header_handle: headerHandle ? [headerHandle] : [] }, previewUrl });
+                    cardComp.push({ type: 'HEADER', format: 'IMAGE', example: headerHandle ? { header_handle: [headerHandle] } : { header_url: [fileUrl] }, previewUrl });
                 }
                 newCards[indexOrType as number] = { ...newCards[indexOrType as number], components: cardComp };
                 updateComponent('CAROUSEL', { cards: newCards });
