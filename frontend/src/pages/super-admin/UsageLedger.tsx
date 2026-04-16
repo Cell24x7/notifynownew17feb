@@ -22,6 +22,10 @@ interface LedgerEntry {
     total_spent: number;
     total_added: number;
     last_activity: string | null;
+    account_created: string;
+    sms_count: number;
+    wa_count: number;
+    rcs_count: number;
 }
 
 interface Reseller {
@@ -130,13 +134,25 @@ export default function UsageLedger() {
     const totalSpentInView = ledger.reduce((sum, item) => sum + item.total_spent, 0);
 
     const handleExport = () => {
-        const headers = ['ID', 'Organization', 'Email', 'Reseller', 'Total Spent', 'Balance'];
-        const csv = ledger.map(i => [i.id, i.company, i.email, i.reseller_name || 'Direct', i.total_spent, i.wallet_balance].join(',')).join('\n');
+        const headers = ['ID', 'Organization', 'Email', 'Reseller', 'Onboarded', 'SMS Msg', 'WA Msg', 'RCS Msg', 'Total Spent', 'Recharged', 'Closing Balance'];
+        const csv = ledger.map(i => [
+            i.id, 
+            i.company || 'Personal', 
+            i.email, 
+            i.reseller_name || 'Direct', 
+            i.account_created ? format(new Date(i.account_created), 'yyyy-MM-dd') : 'N/A',
+            i.sms_count,
+            i.wa_count,
+            i.rcs_count,
+            i.total_spent, 
+            i.total_added,
+            i.wallet_balance
+        ].join(',')).join('\n');
         const blob = new Blob([[headers.join(','), csv].join('\n')], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `audit_${month}_${year}.csv`;
+        a.download = `detailed_usage_audit_${month}_${year}.csv`;
         a.click();
     };
 
@@ -267,9 +283,10 @@ export default function UsageLedger() {
                             <TableRow className="bg-slate-50/50">
                                 <TableHead className="w-[60px] border-r border-slate-100 font-semibold text-slate-700">ID</TableHead>
                                 <TableHead className="border-r border-slate-100 font-semibold text-slate-700">Organization / User</TableHead>
-                                <TableHead className="border-r border-slate-100 font-semibold text-slate-700 text-center">Managed By</TableHead>
+                                <TableHead className="border-r border-slate-100 font-semibold text-slate-700 text-center">Onboarded</TableHead>
+                                <TableHead className="border-r border-slate-100 font-semibold text-slate-700">Channel Consumption</TableHead>
                                 <TableHead className="border-r border-slate-100 font-semibold text-slate-700 text-right">Consumption</TableHead>
-                                <TableHead className="border-r border-slate-100 font-semibold text-slate-700 text-right">Recharged</TableHead>
+                                <TableHead className="border-r border-slate-100 font-semibold text-slate-700 text-right text-emerald-600">Recharged</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right">Closing Balance</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -286,24 +303,34 @@ export default function UsageLedger() {
                                 ledger.map((item) => (
                                     <TableRow key={item.id} className="border-b border-slate-100 hover:bg-slate-50/30">
                                         <TableCell className="border-r border-slate-100 font-mono text-xs text-slate-500">{item.id}</TableCell>
-                                        <TableCell className="border-r border-slate-100">
+                                        <TableCell className="border-r border-slate-100 min-w-[200px]">
                                             <div className="flex flex-col">
-                                                <span className="font-semibold text-slate-900 text-sm">{item.company || 'Personal'}</span>
-                                                <span className="text-xs text-slate-500">{item.email}</span>
+                                                <span className="font-bold text-slate-900 text-sm">{item.company || 'Personal'}</span>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-[10px] text-slate-400 font-mono">{item.email}</span>
+                                                    <div className="h-1 w-1 bg-slate-300 rounded-full" />
+                                                    <span className="text-[10px] font-black text-indigo-500 uppercase">{item.reseller_name || 'Direct'}</span>
+                                                </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="border-r border-slate-100 text-center">
-                                            <Badge variant={item.reseller_name ? "secondary" : "outline"} className="text-[10px] font-medium px-2 py-0.5">
-                                                {item.reseller_name || 'Direct'}
-                                            </Badge>
+                                        <TableCell className="border-r border-slate-100 text-center text-[11px] text-slate-500 font-medium">
+                                            {item.account_created ? format(new Date(item.account_created), 'dd MMM yyyy') : 'N/A'}
                                         </TableCell>
-                                        <TableCell className="border-r border-slate-100 text-right font-medium text-slate-900">
+                                        <TableCell className="border-r border-slate-100">
+                                            <div className="flex flex-wrap gap-1.5 justify-start">
+                                                {item.wa_count > 0 && <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-none text-[9px] font-black px-1.5 h-4">WA: {item.wa_count}</Badge>}
+                                                {item.sms_count > 0 && <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-none text-[9px] font-black px-1.5 h-4">SMS: {item.sms_count}</Badge>}
+                                                {item.rcs_count > 0 && <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-none text-[9px] font-black px-1.5 h-4">RCS: {item.rcs_count}</Badge>}
+                                                {item.wa_count === 0 && item.sms_count === 0 && item.rcs_count === 0 && <span className="text-[10px] text-slate-300 italic">No activity</span>}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="border-r border-slate-100 text-right font-black text-slate-900">
                                             ₹{item.total_spent.toLocaleString()}
                                         </TableCell>
-                                        <TableCell className="border-r border-slate-100 text-right text-slate-600">
+                                        <TableCell className="border-r border-slate-100 text-right font-bold text-emerald-600">
                                             ₹{item.total_added.toLocaleString()}
                                         </TableCell>
-                                        <TableCell className="text-right font-bold text-blue-700">
+                                        <TableCell className="text-right font-black text-blue-700 bg-blue-50/20">
                                             ₹{item.wallet_balance.toLocaleString()}
                                         </TableCell>
                                     </TableRow>
