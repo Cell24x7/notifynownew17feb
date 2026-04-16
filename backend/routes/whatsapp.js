@@ -583,30 +583,38 @@ router.post('/media/upload-local', authenticate, uploadDisk.single('file'), asyn
                 });
             }
         } else if (config) {
-            // Meta Graph API path: Upload media to get a media ID for header_handle
+            // Meta Graph API (Resumable Upload for Template Headers)
             try {
-                const FormData = require('form-data');
-                const form = new FormData();
-                const fs = require('fs');
-                form.append('file', fs.createReadStream(req.file.path));
-                form.append('messaging_product', 'whatsapp');
-
-                const uploadRes = await axios.post(
-                    `${GRAPH_BASE}/${config.ph_no_id}/media`,
-                    form,
-                    { 
-                        headers: { 
-                            Authorization: `Bearer ${config.wa_token}`, 
-                            ...form.getHeaders() 
-                        } 
+                // Step 1: Create Upload Session
+                const sessionRes = await axios.post(`${GRAPH_BASE}/app/uploads`, null, {
+                    headers: { 'Authorization': `Bearer ${config.wa_token}` },
+                    params: {
+                        file_length: req.file.size,
+                        file_type: req.file.mimetype
                     }
-                );
-                
-                if (uploadRes.data && uploadRes.data.id) {
-                    return res.json({ success: true, url: fileUrl, handle: uploadRes.data.id, isHandle: true });
+                });
+
+                if (sessionRes.data && sessionRes.data.id) {
+                    const sessionId = sessionRes.data.id;
+                    const fs = require('fs');
+                    const fileData = fs.readFileSync(req.file.path);
+
+                    // Step 2: Push binary chunks to Session ID
+                    const uploadRes = await axios.post(`${GRAPH_BASE}/${sessionId}`, fileData, {
+                        headers: { 
+                            'Authorization': `OAuth ${config.wa_token}`, 
+                            'Content-Type': req.file.mimetype,
+                            'Content-Length': fileData.length,
+                            'file_offset': 0
+                        }
+                    });
+
+                    if (uploadRes.data && uploadRes.data.h) {
+                        return res.json({ success: true, url: fileUrl, handle: uploadRes.data.h, isHandle: true });
+                    }
                 }
             } catch (metaErr) {
-                console.error('[WA-UPLOAD] ⚠️ Meta Graph API Upload Failed, using local fallback:', metaErr.response?.data || metaErr.message);
+                console.error('[WA-UPLOAD] ⚠️ Meta Resumable Upload Failed:', metaErr.response?.data || metaErr.message);
                 // Fallback to purely local if needed
             }
         }
