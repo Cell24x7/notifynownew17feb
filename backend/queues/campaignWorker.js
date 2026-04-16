@@ -112,6 +112,17 @@ const campaignWorker = new Worker(queueName, async (job) => {
             if (isNewFail) {
                 await redis.hincrby(`${envSuffix}:stats:${campId}`, 'failed', 1);
             }
+
+            // 🤖 IMMEDIATE FAILOVER TRIGGER (If Bulk API Failed Instantly)
+            if (item.is_failover_enabled || item.failover_sms_template) {
+                console.log(`🤖 Bulk API Campaign Failed. Triggering immediate Failover for ${item.mobile}...`);
+                const { processAutomation } = require('../services/automationService');
+                try {
+                    await processAutomation(item.user_id, 'message_failed', { ...item, recipient: item.mobile, original_channel: chan, failover_template_id: item.failover_sms_template, metadata: { variables: item.contact_variables } }, null);
+                } catch (failoverErr) {
+                    console.error('[AutomationService] Immediate failover trigger error in worker:', failoverErr.message);
+                }
+            }
         }
 
         // 3. OPTIMIZED BATCH SYNC (Avoid Row Contention)
