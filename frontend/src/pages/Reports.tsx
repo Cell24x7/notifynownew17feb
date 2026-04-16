@@ -678,9 +678,14 @@ export default function Reports() {
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-[10px] px-3 py-2 leading-tight max-w-[150px]">
-                                                        {log.failure_reason && log.failure_reason.startsWith('Failover from RCS:') ? (
-                                                            <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/50 w-fit font-semibold" title={log.failure_reason}>
-                                                                ⚡ RCS Fallback
+                                                        {log.failure_reason && log.failure_reason.startsWith('Failover from') ? (
+                                                            <div className={cn(
+                                                                "flex items-center gap-1 px-1.5 py-0.5 rounded border border-emerald-200/50 w-fit font-semibold",
+                                                                log.failure_reason.toUpperCase().includes('WHATSAPP') || log.failure_reason.toUpperCase().includes('WA')
+                                                                    ? "text-green-600 bg-green-50 border-green-200/50"
+                                                                    : "text-emerald-600 bg-emerald-50 border-emerald-200/50"
+                                                            )} title={log.failure_reason}>
+                                                                ⚡ {log.failure_reason.split(':')[0].replace('Failover from ', '')} Fallback
                                                             </div>
                                                         ) : (
                                                             <span className="text-rose-400 font-bold">{log.failure_reason || '-'}</span>

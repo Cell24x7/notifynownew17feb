@@ -475,10 +475,11 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
                     const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
                     try {
+                        const originChannel = (payload.original_channel || 'RCS').toUpperCase();
                         await query(
                             `INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, recipient, status, channel, message_id, message_content, failure_reason, send_time, template_name) 
                              VALUES (?, ?, ?, ?, 'sent', 'sms', ?, ?, ?, NOW(), ?)`,
-                            [userId, campaignId, campaignName, mobile, smsResult.messageId, smsContent, `Failover from RCS: ${originalMsgId}`, templateId]
+                            [userId, campaignId, campaignName, mobile, smsResult.messageId, smsContent, `Failover from ${originChannel}: ${originalMsgId}`, templateId]
                         );
 
                         // 3. Update Campaign Sent Count
