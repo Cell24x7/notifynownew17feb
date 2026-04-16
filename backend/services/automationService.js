@@ -47,8 +47,37 @@ async function processAutomation(userId, triggerType, channel, payload, io) {
         
         // 🤖 DIRECT FAILOVER HANDLING (Bypasses active automation check)
         if (triggerType === 'message_failed' && payload.failover_template_id) {
-            console.log(`🚀 [AutomationService] Direct RCS Failover Triggered for ${payload.sender}. Sending SMS Fallback...`);
-            await handleSmsAction(userId, (payload.sender || '').replace(/\D/g, ''), { templateId: payload.failover_template_id }, payload, io);
+            console.log(`🚀 [AutomationService] Checking Failover Lock for ${payload.sender || payload.recipient}...`);
+            
+            // 🔒 IDEMPOTENCY LOCK: Ensure only one failover happens per message
+            const logsTable = payload.is_api ? 'api_message_logs' : 'message_logs';
+            let lockSuccessful = false;
+
+            if (payload.id) {
+                // If we have a log ID, use it for strict locking
+                const [res] = await query(`UPDATE ${logsTable} SET failover_triggered = 1 WHERE id = ? AND (failover_triggered = 0 OR failover_triggered IS NULL)`, [payload.id]);
+                lockSuccessful = res.affectedRows > 0;
+            } else if (payload.campaign_id && (payload.mobile || payload.recipient)) {
+                // Fallback to campaign+mobile lock
+                const [res] = await query(
+                    `UPDATE ${logsTable} SET failover_triggered = 1 
+                     WHERE campaign_id = ? AND recipient = ? AND (failover_triggered = 0 OR failover_triggered IS NULL) 
+                     ORDER BY created_at DESC LIMIT 1`, 
+                    [payload.campaign_id, payload.mobile || payload.recipient]
+                );
+                lockSuccessful = res.affectedRows > 0;
+            } else {
+                // If no way to lock, we proceed but this is risky (shouldn't happen with our current triggers)
+                lockSuccessful = true;
+            }
+
+            if (!lockSuccessful) {
+                console.warn(`⚠️ [AutomationService] Failover already triggered once for ${payload.sender || payload.recipient}. Skipping duplicate.`);
+                return;
+            }
+
+            console.log(`🚀 [AutomationService] Lock Acquired. Sending SMS Fallback...`);
+            await handleSmsAction(userId, (payload.sender || payload.recipient || '').replace(/\D/g, ''), { templateId: payload.failover_template_id }, payload, io);
             return;
         }
 
