@@ -51,10 +51,10 @@ import { Progress } from '@/components/ui/progress';
 
 const techStack = [
   { tech: "Frontend", tools: "React 18, Vite, Tailwind", usage: 98, color: "bg-blue-500" },
-  { tech: "Backend", tools: "Node, Express", usage: 95, color: "bg-emerald-500" },
-  { tech: "Queuing", tools: "Redis, BullMQ", usage: 90, color: "bg-rose-500" },
-  { tech: "Database", tools: "MySQL 8.0 (Optimized)", usage: 88, color: "bg-amber-500" },
-  { tech: "Sync", tools: "Socket.io, Webhooks", usage: 85, color: "bg-indigo-500" },
+  { tech: "Backend", tools: "Node, Express", usage: 98, color: "bg-emerald-500" },
+  { tech: "Queuing", tools: "Redis, BullMQ", usage: 95, color: "bg-rose-500" },
+  { tech: "Database", tools: "MySQL 8.0 (Turbo Optimized)", usage: 94, color: "bg-amber-500" },
+  { tech: "Sync", tools: "Socket.io, Webhooks", usage: 92, color: "bg-indigo-500" },
 ];
 
 const dsaLogic = [
@@ -68,7 +68,8 @@ const lifecycleData = [
   { phase: "Commenced", date: "Feb 17", status: "Done" },
   { phase: "Messaging", date: "Mar 10", status: "Done" },
   { phase: "RCS Hybrid", date: "Mar 25", status: "Done" },
-  { phase: "Enterprise Email", date: "Apr 10", status: "Active" },
+  { phase: "Enterprise Email", date: "Apr 10", status: "Done" },
+  { phase: "Failover v2.0", date: "Apr 16", status: "Done" },
   { phase: "Microservices", date: "Aug 26", status: "Future" },
 ];
 
@@ -87,7 +88,7 @@ export default function CompactEngineeringConsole() {
                 <div className="flex items-center gap-2 mt-0.5">
                     <Badge className="h-4 text-[8px] bg-indigo-50 text-indigo-700 border-none px-1.5 uppercase font-black">Audit Verified</Badge>
                     <div className="h-1 w-1 rounded-full bg-slate-300" />
-                    <p className="text-[10px] text-slate-500 font-medium italic">"1-Year Benchmark achieved in 52 Work Days"</p>
+                    <p className="text-[10px] text-slate-500 font-medium italic">"1-Year Benchmark achieved in 56 Work Days"</p>
                 </div>
             </div>
         </div>
@@ -111,10 +112,10 @@ export default function CompactEngineeringConsole() {
       {/* 📊 KPI SMALL CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {[
-            { l: "Core Logic", v: "12.4k Loc", i: <Code2 className="text-blue-600" />, b: "bg-blue-50" },
-            { l: "API Hooks", v: "18 Services", i: <Globe className="text-emerald-600" />, b: "bg-emerald-50" },
-            { l: "Work Hours", v: "840+ Hrs", i: <Clock className="text-amber-600" />, b: "bg-amber-50" },
-            { l: "Night Shifts", v: "40 Full", i: <Moon className="text-indigo-600" />, b: "bg-indigo-50" },
+            { l: "Core Logic", v: "14.8k Loc", i: <Code2 className="text-blue-600" />, b: "bg-blue-50" },
+            { l: "API Hooks", v: "22 Services", i: <Globe className="text-emerald-600" />, b: "bg-emerald-50" },
+            { l: "Work Hours", v: "890+ Hrs", i: <Clock className="text-amber-600" />, b: "bg-amber-50" },
+            { l: "Night Shifts", v: "45 Full", i: <Moon className="text-indigo-600" />, b: "bg-indigo-50" },
             { l: "Algorithm", v: "O(1) Scale", i: <Zap className="text-rose-600" />, b: "bg-rose-50" },
             { l: "Platform", v: "Ent-Grade", i: <Award className="text-slate-600" />, b: "bg-slate-50" }
         ].map((kpi, idx) => (
@@ -197,10 +198,10 @@ export default function CompactEngineeringConsole() {
                         </TableHeader>
                         <TableBody>
                             {[
-                                { m: "SMS (DLT)", c: "UCS-2 Hex & DLT Auto-Detection", s: "100% Stable" },
-                                { m: "WhatsApp (Meta)", c: "Binary Buffer Bridge for Media", s: "100% Stable" },
-                                { m: "RCS Messaging", c: "Recursive Load-Balancer Logic", s: "100% Stable" },
-                                { m: "Internal Ledger", c: "Atomic Transaction Queue", s: "Verified" }
+                                { m: "SMS (DLT Fix)", c: "UCS-2 Hex & DLT Auto-Detection", s: "100% Stable" },
+                                { m: "Failover Engine", c: "Atomic Idempotency Lock v2.0", s: "Live" },
+                                { m: "Emoji Engine", c: "Full UTF8MB4 Backend-to-DB", s: "100% Stable" },
+                                { m: "Database Scalability", c: "Turbo Composite Indexing", s: "Verified" }
                             ].map((row, idx) => (
                                 <TableRow key={idx} className="hover:bg-indigo-50/10 border-slate-50 dark:border-slate-800/30">
                                     <TableCell className="py-2.5 text-[11px] font-bold pl-6 text-slate-700 dark:text-slate-200">{row.m}</TableCell>
