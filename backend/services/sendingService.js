@@ -278,6 +278,7 @@ const sendUniversalMessage = async (item) => {
             const headerUrl = resolvedVars['header_url'] || resolvedVars['headerUrl'] ||
                               resolvedVars['image_url'] || resolvedVars['imageUrl'] ||
                               meta.header_url || meta.headerUrl || meta.sampleMediaUrl ||
+                              meta.example?.header_handle?.[0] || 
                               headerComp?.example?.header_handle?.[0] || null;
 
             // Robust Fallback: If headerUrl exists but headerComp is missing or unknown, auto-detect type
