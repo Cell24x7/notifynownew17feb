@@ -263,37 +263,42 @@ const sendUniversalMessage = async (item) => {
             const headerComp = mtComponents.find(c => c.type?.toUpperCase() === 'HEADER');
 
             // ── HEADER COMPONENT ──────────────────────────────────────
-            if (headerComp) {
-                const headerFormat = (headerComp.format || '').toUpperCase(); // IMAGE, VIDEO, DOCUMENT, TEXT
-                // header_url can come from: resolvedVars, variables JSON, or template metadata
-                const headerUrl = resolvedVars['header_url'] || resolvedVars['headerUrl'] ||
-                                  resolvedVars['image_url'] || resolvedVars['imageUrl'] ||
-                                  meta.header_url || meta.headerUrl || meta.sampleMediaUrl ||
-                                  headerComp.example?.header_handle?.[0] || null;
+            let headerFormat = (headerComp?.format || '').toUpperCase();
+            const headerUrl = resolvedVars['header_url'] || resolvedVars['headerUrl'] ||
+                              resolvedVars['image_url'] || resolvedVars['imageUrl'] ||
+                              meta.header_url || meta.headerUrl || meta.sampleMediaUrl ||
+                              headerComp?.example?.header_handle?.[0] || null;
 
-                if (headerFormat === 'IMAGE' && headerUrl) {
+            // Robust Fallback: If headerUrl exists but headerComp is missing or unknown, auto-detect type
+            if (!headerFormat && headerUrl) {
+                const urlLower = String(headerUrl).toLowerCase();
+                if (urlLower.match(/\.(mp4|3gp|m4v)$/)) headerFormat = 'VIDEO';
+                else if (urlLower.match(/\.(pdf|doc|docx|ppt|pptx|xlsx|xls)$/)) headerFormat = 'DOCUMENT';
+                else headerFormat = 'IMAGE'; 
+            }
+
+            if (headerFormat === 'IMAGE' && headerUrl) {
+                payloadComponents.push({ 
+                    type: 'header', 
+                    parameters: [{ type: 'image', image: { link: headerUrl } }] 
+                });
+            } else if (headerFormat === 'VIDEO' && headerUrl) {
+                payloadComponents.push({ 
+                    type: 'header', 
+                    parameters: [{ type: 'video', video: { link: headerUrl } }] 
+                });
+            } else if (headerFormat === 'DOCUMENT' && headerUrl) {
+                payloadComponents.push({ 
+                    type: 'header', 
+                    parameters: [{ type: 'document', document: { link: String(headerUrl), filename: 'document' } }] 
+                });
+            } else if (headerFormat === 'TEXT' || (headerComp && headerComp.text)) {
+                const headerText = getOrderedVariables(headerComp?.text || '', resolvedVars);
+                if (headerText.length > 0) {
                     payloadComponents.push({ 
                         type: 'header', 
-                        parameters: [{ type: 'image', image: { link: headerUrl } }] 
+                        parameters: headerText.map(v => ({ type: 'text', text: String(v || ' ') })) 
                     });
-                } else if (headerFormat === 'VIDEO' && headerUrl) {
-                    payloadComponents.push({ 
-                        type: 'header', 
-                        parameters: [{ type: 'video', video: { link: headerUrl } }] 
-                    });
-                } else if (headerFormat === 'DOCUMENT' && headerUrl) {
-                    payloadComponents.push({ 
-                        type: 'header', 
-                        parameters: [{ type: 'document', document: { link: headerUrl } }] 
-                    });
-                } else if (headerFormat === 'TEXT') {
-                    const headerText = getOrderedVariables(headerComp.text || '', resolvedVars);
-                    if (headerText.length > 0) {
-                        payloadComponents.push({ 
-                            type: 'header', 
-                            parameters: headerText.map(v => ({ type: 'text', text: String(v || ' ') })) 
-                        });
-                    }
                 }
             }
 
