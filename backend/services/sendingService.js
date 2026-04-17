@@ -291,7 +291,7 @@ const sendUniversalMessage = async (item) => {
                     if (headerText.length > 0) {
                         payloadComponents.push({ 
                             type: 'header', 
-                            parameters: headerText.map(v => ({ type: 'text', text: String(v) })) 
+                            parameters: headerText.map(v => ({ type: 'text', text: String(v || ' ') })) 
                         });
                     }
                 }
@@ -321,14 +321,22 @@ const sendUniversalMessage = async (item) => {
             }
 
             if (waParams.length > 0) {
-                payloadComponents.push({ type: 'body', parameters: waParams.map(v => ({ type: 'text', text: String(v) })) });
+                // Fix for Error #131008: Parameter of type text is missing text value
+                // Meta requires non-empty strings for all variables.
+                payloadComponents.push({ 
+                    type: 'body', 
+                    parameters: waParams.map((v, idx) => {
+                        const val = String(v || ' ').trim();
+                        return { type: 'text', text: val === '' ? ' ' : val };
+                    }) 
+                });
                 
                 // Construct a readable version for logging
                 let bodyText = bodyComp?.text || item.template_body || '';
                 waParams.forEach((val, i) => {
                     const placeholder = `{{${i+1}}}`;
                     if (bodyText.includes(placeholder)) {
-                        bodyText = bodyText.split(placeholder).join(val);
+                        bodyText = bodyText.split(placeholder).join(val || ' ');
                     }
                 });
                 processedMessage = bodyText;

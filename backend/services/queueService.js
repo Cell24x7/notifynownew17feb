@@ -266,7 +266,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
 
         // if (totalProcessed > 0) console.log(`[${processorName}] Processed ${totalProcessed} items ${useRedis ? '(via BullMQ)' : '(DIRECT)'}.`);
     } catch (error) {
-        // console.error(`[${processorName}] Ingestion Error:`, error.message);
+        console.error(`[${processorName}] Ingestion Error:`, error.message);
     } finally {
         if (redisClient) await redisClient.quit().catch(() => {});
     }

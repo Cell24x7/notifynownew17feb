@@ -162,7 +162,7 @@ router.post('/templates', authenticate, async (req, res) => {
             const typeUC = (normalizedComp.type || '').toUpperCase();
             const formatUC = (normalizedComp.format || '').toUpperCase();
 
-            // Pinbot V3 manual shows lowercase for these fields. 
+            // Meta/Pinbot are case-sensitive about types
             if (config.isPinbot) {
                 if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toLowerCase();
                 if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toLowerCase();
@@ -171,11 +171,11 @@ router.post('/templates', authenticate, async (req, res) => {
                 if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toUpperCase();
             }
             
-            // 1. Handle Header Examples
+            // 1. Handle Header Examples (Media)
             if (typeUC === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formatUC)) {
-                if (!normalizedComp.example || (!normalizedComp.example.header_handle && !normalizedComp.example.header_text)) {
-                    console.warn(`[WA-TEMPLATE] ⚠️ HEADER ${formatUC} missing required example. Adding placeholder.`);
-                    // We can't easily auto-gen a handle, but usually UI provides it.
+                if (!normalizedComp.example || !normalizedComp.example.header_handle) {
+                    // Usually handled by frontend, but we ensure it's not null
+                    if (!normalizedComp.example) normalizedComp.example = {};
                 }
             }
 
@@ -184,20 +184,40 @@ router.post('/templates', authenticate, async (req, res) => {
                 if (!normalizedComp.example || !normalizedComp.example.body_text) {
                     const matches = normalizedComp.text.match(/{{(\d+)}}/g);
                     if (matches) {
-                        const count = matches.length;
-                        // console.log(`[WA-TEMPLATE] 🛠️ Auto-generating examples for ${count} variables in BODY`);
                         normalizedComp.example = {
-                            body_text: [
-                                matches.map((_, i) => `SampleValue ${i+1}`)
-                            ]
+                            body_text: [ matches.map((_, i) => `Sample ${i+1}`) ]
                         };
                     }
                 }
             }
+
+            // 3. 🚀 CRITICAL FIX: Handle BUTTONS Component
+            if (typeUC === 'BUTTONS' && normalizedComp.buttons) {
+                normalizedComp.buttons = normalizedComp.buttons.map(btn => {
+                    const cleanBtn = { ...btn };
+                    const btnType = (cleanBtn.type || '').toUpperCase();
+                    
+                    // Meta requirements for specific button types
+                    if (btnType === 'URL') {
+                        // Ensure 'url' field exists (Meta expects lowercase)
+                        if (!cleanBtn.url && cleanBtn.value) cleanBtn.url = cleanBtn.value;
+                        delete cleanBtn.value; // Remove internal helper
+                    } else if (btnType === 'PHONE_NUMBER') {
+                        // Ensure 'phone_number' field exists
+                        if (!cleanBtn.phone_number && cleanBtn.value) cleanBtn.phone_number = cleanBtn.value;
+                        delete cleanBtn.value;
+                    } 
+                    
+                    // Force type case for consistency
+                    if (config.isPinbot) cleanBtn.type = cleanBtn.type.toLowerCase();
+                    else cleanBtn.type = cleanBtn.type.toUpperCase();
+
+                    return cleanBtn;
+                });
+            }
             
             return normalizedComp;
         });
-
 
         const payload = { 
             name: sanitizedName, 
@@ -1161,7 +1181,11 @@ router.post('/api/send-single', async (req, res) => {
                 });
             }
             if (variables) {
-                const params = Object.keys(variables).sort((a,b) => a-b).map(key => ({ type: 'text', text: String(variables[key]) }));
+                // Fix for Error #131008: Ensure values are non-empty strings
+                const params = Object.keys(variables).sort((a,b) => a-b).map(key => ({ 
+                    type: 'text', 
+                    text: String(variables[key] || ' ') 
+                }));
                 components.push({ type: 'body', parameters: params });
             }
             payload.template.components = components;

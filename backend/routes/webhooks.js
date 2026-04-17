@@ -977,16 +977,22 @@ router.post('/whatsapp/callback', async (req, res) => {
                             if (msg.type === 'text') {
                                 text = msg.text.body;
                             } else if (msg.type === 'button') {
-                                text = msg.button.text;
-                                buttonId = msg.button.payload; // Optional: Some vendors use payload
+                                text = `🔘 Clicked: ${msg.button.text}`;
+                                buttonId = msg.button.payload;
                             } else if (msg.type === 'interactive') {
                                 if (msg.interactive.type === 'button_reply') {
-                                    text = msg.interactive.button_reply.title;
+                                    text = `🔘 Clicked Button: ${msg.interactive.button_reply.title}`;
                                     buttonId = msg.interactive.button_reply.id;
                                 } else if (msg.interactive.type === 'list_reply') {
-                                    text = msg.interactive.list_reply.title;
+                                    text = `📝 Selected from List: ${msg.interactive.list_reply.title}`;
                                     listId = msg.interactive.list_reply.id;
                                 }
+                            } else if (msg.type === 'image') {
+                                text = '[Image Received]';
+                            } else if (msg.type === 'video') {
+                                text = '[Video Received]';
+                            } else if (msg.type === 'document') {
+                                text = `[Document: ${msg.document.filename || 'file'}]`;
                             } else {
                                 text = `[Received ${msg.type} message]`;
                             }
