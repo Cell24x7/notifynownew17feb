@@ -153,7 +153,18 @@ const logToChatHistory = async (userId, mobile, content, type, status, messageId
 const sendUniversalMessage = async (item) => {
     let result = { success: false, error: 'Unknown Channel' };
     const channelParsed = (item.channel || '').toLowerCase();
-    const resolvedVars = resolveMappedVariables(item.variable_mapping, item.variables);
+    // 0. Resolve Variables (Handle both Manual and API queue naming)
+    let rawVars = item.contact_variables || item.variables || {};
+    if (typeof rawVars === 'string') {
+        try { rawVars = JSON.parse(rawVars); } catch(e) { rawVars = {}; }
+    }
+    
+    const resolvedVars = resolveMappedVariables(item.variable_mapping, rawVars);
+    
+    // 0.1 Force Media Header if provided in API but missing from mapping
+    if (!resolvedVars.header_url && (rawVars.header_url || rawVars.mediaUrl)) {
+        resolvedVars.header_url = rawVars.header_url || rawVars.mediaUrl;
+    }
 
     try {
         if (channelParsed === 'rcs') {
