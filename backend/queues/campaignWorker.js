@@ -53,6 +53,15 @@ const campaignWorker = new Worker(queueName, async (job) => {
         const msgContent = item.template_body || item.campaign_name || 'Template Message';
 
         // 1. Process Message
+        // Ensure variables are parsed if they come from SQL as JSON string
+        if (typeof item.contact_variables === 'string') {
+            try {
+                item.contact_variables = JSON.parse(item.contact_variables);
+            } catch (e) {
+                item.contact_variables = {};
+            }
+        }
+        
         const { sendUniversalMessage } = require('../services/sendingService');
         result = await sendUniversalMessage(item);
 
