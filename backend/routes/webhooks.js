@@ -865,7 +865,10 @@ router.post('/whatsapp/callback', async (req, res) => {
 
                             let errorReason = null;
                             if (status === 'failed' && statusObj.errors) {
-                                errorReason = statusObj.errors[0]?.title || statusObj.errors[0]?.message || 'Unknown error';
+                                const err = statusObj.errors[0];
+                                const mainMsg = err.title || err.message || 'Unknown error';
+                                const detailedMsg = err.error_data?.details || '';
+                                errorReason = detailedMsg ? `${mainMsg} (${detailedMsg})` : mainMsg;
                             }
 
                             console.log(`📊 WA DLR Update: Msg ${messageId} is ${status} for ${recipientId}`);
@@ -888,7 +891,6 @@ router.post('/whatsapp/callback', async (req, res) => {
                                     }
                                     
                                     attempts++;
-                                    // Wait 500ms before retrying (5 seconds total)
                                     if (attempts < 10) await new Promise(resolve => setTimeout(resolve, 500));
                                 }
 
@@ -899,7 +901,8 @@ router.post('/whatsapp/callback', async (req, res) => {
                                         const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
                                         // Status hierarchy to prevent downgrades (sent < delivered < read)
-                                        const weights = { sent: 1, delivered: 2, read: 3, failed: 0 };
+                                        // FAILED is a terminal state that can override ANY previous status
+                                        const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
                                         const oldStatus = (log.status || 'sent').toLowerCase();
 
                                         if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
