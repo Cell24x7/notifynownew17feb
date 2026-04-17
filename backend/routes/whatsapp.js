@@ -1618,5 +1618,57 @@ router.get('/download-postman', (req, res) => {
     res.download(filePath, 'NotifyNow_WhatsApp_API.json');
 });
 
+/**
+ * POST /api/whatsapp/api/upload-media
+ * Client-facing Upload API: Uses username/password instead of JWT
+ */
+router.post('/api/upload-media', uploadDisk.single('file'), async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            if (req.file) { 
+                const fs = require('fs');
+                try { fs.unlinkSync(req.file.path); } catch(e) {}
+            }
+            return res.status(400).json({ success: false, message: 'Missing username or password in form-data' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file uploaded in "file" field' });
+        }
+
+        // 1. Verify API Authentication
+        const bcrypt = require('bcryptjs');
+        const [users] = await query('SELECT id, api_password FROM users WHERE email = ?', [username]);
+
+        if (!users.length || !users[0].api_password || !(await bcrypt.compare(password, users[0].api_password))) {
+            const fs = require('fs');
+            try { fs.unlinkSync(req.file.path); } catch(e) {}
+            return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        }
+
+        // 2. Generate Public URL
+        const protocol = req.protocol === 'https' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
+        const host = req.get('host');
+        const fileUrl = `${protocol}://${host}/api/whatsapp/media-file/${req.file.filename}`;
+
+        res.json({
+            success: true,
+            message: 'Media uploaded successfully via API',
+            url: fileUrl,
+            filename: req.file.originalname
+        });
+
+    } catch (error) {
+        console.error('[API] upload-media error:', error.message);
+        if (req.file) {
+            const fs = require('fs');
+            try { fs.unlinkSync(req.file.path); } catch(e) {}
+        }
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
 
