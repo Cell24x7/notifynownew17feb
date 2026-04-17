@@ -358,7 +358,24 @@ const sendUniversalMessage = async (item) => {
                 processedMessage = bodyText;
             }
 
-            if (payloadComponents.length > 0) payload.template.components = payloadComponents;
+            // ── FINAL PAYLOAD CONSTRUCTION ────────────────────────────
+            if (payloadComponents.length > 0) {
+                payload.template.components = payloadComponents;
+            }
+
+            // Force Media Header for Pinbot if provided but metadata sync failed
+            if (isPinbot && headerUrl && !payloadComponents.find(c => c.type === 'header')) {
+                const urlLower = String(headerUrl).toLowerCase();
+                let mediaType = 'image';
+                if (urlLower.match(/\.(mp4|3gp|m4v)$/)) mediaType = 'video';
+                else if (urlLower.match(/\.(pdf|doc|docx|ppt|pptx|xlsx|xls)$/)) mediaType = 'document';
+                
+                if (!payload.template.components) payload.template.components = [];
+                payload.template.components.unshift({
+                    type: 'header',
+                    parameters: [{ type: mediaType, [mediaType]: { link: headerUrl } }]
+                });
+            }
 
             console.log(`[Meta] Sending via Bot: ${waConfig.ph_no_id} | Template: ${payload.template.name} | Payload: ${JSON.stringify(payload)}`);
 
