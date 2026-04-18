@@ -341,17 +341,7 @@ const sendUniversalMessage = async (item) => {
             // ── BODY COMPONENT ────────────────────────────────────────
             let waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
             
-            // 🔗 Link Tracking: Wrap URLs in waParams for engagement tracking
-            for (let i = 0; i < waParams.length; i++) {
-                if (String(waParams[i] || '').startsWith('http')) {
-                    waParams[i] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, waParams[i], req?.io);
-                }
-            }
-            
-            // Log for debugging
-            console.log(`[WA-DEBUG] Mobile: ${item.mobile} | ResolvedVars: ${JSON.stringify(resolvedVars)}`);
-
-            // Fix for API desync: Check if we have ANY numeric keys (string "1" or number 1)
+            // Fix for API/Wizard desync: Check if we have ANY numeric keys (string "1" or number 1)
             if (waParams.length === 0) {
                 const numericKeys = Object.keys(resolvedVars)
                                           .filter(k => {
@@ -361,16 +351,26 @@ const sendUniversalMessage = async (item) => {
                                           .sort((a, b) => parseInt(a) - parseInt(b));
                 
                 if (numericKeys.length > 0) {
-                    // Filter out duplicates (if both "1" and 1 exist)
                     const uniqueIndices = [...new Set(numericKeys.map(k => parseInt(k)))].sort((a, b) => a - b);
                     waParams = uniqueIndices.map(idx => resolvedVars[idx] || resolvedVars[String(idx)]);
                     console.log(`[WA-DEBUG] Falling back to numeric params: ${JSON.stringify(waParams)}`);
                 }
             }
 
+            // 🔗 FINAL UNIVERSAL LINK TRACKING: Wrap URLs in waParams after all resolutions
+            for (let i = 0; i < waParams.length; i++) {
+                const val = String(waParams[i] || '').trim();
+                if (val.toLowerCase().startsWith('http') && val.match(/https?:\/\/[^\s]+/i)) {
+                    // Inject Tracking Link Engine
+                    waParams[i] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, val, null);
+                    console.log(`[MASTER-TRACK] Replaced: ${val} -> ${waParams[i]} (Mobile: ${item.mobile})`);
+                }
+            }
+            
+            // Log for debugging
+            console.log(`[WA-DEBUG] Mobile: ${item.mobile} | Final Params: ${JSON.stringify(waParams)}`);
+
             if (waParams.length > 0) {
-                // Fix for Error #131008: Parameter of type text is missing text value
-                // Meta requires non-empty strings for all variables.
                 payloadComponents.push({ 
                     type: 'body', 
                     parameters: waParams.map((v, idx) => {

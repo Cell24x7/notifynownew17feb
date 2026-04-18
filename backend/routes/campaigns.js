@@ -600,30 +600,6 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
         const processBatch = async (currentBatch) => {
             if (currentBatch.length === 0) return;
 
-            // UNIVERSAL LINK TRACKING ENGINE
-            if (channel === 'whatsapp') {
-                for (const item of currentBatch) {
-                    if (!item.variables) continue;
-                    const keys = Object.keys(item.variables);
-                    for (const k of keys) {
-                        const val = item.variables[k];
-                        // Relaxed URL Regex to catch everything starting with http/https
-                        if (typeof val === 'string' && val.toLowerCase().includes('http') && val.match(/https?:\/\/[^\s]+/i)) {
-                            const trackingId = `clk_${Math.random().toString(36).substring(2, 10)}`;
-                            try {
-                                const cleanMobile = String(item.mobile).replace(/\D/g, '');
-                                await query(
-                                    'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
-                                    [userId, campaignId, cleanMobile, val, trackingId]
-                                );
-                                item.variables[k] = `${baseUrl}/api/l/${trackingId}`;
-                                console.log(`[LinkTracking] Replaced URL in Campaign ${campaignId}: ${val} -> ${item.variables[k]} (Mobile: ${cleanMobile})`);
-                            } catch (e) { console.error('Universal tracking error:', e.message); }
-                        }
-                    }
-                }
-            }
-
             const values = currentBatch.map(item => [campaignId, userId, item.mobile, JSON.stringify(item.variables), 'pending', channel]);
             await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status, channel) VALUES ?', [values]);
         };
