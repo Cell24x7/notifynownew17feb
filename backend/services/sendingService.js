@@ -3,6 +3,30 @@ const { query } = require('../config/db');
 const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
 const { sendSMS } = require('../utils/smsService');
 const { sendEmail } = require('./emailService');
+const crypto = require('crypto');
+
+/**
+ * Creates a tracking link for a URL
+ */
+const createTrackingLink = async (userId, campaignId, mobile, originalUrl) => {
+    if (!originalUrl || !String(originalUrl).startsWith('http')) return originalUrl;
+    if (String(originalUrl).includes('/l/')) return originalUrl; // Avoid double wrapping
+    
+    try {
+        const trackingId = crypto.randomBytes(6).toString('hex'); // Shorter ID for cleaner URLs
+        await query(
+            'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
+            [userId, campaignId, mobile, originalUrl, trackingId]
+        );
+        
+        // Use production URL fallback
+        const baseUrl = process.env.API_BASE_URL || 'https://notifynow.in';
+        return `${baseUrl}/l/${trackingId}`;
+    } catch (e) {
+        console.error('❌ Link Tracker Init Error:', e.message);
+        return originalUrl;
+    }
+};
 
 /**
  * Replaces placeholders [X] or {{X}} with values from index-based variables
@@ -317,6 +341,13 @@ const sendUniversalMessage = async (item) => {
             // ── BODY COMPONENT ────────────────────────────────────────
             let waParams = getOrderedVariables(bodyComp?.text || item.template_body || '', resolvedVars);
             
+            // 🔗 Link Tracking: Wrap URLs in waParams for engagement tracking
+            for (let i = 0; i < waParams.length; i++) {
+                if (String(waParams[i] || '').startsWith('http')) {
+                    waParams[i] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, waParams[i], req?.io);
+                }
+            }
+            
             // Log for debugging
             console.log(`[WA-DEBUG] Mobile: ${item.mobile} | ResolvedVars: ${JSON.stringify(resolvedVars)}`);
 
@@ -357,6 +388,35 @@ const sendUniversalMessage = async (item) => {
                     }
                 });
                 processedMessage = bodyText;
+            }
+
+            // ── BUTTON COMPONENTS ──────────────────────────────────────
+            const buttonComponents = mtComponents.filter(c => c.type?.toUpperCase() === 'BUTTONS' || c.type?.toUpperCase() === 'BUTTON');
+            for (let bIndex = 0; bIndex < buttonComponents.length; bIndex++) {
+                const bComp = buttonComponents[bIndex];
+                if (!bComp.buttons) continue;
+
+                for (let i = 0; i < bComp.buttons.length; i++) {
+                    const btn = bComp.buttons[i];
+                    if (btn.type?.toUpperCase() === 'URL') {
+                        let btnVars = getOrderedVariables(btn.url || '', resolvedVars);
+                        if (btnVars.length > 0) {
+                            // Wrap button variables in tracking links if they are URLs
+                            for (let j = 0; j < btnVars.length; j++) {
+                                if (String(btnVars[j] || '').startsWith('http')) {
+                                    btnVars[j] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, btnVars[j]);
+                                }
+                            }
+
+                            payloadComponents.push({
+                                type: 'button',
+                                sub_type: 'url',
+                                index: String(i),
+                                parameters: btnVars.map(v => ({ type: 'text', text: String(v || ' ') }))
+                            });
+                        }
+                    }
+                }
             }
 
             // ── FINAL PAYLOAD CONSTRUCTION ────────────────────────────
