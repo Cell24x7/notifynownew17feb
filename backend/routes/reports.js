@@ -545,7 +545,14 @@ router.get('/engagement', authenticate, async (req, res) => {
             LIMIT 500
         `;
 
-        const [rows] = await query(queryStr, [targetUserId, ...params, targetUserId, ...params]);
+        let rows = [];
+        try {
+            const [data] = await query(queryStr, [targetUserId, ...params, targetUserId, ...params]);
+            rows = data || [];
+        } catch (dbErr) {
+            console.error('Engagement DB Error (Possibly missing table):', dbErr.message);
+            rows = [];
+        }
         
         // Final cleaning of interaction text if needed
         const reports = rows.map(r => ({
