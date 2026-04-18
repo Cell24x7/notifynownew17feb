@@ -498,12 +498,28 @@ router.post('/test-send', authenticate, async (req, res) => {
 
         let body = templates[0].body;
 
-        // Replace variables
+        // Replace variables and track links if WhatsApp
+        const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
         if (variables) {
-            Object.keys(variables).forEach(key => {
+            const keys = Object.keys(variables);
+            for (const key of keys) {
+                let val = variables[key] || '';
+                
+                // Track if it's a URL in WhatsApp
+                if (channel === 'whatsapp' && typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
+                    const trackingId = `test_${Math.random().toString(36).substring(2, 10)}`;
+                    try {
+                        await query(
+                            'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
+                            [req.user.id, 'TEST_CAMPAIGN', destination.replace(/\D/g, ''), val, trackingId]
+                        );
+                        val = `${baseUrl}/api/l/${trackingId}`;
+                    } catch (e) { console.error('Test link error:', e.message); }
+                }
+
                 const regex = new RegExp(`{{${key}}}`, 'g');
-                body = body.replace(regex, variables[key] || '');
-            });
+                body = body.replace(regex, val);
+            }
         }
 
         // Send logic (Simulated for now)
@@ -694,7 +710,27 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
             for (const n of numbers) {
                 const mobile = n.replace(/\D/g, '');
                 if (mobile.length >= 10) {
-                    batch.push({ mobile, variables: {} });
+                    const rowVariables = {}; // No manual variables from direct entry, but future-proof
+                    
+                    // If WhatsApp, still try to track if any hardcoded URLs exist in variables (if ever added)
+                    if (channel === 'whatsapp' && req.body.variables) {
+                        const keys = Object.keys(req.body.variables);
+                        for (const k of keys) {
+                            const val = req.body.variables[k];
+                            if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
+                                const trackingId = `man_dir_${Math.random().toString(36).substring(2, 10)}`;
+                                await query(
+                                    'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
+                                    [userId, campaignId, mobile, val, trackingId]
+                                );
+                                rowVariables[k] = `${baseUrl}/api/l/${trackingId}`;
+                            } else {
+                                rowVariables[k] = val;
+                            }
+                        }
+                    }
+
+                    batch.push({ mobile, variables: rowVariables });
                     contactCount++;
                     if (batch.length >= 1000) {
                         await processBatch(batch);
