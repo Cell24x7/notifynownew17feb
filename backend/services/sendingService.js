@@ -401,11 +401,9 @@ const sendUniversalMessage = async (item) => {
                     if (btn.type?.toUpperCase() === 'URL') {
                         let btnVars = getOrderedVariables(btn.url || '', resolvedVars);
                         if (btnVars.length > 0) {
-                            // Wrap button variables in tracking links if they are URLs
+                            // Force tracking for button variables (since they are URL components)
                             for (let j = 0; j < btnVars.length; j++) {
-                                if (String(btnVars[j] || '').startsWith('http')) {
-                                    btnVars[j] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, btnVars[j]);
-                                }
+                                btnVars[j] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, btnVars[j]);
                             }
 
                             payloadComponents.push({
