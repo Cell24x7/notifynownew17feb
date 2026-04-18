@@ -34,16 +34,11 @@ router.get('/:trackingId', async (req, res) => {
 
         // 4. Emit real-time notification to the user if io is available
         if (req.io && link.user_id) {
+            // Emit unique tracking event
             req.io.to(`user_${link.user_id}`).emit('link_click', {
                 mobile: link.mobile,
                 url: link.original_url,
                 time: new Date()
-            });
-            // Also notify for new message to refresh chat
-            req.io.to(`user_${link.user_id}`).emit('new_message', {
-                sender: link.mobile,
-                message_content: `🔗 [Engagement]: Click detected!`,
-                type: 'whatsapp'
             });
         }
 

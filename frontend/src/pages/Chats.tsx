@@ -151,6 +151,11 @@ export default function Chats() {
     }
   };
 
+  const selectedConvRef = useRef<Conversation | null>(null);
+  useEffect(() => {
+      selectedConvRef.current = selectedConversation;
+  }, [selectedConversation]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -160,16 +165,29 @@ export default function Chats() {
     });
 
     socketRef.current.on('new_message', (msg) => {
-        if (selectedConversation && (msg.sender === selectedConversation.contact_phone || msg.recipient === selectedConversation.contact_phone)) {
+        const selected = selectedConvRef.current;
+        if (selected && (msg.sender === selected.contact_phone || msg.recipient === selected.contact_phone)) {
             setMessages(prev => [...prev, msg]);
         }
         fetchConversations();
     });
 
+    socketRef.current.on('link_click', (data) => {
+        const selected = selectedConvRef.current;
+        if (selected && data.mobile === selected.contact_phone) {
+            fetchMessages(selected.contact_phone);
+        }
+        fetchConversations();
+        toast({ 
+            title: "Engagement Detected", 
+            description: `User ${data.mobile} clicked on a link!`
+        });
+    });
+
     return () => {
         socketRef.current?.disconnect();
     };
-  }, [user, selectedConversation]);
+  }, [user]);
 
   useEffect(() => {
     fetchConversations();

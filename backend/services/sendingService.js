@@ -21,7 +21,7 @@ const createTrackingLink = async (userId, campaignId, mobile, originalUrl) => {
         
         // Use production URL fallback
         const baseUrl = process.env.API_BASE_URL || 'https://notifynow.in';
-        return `${baseUrl}/l/${trackingId}`;
+        return `${baseUrl}/api/l/${trackingId}`;
     } catch (e) {
         console.error('❌ Link Tracker Init Error:', e.message);
         return originalUrl;
