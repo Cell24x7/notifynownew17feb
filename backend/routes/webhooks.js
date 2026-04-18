@@ -1007,15 +1007,14 @@ router.post('/whatsapp/callback', async (req, res) => {
                                 let userId = null;
                                 const phoneId = value.metadata?.phone_number_id;
 
-                                // Try to find who last chatted with this person on this phone ID
+                                // Try to find who last chatted with this person
                                 if (phoneId) {
-                                    const cleanSender = String(sender).slice(-10); // Match last 10 digits
+                                    const cleanSender = String(sender).replace(/\D/g, '').slice(-10); 
                                     const [lastChat] = await query(
                                         `SELECT user_id FROM message_logs 
-                                         WHERE recipient LIKE ? 
-                                         AND user_id IN (SELECT id FROM users WHERE whatsapp_config_id = (SELECT id FROM whatsapp_configs WHERE ph_no_id = ? LIMIT 1))
+                                         WHERE (recipient LIKE ? OR sender LIKE ?)
                                          ORDER BY created_at DESC LIMIT 1`,
-                                        [`%${cleanSender}`, phoneId]
+                                        [`%${cleanSender}`, `%${cleanSender}`]
                                     );
                                     if (lastChat.length > 0) {
                                         userId = lastChat[0].user_id;

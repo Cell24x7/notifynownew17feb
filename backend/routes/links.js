@@ -26,21 +26,31 @@ router.get('/:trackingId', async (req, res) => {
         // 3. Save as a "Received" message in webhook_logs so it appears in Chat
         try {
             const clickText = `🔗 [Engagement]: User clicked on link: ${link.original_url}`;
-            await query(
+            const [saveRes] = await query(
                 'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, "received", "whatsapp")',
-                [link.user_id, link.mobile, 'System', clickText]
+                [link.user_id, link.mobile, 'System User', clickText]
             );
-        } catch (e) { console.error('Error saving click to logs:', e.message); }
 
-        // 4. Emit real-time notification to the user if io is available
-        if (req.io && link.user_id) {
-            // Emit unique tracking event
-            req.io.to(`user_${link.user_id}`).emit('link_click', {
-                mobile: link.mobile,
-                url: link.original_url,
-                time: new Date()
-            });
-        }
+            // 4. Emit real-time notification to the user
+            if (req.io && link.user_id) {
+                req.io.to(`user_${link.user_id}`).emit('link_click', {
+                    mobile: link.mobile,
+                    url: link.original_url,
+                    time: new Date()
+                });
+                
+                // CRUCIAL: Send 'new_message' for Chat UI refresh
+                req.io.to(`user_${link.user_id}`).emit('new_message', {
+                    id: saveRes.insertId,
+                    sender: link.mobile,
+                    recipient: 'System User',
+                    message_content: clickText,
+                    status: 'received',
+                    type: 'whatsapp',
+                    created_at: new Date()
+                });
+            }
+        } catch (e) { console.error('Error saving click to logs:', e.message); }
 
         // 5. Redirect to original URL
         res.redirect(link.original_url);
