@@ -1004,7 +1004,6 @@ router.post('/api/send-bulk', async (req, res) => {
 
         // Only insert into queue after successful deduction
         const queueValues = [];
-        const { query } = require('../config/db');
         const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
 
         for (const c of contacts) {
