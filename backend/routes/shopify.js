@@ -51,6 +51,16 @@ router.post('/order-placed', async (req, res) => {
 
         console.log(`[Shopify-Hook] WhatsApp sent for ${orderId}. Result: ${result.success ? 'Success' : 'Failed'}`);
 
+        // 4. Log to database for dashboard tracking
+        if (result.success && result.messageId) {
+            try {
+                await query(
+                    'INSERT INTO message_logs (user_id, campaign_id, campaign_name, recipient, message_content, status, type, message_id, channel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [userId, `SHOPIFY_${orderId}`, `Shopify Order: ${orderId}`, mobile.replace(/\D/g, ''), `Order Confirmation for ${orderId}`, 'sent', 'whatsapp', result.messageId, 'whatsapp']
+                );
+            } catch (e) { console.error('Shopify Log Error:', e.message); }
+        }
+
         res.status(200).json({ success: true, message: 'Processed successfully' });
 
     } catch (error) {
