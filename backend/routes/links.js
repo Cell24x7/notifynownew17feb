@@ -19,8 +19,20 @@ router.get('/:trackingId', async (req, res) => {
         }
 
         const link = links[0];
+        const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+        
+        // List of common link preview bots/crawlers to ignore
+        const isBot = [
+            'whatsapp', 'facebookexternalhit', 'facebot', 'twitterbot', 
+            'linkedinbot', 'telegrambot', 'slackbot', 'bot', 'crawler', 'spider'
+        ].some(bot => userAgent.includes(bot));
 
-        // 2. Log the click (Asynchronous update)
+        if (isBot) {
+            console.log(`[LinkTracker] Ignoring bot click from: ${userAgent}`);
+            return res.redirect(link.original_url);
+        }
+
+        // 2. Log Genuine human click (Asynchronous update)
         query('UPDATE link_clicks SET click_count = click_count + 1, last_clicked_at = CURRENT_TIMESTAMP WHERE id = ?', [link.id]);
 
         // 3. Save as a "Received" message in webhook_logs so it appears in Chat
