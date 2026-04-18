@@ -529,18 +529,16 @@ router.get('/engagement', authenticate, async (req, res) => {
 
                 UNION ALL
 
-                -- 2. Button/Interactive Replies (Try to find most recent campaign name)
+                -- 2. Button/Interactive Replies (Sequential subqueries for better scope)
                 SELECT 
                     'BUTTON CLICK' as type,
                     wl.sender as msisdn,
                     wl.message_content as interaction,
-                    COALESCE((
-                        SELECT campaign_name FROM (
-                            SELECT campaign_name, created_at as t FROM message_logs WHERE recipient = wl.sender AND user_id = wl.user_id
-                            UNION ALL
-                            SELECT campaign_name, send_time as t FROM api_message_logs WHERE recipient = wl.sender AND user_id = wl.user_id
-                        ) as sc ORDER BY t DESC LIMIT 1
-                    ), 'API Campaign') as campaign_name,
+                    COALESCE(
+                        (SELECT campaign_name FROM message_logs WHERE recipient = wl.sender AND user_id = wl.user_id ORDER BY created_at DESC LIMIT 1),
+                        (SELECT campaign_name FROM api_message_logs WHERE recipient = wl.sender AND user_id = wl.user_id ORDER BY send_time DESC LIMIT 1),
+                        'API Campaign'
+                    ) as campaign_name,
                     wl.created_at as timestamp
                 FROM webhook_logs wl
                 WHERE wl.user_id = ? 
