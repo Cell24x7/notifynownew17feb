@@ -28,7 +28,7 @@ router.get('/:trackingId', async (req, res) => {
             // Fetch campaign name for context
             const [camp] = await query('SELECT name FROM campaigns WHERE id = ? UNION SELECT campaign_name as name FROM api_message_logs WHERE campaign_id = ? LIMIT 1', [link.campaign_id, link.campaign_id]);
             const campName = camp[0]?.name || 'API Campaign';
-            const clickText = `🔗 [Engagement]: Clicked for Campaign: ${campName}\nLink: ${link.original_url}`;
+            const clickText = `🔗 [Engagement]: User clicked on the link! (Campaign: ${campName})`;
             
             // Try to find bot phone number for better chat grouping
             const [botConfig] = await query('SELECT wa_no FROM whatsapp_configs WHERE id = (SELECT whatsapp_config_id FROM users WHERE id = ?)', [link.user_id]);
