@@ -1028,7 +1028,7 @@ router.post('/whatsapp/callback', async (req, res) => {
 
                                 // 2. Add Campaign Context to Button/Interactive replies
                                 if (text.startsWith('🔘') || text.startsWith('📝')) {
-                                    text += `\n(Campaign: ${campaignName})`;
+                                    text += ` - Campaign: ${campaignName}`;
                                 }
 
                                 // Fallback: Just pick the first user assigned to this WhatsApp configuration
