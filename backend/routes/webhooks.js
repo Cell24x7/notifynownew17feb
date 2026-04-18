@@ -1007,14 +1007,17 @@ router.post('/whatsapp/callback', async (req, res) => {
                                 let userId = null;
                                 const phoneId = value.metadata?.phone_number_id;
 
-                                // Try to find who last chatted with this person
+                                // 1. Identify User ID (Match Manual & API campaigns)
                                 if (phoneId) {
                                     const cleanSender = String(sender).replace(/\D/g, '').slice(-10); 
                                     const [lastChat] = await query(
-                                        `SELECT user_id FROM message_logs 
-                                         WHERE (recipient LIKE ? OR sender LIKE ?)
-                                         ORDER BY created_at DESC LIMIT 1`,
-                                        [`%${cleanSender}`, `%${cleanSender}`]
+                                        `SELECT user_id FROM (
+                                            SELECT user_id, created_at FROM message_logs WHERE recipient LIKE ? OR sender LIKE ?
+                                            UNION ALL
+                                            SELECT user_id, created_at FROM api_message_logs WHERE recipient LIKE ?
+                                        ) as combined_logs 
+                                        ORDER BY created_at DESC LIMIT 1`,
+                                        [`%${cleanSender}`, `%${cleanSender}`, `%${cleanSender}`]
                                     );
                                     if (lastChat.length > 0) {
                                         userId = lastChat[0].user_id;
