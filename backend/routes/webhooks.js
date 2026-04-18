@@ -1012,12 +1012,12 @@ router.post('/whatsapp/callback', async (req, res) => {
                                     const cleanSender = String(sender).replace(/\D/g, '').slice(-10); 
                                     const [lastChat] = await query(
                                         `SELECT user_id FROM (
-                                            SELECT user_id, created_at as sort_time FROM message_logs WHERE recipient LIKE ? OR sender LIKE ?
+                                            SELECT user_id, created_at as sort_time FROM message_logs WHERE recipient LIKE ?
                                             UNION ALL
                                             SELECT user_id, send_time as sort_time FROM api_message_logs WHERE recipient LIKE ?
                                         ) as combined_logs 
                                         ORDER BY sort_time DESC LIMIT 1`,
-                                        [`%${cleanSender}`, `%${cleanSender}`, `%${cleanSender}`]
+                                        [`%${cleanSender}`, `%${cleanSender}`]
                                     );
                                     if (lastChat.length > 0) {
                                         userId = lastChat[0].user_id;
