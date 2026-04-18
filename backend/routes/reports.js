@@ -515,9 +515,9 @@ router.get('/engagement', authenticate, async (req, res) => {
 
         const queryStr = `
             SELECT * FROM (
-                -- 1. Link Clicks
+                -- 1. Link Clicks (Now called URL CLICKED)
                 SELECT 
-                    'Link Click' as type,
+                    'URL CLICKED' as type,
                     lc.mobile as msisdn,
                     lc.original_url as interaction,
                     COALESCE(c.name, aml.campaign_name, 'Unknown') as campaign_name,
@@ -529,12 +529,18 @@ router.get('/engagement', authenticate, async (req, res) => {
 
                 UNION ALL
 
-                -- 2. Button/Interactive Replies
+                -- 2. Button/Interactive Replies (Try to find most recent campaign name)
                 SELECT 
-                    'Button Click' as type,
+                    'BUTTON CLICK' as type,
                     wl.sender as msisdn,
                     wl.message_content as interaction,
-                    'N/A' as campaign_name, -- Logic for campaign name in webhook_logs is complex, keeping simple for now
+                    COALESCE((
+                        SELECT campaign_name FROM (
+                            SELECT campaign_name, created_at as t FROM message_logs WHERE recipient = msisdn AND user_id = wl.user_id
+                            UNION ALL
+                            SELECT campaign_name, send_time as t FROM api_message_logs WHERE recipient = msisdn AND user_id = wl.user_id
+                        ) as sc ORDER BY t DESC LIMIT 1
+                    ), 'API Campaign') as campaign_name,
                     wl.created_at as timestamp
                 FROM webhook_logs wl
                 WHERE wl.user_id = ? 

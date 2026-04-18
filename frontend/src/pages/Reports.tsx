@@ -766,7 +766,7 @@ export default function Reports() {
                                             <TableRow key={idx} className="hover:bg-muted/50 border-b transition-colors whitespace-nowrap">
                                                 <TableCell className="py-4 px-6">
                                                     <Badge className={cn("text-[10px] uppercase font-bold border-none", 
-                                                        eng.type === 'Link Click' ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700")}>
+                                                        eng.type === 'URL CLICKED' ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700")}>
                                                         {eng.type}
                                                     </Badge>
                                                 </TableCell>
