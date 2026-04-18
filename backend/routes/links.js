@@ -31,7 +31,7 @@ router.get('/:trackingId', async (req, res) => {
             const clickText = `User Clicked on Body Link! (Campaign: ${campName})`;
             
             // Try to find bot phone number for better chat grouping
-            const [botConfig] = await query('SELECT wa_no FROM whatsapp_configs WHERE id = (SELECT whatsapp_config_id FROM users WHERE id = ?)', [link.user_id]);
+            const [botConfig] = await query('SELECT wanumber as wa_no FROM whatsapp_configs WHERE id = (SELECT whatsapp_config_id FROM users WHERE id = ?)', [link.user_id]);
             const botNumber = botConfig[0]?.wa_no || 'System';
 
             const [saveRes] = await query(
