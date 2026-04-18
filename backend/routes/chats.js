@@ -288,4 +288,87 @@ router.get('/export/:phone', authenticateToken, async (req, res) => {
     }
 });
 
+/**
+ * @route GET /api/chats/export-all
+ * @desc Export all distinct conversations/contacts as CSV
+ */
+router.get('/export-all', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const channelFilter = req.query.channel;
+
+        let sql = `
+            SELECT 
+                contact_phone as 'Phone Number',
+                MAX(name) as 'Name',
+                MAX(created_at) as 'Last Message Time',
+                MAX(message_content) as 'Last Message Body',
+                MAX(status) as 'Last Status',
+                MAX(type) as 'Channel'
+            FROM (
+                SELECT 
+                    CASE 
+                        WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                        WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                        ELSE sender 
+                    END as contact_phone,
+                    created_at,
+                    message_content,
+                    status,
+                    type,
+                    CASE 
+                         WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                         WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                         ELSE sender 
+                    END as name
+                FROM webhook_logs 
+                WHERE user_id = ?
+            ) as logs_summary
+            WHERE contact_phone IS NOT NULL AND contact_phone != 'System'
+        `;
+
+        const params = [userId];
+
+        if (channelFilter && channelFilter !== 'all') {
+            sql += ` AND type = ?`;
+            params.push(channelFilter);
+        }
+
+        sql += ` GROUP BY contact_phone ORDER BY MAX(created_at) DESC`;
+
+        const [contacts] = await query(sql, params);
+
+        if (contacts.length === 0) {
+            return res.status(404).json({ success: false, message: 'No contacts found to export' });
+        }
+
+        // 1. Generate Header Row
+        const columns = ['Phone Number', 'Name', 'Last Message Time', 'Last Message Body', 'Last Status', 'Channel'];
+        const csvHeader = columns.join(',');
+
+        // 2. Generate Rows
+        const csvRows = contacts.map(c => {
+            return [
+                c['Phone Number'] || '',
+                c['Name'] || '',
+                c['Last Message Time'] ? new Date(c['Last Message Time']).toLocaleString() : '',
+                c['Last Message Body'] ? `"${String(c['Last Message Body']).replace(/"/g, '""')}"` : '""',
+                c['Last Status'] || '',
+                c['Channel'] || ''
+            ].join(',');
+        });
+
+        // 3. UTF-8 BOM for Excel compatibility
+        const csvContent = '\ufeff' + csvHeader + '\n' + csvRows.join('\n');
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename=all_responders_${Date.now()}.csv`);
+        res.status(200).send(csvContent);
+
+    } catch (error) {
+        console.error('Error exporting all contacts:', error.message);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
 module.exports = router;

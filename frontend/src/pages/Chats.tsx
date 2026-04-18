@@ -283,6 +283,33 @@ export default function Chats() {
     }
   };
 
+  const handleExportAll = async () => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const channelQuery = selectedChannel && selectedChannel !== 'all' ? `?channel=${selectedChannel}` : '';
+        const response = await axios.get(`${API_BASE_URL}/api/chats/export-all${channelQuery}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'blob'
+        });
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        const filename = selectedChannel !== 'all' ? `responders_${selectedChannel}.csv` : 'all_responders.csv';
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast({ title: "Contacts exported successfully" });
+    } catch (err: any) {
+        toast({ 
+            title: "Export failed", 
+            description: err.response?.data?.message || "Internal server error",
+            variant: "destructive" 
+        });
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-180px)] sm:h-[calc(100vh-160px)] md:h-[calc(100vh-140px)] w-full overflow-hidden bg-background rounded-xl border border-border shadow-sm">
       <div className={cn(
@@ -308,6 +335,17 @@ export default function Chats() {
           </div>
 
           <div className="p-3 border-b border-border shrink-0">
+            <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Channels</span>
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2 text-[10px] text-primary hover:bg-primary/5"
+                    onClick={handleExportAll}
+                >
+                    <Download className="h-3 w-3 mr-1" /> Export All
+                </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {channels.map((channel) => (
                 <button
