@@ -46,6 +46,14 @@ interface WebhookLog {
     message_content?: string;
 }
 
+interface EngagementReport {
+    type: string;
+    msisdn: string;
+    interaction: string;
+    campaign_name: string;
+    timestamp: string;
+}
+
 
 const downloadCsv = (content: string, filename: string) => {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
@@ -81,6 +89,10 @@ export default function Reports() {
     const [users, setUsers] = useState<any[]>([]);
     const [apiPage, setApiPage] = useState(1);
     const [apiTotal, setApiTotal] = useState(0);
+    const [engagementReports, setEngagementReports] = useState<EngagementReport[]>([]);
+    const [engagementPage, setEngagementPage] = useState(1);
+    const [engagementTotal, setEngagementTotal] = useState(0);
+    const [loadingEngagement, setLoadingEngagement] = useState(false);
     
     // Read from URL
     const activeTab = searchParams.get('tab') || 'summary';
@@ -134,8 +146,10 @@ export default function Reports() {
             fetchWebhookLogs(detailedPage, 'detailed');
         } else if (activeTab === 'api') {
             fetchWebhookLogs(apiPage, 'api');
+        } else if (activeTab === 'engagement') {
+            fetchEngagementReports(engagementPage);
         }
-    }, [detailedPage, apiPage, targetUserId]);
+    }, [detailedPage, apiPage, engagementPage, targetUserId]);
 
     const fetchReports = async (page: number = 1) => {
         setLoading(true);
@@ -208,11 +222,34 @@ export default function Reports() {
         }
     };
 
+    const fetchEngagementReports = async (page: number = 1) => {
+        setLoadingEngagement(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            let url = `${API_BASE_URL}/api/reports/engagement?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            if (startDate) url += `from=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
+            if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (data.success) {
+                setEngagementReports(data.reports);
+                setEngagementTotal(data.reports.length); // Assuming limit for now
+            }
+        } catch (error) {
+            console.error('Error fetching engagement:', error);
+        } finally {
+            setLoadingEngagement(false);
+        }
+    };
+
 
     useEffect(() => {
         if (activeTab === 'summary') fetchReports(summaryPage);
         if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
         if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
+        if (activeTab === 'engagement') fetchEngagementReports(engagementPage);
     }, [activeTab, startDate, endDate, searchQuery, targetUserId]);
 
     useEffect(() => {
@@ -529,6 +566,7 @@ export default function Reports() {
                 <TabsList className="bg-muted p-1 rounded-xl w-fit h-11 mb-2 border border-border/50">
                     <TabsTrigger value="summary" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Summary Report</TabsTrigger>
                     <TabsTrigger value="detailed" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Detailed Reports</TabsTrigger>
+                    <TabsTrigger value="engagement" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Click Reports</TabsTrigger>
                     <TabsTrigger value="api" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">API Logs</TabsTrigger>
                 </TabsList>
 
@@ -701,6 +739,52 @@ export default function Reports() {
                         </Card>
                     </TabsContent>
                 )}
+
+                <TabsContent value="engagement" className="flex-1 mt-4">
+                    <Card className="border border-border shadow-md rounded-xl bg-card overflow-hidden">
+                        <CardHeader className="py-4 px-6 border-b bg-muted/30">
+                            <CardTitle className="text-lg font-bold">User Engagement & Click Reports</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader className="bg-muted/50 border-b">
+                                    <TableRow>
+                                        <TableHead className="py-4 px-6 text-[11px] uppercase font-semibold">Type</TableHead>
+                                        <TableHead className="py-4 px-6 text-[11px] uppercase font-semibold text-center">Mobile</TableHead>
+                                        <TableHead className="py-4 px-6 text-[11px] uppercase font-semibold text-center">Campaign</TableHead>
+                                        <TableHead className="py-4 px-6 text-[11px] uppercase font-semibold">Interaction Details</TableHead>
+                                        <TableHead className="py-4 px-6 text-[11px] uppercase font-semibold text-right">Time</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loadingEngagement ? (
+                                        <TableRow><TableCell colSpan={5} className="text-center py-10">Fetching click logs...</TableCell></TableRow>
+                                    ) : engagementReports.length === 0 ? (
+                                        <TableRow><TableCell colSpan={5} className="text-center py-10">No clicks tracked yet.</TableCell></TableRow>
+                                    ) : (
+                                        engagementReports.map((eng, idx) => (
+                                            <TableRow key={idx} className="hover:bg-muted/50 border-b transition-colors whitespace-nowrap">
+                                                <TableCell className="py-4 px-6">
+                                                    <Badge className={cn("text-[10px] uppercase font-bold border-none", 
+                                                        eng.type === 'Link Click' ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700")}>
+                                                        {eng.type}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="py-4 px-6 text-center font-bold font-mono">{eng.msisdn}</TableCell>
+                                                <TableCell className="py-4 px-6 text-center text-muted-foreground font-semibold uppercase text-[11px] max-w-[200px] truncate">{eng.campaign_name}</TableCell>
+                                                <TableCell className="py-4 px-6 text-xs font-semibold text-foreground max-w-[300px] truncate">{eng.interaction}</TableCell>
+                                                <TableCell className="py-4 px-6 text-right text-xs font-medium text-muted-foreground">
+                                                    {format(new Date(eng.timestamp), 'dd MMM, HH:mm')}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                            {renderPagination(engagementPage, engagementTotal, setEngagementPage)}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </div>
     );

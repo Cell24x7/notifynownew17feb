@@ -501,4 +501,64 @@ router.post('/send-campaign-report', authenticate, async (req, res) => {
     }
 });
 
+// GET /api/reports/engagement (Merged Click & Button Interactions)
+router.get('/engagement', authenticate, async (req, res) => {
+    try {
+        const { from, to, userId } = req.query;
+        const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+        const targetUserId = (isAdminRole && userId) ? userId : req.user.id;
+
+        let params = [];
+        let dateFilter = '';
+        if (from) { dateFilter += ' AND created_at >= ?'; params.push(from + ' 00:00:00'); }
+        if (to) { dateFilter += ' AND created_at <= ?'; params.push(to + ' 23:59:59'); }
+
+        const queryStr = `
+            SELECT * FROM (
+                -- 1. Link Clicks
+                SELECT 
+                    'Link Click' as type,
+                    lc.mobile as msisdn,
+                    lc.original_url as interaction,
+                    COALESCE(c.name, aml.campaign_name, 'Unknown') as campaign_name,
+                    lc.created_at as timestamp
+                FROM link_clicks lc
+                LEFT JOIN campaigns c ON lc.campaign_id = c.id
+                LEFT JOIN (SELECT DISTINCT campaign_id, campaign_name FROM api_message_logs) aml ON lc.campaign_id = aml.campaign_id
+                WHERE lc.user_id = ? ${dateFilter}
+
+                UNION ALL
+
+                -- 2. Button/Interactive Replies
+                SELECT 
+                    'Button Click' as type,
+                    wl.sender as msisdn,
+                    wl.message_content as interaction,
+                    'N/A' as campaign_name, -- Logic for campaign name in webhook_logs is complex, keeping simple for now
+                    wl.created_at as timestamp
+                FROM webhook_logs wl
+                WHERE wl.user_id = ? 
+                AND (wl.message_content LIKE 'User is Interested%' OR wl.message_content LIKE 'User Clicked%')
+                ${dateFilter.replace('created_at', 'wl.created_at')}
+            ) as engagement_data
+            ORDER BY timestamp DESC
+            LIMIT 500
+        `;
+
+        const [rows] = await query(queryStr, [targetUserId, ...params, targetUserId, ...params]);
+        
+        // Final cleaning of interaction text if needed
+        const reports = rows.map(r => ({
+            ...r,
+            interaction: r.interaction.split(' - Campaign:')[0].replace('User is Interested!', '🟢 Interested').replace('User Clicked:', '🔘 Clicked:')
+        }));
+
+        res.json({ success: true, reports });
+
+    } catch (error) {
+        console.error('Engagement report error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch engagement reports' });
+    }
+});
+
 module.exports = router;
