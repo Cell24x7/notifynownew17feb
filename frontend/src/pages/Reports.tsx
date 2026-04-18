@@ -771,7 +771,7 @@ export default function Reports() {
                                                         {e.type}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-center font-black text-xs tracking-tight text-foreground">{e.msisdn?.replace(/^\+/, '')}</TableCell>
+                                                <TableCell className="text-center font-medium text-xs tracking-tight text-foreground">{e.msisdn?.replace(/^\+/, '')}</TableCell>
                                                 <TableCell className="text-center text-[10px] font-bold text-muted-foreground uppercase opacity-70 group-hover:opacity-100 truncate max-w-[120px]">{e.campaign_name}</TableCell>
                                                 <TableCell className="text-[11px] font-medium text-foreground max-w-[250px]">
                                                     <div className="line-clamp-2 leading-tight font-semibold text-muted-foreground group-hover:text-foreground transition-colors" title={e.interaction}>

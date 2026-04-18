@@ -500,8 +500,23 @@ router.post('/test-send', authenticate, async (req, res) => {
 
         // Replace variables and track links if WhatsApp
         const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
-        if (variables) {
-            const keys = Object.keys(variables);
+        // Standardized Link Tracking for Test Sends
+        if (channel === 'whatsapp' && Array.isArray(processedVars)) {
+            const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
+            for (let i = 0; i < processedVars.length; i++) {
+                let val = processedVars[i];
+                if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
+                    const trackingId = `tst_${mobile.replace(/\D/g, '')}_${Math.random().toString(36).substring(2, 8)}`;
+                    try {
+                        await query(
+                            'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
+                            [userId, 'TEST_SEND', mobile.replace(/\D/g, ''), val, trackingId]
+                        );
+                        processedVars[i] = `${baseUrl}/api/l/${trackingId}`;
+                    } catch (e) { console.error('Test link tracking error:', e.message); }
+                }
+            }
+        }
             for (const key of keys) {
                 let val = variables[key] || '';
                 
@@ -712,18 +727,20 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
                 if (mobile.length >= 10) {
                     const rowVariables = {}; // No manual variables from direct entry, but future-proof
                     
-                    // If WhatsApp, still try to track if any hardcoded URLs exist in variables (if ever added)
+                    // Standardized Link tracking for Wizard Manual Input
                     if (channel === 'whatsapp' && req.body.variables) {
                         const keys = Object.keys(req.body.variables);
                         for (const k of keys) {
                             const val = req.body.variables[k];
                             if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
-                                const trackingId = `man_dir_${Math.random().toString(36).substring(2, 10)}`;
-                                await query(
-                                    'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
-                                    [userId, campaignId, mobile, val, trackingId]
-                                );
-                                rowVariables[k] = `${baseUrl}/api/l/${trackingId}`;
+                                const trackingId = `wiz_${mobile}_${Math.random().toString(36).substring(2, 8)}`;
+                                try {
+                                    await query(
+                                        'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
+                                        [userId, campaignId, mobile, val, trackingId]
+                                    );
+                                    rowVariables[k] = `${baseUrl}/api/l/${trackingId}`;
+                                } catch (e) { console.error('Wizard link tracking error:', e.message); }
                             } else {
                                 rowVariables[k] = val;
                             }
