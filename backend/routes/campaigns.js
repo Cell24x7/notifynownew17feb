@@ -502,7 +502,6 @@ router.post('/test-send', authenticate, async (req, res) => {
         const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
         // Standardized Link Tracking for Test Sends
         if (channel === 'whatsapp' && Array.isArray(processedVars)) {
-            const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
             for (let i = 0; i < processedVars.length; i++) {
                 let val = processedVars[i];
                 if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
@@ -517,6 +516,9 @@ router.post('/test-send', authenticate, async (req, res) => {
                 }
             }
         }
+
+        if (variables) {
+            const keys = Object.keys(variables);
             for (const key of keys) {
                 let val = variables[key] || '';
                 
@@ -526,7 +528,7 @@ router.post('/test-send', authenticate, async (req, res) => {
                     try {
                         await query(
                             'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
-                            [req.user.id, 'TEST_CAMPAIGN', destination.replace(/\D/g, ''), val, trackingId]
+                            [req.user.id, 'TEST_CAMPAIGN', mobile.replace(/\D/g, ''), val, trackingId]
                         );
                         val = `${baseUrl}/api/l/${trackingId}`;
                     } catch (e) { console.error('Test link error:', e.message); }
