@@ -986,10 +986,10 @@ router.post('/whatsapp/callback', async (req, res) => {
                             } else if (msg.type === 'interactive') {
                                 if (msg.interactive.type === 'button_reply') {
                                     const btnLabel = msg.interactive.button_reply.title;
-                                    text = (btnLabel.toLowerCase().includes('interested')) ? `User is Interested!` : `User Clicked: ${btnLabel}`;
+                                    text = (btnLabel.toLowerCase().includes('interested')) ? `User is Interested!` : `User Selected: ${btnLabel}`;
                                     buttonId = msg.interactive.button_reply.id;
                                 } else if (msg.interactive.type === 'list_reply') {
-                                    text = `📝 Selected from List: ${msg.interactive.list_reply.title}`;
+                                    text = `User Selected from List: ${msg.interactive.list_reply.title}`;
                                     listId = msg.interactive.list_reply.id;
                                 }
                             } else if (msg.type === 'image') {
@@ -1029,8 +1029,8 @@ router.post('/whatsapp/callback', async (req, res) => {
                                 }
 
                                 // 2. Add Campaign Context to Button/Interactive replies
-                                if (text.includes('Interested') || text.includes('User Clicked')) {
-                                    text += ` - Campaign: ${campaignName}`;
+                                if (text.includes('Interested') || text.includes('Selected')) {
+                                    text += ` (Campaign: ${campaignName})`;
                                 }
 
                                 // Fallback: Just pick the first user assigned to this WhatsApp configuration

@@ -542,26 +542,26 @@ router.get('/engagement', authenticate, async (req, res) => {
                     wl.created_at as timestamp
                 FROM webhook_logs wl
                 WHERE wl.user_id = ? 
-                AND (wl.message_content LIKE 'User is Interested%' OR wl.message_content LIKE 'User Clicked%')
+                AND (wl.message_content LIKE 'User is Interested%' OR wl.message_content LIKE 'User Selected%')
                 ${dateFilter.replace('created_at', 'wl.created_at')}
             ) as engagement_data
             ORDER BY timestamp DESC
             LIMIT 500
         `;
 
-        let rows = [];
+        let dataRows = [];
         try {
-            const [data] = await query(queryStr, [targetUserId, ...params, targetUserId, ...params]);
-            rows = data || [];
+            const [rows] = await query(queryStr, [targetUserId, ...params, targetUserId, ...params]);
+            dataRows = rows || [];
         } catch (dbErr) {
-            console.error('Engagement DB Error (Possibly missing table):', dbErr.message);
-            rows = [];
+            console.error('Engagement DB Error:', dbErr.message);
+            dataRows = [];
         }
         
         // Final cleaning of interaction text if needed
-        const reports = rows.map(r => ({
+        const reports = dataRows.map(r => ({
             ...r,
-            interaction: r.interaction.split(' - Campaign:')[0].replace('User is Interested!', '🟢 Interested').replace('User Clicked:', '🔘 Clicked:')
+            interaction: r.interaction.split(' (Campaign:')[0]
         }));
 
         res.json({ success: true, reports });
