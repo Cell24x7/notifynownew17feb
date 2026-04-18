@@ -150,7 +150,7 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             await connection.query(
                 `INSERT INTO transactions (user_id, type, amount, credits, description, status, created_at)
                  VALUES (?, 'debit', ?, ?, ?, 'completed', NOW())`,
-                [campaign.u_id, totalCost, totalCost, `Campaign: ${campaign.name || campaignId} (${recipientCount} recipients)`]
+                [campaign.u_id, totalCost, totalCost, `Campaign (${channel.toUpperCase()}): ${campaign.name || campaignId} | Audience: ${recipientCount}`]
             );
 
             // C. Finalize Campaign Marker (credits_deducted = 1 means success)
@@ -281,7 +281,7 @@ const deductSingleMessageCredit = async (userId, channel, templateName, template
             await connection.query(
                 `INSERT INTO transactions (user_id, type, amount, credits, description, status, created_at)
                  VALUES (?, 'debit', ?, ?, ?, 'completed', NOW())`,
-                [userId, cost, cost, `Single Send (${chan}): ${templateName}`]
+                [userId, cost, cost, `Single Send (${chan.toUpperCase()}): ${templateName}`]
             );
 
             await connection.commit();
