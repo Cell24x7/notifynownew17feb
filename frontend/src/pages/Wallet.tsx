@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
+import { ChannelBadge } from '@/components/ui/channel-icon';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -80,6 +81,16 @@ export default function Wallet() {
       case 'debit': return 'bg-rose-500/10 text-rose-600 border-rose-200';
       default: return 'bg-muted text-muted-foreground';
     }
+  };
+
+  const detectChannel = (description: string) => {
+    const desc = description.toLowerCase();
+    if (desc.includes('whatsapp')) return 'whatsapp';
+    if (desc.includes('rcs')) return 'rcs';
+    if (desc.includes('sms')) return 'sms';
+    if (desc.includes('voice') || desc.includes('voicebot')) return 'voicebot';
+    if (desc.includes('email')) return 'email';
+    return null;
   };
 
   return (
@@ -223,8 +234,15 @@ export default function Wallet() {
                         </div>
                       </TableCell>
                       <TableCell className="max-w-[400px]">
-                        <p className="text-sm font-medium leading-none">{txn.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1 font-mono">{txn.status}</p>
+                        <div className="flex items-start gap-2">
+                           {detectChannel(txn.description) && (
+                               <ChannelBadge channel={detectChannel(txn.description)!} className="shrink-0 mt-0.5" />
+                           )}
+                           <div className="min-w-0">
+                                <p className="text-sm font-medium leading-tight break-words">{txn.description}</p>
+                                <p className="text-[10px] text-muted-foreground mt-1 font-mono uppercase tracking-wider">{txn.status}</p>
+                           </div>
+                        </div>
                       </TableCell>
                       <TableCell className={cn(
                         "text-right font-bold tabular-nums",
