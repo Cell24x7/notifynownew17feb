@@ -26,24 +26,22 @@ router.get('/:trackingId', async (req, res) => {
         // 3. Save as a "Received" message in webhook_logs so it appears in Chat
         try {
             const clickText = `🔗 [Engagement]: User clicked on link: ${link.original_url}`;
+            
+            // Try to find bot phone number for better chat grouping
+            const [botConfig] = await query('SELECT wa_no FROM whatsapp_configs WHERE id = (SELECT whatsapp_config_id FROM users WHERE id = ?)', [link.user_id]);
+            const botNumber = botConfig[0]?.wa_no || 'System';
+
             const [saveRes] = await query(
                 'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, status, type) VALUES (?, ?, ?, ?, "received", "whatsapp")',
-                [link.user_id, link.mobile, 'System User', clickText]
+                [link.user_id, link.mobile, botNumber, clickText]
             );
 
             // 4. Emit real-time notification to the user
             if (req.io && link.user_id) {
-                req.io.to(`user_${link.user_id}`).emit('link_click', {
-                    mobile: link.mobile,
-                    url: link.original_url,
-                    time: new Date()
-                });
-                
-                // CRUCIAL: Send 'new_message' for Chat UI refresh
                 req.io.to(`user_${link.user_id}`).emit('new_message', {
                     id: saveRes.insertId,
                     sender: link.mobile,
-                    recipient: 'System User',
+                    recipient: botNumber,
                     message_content: clickText,
                     status: 'received',
                     type: 'whatsapp',
