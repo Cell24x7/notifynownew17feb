@@ -715,7 +715,7 @@ export default function Reports() {
                                                             {log.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-[10px] px-3 py-2 leading-tight max-w-[150px]">
+                                                    <TableCell className="text-[10px] px-3 py-2 leading-tight max-w-[180px] min-w-[120px]">
                                                         {log.failure_reason && log.failure_reason.startsWith('Failover from') ? (
                                                             <div className={cn(
                                                                 "flex items-center gap-1 px-1.5 py-0.5 rounded border border-emerald-200/50 w-fit font-semibold",
@@ -726,7 +726,9 @@ export default function Reports() {
                                                                 ⚡ {log.failure_reason.split(':')[0].replace('Failover from ', '')} Fallback
                                                             </div>
                                                         ) : (
-                                                            <span className="text-rose-400 font-bold">{log.failure_reason || '-'}</span>
+                                                            <div className="text-rose-500 font-bold line-clamp-3 hover:line-clamp-none transition-all duration-300 cursor-help" title={log.failure_reason}>
+                                                                {log.failure_reason || '-'}
+                                                            </div>
                                                         )}
                                                     </TableCell>
                                                 </TableRow>
@@ -762,20 +764,21 @@ export default function Reports() {
                                     ) : engagementReports.length === 0 ? (
                                         <TableRow><TableCell colSpan={5} className="text-center py-10">No clicks tracked yet.</TableCell></TableRow>
                                     ) : (
-                                        engagementReports.map((eng, idx) => (
-                                            <TableRow key={idx} className="hover:bg-muted/50 border-b transition-colors whitespace-nowrap">
+                                        engagementReports.map((e, idx) => (
+                                            <TableRow key={idx} className="hover:bg-muted/30 border-b transition-colors group">
                                                 <TableCell className="py-4 px-6">
-                                                    <Badge className={cn("text-[10px] uppercase font-bold border-none", 
-                                                        eng.type === 'URL CLICKED' ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700")}>
-                                                        {eng.type}
+                                                    <Badge className={cn("text-[8px] font-black border-none uppercase shadow-sm tracking-widest px-2", e.type === 'URL CLICKED' ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700")}>
+                                                        {e.type}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="py-4 px-6 text-center font-bold font-mono">{eng.msisdn}</TableCell>
-                                                <TableCell className="py-4 px-6 text-center text-muted-foreground font-semibold uppercase text-[11px] max-w-[200px] truncate">{eng.campaign_name}</TableCell>
-                                                <TableCell className="py-4 px-6 text-xs font-semibold text-foreground max-w-[300px] truncate">{eng.interaction}</TableCell>
-                                                <TableCell className="py-4 px-6 text-right text-xs font-medium text-muted-foreground">
-                                                    {format(new Date(eng.timestamp), 'dd MMM, HH:mm')}
+                                                <TableCell className="text-center font-black text-xs tracking-tight text-foreground">{e.msisdn?.replace(/^\+/, '')}</TableCell>
+                                                <TableCell className="text-center text-[10px] font-bold text-muted-foreground uppercase opacity-70 group-hover:opacity-100 truncate max-w-[120px]">{e.campaign_name}</TableCell>
+                                                <TableCell className="text-[11px] font-medium text-foreground max-w-[250px]">
+                                                    <div className="line-clamp-2 leading-tight font-semibold text-muted-foreground group-hover:text-foreground transition-colors" title={e.interaction}>
+                                                        {e.interaction || '-'}
+                                                    </div>
                                                 </TableCell>
+                                                <TableCell className="py-4 px-6 text-right text-[10px] font-bold text-muted-foreground uppercase">{e.timestamp ? format(new Date(e.timestamp), 'dd MMM, HH:mm') : '-'}</TableCell>
                                             </TableRow>
                                         ))
                                     )}
