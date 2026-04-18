@@ -980,11 +980,13 @@ router.post('/whatsapp/callback', async (req, res) => {
                             if (msg.type === 'text') {
                                 text = msg.text.body;
                             } else if (msg.type === 'button') {
-                                text = `🔘 Clicked: ${msg.button.text}`;
+                                const btnText = msg.button.text;
+                                text = (btnText.toLowerCase().includes('interested')) ? `User is Interested!` : `User Clicked: ${btnText}`;
                                 buttonId = msg.button.payload;
                             } else if (msg.type === 'interactive') {
                                 if (msg.interactive.type === 'button_reply') {
-                                    text = `🔘 Clicked Button: ${msg.interactive.button_reply.title}`;
+                                    const btnLabel = msg.interactive.button_reply.title;
+                                    text = (btnLabel.toLowerCase().includes('interested')) ? `User is Interested!` : `User Clicked: ${btnLabel}`;
                                     buttonId = msg.interactive.button_reply.id;
                                 } else if (msg.interactive.type === 'list_reply') {
                                     text = `📝 Selected from List: ${msg.interactive.list_reply.title}`;
@@ -1027,7 +1029,7 @@ router.post('/whatsapp/callback', async (req, res) => {
                                 }
 
                                 // 2. Add Campaign Context to Button/Interactive replies
-                                if (text.startsWith('🔘') || text.startsWith('📝')) {
+                                if (text.includes('Interested') || text.includes('User Clicked')) {
                                     text += ` - Campaign: ${campaignName}`;
                                 }
 
