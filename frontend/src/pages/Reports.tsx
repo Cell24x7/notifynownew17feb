@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight, BarChart3, CheckCircle, XCircle, TrendingUp, ListFilter } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight, BarChart3, CheckCircle, XCircle, TrendingUp, ListFilter, MessageCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
@@ -93,6 +93,7 @@ export default function Reports() {
     const [engagementPage, setEngagementPage] = useState(1);
     const [engagementTotal, setEngagementTotal] = useState(0);
     const [loadingEngagement, setLoadingEngagement] = useState(false);
+    const [summaryStats, setSummaryStats] = useState<any>(null);
     
     // Read from URL
     const activeTab = searchParams.get('tab') || 'summary';
@@ -222,6 +223,25 @@ export default function Reports() {
         }
     };
 
+    const fetchSummaryStats = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            let url = `${API_BASE_URL}/api/reports/summary?`;
+            if (startDate) url += `from=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
+            if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+            if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (data.success) {
+                setSummaryStats(data.summary);
+            }
+        } catch (error) {
+            console.error('Error fetching summary stats:', error);
+        }
+    };
+
     const fetchEngagementReports = async (page: number = 1) => {
         setLoadingEngagement(true);
         try {
@@ -246,7 +266,10 @@ export default function Reports() {
 
 
     useEffect(() => {
-        if (activeTab === 'summary') fetchReports(summaryPage);
+        if (activeTab === 'summary') {
+            fetchReports(summaryPage);
+            fetchSummaryStats();
+        }
         if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
         if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
         if (activeTab === 'engagement') fetchEngagementReports(engagementPage);
@@ -452,12 +475,14 @@ export default function Reports() {
                      </div>
                   </CardContent>
                </Card>
-               <Card className="rounded-xl border-border/50 shadow-sm bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
-                  <CardContent className="p-4 flex items-center gap-4 h-full">
-                     <div className="p-2 bg-white/10 rounded-lg"><Search className="h-5 w-5" /></div>
+               <Card className="rounded-xl border-border/50 shadow-sm border-l-4 border-l-indigo-500 bg-card">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2 bg-indigo-500/10 rounded-lg"><MessageCircle className="h-5 w-5 text-indigo-500" /></div>
                      <div>
-                        <p className="text-[11px] font-bold text-white/70 uppercase">Search Active</p>
-                        <h3 className="text-xl font-black">{searchQuery ? 'Filtered' : 'All Data'}</h3>
+                        <p className="text-[11px] font-bold text-muted-foreground uppercase">WhatsApp Replies</p>
+                        <h3 className="text-xl font-black text-foreground">
+                           {summaryStats?.byResponse?.find((r: any) => r.label === 'whatsapp')?.count || 0}
+                        </h3>
                      </div>
                   </CardContent>
                </Card>

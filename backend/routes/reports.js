@@ -124,13 +124,31 @@ router.get('/summary', authenticate, async (req, res) => {
              LIMIT 10
         `, params);
 
+        // 5. Incoming Responses (from webhook_logs)
+        let incomingWhere = '';
+        let incomingParams = [];
+        if (targetUserId !== 'all') {
+            incomingWhere = 'WHERE user_id = ? AND status = "received"';
+            incomingParams = [targetUserId];
+        } else {
+            incomingWhere = 'WHERE status = "received"';
+        }
+        
+        const [byResponse] = await query(`
+            SELECT type as label, COUNT(*) as count 
+            FROM webhook_logs 
+            ${incomingWhere}
+            GROUP BY type
+        `, incomingParams);
+
         res.json({
             success: true,
             summary: {
                 total: totals[0],
                 byChannel,
                 byUser,
-                byDate
+                byDate,
+                byResponse
             }
         });
 

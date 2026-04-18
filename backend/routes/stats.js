@@ -185,6 +185,15 @@ router.get('/super-admin', authenticate, async (req, res) => {
             automationsTriggered = automationStats[0]?.total || 0;
         } catch (e) { automationsTriggered = 0; }
 
+        let incomingWaCount = 0;
+        let incomingRcsCount = 0;
+        try {
+            const [waIncoming] = await query("SELECT COUNT(*) as total FROM webhook_logs WHERE type = 'whatsapp' AND status = 'received'");
+            incomingWaCount = waIncoming[0]?.total || 0;
+            const [rcsIncoming] = await query("SELECT COUNT(*) as total FROM webhook_logs WHERE type = 'rcs' AND status = 'received'");
+            incomingRcsCount = rcsIncoming[0]?.total || 0;
+        } catch (e) { console.error('Incoming counts error:', e.message); }
+
         // 9. Detailed Channel Stats for Admin (Aggregated)
         const [aggChannelData] = await query(`
             SELECT 
@@ -257,6 +266,8 @@ router.get('/super-admin', authenticate, async (req, res) => {
                 recentCampaigns,
                 activeChats: activeChats, 
                 automationsTriggered: automationsTriggered,
+                whatsappResponses: incomingWaCount,
+                rcsIncoming: incomingRcsCount,
                 campaignsSent: Number(msgStats[0]?.campaigns_count || 0),
                 openChats: activeChats,
                 closedChats: Number(msgStats[0]?.total || 0),
@@ -407,11 +418,22 @@ router.get('/stats', authenticate, async (req, res) => {
             userAutomationsCount = userAutomations[0]?.total || 0;
         } catch (e) { userAutomationsCount = 0; }
 
+        let userWaIncoming = 0;
+        let userRcsIncoming = 0;
+        try {
+            const [waIncoming] = await query("SELECT COUNT(*) as total FROM webhook_logs WHERE user_id = ? AND type = 'whatsapp' AND status = 'received'", [userId]);
+            userWaIncoming = waIncoming[0]?.total || 0;
+            const [rcsIncoming] = await query("SELECT COUNT(*) as total FROM webhook_logs WHERE user_id = ? AND type = 'rcs' AND status = 'received'", [userId]);
+            userRcsIncoming = rcsIncoming[0]?.total || 0;
+        } catch (e) { console.error('User incoming counts error:', e.message); }
+
         // 8. Construct Final Stats Object
         const stats = {
             totalConversations: Number(totalStats[0]?.total_conversations || 0),
             activeChats: userActiveChatsCount,
             automationsTriggered: userAutomationsCount,
+            whatsappResponses: userWaIncoming,
+            rcsIncoming: userRcsIncoming,
             campaignsSent: Number(totalStats[0]?.campaigns_sent || 0),
             openChats: userActiveChatsCount,
             closedChats: Number(totalStats[0]?.total_conversations || 0),

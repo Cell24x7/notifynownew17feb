@@ -4,6 +4,7 @@ const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
 const { triggerChatflow } = require('../services/chatflowService');
 const { processAutomation } = require('../services/automationService');
+const { downloadWAMedia } = require('../utils/whatsappMedia');
 
 // POST /api/webhooks/rcs/callback
 // Standard endpoint for RCS Delivery Reports & Incoming Messages
@@ -977,6 +978,8 @@ router.post('/whatsapp/callback', async (req, res) => {
                             let buttonId = null;
                             let listId = null;
 
+                            let mediaUrl = null;
+
                             if (msg.type === 'text') {
                                 text = msg.text.body;
                             } else if (msg.type === 'button') {
@@ -994,10 +997,13 @@ router.post('/whatsapp/callback', async (req, res) => {
                                 }
                             } else if (msg.type === 'image') {
                                 text = '[Image Received]';
+                                if (msg.image && msg.image.id) mediaUrl = msg.image.id;
                             } else if (msg.type === 'video') {
                                 text = '[Video Received]';
+                                if (msg.video && msg.video.id) mediaUrl = msg.video.id;
                             } else if (msg.type === 'document') {
                                 text = `[Document: ${msg.document.filename || 'file'}]`;
+                                if (msg.document && msg.document.id) mediaUrl = msg.document.id;
                             } else {
                                 text = `[Received ${msg.type} message]`;
                             }
@@ -1044,24 +1050,40 @@ router.post('/whatsapp/callback', async (req, res) => {
                                     }
                                 }
 
-                                // 2. Save to webhook_logs
+                                // 2. Handle Media Download (Background)
+                                let finalMediaUrl = null;
+                                if (mediaUrl && userId) {
+                                  try {
+                                    finalMediaUrl = await downloadWAMedia(mediaUrl, userId);
+                                    if (finalMediaUrl) {
+                                      // Prepend BASE_URL for absolute access if needed, or keep relative for proxy
+                                      const baseUrl = process.env.API_BASE_URL || '';
+                                      finalMediaUrl = finalMediaUrl; // Keep relative for now, Chat.tsx can prefix if needed
+                                    }
+                                  } catch (mediaErr) {
+                                    console.error('❌ WA Media Download Error:', mediaErr.message);
+                                  }
+                                }
+
+                                // 3. Save to webhook_logs
                                 const [result] = await query(
-                                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type, message_id_envelope) VALUES (?, ?, ?, ?, ?, "received", "whatsapp", ?)',
-                                    [userId, sender, value.metadata?.display_phone_number || 'System', text, JSON.stringify(payload), msgId]
+                                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, media_url, raw_payload, status, type, message_id_envelope) VALUES (?, ?, ?, ?, ?, ?, "received", "whatsapp", ?)',
+                                    [userId, sender, value.metadata?.display_phone_number || 'System', text, finalMediaUrl, JSON.stringify(payload), msgId]
                                 );
 
-                                // 3. Notify via Socket.io for real-time chat
+                                // 4. Notify via Socket.io for real-time chat
                                 if (req.io && userId) {
                                     req.io.to(`user_${userId}`).emit('new_message', {
                                         id: result.insertId,
                                         sender,
                                         recipient: value.metadata?.display_phone_number || 'System',
                                         message_content: text,
+                                        media_url: finalMediaUrl,
                                         created_at: new Date(),
                                         status: 'received',
                                         type: 'whatsapp'
                                     });
-                                    console.log(`📡 Emitted new_message to user_${userId}`);
+                                    console.log(`📡 Emitted new_message to user_${userId} (Media: ${finalMediaUrl ? 'Yes' : 'No'})`);
                                 }
 
                                 // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
@@ -1341,6 +1363,23 @@ router.get('/whatsapp', async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
+// Self-healing database migration
+async function ensureMediaUrlColumn() {
+    try {
+        const [columns] = await query("SHOW COLUMNS FROM webhook_logs LIKE 'media_url'");
+        if (columns.length === 0) {
+            console.log('📦 Migration: Adding media_url column to webhook_logs...');
+            await query("ALTER TABLE webhook_logs ADD COLUMN media_url TEXT AFTER message_content");
+            console.log('✅ Migration: media_url column added.');
+        }
+    } catch (err) {
+        console.error('❌ Migration Error (media_url):', err.message);
+    }
+}
+
+// Ensure column exists on startup
+ensureMediaUrlColumn();
 
 module.exports = router;
 

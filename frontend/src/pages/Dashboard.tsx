@@ -561,8 +561,8 @@ export default function Dashboard() {
         <Card className="rounded-xl border-border shadow-sm bg-card">
           <CardContent className="p-4 flex justify-between items-center">
             <div>
-              <p className="text-xs text-muted-foreground font-medium mb-1">Open Chats</p>
-              <h3 className="text-2xl font-semibold text-emerald-500">{(stats?.openChats || 0).toLocaleString()}</h3>
+              <p className="text-xs text-muted-foreground font-medium mb-1">WhatsApp Responses</p>
+              <h3 className="text-2xl font-semibold text-emerald-500">{(stats?.whatsappResponses || 0).toLocaleString()}</h3>
             </div>
             <MessageSquare className="h-6 w-6 text-emerald-400" />
           </CardContent>
@@ -570,21 +570,23 @@ export default function Dashboard() {
         <Card className="rounded-xl border-border shadow-sm bg-card">
           <CardContent className="p-4 flex justify-between items-center">
             <div>
-              <p className="text-xs text-muted-foreground font-medium mb-1">Closed Chats</p>
-              <h3 className="text-2xl font-semibold text-foreground">{(stats?.closedChats || 0).toLocaleString()}</h3>
+              <p className="text-xs text-muted-foreground font-medium mb-1">RCS Responses</p>
+              <h3 className="text-2xl font-semibold text-purple-500">{(stats?.rcsIncoming || 0).toLocaleString()}</h3>
             </div>
             <div className="p-2 bg-muted rounded-lg">
-              <MessageSquare className="h-5 w-5 text-muted-foreground" />
+              <Smartphone className="h-5 w-5 text-purple-400" />
             </div>
           </CardContent>
         </Card>
         <Card className="rounded-xl border-border shadow-sm bg-card">
           <CardContent className="p-4 flex justify-between items-center">
             <div>
-              <p className="text-xs text-muted-foreground font-medium mb-1">Response Rate</p>
-              <h3 className="text-2xl font-semibold text-emerald-500">94.2%</h3>
+              <p className="text-xs text-muted-foreground font-medium mb-1">Total Replies</p>
+              <h3 className="text-2xl font-semibold text-indigo-500">
+                {((stats?.whatsappResponses || 0) + (stats?.rcsIncoming || 0)).toLocaleString()}
+              </h3>
             </div>
-            <TrendingUp className="h-6 w-6 text-emerald-500" />
+            <TrendingUp className="h-6 w-6 text-indigo-500" />
           </CardContent>
         </Card>
       </div>

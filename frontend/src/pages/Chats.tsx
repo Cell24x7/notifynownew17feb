@@ -34,6 +34,7 @@ interface Message {
     sender: string;
     recipient: string;
     message_content: string;
+    media_url?: string;
     created_at: string;
     status: string;
     type?: string;
@@ -458,6 +459,37 @@ export default function Chats() {
                             : 'bg-white dark:bg-[#202c33] text-[#303030] dark:text-[#e9edef] border border-transparent dark:border-[#233138] rounded-tl-none'
                         )}
                       >
+                        {message.media_url && (
+                          <div className="mb-2 overflow-hidden rounded-lg border border-border/50 max-w-full">
+                            {message.media_url.match(/\.(mp4|3gp|m4v)$/i) ? (
+                              <video 
+                                src={`${API_BASE_URL}${message.media_url}`} 
+                                controls 
+                                className="max-h-[300px] w-full object-contain bg-black"
+                              />
+                            ) : message.media_url.match(/\.pdf$/i) ? (
+                                <a 
+                                  href={`${API_BASE_URL}${message.media_url}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 p-3 bg-muted/50 hover:bg-muted transition-colors text-xs font-semibold"
+                                >
+                                  <FileText className="h-5 w-5 text-rose-500" />
+                                  <span>Download PDF Document</span>
+                                </a>
+                            ) : (
+                              <img 
+                                src={`${API_BASE_URL}${message.media_url}`} 
+                                alt="Shared media" 
+                                className="max-h-[300px] w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(`${API_BASE_URL}${message.media_url}`, '_blank')}
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=Media+Not+Found';
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
                         <p className="text-[14.5px] leading-normal break-words whitespace-pre-wrap">{message.message_content}</p>
                         <div className={cn(
                           "flex items-center justify-end gap-1.5 mt-1.5", 
