@@ -45,10 +45,11 @@ router.post('/order-placed', async (req, res) => {
                 "3": `${totalPrice} ${currency}`,
                 "4": checkoutUrl
             },
-            campaign_id: `SHOPIFY_${orderId}`
+            campaign_id: `SHOPIFY_${orderId}`,
+            campaign_name: `Shopify Order: ${orderId}`
         });
 
-        console.log(`[Shopify-Hook] WhatsApp Result:`, result);
+        console.log(`[Shopify-Hook] WhatsApp sent for ${orderId}. Result: ${result.success ? 'Success' : 'Failed'}`);
 
         res.status(200).json({ success: true, message: 'Processed successfully' });
 
