@@ -47,40 +47,45 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             return { success: true, message: 'No recipients to deduct' };
         }
 
-        let costPerMsg = 1.0; 
+        let costPerMsg = 0.25; // Default fallback
         const channel = (campaign.channel || '').toLowerCase();
 
         if (channel === 'rcs') {
+            costPerMsg = 0.10; // RCS Default
             let templateType = (campaign.template_type || 'standard').toLowerCase();
             if (!campaign.template_type && (campaign.template_id || campaign.template_name)) {
                 const [tmpl] = await query('SELECT template_type FROM message_templates WHERE id = ? OR name = ? LIMIT 1', [campaign.template_id, campaign.template_name]);
                 if (tmpl?.[0]) templateType = (tmpl[0].template_type || 'standard').toLowerCase();
             }
-            if (templateType === 'standard' || templateType === 'text' || templateType === 'text_message') costPerMsg = parseFloat(campaign.rcs_text_price || 1.00);
-            else if (templateType === 'rich_card' || templateType === 'rich-card') costPerMsg = parseFloat(campaign.rcs_rich_card_price || 1.00);
-            else if (templateType === 'carousel') costPerMsg = parseFloat(campaign.rcs_carousel_price || 1.00);
+            if (templateType === 'standard' || templateType === 'text' || templateType === 'text_message') costPerMsg = parseFloat(campaign.rcs_text_price) || 0.10;
+            else if (templateType === 'rich_card' || templateType === 'rich-card') costPerMsg = parseFloat(campaign.rcs_rich_card_price) || 0.15;
+            else if (templateType === 'carousel') costPerMsg = parseFloat(campaign.rcs_carousel_price) || 0.20;
         } else if (channel === 'sms') {
+            costPerMsg = 0.12; // SMS Default
             let cat = 'promotional';
             const [tmpl] = await query('SELECT category FROM message_templates WHERE name = ? OR id = ? LIMIT 1', [campaign.template_name || campaign.template_id, campaign.template_id || campaign.template_name]);
             if (tmpl?.[0]) cat = (tmpl[0].category || 'promotional').toLowerCase();
             
             const name = (campaign.template_name || '').toLowerCase();
             if (cat === 'transactional' || cat === 'otp' || cat === 'auth' || name.includes('otp') || name.includes('auth')) {
-                costPerMsg = parseFloat(campaign.sms_transactional_price || 1.00);
+                costPerMsg = parseFloat(campaign.sms_transactional_price) || 0.18;
             } else if (cat === 'service' || cat === 'utility' || name.includes('alert')) {
-                costPerMsg = parseFloat(campaign.sms_service_price || 1.00);
+                costPerMsg = parseFloat(campaign.sms_service_price) || 0.15;
             } else {
-                costPerMsg = parseFloat(campaign.sms_promotional_price || 1.00);
+                costPerMsg = parseFloat(campaign.sms_promotional_price) || 0.12;
             }
         } else if (channel === 'whatsapp') {
+            costPerMsg = 0.35; // WhatsApp Default
             let cat = 'marketing';
             const [tmpl] = await query('SELECT category FROM message_templates WHERE name = ? OR id = ? LIMIT 1', [campaign.template_name || campaign.template_id, campaign.template_id || campaign.template_name]);
             if (tmpl?.[0]) cat = (tmpl[0].category || 'marketing').toLowerCase();
             
             const name = (campaign.template_name || '').toLowerCase();
-            if (cat === 'authentication' || name.includes('otp')) costPerMsg = parseFloat(campaign.wa_authentication_price || 1.00);
-            else if (cat === 'utility' || name.includes('alert')) costPerMsg = parseFloat(campaign.wa_utility_price || 1.00);
-            else costPerMsg = parseFloat(campaign.wa_marketing_price || 1.00);
+            if (cat === 'authentication' || name.includes('otp')) costPerMsg = parseFloat(campaign.wa_authentication_price) || 0.35;
+            else if (cat === 'utility' || name.includes('alert')) costPerMsg = parseFloat(campaign.wa_utility_price) || 0.40;
+            else costPerMsg = parseFloat(campaign.wa_marketing_price) || 0.80;
+        } else if (channel === 'voice' || channel === 'voicebot') {
+            costPerMsg = parseFloat(campaign.voice_price) || 1.50;
         }
 
         let smsParts = 1;
@@ -198,39 +203,42 @@ const deductSingleMessageCredit = async (userId, channel, templateName, template
             return { success: true, message: 'Admin: Unlimited credits', cost: 0 };
         }
 
-        let cost = 1.0;
+        let cost = 0.25; 
         const chan = (channel || '').toLowerCase();
 
         if (chan === 'rcs') {
+            cost = 0.10; // Default RCS
             const type = (templateType || 'standard').toLowerCase();
-            if (type === 'standard' || type === 'text' || type === 'text_message') cost = parseFloat(user.rcs_text_price || 1.0);
-            else if (type === 'rich_card' || type === 'rich-card') cost = parseFloat(user.rcs_rich_card_price || 1.0);
-            else if (type === 'carousel') cost = parseFloat(user.rcs_carousel_price || 1.0);
+            if (type === 'standard' || type === 'text' || type === 'text_message') cost = parseFloat(user.rcs_text_price) || 0.10;
+            else if (type === 'rich_card' || type === 'rich-card') cost = parseFloat(user.rcs_rich_card_price) || 0.15;
+            else if (type === 'carousel') cost = parseFloat(user.rcs_carousel_price) || 0.20;
         } else if (chan === 'whatsapp') {
+            cost = 0.35; // Default WhatsApp
             let cat = 'marketing';
             const name = (templateName || '').toLowerCase();
             const [tmpl] = await query('SELECT category FROM message_templates WHERE name = ? AND user_id = ? LIMIT 1', [templateName, userId]);
             if (tmpl?.[0]) cat = (tmpl[0].category || 'marketing').toLowerCase();
 
-            if (cat === 'authentication' || name.includes('otp') || name.includes('auth')) cost = parseFloat(user.wa_authentication_price || 1.0);
-            else if (cat === 'utility' || name.includes('service') || name.includes('alert')) cost = parseFloat(user.wa_utility_price || 1.0);
-            else cost = parseFloat(user.wa_marketing_price || 1.0);
+            if (cat === 'authentication' || name.includes('otp') || name.includes('auth')) cost = parseFloat(user.wa_authentication_price) || 0.35;
+            else if (cat === 'utility' || name.includes('service') || name.includes('alert')) cost = parseFloat(user.wa_utility_price) || 0.40;
+            else cost = parseFloat(user.wa_marketing_price) || 0.80;
         } else if (chan === 'sms') {
+            cost = 0.12; // Default SMS
             let cat = 'promotional';
             const name = (templateName || '').toLowerCase();
             const [tmpl] = await query('SELECT category FROM message_templates WHERE name = ? AND user_id = ? LIMIT 1', [templateName, userId]);
             if (tmpl?.[0]) cat = (tmpl[0].category || 'promotional').toLowerCase();
 
             if (cat === 'transactional' || cat === 'otp' || cat === 'auth' || name.includes('otp') || name.includes('verify')) {
-                cost = parseFloat(user.sms_transactional_price || 1.00);
+                cost = parseFloat(user.sms_transactional_price) || 0.18;
             } else if (cat === 'service' || cat === 'utility' || name.includes('alert')) {
-                cost = parseFloat(user.sms_service_price || 1.00);
+                cost = parseFloat(user.sms_service_price) || 0.15;
             } else {
-                cost = parseFloat(user.sms_promotional_price || 1.00);
+                cost = parseFloat(user.sms_promotional_price) || 0.12;
             }
         }
         
-        if (isNaN(cost) || cost < 0) cost = 1.0;
+        if (isNaN(cost) || cost < 0) cost = 0.25;
         if (cost === 0) cost = 0.01;
 
         if (user.wallet_balance < cost) {

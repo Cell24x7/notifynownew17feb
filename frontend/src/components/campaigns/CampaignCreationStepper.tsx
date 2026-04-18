@@ -378,43 +378,41 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       if (campaignData.channel === 'rcs') {
          const type = (selectedTemplate as any)?.template_type || (selectedTemplate as any)?.templateType || 'standard';
          if (type === 'standard' || type === 'text_message') {
-            costPerMsg = parseFloat(u?.rcs_text_price) || 1.00;
+            costPerMsg = parseFloat(u?.rcs_text_price) || costPerMsg;
          } else if (type === 'rich_card' || type === 'rich-card') {
-            costPerMsg = parseFloat(u?.rcs_rich_card_price) || 1.00;
+            costPerMsg = parseFloat(u?.rcs_rich_card_price) || costPerMsg;
          } else if (type === 'carousel') {
-            costPerMsg = parseFloat(u?.rcs_carousel_price) || 1.00;
+            costPerMsg = parseFloat(u?.rcs_carousel_price) || costPerMsg;
          }
       } else if (campaignData.channel === 'whatsapp') {
          const category = (selectedTemplate as any)?.category?.toLowerCase() || 'marketing';
          if (category === 'marketing') {
-            costPerMsg = parseFloat(u?.wa_marketing_price) || 1.00;
+            costPerMsg = parseFloat(u?.wa_marketing_price) || costPerMsg;
          } else if (category === 'utility') {
-            costPerMsg = parseFloat(u?.wa_utility_price) || 1.00;
+            costPerMsg = parseFloat(u?.wa_utility_price) || costPerMsg;
          } else if (category === 'authentication') {
-            costPerMsg = parseFloat(u?.wa_authentication_price) || 1.00;
+            costPerMsg = parseFloat(u?.wa_authentication_price) || costPerMsg;
          } else {
-            costPerMsg = parseFloat(u?.wa_marketing_price) || 1.00;
+            costPerMsg = parseFloat(u?.wa_marketing_price) || costPerMsg;
          }
       } else if (campaignData.channel === 'sms') {
          const name = (selectedTemplate?.name || '').toLowerCase();
          const category = (selectedTemplate as any)?.category?.toLowerCase() || 'promotional';
 
-         // Smart Keyword Matching (Same as backend walletService.js)
-         if (category === 'transactional' || category === 'otp' || category === 'auth' || name.includes('otp') || name.includes('auth') || name.includes('verify')) {
-            costPerMsg = parseFloat(u?.sms_transactional_price) || 0.15;
-         } else if (category === 'service' || category === 'utility' || category === 'alert' || name.includes('alert') || name.includes('notice') || name.includes('order')) {
-            costPerMsg = parseFloat(u?.sms_service_price) || 0.25;
-         } else if (category === 'promotional' || name.includes('promo') || name.includes('offer') || name.includes('sale') || name.includes('marketing')) {
-            costPerMsg = parseFloat(u?.sms_promotional_price) || 0.10;
+         if (category === 'transactional' || category === 'otp' || category === 'auth' || name.includes('otp') || name.includes('auth')) {
+            costPerMsg = parseFloat(u?.sms_transactional_price) || costPerMsg;
+         } else if (category === 'service' || category === 'utility' || name.includes('alert')) {
+            costPerMsg = parseFloat(u?.sms_service_price) || costPerMsg;
          } else {
-            costPerMsg = parseFloat(u?.sms_transactional_price) || 0.15;
+            costPerMsg = parseFloat(u?.sms_promotional_price) || costPerMsg;
          }
       } else if (campaignData.channel === 'email') {
          costPerMsg = parseFloat(u?.email_price) || 0.10;
-      } else if (campaignData.channel === 'voicebot') {
+      } else if (campaignData.channel === 'voicebot' || campaignData.channel === 'voice') {
          costPerMsg = parseFloat(u?.voice_price) || 1.50;
       }
-      return isNaN(costPerMsg) ? 1.0 : costPerMsg;
+      
+      return isNaN(costPerMsg) || costPerMsg <= 0 ? (channelConfig?.costPerMessage || 0.25) : costPerMsg;
    };
 
    // Calculate estimated cost

@@ -22,7 +22,12 @@ router.get('/', authenticate, async (req, res) => {
     const [rows] = await query(
       `SELECT u.id, u.name, u.email, u.company, u.contact_phone, u.plan_id, 
               u.credits_available, u.wallet_balance, u.credits_used, u.status, u.created_at, u.role, u.channels_enabled,
-              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, u.rcs_config_id, u.whatsapp_config_id, u.pe_id, u.hash_id, p.permissions as plan_permissions,
+              u.permissions, u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price, 
+              u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
+              u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, 
+              u.rcs_config_id, u.whatsapp_config_id, u.pe_id, u.hash_id,
+              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit,
+              p.permissions as plan_permissions,
               COALESCE(r.id, u.reseller_id) as actual_reseller_id,
               r.brand_name as reseller_brand_name, r.logo_url as reseller_logo_url
        FROM users u
