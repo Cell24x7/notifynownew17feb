@@ -600,21 +600,23 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
         const processBatch = async (currentBatch) => {
             if (currentBatch.length === 0) return;
 
-            // Optional: Auto-track URLs for WhatsApp campaigns
+            // UNIVERSAL LINK TRACKING ENGINE
+            // Any URL found in variables for WhatsApp will be transformed
             if (channel === 'whatsapp') {
                 for (const item of currentBatch) {
+                    if (!item.variables) continue;
                     const keys = Object.keys(item.variables);
                     for (const k of keys) {
                         const val = item.variables[k];
                         if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
-                            const trackingId = `man_${Math.random().toString(36).substring(2, 10)}`;
+                            const trackingId = `clk_${Math.random().toString(36).substring(2, 10)}`;
                             try {
                                 await query(
                                     'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
-                                    [userId, campaignId, item.mobile, val, trackingId]
+                                    [userId, campaignId, String(item.mobile).replace(/\D/g, ''), val, trackingId]
                                 );
                                 item.variables[k] = `${baseUrl}/api/l/${trackingId}`;
-                            } catch (e) { console.error('Link tracking error:', e.message); }
+                            } catch (e) { console.error('Universal tracking error:', e.message); }
                         }
                     }
                 }
@@ -729,23 +731,11 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
                 if (mobile.length >= 10) {
                     const rowVariables = {}; // No manual variables from direct entry, but future-proof
                     
-                    // Standardized Link tracking for Wizard Manual Input
-                    if (channel === 'whatsapp' && req.body.variables) {
+                    // Standardized variables for batch (Replacement now happens in processBatch)
+                    if (req.body.variables) {
                         const keys = Object.keys(req.body.variables);
                         for (const k of keys) {
-                            const val = req.body.variables[k];
-                            if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
-                                const trackingId = `wiz_${mobile}_${Math.random().toString(36).substring(2, 8)}`;
-                                try {
-                                    await query(
-                                        'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
-                                        [userId, campaignId, mobile, val, trackingId]
-                                    );
-                                    rowVariables[k] = `${baseUrl}/api/l/${trackingId}`;
-                                } catch (e) { console.error('Wizard link tracking error:', e.message); }
-                            } else {
-                                rowVariables[k] = val;
-                            }
+                            rowVariables[k] = req.body.variables[k];
                         }
                     }
 
