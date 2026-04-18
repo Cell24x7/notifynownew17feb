@@ -601,21 +601,23 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
             if (currentBatch.length === 0) return;
 
             // UNIVERSAL LINK TRACKING ENGINE
-            // Any URL found in variables for WhatsApp will be transformed
             if (channel === 'whatsapp') {
                 for (const item of currentBatch) {
                     if (!item.variables) continue;
                     const keys = Object.keys(item.variables);
                     for (const k of keys) {
                         const val = item.variables[k];
-                        if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
+                        // Relaxed URL Regex to catch everything starting with http/https
+                        if (typeof val === 'string' && val.toLowerCase().includes('http') && val.match(/https?:\/\/[^\s]+/i)) {
                             const trackingId = `clk_${Math.random().toString(36).substring(2, 10)}`;
                             try {
+                                const cleanMobile = String(item.mobile).replace(/\D/g, '');
                                 await query(
                                     'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
-                                    [userId, campaignId, String(item.mobile).replace(/\D/g, ''), val, trackingId]
+                                    [userId, campaignId, cleanMobile, val, trackingId]
                                 );
                                 item.variables[k] = `${baseUrl}/api/l/${trackingId}`;
+                                console.log(`[LinkTracking] Replaced URL in Campaign ${campaignId}: ${val} -> ${item.variables[k]} (Mobile: ${cleanMobile})`);
                             } catch (e) { console.error('Universal tracking error:', e.message); }
                         }
                     }
