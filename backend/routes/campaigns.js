@@ -561,12 +561,33 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
         const BATCH_SIZE = 1000;
         let batch = [];
 
-        const channel = existing[0]?.channel || 'rcs'; // Ensure channel is known
+        const channel = existing[0]?.channel || 'rcs'; 
+        const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
+
         const processBatch = async (currentBatch) => {
             if (currentBatch.length === 0) return;
-            // FIXED: Added channel column as it is required for the worker reporting engine
+
+            // Optional: Auto-track URLs for WhatsApp campaigns
+            if (channel === 'whatsapp') {
+                for (const item of currentBatch) {
+                    const keys = Object.keys(item.variables);
+                    for (const k of keys) {
+                        const val = item.variables[k];
+                        if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
+                            const trackingId = `man_${Math.random().toString(36).substring(2, 10)}`;
+                            try {
+                                await query(
+                                    'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
+                                    [userId, campaignId, item.mobile, val, trackingId]
+                                );
+                                item.variables[k] = `${baseUrl}/api/l/${trackingId}`;
+                            } catch (e) { console.error('Link tracking error:', e.message); }
+                        }
+                    }
+                }
+            }
+
             const values = currentBatch.map(item => [campaignId, userId, item.mobile, JSON.stringify(item.variables), 'pending', channel]);
-            console.log(`[Upload] Inserting batch of ${currentBatch.length} with variables for campaign ${campaignId} (Channel: ${channel})`);
             await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status, channel) VALUES ?', [values]);
         };
 

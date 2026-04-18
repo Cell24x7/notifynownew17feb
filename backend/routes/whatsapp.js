@@ -1003,11 +1003,36 @@ router.post('/api/send-bulk', async (req, res) => {
         }
 
         // Only insert into queue after successful deduction
-        const queueValues = contacts.map(c => {
+        const queueValues = [];
+        const { query } = require('../config/db');
+        const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
+
+        for (const c of contacts) {
             const vars = { ...(variables || {}), ...(c.variables || {}) };
+            const mobile = c.to.replace(/\D/g, '');
+
+            // Auto-detect and replace URLs with Tracking Links
+            const varKeys = Object.keys(vars);
+            for (const key of varKeys) {
+                const val = vars[key];
+                if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
+                    const trackingId = `api_${Math.random().toString(36).substring(2, 10)}`;
+                    try {
+                        // Using synchronous-style loop but await is inside for safety in this context
+                        await query(
+                            'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
+                            [userId, campaignId, mobile, val, trackingId]
+                        );
+                        vars[key] = `${baseUrl}/api/l/${trackingId}`;
+                    } catch (err) {
+                        console.error('Error creating API tracking link:', err.message);
+                    }
+                }
+            }
+
             if (c.mediaUrl || mediaUrl) vars['header_url'] = c.mediaUrl || mediaUrl;
-            return [campaignId, userId, c.to.replace(/\D/g, ''), 'pending', JSON.stringify(vars)];
-        });
+            queueValues.push([campaignId, userId, mobile, 'pending', JSON.stringify(vars)]);
+        }
 
         const BATCH = 1000;
         for (let i = 0; i < queueValues.length; i += BATCH) {
