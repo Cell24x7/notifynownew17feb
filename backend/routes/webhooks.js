@@ -612,6 +612,10 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             params.push(`%${req.query.search}%`, `%${req.query.search}%`);
         }
 
+        // Always exclude manual chat from detailed campaign reports
+        conditions.push("(ml.campaign_name IS NULL OR ml.campaign_name != 'Manual Chat')");
+        conditions.push("(ml.campaign_id IS NULL OR ml.campaign_id NOT LIKE 'CAMP_MANUAL_%')");
+
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
         // Get total count for pagination (Admin/Small views only)
