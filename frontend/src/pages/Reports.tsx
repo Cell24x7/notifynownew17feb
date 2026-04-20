@@ -462,7 +462,8 @@ export default function Reports() {
                                 </Table>
                             </div>
                             {renderPagination(activeTab === 'api' ? apiPage : detailedPage, activeTab === 'api' ? apiTotal : detailedTotal, activeTab === 'api' ? setApiPage : setDetailedPage)}
-                        </CardContent>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                 )}
 
