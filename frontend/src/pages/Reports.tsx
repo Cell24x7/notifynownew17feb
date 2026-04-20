@@ -595,8 +595,8 @@ export default function Reports() {
                     <TabsTrigger value="api" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">API Logs</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
-                    <Card className="flex-1 border border-border shadow-md rounded-xl bg-card">
+                <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4 overflow-visible">
+                    <Card className="flex-1 border border-border shadow-md rounded-xl bg-card overflow-visible">
                         <CardContent className="p-0">
                             <Table>
                                 <TableHeader className="bg-muted/50 border-b border-border">
@@ -656,8 +656,8 @@ export default function Reports() {
 
 
                 {(activeTab === 'detailed' || activeTab === 'api') && (
-                    <TabsContent value={activeTab} className="flex-1 mt-4">
-                        <Card className="border-none shadow-sm h-full bg-card">
+                    <TabsContent value={activeTab} className="flex-1 mt-4 overflow-visible">
+                        <Card className="border-none shadow-sm h-full overflow-visible bg-card">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <div className="space-y-1">
                                     <CardTitle className="text-xl font-bold">{activeTab === 'api' ? 'API Delivery Logs' : 'Detailed Delivery Reports'}</CardTitle>
@@ -669,22 +669,22 @@ export default function Reports() {
                                     </Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-0">
+                            <CardContent className="p-0 overflow-visible">
                                 <Table className="border border-border">
-                                        <TableHeader className="sticky top-0 bg-white z-[100] shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+                                        <TableHeader className="sticky top-0 bg-white z-[999] shadow-md">
                                             <TableRow className="bg-white hover:bg-white h-12">
-                                                <TableHead className="sticky top-0 bg-white z-[100] w-[60px] font-semibold text-foreground border-r border-b border-border px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Rtime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Mobile</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Channel</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">SendTime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">DelTime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">ReadTime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Template</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Message</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Campaign</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Status</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-b border-border">Reason</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] w-[60px] font-semibold text-foreground border-r border-b border-border px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Rtime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Mobile</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Channel</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">SendTime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">DelTime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">ReadTime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Template</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Message</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Campaign</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Status</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[999] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-b border-border">Reason</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                     <TableBody>
