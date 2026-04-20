@@ -39,6 +39,7 @@ interface User {
   wa_limit?: number | null;
   sms_limit?: number | null;
   voice_limit?: number | null;
+  is_api_allowed?: number | boolean;
 }
 
 interface AuthContextType {
@@ -101,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_limit: decoded.wa_limit,
           sms_limit: decoded.sms_limit,
           voice_limit: decoded.voice_limit,
+          is_api_allowed: decoded.is_api_allowed,
         });
 
         // Hydrate from DB to get the live wallet_balance immediately to prevent flashing
@@ -320,6 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wa_limit: userData.wa_limit,
       sms_limit: userData.sms_limit,
       voice_limit: userData.voice_limit,
+      is_api_allowed: userData.is_api_allowed,
     });
   };
 
