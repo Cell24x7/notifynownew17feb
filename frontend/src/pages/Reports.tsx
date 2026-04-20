@@ -596,21 +596,20 @@ export default function Reports() {
                 </TabsList>
 
                 <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
-
-                    <Card className="flex-1 overflow-hidden border border-border shadow-md rounded-xl bg-card">
+                    <Card className="flex-1 border border-border shadow-md rounded-xl bg-card">
                         <CardContent className="p-0">
                             <Table>
                                 <TableHeader className="bg-muted/50 border-b border-border">
                                     <TableRow className="hover:bg-transparent h-12">
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-6 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Campaign Name</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Channel</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Template</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Date</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Total</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-3 text-center text-[11px] uppercase tracking-wider text-indigo-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Sent</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-3 text-center text-[11px] uppercase tracking-wider text-emerald-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Deliv.</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-3 text-center text-[11px] uppercase tracking-wider text-purple-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Read</TableHead>
-                                            <TableHead className="sticky top-0 bg-white z-50 py-4 px-3 text-center text-[11px] uppercase tracking-wider text-rose-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Failed</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-6 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Campaign Name</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Channel</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Template</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Date</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Total</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-indigo-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Sent</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-emerald-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Deliv.</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-purple-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Read</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-rose-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Failed</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -657,8 +656,8 @@ export default function Reports() {
 
 
                 {(activeTab === 'detailed' || activeTab === 'api') && (
-                    <TabsContent value={activeTab} className="flex-1 mt-4 overflow-visible">
-                        <Card className="border-none shadow-sm h-full overflow-visible">
+                    <TabsContent value={activeTab} className="flex-1 mt-4">
+                        <Card className="border-none shadow-sm h-full bg-card">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <div className="space-y-1">
                                     <CardTitle className="text-xl font-bold">{activeTab === 'api' ? 'API Delivery Logs' : 'Detailed Delivery Reports'}</CardTitle>
@@ -670,22 +669,22 @@ export default function Reports() {
                                     </Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-0 overflow-visible">
+                            <CardContent className="p-0">
                                 <Table className="border border-border">
-                                        <TableHeader className="sticky top-0 bg-white z-[60] shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
+                                        <TableHeader className="sticky top-0 bg-white z-[100] shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
                                             <TableRow className="bg-white hover:bg-white h-12">
-                                                <TableHead className="sticky top-0 bg-white z-[60] w-[60px] font-semibold text-foreground border-r border-b border-border px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Rtime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Mobile</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Channel</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">SendTime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">DelTime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">ReadTime</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Template</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Message</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Campaign</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Status</TableHead>
-                                                <TableHead className="sticky top-0 bg-white z-[60] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-b border-border">Reason</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] w-[60px] font-semibold text-foreground border-r border-b border-border px-3 text-[10px] uppercase tracking-wider">Id</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Rtime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Mobile</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Channel</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">SendTime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">DelTime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">ReadTime</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Template</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Message</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Campaign</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-r border-b border-border">Status</TableHead>
+                                                <TableHead className="sticky top-0 bg-white z-[100] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider py-3 text-center border-b border-border">Reason</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                     <TableBody>
