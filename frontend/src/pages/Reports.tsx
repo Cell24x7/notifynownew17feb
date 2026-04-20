@@ -131,13 +131,12 @@ export default function Reports() {
         setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+            let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&source=${activeTab === 'api' ? 'api' : 'manual'}&`;
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
-            url += `source=${activeTab === 'api' ? 'api' : 'manual'}&`;
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
             const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -234,12 +233,12 @@ export default function Reports() {
                 const results = activeTab === 'summary' ? data.reports : data.data;
                 const headers = activeTab === 'summary' 
                     ? ['Campaign Name', 'Channel', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed']
-                    : ['Id', 'Rtime', 'Mobile', 'Status', 'Send', 'Deliv', 'Read', 'Template', 'Message', 'Reason'];
+                    : ['Id', 'Rtime', 'Mobile', 'Send', 'Deliv', 'Read', 'Template', 'Message', 'Reason', 'Status'];
                 
                 const rows = results.map((r: any) => activeTab === 'summary' ? [
                     `"${r.name}"`, `"${r.channel}"`, `"${r.template_name}"`, r.created_at, r.recipient_count, r.sent_count, r.delivered_count, r.read_count, r.failed_count
                 ] : [
-                    r.id, r.created_at, r.recipient, r.status, r.send_time, r.delivery_time, r.read_time, `"${r.template_name}"`, `"${r.message_content?.replace(/"/g, '""')}"`, `"${r.failure_reason}"`
+                    r.id, r.created_at, r.recipient, r.send_time, r.delivery_time, r.read_time, `"${r.template_name}"`, `"${r.message_content?.replace(/"/g, '""')}"`, `"${r.failure_reason}"`, r.status
                 ]);
 
                 const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -281,11 +280,11 @@ export default function Reports() {
 
     return (
         <div className="h-full flex flex-col space-y-6 p-4 md:p-8 bg-slate-50/30">
-            {/* Header Area */}
+            {/* Main Header */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Campaign Reports</h1>
-                    <p className="text-sm text-slate-500 font-medium">Monitoring and delivery intelligence dashboard</p>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Campaign Analytics</h1>
+                    <p className="text-sm text-slate-500 font-medium">Real-time performance and delivery intelligence</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" onClick={handleRefresh} className="font-bold bg-white">Refresh</Button>
@@ -295,7 +294,7 @@ export default function Reports() {
                 </div>
             </div>
 
-            {/* Quick Stats */}
+            {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
                     { label: 'Total Volume', value: summaryTotal, icon: TrendingUp, color: 'blue' },
@@ -315,7 +314,7 @@ export default function Reports() {
                 ))}
             </div>
 
-            {/* Filters */}
+            {/* Filter Suite */}
             <Card className="border-none shadow-sm ring-1 ring-slate-200 bg-white">
                 <CardContent className="flex flex-wrap items-center gap-4 py-4 px-6">
                     <div className="flex items-center gap-2">
@@ -363,18 +362,20 @@ export default function Reports() {
                 </CardContent>
             </Card>
 
-            {/* Main Tabs */}
-            <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 space-y-4">
-                <TabsList className="bg-slate-200/50 p-1 rounded-xl h-11 border border-slate-200 w-fit">
-                    {['summary', 'detailed', 'engagement', 'api'].map(t => (
-                        <TabsTrigger key={t} value={t} className="px-5 font-bold text-[10px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-primary rounded-lg transition-all">
-                            {t === 'detailed' ? 'Detailed Reports' : t === 'summary' ? 'Summary Report' : t === 'engagement' ? 'Click Reports' : 'API Logs'}
-                        </TabsTrigger>
-                    ))}
-                </TabsList>
+            {/* Sticky Tabs List Section */}
+            <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1">
+                <div className="sticky top-0 z-40 bg-slate-50/10 backdrop-blur-sm pb-1 mb-3">
+                    <TabsList className="bg-slate-200/50 p-1 rounded-xl h-11 border border-slate-200 w-fit shadow-sm">
+                        {['summary', 'detailed', 'engagement', 'api'].map(t => (
+                            <TabsTrigger key={t} value={t} className="px-5 font-bold text-[10px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-primary rounded-lg transition-all">
+                                {t === 'detailed' ? 'Detailed Reports' : t === 'summary' ? 'Summary Report' : t === 'engagement' ? 'Click Reports' : 'API Logs'}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </div>
 
                 {/* Summarized View */}
-                <TabsContent value="summary" className="m-0">
+                <TabsContent value="summary" className="m-0 focus-visible:outline-none focus-visible:ring-0">
                     <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
                         <div className="overflow-x-auto">
                             <Table>
@@ -415,22 +416,22 @@ export default function Reports() {
 
                 {/* Detailed Logs View */}
                 {(activeTab === 'detailed' || activeTab === 'api') && (
-                    <TabsContent value={activeTab} className="m-0">
+                    <TabsContent value={activeTab} className="m-0 focus-visible:outline-none focus-visible:ring-0">
                         <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto max-h-[75vh]">
-                                    <Table>
+                          <CardContent className="p-0">
+                            <div className="overflow-x-auto max-h-[75vh]">
+                                <Table>
                                     <TableHeader className="bg-slate-50 border-b">
                                         <TableRow>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 font-bold text-slate-800 border-r px-4 text-[11px] uppercase shadow-sm">ID</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-wider py-4 text-center border-r shadow-sm">RTime</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-wider py-4 text-center border-r shadow-sm">Mobile</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-wider py-4 text-center border-r shadow-sm">Status</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-wider py-4 text-center border-r shadow-sm">Send</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-emerald-600 uppercase tracking-wider py-4 text-center border-r shadow-sm">Deliv</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-purple-600 uppercase tracking-wider py-4 text-center border-r shadow-sm">Read</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-wider py-4 text-center border-r shadow-sm">Template</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-wider py-4 text-left pl-6 shadow-sm min-w-[350px]">Message Content</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-wider py-4 text-center border-r shadow-sm">Status</TableHead>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-rose-500 uppercase tracking-wider py-4 text-center shadow-sm min-w-[150px]">Reason</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -443,15 +444,15 @@ export default function Reports() {
                                                     <div className="flex flex-col">{format(new Date(l.created_at), 'dd MMM')}<span className="text-[9px] opacity-70">{format(new Date(l.created_at), 'HH:mm')}</span></div>
                                                 </TableCell>
                                                 <TableCell className="text-center text-[11px] font-bold text-slate-800 border-r">{l.recipient?.replace(/^\+/, '')}</TableCell>
-                                                <TableCell className="text-center border-r">
-                                                    <Badge variant="outline" className={cn("text-[8px] font-bold border-none rounded uppercase", getStatusColor(l.status))}>{l.status}</Badge>
-                                                </TableCell>
                                                 <TableCell className="text-center text-[10px] font-medium text-slate-500 border-r">{l.send_time ? format(new Date(l.send_time), 'HH:mm') : '-'}</TableCell>
                                                 <TableCell className="text-center text-[10px] font-bold text-emerald-600 border-r">{l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm') : '-'}</TableCell>
                                                 <TableCell className="text-center text-[10px] font-bold text-purple-600 border-r">{l.read_time ? format(new Date(l.read_time), 'HH:mm') : '-'}</TableCell>
                                                 <TableCell className="text-center text-[10px] font-medium text-slate-400 border-r truncate max-w-[100px]">{l.template_name || '-'}</TableCell>
                                                 <TableCell className="py-3 pl-6 text-[11px] text-slate-600 font-medium leading-relaxed max-w-[400px]">
                                                     <div className="line-clamp-2 hover:line-clamp-none transition-all">{l.message_content || '-'}</div>
+                                                </TableCell>
+                                                <TableCell className="text-center border-r">
+                                                    <Badge variant="outline" className={cn("text-[8px] font-bold border-none rounded uppercase", getStatusColor(l.status))}>{l.status}</Badge>
                                                 </TableCell>
                                                 <TableCell className="text-center text-[10px] font-bold text-rose-500 px-4">
                                                     <div className="line-clamp-1 hover:line-clamp-none transition-all cursor-default" title={l.failure_reason}>{l.failure_reason || '-'}</div>
@@ -462,13 +463,13 @@ export default function Reports() {
                                 </Table>
                             </div>
                             {renderPagination(activeTab === 'api' ? apiPage : detailedPage, activeTab === 'api' ? apiTotal : detailedTotal, activeTab === 'api' ? setApiPage : setDetailedPage)}
-                            </CardContent>
+                          </CardContent>
                         </Card>
                     </TabsContent>
                 )}
 
                 {/* Click Engagement View */}
-                <TabsContent value="engagement" className="m-0">
+                <TabsContent value="engagement" className="m-0 focus-visible:outline-none focus-visible:ring-0">
                     <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
                         <Table>
                             <TableHeader className="bg-slate-50 border-b">
