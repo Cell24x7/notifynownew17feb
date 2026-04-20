@@ -167,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_limit: userData.wa_limit,
           sms_limit: userData.sms_limit,
           voice_limit: userData.voice_limit,
+          is_api_allowed: userData.is_api_allowed,
         });
         return true;
       }
@@ -223,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_limit: userData.wa_limit,
           sms_limit: userData.sms_limit,
           voice_limit: userData.voice_limit,
+          is_api_allowed: userData.is_api_allowed,
         });
         return true;
       }
@@ -275,6 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_limit: userData.wa_limit,
           sms_limit: userData.sms_limit,
           voice_limit: userData.voice_limit,
+          is_api_allowed: userData.is_api_allowed,
         });
       }
     } catch (err) {
