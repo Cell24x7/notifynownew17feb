@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Eye, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check, ShieldCheck } from 'lucide-react';
+import { Search, Plus, Eye, EyeOff, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ export default function SuperAdminClients() {
   const [activeTab, setActiveTab] = useState('clients');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Client form state
   const [currentClient, setCurrentClient] = useState({
@@ -901,12 +902,22 @@ export default function SuperAdminClients() {
                 {modalMode !== 'view' && (
                   <div className="space-y-2 md:col-span-2">
                     <Label>Password {modalMode === 'add' && <span className="text-red-500">*</span>}</Label>
-                    <Input
-                      type="password"
-                      placeholder={modalMode === 'add' ? "Create a secure password" : "Leave blank to keep current password"}
-                      value={currentClient.password}
-                      onChange={e => setCurrentClient(prev => ({ ...prev, password: e.target.value }))}
-                    />
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder={modalMode === 'add' ? "Create a secure password" : "Leave blank to keep current password"}
+                        value={currentClient.password}
+                        onChange={e => setCurrentClient(prev => ({ ...prev, password: e.target.value }))}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 )}
                 {modalMode !== 'view' && (
