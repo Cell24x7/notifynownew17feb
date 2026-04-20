@@ -116,8 +116,8 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Globe, label: 'White-labeling', path: '/reseller/branding', show: hasPermission('Reseller Branding - View') },
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: hasPermission('Wallet - View') },
-    { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
     { icon: Terminal, label: 'API Hub', path: '/api-docs', show: Number(user?.is_api_allowed) === 1 || user?.role === 'superadmin' || user?.role === 'admin' },
+    { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
 
   // Mobile pe collapse mat karo – text dikhega

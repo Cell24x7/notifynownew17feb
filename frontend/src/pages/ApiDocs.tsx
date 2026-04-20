@@ -145,90 +145,22 @@ print(response.json())`;
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-12">
-      {/* Header Section */}
-      <div className="mb-10 p-10 rounded-[2rem] bg-gradient-to-br from-indigo-50/50 via-white to-emerald-50/50 border border-indigo-100/50 shadow-sm relative overflow-hidden">
+      {/* Compact Header */}
+      <div className="mb-6 p-6 rounded-2xl bg-slate-50 border border-indigo-100/40 relative overflow-hidden">
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-200 animate-in fade-in zoom-in duration-500">
-              <Terminal className="w-8 h-8 text-white" />
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-indigo-600 rounded-lg shadow-sm">
+              <Terminal className="w-4 h-4 text-white" />
             </div>
-            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none px-4 py-1.5 font-bold text-[11px] tracking-widest uppercase">
-              API V3.0 STABLE
+            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 h-5 px-2 font-bold text-[9px] tracking-tighter uppercase">
+              v3.0 STABLE
             </Badge>
           </div>
-          <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-5 leading-tight">
-            Developer API Hub
-          </h1>
-          <p className="text-slate-600 text-xl max-w-4xl leading-relaxed font-medium">
-            Integrate the power of <span className="text-indigo-600 font-bold">NotifyNow</span> into your own systems. Use our enterprise-grade RESTful APIs to trigger 
-            messages across WhatsApp, RCS, and SMS with real-time tracking.
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">API Developer Hub</h1>
+          <p className="text-slate-500 text-sm max-w-3xl leading-relaxed">
+            Integrate NotifyNow REST APIs into your core systems for reliable, high-volume messaging.
           </p>
         </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full -mr-48 -mt-48 blur-[100px]" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full -ml-32 -mb-32 blur-[80px]" />
-      </div>
-
-      {/* Authentication Section - LIGHT THEME */}
-      <Card className="mb-12 rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl shadow-slate-200/40 overflow-hidden ring-1 ring-slate-100">
-        <div className="bg-slate-50/50 px-10 py-8 border-b border-slate-100">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-50 rounded-2xl">
-              <ShieldCheck className="w-7 h-7 text-indigo-600" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Security & Authentication</h2>
-              <p className="text-slate-500 font-medium mt-1">Authenticate your requests using your platform credentials.</p>
-            </div>
-          </div>
-        </div>
-
-        <CardContent className="p-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            <div className="space-y-6">
-              <div className="group p-6 rounded-3xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100/50">
-                <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-widest mb-3 px-1">API Authentication Username</p>
-                <div className="flex items-center justify-between gap-6">
-                  <code className="text-lg font-mono text-slate-700 font-bold truncate">
-                    {user?.email || 'user@example.com'}
-                  </code>
-                  <Button
-                    variant="ghost" 
-                    size="icon"
-                    className="h-11 w-11 hover:bg-indigo-600 hover:text-white text-indigo-600 rounded-xl shrink-0 transition-all shadow-sm hover:shadow-md"
-                    onClick={() => copyToClipboard(user?.email || '')}
-                  >
-                    <Copy className="h-4.5 w-4.5" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="group p-6 rounded-3xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-100/50">
-                <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest mb-3 px-1">Global Endpoint Base</p>
-                <div className="flex items-center justify-between gap-6">
-                  <code className="text-lg font-mono text-slate-700 font-bold truncate">
-                    https://notifynow.in/api
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-11 w-11 hover:bg-emerald-600 hover:text-white text-emerald-600 rounded-xl shrink-0 transition-all shadow-sm hover:shadow-md"
-                    onClick={() => copyToClipboard('https://notifynow.in/api')}
-                  >
-                    <Copy className="h-4.5 w-4.5" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative group overflow-hidden bg-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-indigo-200 transition-transform hover:scale-[1.01] duration-300">
-               <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:rotate-12 transition-transform duration-700">
-                  <Key className="w-48 h-48" />
-               </div>
-               <div className="relative z-10 h-full flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
                        <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
                           <Info className="w-5 h-5 text-white" />
                        </div>
