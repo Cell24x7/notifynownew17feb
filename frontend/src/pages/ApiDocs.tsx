@@ -161,28 +161,43 @@ print(response.json())`;
             Integrate NotifyNow REST APIs into your core systems for reliable, high-volume messaging.
           </p>
         </div>
-                       <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
-                          <Info className="w-5 h-5 text-white" />
-                       </div>
-                       <h3 className="text-lg font-bold text-white uppercase tracking-wider text-[12px]">Integration Notice</h3>
-                    </div>
-                    <ul className="space-y-3 text-indigo-50/90 text-[14px] leading-relaxed list-none">
-                      <li className="flex items-center gap-2 leading-snug">
-                        <Check className="w-4 h-4 text-emerald-300 shrink-0" /> Use your registered email as <span className="font-black text-white">username</span>
-                      </li>
-                      <li className="flex items-center gap-2 leading-snug">
-                        <Check className="w-4 h-4 text-emerald-300 shrink-0" /> Use your API Password as <span className="font-black text-white">password</span>
-                      </li>
-                      <li className="flex items-center gap-2 leading-snug">
-                        <Check className="w-4 h-4 text-emerald-300 shrink-0" /> Never share credentials in client-side code
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between">
-                     <p className="text-[12px] font-bold text-indigo-100 italic">Security is our top priority.</p>
-                     <a href="/settings" className="text-[12px] font-black underline underline-offset-4 hover:text-emerald-300 transition-colors">Rotate Password →</a>
-                  </div>
-               </div>
+      </div>
+
+      {/* Modern Compact Authentication Card */}
+      <Card className="mb-8 rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-indigo-600" />
+            <h2 className="text-sm font-bold text-slate-700">Authentication Credentials</h2>
+          </div>
+          <a href="/settings" className="text-[10px] font-bold text-indigo-600 hover:underline">Rotate Password →</a>
+        </div>
+
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-slate-50/50 border border-slate-100">
+              <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Username</span>
+              <div className="flex items-center justify-between">
+                <code className="text-xs font-mono text-slate-700 font-bold">{user?.email || 'admin@example.com'}</code>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white" onClick={() => copyToClipboard(user?.email || '')}><Copy className="w-3 h-3" /></Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-slate-50/50 border border-slate-100">
+              <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">API Endpoint</span>
+              <div className="flex items-center justify-between">
+                <code className="text-xs font-mono text-slate-700 font-bold">https://notifynow.in/api</code>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white" onClick={() => copyToClipboard('https://notifynow.in/api')}><Copy className="w-3 h-3" /></Button>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+              <div className="flex items-start gap-2">
+                <Info className="w-3 h-3 text-indigo-600 mt-0.5" />
+                <p className="text-[10px] text-indigo-800 leading-tight">
+                  <span className="font-bold">Notice:</span> Valid account credentials are required for all secure endpoint calls.
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
