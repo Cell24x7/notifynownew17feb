@@ -46,6 +46,15 @@ async function updateSchema() {
             console.log('api_key already exists in users table.');
         }
 
+        // 1.2 Add is_api_allowed to users if it doesn't exist
+        const hasIsApiAllowed = userCols.some(col => col.Field === 'is_api_allowed');
+        if (!hasIsApiAllowed) {
+            console.log('Adding is_api_allowed to users table...');
+            await connection.execute('ALTER TABLE users ADD COLUMN is_api_allowed BOOLEAN DEFAULT FALSE');
+        } else {
+            console.log('is_api_allowed already exists in users table.');
+        }
+
         // 2. Add branding columns to resellers if they don't exist
         const [resellerCols] = await connection.execute('DESCRIBE resellers');
         const brandingCols = [
