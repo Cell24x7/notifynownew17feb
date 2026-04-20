@@ -145,61 +145,113 @@ print(response.json())`;
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-12">
-      {/* Header */}
-      <header className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-            <Terminal className="w-6 h-6" />
+      {/* Header Section */}
+      <div className="mb-10 p-10 rounded-[2rem] bg-gradient-to-br from-indigo-50/50 via-white to-emerald-50/50 border border-indigo-100/50 shadow-sm relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-200 animate-in fade-in zoom-in duration-500">
+              <Terminal className="w-8 h-8 text-white" />
+            </div>
+            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none px-4 py-1.5 font-bold text-[11px] tracking-widest uppercase">
+              API V3.0 STABLE
+            </Badge>
           </div>
-          <Badge variant="secondary" className="rounded-full bg-emerald-500/10 text-emerald-600 border-emerald-200 uppercase text-[10px] font-bold">
-            API v3.0 Stable
-          </Badge>
+          <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-5 leading-tight">
+            Developer API Hub
+          </h1>
+          <p className="text-slate-600 text-xl max-w-4xl leading-relaxed font-medium">
+            Integrate the power of <span className="text-indigo-600 font-bold">NotifyNow</span> into your own systems. Use our enterprise-grade RESTful APIs to trigger 
+            messages across WhatsApp, RCS, and SMS with real-time tracking.
+          </p>
         </div>
-        <h1 className="text-4xl font-extrabold tracking-tight">API Documentation Hub</h1>
-        <p className="text-lg text-muted-foreground max-w-3xl leading-relaxed">
-          Integrate the power of NotifyNow into your own systems. Use our RESTful APIs to trigger messages across WhatsApp, RCS, and SMS with enterprise-grade reliability and real-time tracking.
-        </p>
-      </header>
+        
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full -mr-48 -mt-48 blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full -ml-32 -mb-32 blur-[80px]" />
+      </div>
 
-      {/* Auth Section */}
-      <Card className="border-none shadow-xl bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 overflow-hidden relative group">
-        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-          <ShieldCheck className="w-32 h-32" />
-        </div>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-primary" /> Authentication
-          </CardTitle>
-          <CardDescription className="text-slate-400">
-            All API requests require your account credentials. Use your registered email as <code className="text-primary font-mono font-bold">username</code> and your API Password as <code className="text-primary font-mono font-bold">password</code>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-slate-950/50 p-4 rounded-xl border border-white/10 ring-1 ring-white/5">
-            <div className="flex-1 space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Your API Username</span>
-              <p className="font-mono text-sm">{user?.email}</p>
+      {/* Authentication Section - LIGHT THEME */}
+      <Card className="mb-12 rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl shadow-slate-200/40 overflow-hidden ring-1 ring-slate-100">
+        <div className="bg-slate-50/50 px-10 py-8 border-b border-slate-100">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-indigo-50 rounded-2xl">
+              <ShieldCheck className="w-7 h-7 text-indigo-600" />
             </div>
-            <div className="h-px sm:h-8 w-full sm:w-px bg-white/10" />
-            <div className="flex-1 space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">API Endpoint Base</span>
-              <p className="font-mono text-sm">https://notifynow.in/api</p>
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Security & Authentication</h2>
+              <p className="text-slate-500 font-medium mt-1">Authenticate your requests using your platform credentials.</p>
             </div>
-            <Button 
-              size="sm" 
-              variant="secondary" 
-              className="bg-white/5 hover:bg-white/10 border-white/10"
-              onClick={() => copyToClipboard("https://notifynow.in/api")}
-            >
-              <Copy className="w-3.5 h-3.5 mr-2" /> Copy Base
-            </Button>
           </div>
-          
-          <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-100/80 leading-relaxed">
-              <strong>Security Tip:</strong> You can set or rotate your API Password from the <a href="/settings" className="text-blue-400 hover:underline font-bold">Settings</a> page. Never share your password in client-side code reachable by end-users.
-            </p>
+        </div>
+
+        <CardContent className="p-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div className="space-y-6">
+              <div className="group p-6 rounded-3xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100/50">
+                <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-widest mb-3 px-1">API Authentication Username</p>
+                <div className="flex items-center justify-between gap-6">
+                  <code className="text-lg font-mono text-slate-700 font-bold truncate">
+                    {user?.email || 'user@example.com'}
+                  </code>
+                  <Button
+                    variant="ghost" 
+                    size="icon"
+                    className="h-11 w-11 hover:bg-indigo-600 hover:text-white text-indigo-600 rounded-xl shrink-0 transition-all shadow-sm hover:shadow-md"
+                    onClick={() => copyToClipboard(user?.email || '')}
+                  >
+                    <Copy className="h-4.5 w-4.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="group p-6 rounded-3xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-100/50">
+                <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest mb-3 px-1">Global Endpoint Base</p>
+                <div className="flex items-center justify-between gap-6">
+                  <code className="text-lg font-mono text-slate-700 font-bold truncate">
+                    https://notifynow.in/api
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-11 w-11 hover:bg-emerald-600 hover:text-white text-emerald-600 rounded-xl shrink-0 transition-all shadow-sm hover:shadow-md"
+                    onClick={() => copyToClipboard('https://notifynow.in/api')}
+                  >
+                    <Copy className="h-4.5 w-4.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative group overflow-hidden bg-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-indigo-200 transition-transform hover:scale-[1.01] duration-300">
+               <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:rotate-12 transition-transform duration-700">
+                  <Key className="w-48 h-48" />
+               </div>
+               <div className="relative z-10 h-full flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                       <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
+                          <Info className="w-5 h-5 text-white" />
+                       </div>
+                       <h3 className="text-lg font-bold text-white uppercase tracking-wider text-[12px]">Integration Notice</h3>
+                    </div>
+                    <ul className="space-y-3 text-indigo-50/90 text-[14px] leading-relaxed list-none">
+                      <li className="flex items-center gap-2 leading-snug">
+                        <Check className="w-4 h-4 text-emerald-300 shrink-0" /> Use your registered email as <span className="font-black text-white">username</span>
+                      </li>
+                      <li className="flex items-center gap-2 leading-snug">
+                        <Check className="w-4 h-4 text-emerald-300 shrink-0" /> Use your API Password as <span className="font-black text-white">password</span>
+                      </li>
+                      <li className="flex items-center gap-2 leading-snug">
+                        <Check className="w-4 h-4 text-emerald-300 shrink-0" /> Never share credentials in client-side code
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between">
+                     <p className="text-[12px] font-bold text-indigo-100 italic">Security is our top priority.</p>
+                     <a href="/settings" className="text-[12px] font-black underline underline-offset-4 hover:text-emerald-300 transition-colors">Rotate Password →</a>
+                  </div>
+               </div>
+            </div>
           </div>
         </CardContent>
       </Card>
