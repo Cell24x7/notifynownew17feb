@@ -669,7 +669,7 @@ export default function Reports() {
                                         Total Messages: {webhookLogs.length}
                                     </Badge>
                                 </div>
-                            </CardHeader>
+                            <CardContent className="p-0">
                                 <Table className="border-separate border-spacing-0">
                                     <TableHeader className="z-30">
                                         <TableRow className="bg-white hover:bg-white border-b">
