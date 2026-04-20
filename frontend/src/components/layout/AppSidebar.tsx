@@ -117,7 +117,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: hasPermission('Wallet - View') },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
-    { icon: Terminal, label: 'API Hub', path: '/api-docs', show: !!user?.is_api_allowed },
+    { icon: Terminal, label: 'API Hub', path: '/api-docs', show: Number(user?.is_api_allowed) === 1 || user?.role === 'superadmin' },
   ];
 
   // Mobile pe collapse mat karo – text dikhega
