@@ -28,6 +28,8 @@ interface Report {
     created_at: string;
     channel?: string;
     template_name?: string;
+    source?: string;
+    total_recipient?: number;
 }
 
 interface WebhookLog {
@@ -97,8 +99,13 @@ export default function Reports() {
     const [loadingEngagement, setLoadingEngagement] = useState(false);
     const [summaryStats, setSummaryStats] = useState<any>(null);
     
+    // Read from URL
     const activeTab = searchParams.get('tab') || 'summary';
-    const setActiveTab = (tab: string) => setSearchParams({ tab });
+    const setActiveTab = (tab: string) => {
+        setSearchParams({ tab });
+    };
+    
+    const [autoRefresh] = useState(true);
 
     useEffect(() => {
         setSummaryPage(1);
@@ -107,66 +114,116 @@ export default function Reports() {
 
     useEffect(() => {
         setDetailedPage(1);
-        if (activeTab === 'detailed' || activeTab === 'api') fetchWebhookLogs(1, activeTab);
-    }, [startDate, endDate, channelFilter, searchQuery, targetUserId]);
+        if (activeTab === 'detailed' || activeTab === 'api') {
+            fetchWebhookLogs(1, activeTab);
+        }
+    }, [startDate, endDate, channelFilter]);
 
     useEffect(() => {
-        if (activeTab === 'summary') fetchReports(summaryPage);
+        if (activeTab === 'summary') {
+            fetchReports(summaryPage);
+        }
     }, [summaryPage]);
 
     useEffect(() => {
-        if (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') fetchUsers();
+        if (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') {
+            fetchUsers();
+        }
     }, [user]);
 
     const fetchUsers = async () => {
         try {
             const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_BASE_URL}/api/clients`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch(`${API_BASE_URL}/api/clients`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await response.json();
-            if (data.success) setUsers(data.clients || data.users || []);
-        } catch (error) { console.error('Failed to fetch users', error); }
+            if (data.success) {
+                setUsers(data.clients || data.users || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch users', error);
+        }
     };
+
+    useEffect(() => {
+        if (activeTab === 'detailed') {
+            fetchWebhookLogs(detailedPage, 'detailed');
+        } else if (activeTab === 'api') {
+            fetchWebhookLogs(apiPage, 'api');
+        } else if (activeTab === 'engagement') {
+            fetchEngagementReports(engagementPage);
+        }
+    }, [detailedPage, apiPage, engagementPage, targetUserId]);
 
     const fetchReports = async (page: number = 1) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&source=${activeTab === 'api' ? 'api' : 'manual'}&`;
+            let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
+
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (statusFilter !== 'all') url += `status=${statusFilter}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+
+            if (activeTab === 'summary' || activeTab === 'detailed') url += `source=manual&`;
+            if (activeTab === 'api') url += `source=api&`;
+
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
-            const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
                 setSummaryTotal(data.pagination?.total || 0);
             }
-        } finally { setLoading(false); }
+        } catch (error) {
+            console.error('Failed to fetch reports', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const fetchWebhookLogs = async (page: number = 1, currentTab: string = activeTab) => {
         setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&source=${currentTab === 'api' ? 'api' : 'manual'}&`;
+            let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+
+            if (currentTab === 'api') {
+                url += `source=api&`;
+            } else {
+                url += `source=manual&`;
+            }
+
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
-            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
-                if (currentTab === 'api') setApiTotal(data.pagination?.total || 0);
-                else setDetailedTotal(data.pagination?.total || 0);
+                if (currentTab === 'api') {
+                    setApiTotal(data.pagination?.total || 0);
+                } else {
+                    setDetailedTotal(data.pagination?.total || 0);
+                }
             }
-        } finally { setLoadingLogs(false); }
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+        } finally {
+            setLoadingLogs(false);
+        }
     };
 
     const fetchSummaryStats = async () => {
@@ -177,10 +234,15 @@ export default function Reports() {
             if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
-            if (data.success) setSummaryStats(data.summary);
-        } catch (error) { console.error('Error fetching summary stats:', error); }
+            if (data.success) {
+                setSummaryStats(data.summary);
+            }
+        } catch (error) {
+            console.error('Error fetching summary stats:', error);
+        }
     };
 
     const fetchEngagementReports = async (page: number = 1) => {
@@ -191,94 +253,146 @@ export default function Reports() {
             if (startDate) url += `from=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
             if (data.success) {
                 setEngagementReports(data.reports);
                 setEngagementTotal(data.reports.length);
             }
-        } finally { setLoadingEngagement(false); }
+        } catch (error) {
+            console.error('Error fetching engagement:', error);
+        } finally {
+            setLoadingEngagement(false);
+        }
     };
 
     useEffect(() => {
-        if (activeTab === 'summary') { fetchReports(summaryPage); fetchSummaryStats(); }
+        if (activeTab === 'summary') {
+            fetchReports(summaryPage);
+            fetchSummaryStats();
+        }
         if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
         if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
         if (activeTab === 'engagement') fetchEngagementReports(engagementPage);
     }, [activeTab, startDate, endDate, searchQuery, targetUserId]);
 
     const handleRefresh = () => {
-        if (activeTab === 'summary') { fetchReports(summaryPage); fetchSummaryStats(); }
-        else if (activeTab === 'engagement') fetchEngagementReports(engagementPage);
-        else fetchWebhookLogs(activeTab === 'api' ? apiPage : detailedPage, activeTab);
+        if (activeTab === 'summary') fetchReports(summaryPage);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
+        if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
+        if (activeTab === 'engagement') fetchEngagementReports(engagementPage);
     };
 
     const handleExport = async () => {
         try {
             setLoading(true);
             const token = localStorage.getItem('authToken');
-            let url = '';
-            if (activeTab === 'summary') url = `${API_BASE_URL}/api/rcs/reports?export=true&source=manual&`;
-            else url = `${API_BASE_URL}/api/webhooks/message-logs?export=true&source=${activeTab === 'api' ? 'api' : 'manual'}&`;
+            let exportData: any[] = [];
+            let fileName = '';
+            let headers: string[] = [];
+            let rows: any[] = [];
 
-            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
-            if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
-            if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
-            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+            if (activeTab === 'summary') {
+                let url = `${API_BASE_URL}/api/rcs/reports?export=true&`;
+                if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+                if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+                if (statusFilter !== 'all') url += `status=${statusFilter}&`;
+                if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+                if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+                url += `source=manual&`;
+                if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
-            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-            const data = await res.json();
-            if (data.success) {
-                const results = activeTab === 'summary' ? data.reports : data.data;
-                const headers = activeTab === 'summary' 
-                    ? ['Campaign Name', 'Channel', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed']
-                    : ['Id', 'Rtime', 'Mobile', 'Channel', 'Send', 'Deliv', 'Read', 'Template', 'Message', 'Reason', 'Status'];
-                
-                const rows = results.map((r: any) => activeTab === 'summary' ? [
-                    `"${r.name}"`, `"${r.channel}"`, `"${r.template_name}"`, r.created_at, r.recipient_count, r.sent_count, r.delivered_count, r.read_count, r.failed_count
-                ] : [
-                    r.id, r.created_at, r.recipient, `"${r.channel || r.campaign_channel || 'rcs'}"`, r.send_time, r.delivery_time, r.read_time, `"${r.template_name}"`, `"${r.message_content?.replace(/"/g, '""')}"`, `"${r.failure_reason}"`, r.status
-                ]);
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) {
+                    exportData = data.reports;
+                    fileName = `rcs_summary_${format(new Date(), 'yyyyMMdd')}.csv`;
+                    headers = ['Campaign Name', 'Channel', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
+                    rows = exportData.map(r => [
+                        `"${r.name}"`,
+                        `"${r.channel || 'RCS'}"`,
+                        `"${r.template_id}"`,
+                        format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
+                        r.recipient_count || r.total_recipient || 0,
+                        r.sent_count,
+                        r.delivered_count,
+                        r.read_count,
+                        r.failed_count
+                    ]);
+                }
+            } else if (activeTab === 'detailed' || activeTab === 'api') {
+                let url = `${API_BASE_URL}/api/webhooks/message-logs?export=true&`;
+                if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
+                if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+                if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
+                if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+                url += `source=${activeTab === 'api' ? 'api' : 'manual'}&`;
+                if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
-                const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-                downloadCsv(csvContent, `${activeTab}_report.csv`);
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) {
+                    exportData = data.data;
+                    fileName = `${activeTab}_report_${format(new Date(), 'yyyyMMdd')}.csv`;
+                    headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Message', 'Campaign', 'Status', 'Reason'];
+                    rows = exportData.map(l => [
+                        l.id,
+                        l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
+                        l.recipient,
+                        l.send_time ? format(new Date(l.send_time), 'HH:mm:ss') : '-',
+                        l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
+                        l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
+                        `"${l.template_name || ''}"`,
+                        `"${(l.message_content || '').replace(/"/g, '""')}"`,
+                        `"${l.campaign_name || ''}"`,
+                        l.status,
+                        `"${l.failure_reason || ''}"`
+                    ]);
+                }
             }
-        } finally { setLoading(false); }
+
+            if (rows.length > 0) {
+                const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                downloadCsv(csvContent, fileName);
+            }
+        } catch (err) {
+            console.error('Export failed', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const getStatusColor = (status: string) => {
         switch (status?.toLowerCase()) {
             case 'sent': return 'bg-blue-50 text-blue-700 border-blue-200';
-            case 'delivered': return 'bg-green-50 text-green-700 border-green-200';
+            case 'delivered': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
             case 'read': return 'bg-purple-50 text-purple-700 border-purple-200';
-            case 'failed': return 'bg-red-50 text-red-700 border-red-200';
+            case 'failed': return 'bg-rose-50 text-rose-700 border-rose-200';
+            case 'replied': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
             default: return 'bg-slate-50 text-slate-700 border-slate-200';
         }
-    };
-
-    const getChannelStyles = (channel: string = '') => {
-        const c = channel.toLowerCase();
-        if (c === 'whatsapp') return 'bg-emerald-600 text-white shadow-emerald-200';
-        if (c === 'rcs') return 'bg-indigo-600 text-white shadow-indigo-200';
-        if (c === 'sms') return 'bg-amber-600 text-white shadow-amber-200';
-        return 'bg-slate-600 text-white shadow-slate-200';
     };
 
     const renderPagination = (currentPage: number, totalItems: number, onPageChange: (page: number) => void) => {
         const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
         if (totalPages <= 1) return null;
+
         return (
-            <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/5">
-                <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-tight">
-                    Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems} entries
+            <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
+                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                    Showing <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}</span> of{' '}
+                    <span className="font-medium">{totalItems}</span> results
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="h-8 font-bold border-slate-200">
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="h-8 px-2 font-bold shadow-sm">
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                     </Button>
-                    <Badge variant="secondary" className="h-8 px-3 font-bold bg-white border text-primary">Page {currentPage} of {totalPages}</Badge>
-                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="h-8 font-bold border-slate-200">
+                    <Badge variant="secondary" className="h-8 px-3 font-black bg-white border shadow-sm">
+                        Page {currentPage} of {totalPages}
+                    </Badge>
+                    <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="h-8 px-2 font-bold shadow-sm">
                         Next <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                 </div>
@@ -287,233 +401,317 @@ export default function Reports() {
     };
 
     return (
-        <div className="h-full flex flex-col space-y-6 p-4 md:p-8 bg-slate-50/20">
-            {/* Main Header */}
+        <div className="h-full flex flex-col space-y-6 p-4 md:p-8 bg-slate-50/50">
+            {/* Header */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-                        <BarChart3 className="h-6 w-6 text-primary" /> Reports Dashboard
+                <div className="px-1">
+                    <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                        <BarChart3 className="h-6 w-6 text-primary" /> Campaign Performance
                     </h1>
-                    <p className="text-sm text-slate-500 font-medium">Unified delivery and engagement intelligence portal</p>
+                    <p className="text-sm text-slate-500 font-medium">Real-time message intelligence and delivery tracking</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={handleRefresh} className="font-bold bg-white border-slate-200">Refresh</Button>
-                    <Button variant="default" size="sm" onClick={handleExport} className="gap-2 font-bold shadow-md">
-                        <Download className="h-4 w-4" /> Export CSV
+                    <Button variant="outline" size="sm" onClick={handleRefresh} className="h-9 px-4 font-bold shadow-sm bg-white">
+                        Refresh
+                    </Button>
+                    <Button variant="default" size="sm" onClick={handleExport} className="h-9 gap-2 shadow-md font-bold">
+                        <Download className="h-4 w-4" /> Export Data
                     </Button>
                 </div>
             </div>
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {[
-                    { label: 'Total Volume', value: summaryTotal, icon: TrendingUp, color: 'blue' },
-                    { label: 'Delivered', value: reports.reduce((acc, r) => acc + (r.delivered_count || 0), 0), icon: CheckCircle, color: 'emerald' },
-                    { label: 'Failed', value: reports.reduce((acc, r) => acc + (r.failed_count || 0), 0), icon: XCircle, color: 'rose' },
-                    { label: 'Conversations', value: summaryStats?.byResponse?.find((r: any) => r.label === 'whatsapp')?.count || 0, icon: MessageCircle, color: 'indigo' }
-                ].map((s, i) => (
-                    <Card key={i} className={`border-none shadow-sm ring-1 ring-slate-200 border-l-4 border-l-${s.color}-500 bg-white`}>
-                        <CardContent className="p-4 flex items-center gap-4">
-                            <div className={`p-2 bg-${s.color}-500/10 rounded-lg`}><s.icon className={`h-5 w-5 text-${s.color}-600`} /></div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
-                                <h3 className="text-xl font-bold text-slate-800 tracking-tight">{s.value.toLocaleString()}</h3>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+               <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 border-l-4 border-l-blue-500 bg-white">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2.5 bg-blue-500/10 rounded-xl"><TrendingUp className="h-5 w-5 text-blue-600" /></div>
+                     <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Volume</p>
+                        <h3 className="text-xl font-black text-slate-800">{summaryTotal.toLocaleString()}</h3>
+                     </div>
+                  </CardContent>
+               </Card>
+               <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 border-l-4 border-l-emerald-500 bg-white">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2.5 bg-emerald-500/10 rounded-xl"><CheckCircle className="h-5 w-5 text-emerald-600" /></div>
+                     <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Delivered</p>
+                        <h3 className="text-xl font-black text-slate-800">
+                           {reports.reduce((acc, r) => acc + (r.delivered_count || 0), 0).toLocaleString()}
+                        </h3>
+                     </div>
+                  </CardContent>
+               </Card>
+               <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 border-l-4 border-l-rose-500 bg-white">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2.5 bg-rose-500/10 rounded-xl"><XCircle className="h-5 w-5 text-rose-600" /></div>
+                     <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Failed</p>
+                        <h3 className="text-xl font-black text-slate-800">
+                           {reports.reduce((acc, r) => acc + (r.failed_count || 0), 0).toLocaleString()}
+                        </h3>
+                     </div>
+                  </CardContent>
+               </Card>
+               <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 border-l-4 border-l-indigo-500 bg-white">
+                  <CardContent className="p-4 flex items-center gap-4">
+                     <div className="p-2.5 bg-indigo-500/10 rounded-xl"><MessageCircle className="h-5 w-5 text-indigo-600" /></div>
+                     <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Replies</p>
+                        <h3 className="text-xl font-black text-slate-800">
+                           {summaryStats?.byResponse?.find((r: any) => r.label === 'whatsapp')?.count || 0}
+                        </h3>
+                     </div>
+                  </CardContent>
+               </Card>
             </div>
 
-            {/* Comprehensive Filter Bar */}
-            <Card className="border-none shadow-sm ring-1 ring-slate-200 bg-white">
-                <CardContent className="flex flex-wrap items-center gap-4 py-4 px-6">
+            {/* Filter Suite */}
+            <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-visible">
+                <CardContent className="flex flex-wrap items-center gap-4 px-6 py-4">
                     <div className="flex items-center gap-2">
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-[150px] h-9 text-xs font-semibold bg-slate-50 border-slate-200", !startDate && "text-slate-400")}>
-                                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                    {startDate ? format(startDate, "dd MMM yyyy") : "From Date"}
+                                <Button variant="outline" className={cn("w-[160px] h-9 justify-start text-left font-bold text-xs bg-slate-50 border-slate-200 shadow-none", !startDate && "text-slate-400")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {startDate ? format(startDate, "dd MMM yyyy") : <span>From</span>}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus /></PopoverContent>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                            </PopoverContent>
                         </Popover>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-[150px] h-9 text-xs font-semibold bg-slate-50 border-slate-200", !endDate && "text-slate-400")}>
-                                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                                    {endDate ? format(endDate, "dd MMM yyyy") : "To Date"}
+                                <Button variant="outline" className={cn("w-[160px] h-9 justify-start text-left font-bold text-xs bg-slate-50 border-slate-200 shadow-none", !endDate && "text-slate-400")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {endDate ? format(endDate, "dd MMM yyyy") : <span>To</span>}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus /></PopoverContent>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                            </PopoverContent>
                         </Popover>
                     </div>
+
                     <Select value={channelFilter} onValueChange={setChannelFilter}>
-                        <SelectTrigger className="w-[130px] h-9 text-xs font-semibold bg-slate-50 border-slate-200"><SelectValue placeholder="Channel" /></SelectTrigger>
-                        <SelectContent className="bg-white border-slate-200">
-                            <SelectItem value="all">All Channels</SelectItem>
-                            <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                            <SelectItem value="rcs">RCS</SelectItem>
-                            <SelectItem value="sms">SMS</SelectItem>
+                        <SelectTrigger className="w-[140px] h-9 text-xs font-bold bg-slate-50 border-slate-200 shadow-none">
+                            <SelectValue placeholder="Channels" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-slate-200 drop-shadow-2xl">
+                            <SelectItem value="all" className="font-bold">All Channels</SelectItem>
+                            <SelectItem value="whatsapp" className="font-bold text-emerald-600">WhatsApp</SelectItem>
+                            <SelectItem value="rcs" className="font-bold text-blue-600">RCS</SelectItem>
+                            <SelectItem value="sms" className="font-bold text-amber-600">SMS</SelectItem>
                         </SelectContent>
                     </Select>
+
                     <div className="flex-1 max-w-sm relative">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                        <Input placeholder="Search logs..." className="pl-9 h-9 text-xs font-medium bg-slate-50 border-slate-200" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                            placeholder="Search mobile or campaign..."
+                            className="pl-9 h-9 text-xs font-bold bg-slate-50 border-slate-200 placeholder:text-slate-300"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
+
                     {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') && (
-                        <Select value={targetUserId} onValueChange={setTargetUserId}>
-                            <SelectTrigger className="w-[180px] h-9 text-xs font-semibold bg-white border-primary/30 ring-1 ring-primary/10 shadow-sm"><SelectValue placeholder="User Filtration" /></SelectTrigger>
-                            <SelectContent className="bg-white border-slate-200 shadow-2xl">
-                                <SelectItem value="all" className="font-bold text-primary italic">SYSTEM OVERVIEW</SelectItem>
-                                {users.map(u => <SelectItem key={u.id} value={u.id.toString()} className="font-medium">{u.company || u.username}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2 ml-auto">
+                            <Label className="text-[10px] font-black text-slate-400 uppercase">View As:</Label>
+                            <Select value={targetUserId} onValueChange={setTargetUserId}>
+                                <SelectTrigger className="w-[180px] h-9 text-xs font-bold border-slate-200 bg-white ring-1 ring-primary/10">
+                                    <SelectValue placeholder="All Users" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white border-slate-200">
+                                    <SelectItem value="all" className="font-black italic">GLOBAL ADMIN VIEW</SelectItem>
+                                    {users.map(u => (
+                                        <SelectItem key={u.id} value={u.id.toString()} className="font-medium text-xs">
+                                            {u.company || u.username || u.email}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     )}
                 </CardContent>
             </Card>
 
-            {/* Smart Tabs Section */}
+            {/* Reports Tabs Section */}
             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 space-y-4">
-                <div className="sticky top-0 z-40 bg-slate-50/20 backdrop-blur-md pb-2">
-                    <TabsList className="bg-slate-200/60 p-1 rounded-xl h-12 border border-slate-200 w-fit shadow-inner">
-                        {['summary', 'detailed', 'engagement', 'api'].map(t => (
-                            <TabsTrigger key={t} value={t} className="px-6 font-bold text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-lg rounded-lg transition-all duration-300">
-                                {t === 'detailed' ? 'Detailed Reports' : t === 'summary' ? 'Summary Report' : t === 'engagement' ? 'Click Reports' : 'API Logs'}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                </div>
+                <TabsList className="bg-slate-200/50 p-1 rounded-xl w-fit h-11 border border-slate-200 shadow-sm">
+                    <TabsTrigger value="summary" className="px-6 font-black text-[10px] uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300">Summary Report</TabsTrigger>
+                    <TabsTrigger value="detailed" className="px-6 font-black text-[10px] uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300">Detailed Reports</TabsTrigger>
+                    <TabsTrigger value="engagement" className="px-6 font-black text-[10px] uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300">Click Reports</TabsTrigger>
+                    <TabsTrigger value="api" className="px-6 font-black text-[10px] uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300">API Logs</TabsTrigger>
+                </TabsList>
 
-                {/* Summary View Content */}
-                <TabsContent value="summary" className="m-0 outline-none">
+                {/* Summary Tab Content */}
+                <TabsContent value="summary" className="m-0">
                     <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader className="bg-slate-50 border-b">
-                                    <TableRow>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Campaign Name</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-slate-500 uppercase">Channel</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-slate-500 uppercase">Template</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-slate-500 uppercase">Date</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-slate-800 uppercase">Total</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-indigo-600 uppercase">Sent</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-emerald-600 uppercase">Deliv</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-purple-600 uppercase">Read</TableHead>
-                                        <TableHead className="sticky top-0 bg-slate-50 z-20 text-center text-[11px] font-bold text-rose-600 uppercase">Failed</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loading ? <TableRow><TableCell colSpan={9} className="text-center py-24 text-xs font-bold text-slate-400 animate-pulse">SYNCHRONIZING ANALYTICS...</TableCell></TableRow> :
-                                     reports.map((r: any) => (
-                                        <TableRow key={r.id} className="hover:bg-slate-50/60 border-b border-slate-100 transition-colors h-14">
-                                            <TableCell className="py-4 px-6 font-semibold text-slate-700 text-xs">{r.name || 'Auto-Campaign'}</TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge className={cn("text-[9px] uppercase font-black px-2.5 py-0.5 rounded-full shadow-sm", getChannelStyles(r.channel))}>
-                                                    {r.channel || 'RCS'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-center text-[11px] font-bold text-slate-400">{r.template_name || '-'}</TableCell>
-                                            <TableCell className="text-center text-[11px] font-bold text-slate-600">{format(new Date(r.created_at), 'dd MMM yy')}</TableCell>
-                                            <TableCell className="text-center font-bold text-xs text-slate-900 leading-none">{(r.recipient_count || r.total_recipient || 0).toLocaleString()}</TableCell>
-                                            <TableCell className="text-center font-bold text-indigo-600 text-xs leading-none">{r.sent_count?.toLocaleString()}</TableCell>
-                                            <TableCell className="text-center font-bold text-emerald-600 text-xs leading-none">{r.delivered_count?.toLocaleString()}</TableCell>
-                                            <TableCell className="text-center font-bold text-purple-600 text-xs leading-none">{r.read_count?.toLocaleString()}</TableCell>
-                                            <TableCell className="text-center font-bold text-rose-600 text-xs leading-none">{r.failed_count?.toLocaleString()}</TableCell>
-                                        </TableRow>
-                                     ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        {renderPagination(summaryPage, summaryTotal, setSummaryPage)}
-                    </Card>
-                </TabsContent>
-
-                {/* Detailed Logs Content */}
-                {(activeTab === 'detailed' || activeTab === 'api') && (
-                    <TabsContent value={activeTab} className="m-0 outline-none">
-                        <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
-                          <CardContent className="p-0">
-                            <div className="overflow-x-auto max-h-[75vh]">
-                                <Table>
-                                    <TableHeader className="bg-slate-50 border-b">
-                                        <TableRow>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 font-bold text-slate-800 border-r py-5 px-6 text-[11px] uppercase shadow-sm">ID</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-widest py-4 text-center border-r shadow-sm">RTime</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-widest py-4 text-center border-r shadow-sm">Mobile</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-widest py-4 text-center border-r shadow-sm">Channel</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-widest py-4 text-center border-r shadow-sm">Send</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-emerald-600 uppercase tracking-widest py-4 text-center border-r shadow-sm">Deliv</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-purple-600 uppercase tracking-widest py-4 text-center border-r shadow-sm">Read</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-widest py-4 text-center border-r shadow-sm w-[150px]">Template</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-widest py-4 text-left pl-8 shadow-sm min-w-[380px]">Message Content</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-slate-500 uppercase tracking-widest py-4 text-center border-r shadow-sm">Status</TableHead>
-                                            <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-bold text-rose-500 uppercase tracking-widest py-4 text-center shadow-sm min-w-[160px]">Reason</TableHead>
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto max-h-[75vh] overflow-y-auto relative">
+                                <Table className="border-collapse">
+                                    <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                        <TableRow className="h-12">
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-6 text-[11px] uppercase font-black text-slate-500 tracking-wider w-[250px]">Campaign Name</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-4 text-center text-[11px] uppercase font-black text-slate-500 tracking-wider">Channel</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-4 text-center text-[11px] uppercase font-black text-slate-500 tracking-wider">Template</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-4 text-center text-[11px] uppercase font-black text-slate-500 tracking-wider">Date</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-3 text-center text-[11px] uppercase font-black text-slate-800 tracking-wider">Total</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-3 text-center text-[11px] uppercase font-black text-indigo-600 tracking-wider">Sent</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-3 text-center text-[11px] uppercase font-black text-emerald-600 tracking-wider">Deliv.</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-3 text-center text-[11px] uppercase font-black text-purple-600 tracking-wider">Read</TableHead>
+                                            <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-3 text-center text-[11px] uppercase font-black text-rose-600 tracking-wider">Failed</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {loadingLogs ? <TableRow><TableCell colSpan={11} className="text-center py-28 text-xs font-black text-slate-300 tracking-widest">PULLING LIVE STREAM...</TableCell></TableRow> :
-                                         webhookLogs.map((l) => (
-                                            <TableRow key={l.id} className="hover:bg-slate-50/60 border-b border-slate-100 transition-all duration-200">
-                                                <TableCell className="text-[10px] font-black text-slate-400 border-r px-6 py-4">{l.id}</TableCell>
-                                                <TableCell className="text-center text-[10px] font-bold text-slate-500 border-r">
-                                                    <div className="flex flex-col font-black">{format(new Date(l.created_at), 'dd MMM')}<span className="text-[9px] opacity-60 font-medium">{format(new Date(l.created_at), 'HH:mm')}</span></div>
-                                                </TableCell>
-                                                <TableCell className="text-center text-[11px] font-black text-slate-800 border-r">{l.recipient?.replace(/^\+/, '')}</TableCell>
-                                                <TableCell className="text-center border-r">
-                                                    <Badge className={cn("text-[8px] font-black uppercase px-2 py-0 h-4 border-none rounded-full", getChannelStyles(l.channel || l.campaign_channel))}>
-                                                        {l.channel || 'rcs'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-center text-[10px] font-bold text-slate-500 border-r">{l.send_time ? format(new Date(l.send_time), 'HH:mm') : '-'}</TableCell>
-                                                <TableCell className="text-center text-[10px] font-black text-emerald-600 border-r">{l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm') : '-'}</TableCell>
-                                                <TableCell className="text-center text-[10px] font-black text-purple-600 border-r">{l.read_time ? format(new Date(l.read_time), 'HH:mm') : '-'}</TableCell>
-                                                <TableCell className="text-center text-[10px] font-bold text-slate-400 border-r truncate max-w-[140px] px-3">{l.template_name || '-'}</TableCell>
-                                                <TableCell className="py-4 pl-8 text-[11px] text-slate-600 font-medium leading-relaxed max-w-[400px]">
-                                                    <div className="line-clamp-2 hover:line-clamp-none transition-all cursor-text">{l.message_content || '-'}</div>
-                                                </TableCell>
-                                                <TableCell className="text-center border-r">
-                                                    <Badge variant="outline" className={cn("text-[8px] font-black border-none rounded-md px-1.5 h-5 uppercase shadow-sm", getStatusColor(l.status))}>{l.status}</Badge>
-                                                </TableCell>
-                                                <TableCell className="text-center text-[10px] font-black text-rose-500 px-5 italic opacity-80">
-                                                    <div className="line-clamp-1 hover:line-clamp-none transition-all cursor-default">{l.failure_reason || '-'}</div>
-                                                </TableCell>
-                                            </TableRow>
-                                         ))}
+                                        {loading ? (
+                                            <TableRow><TableCell colSpan={9} className="text-center py-20 font-black text-slate-300 tracking-widest text-xs">ANALYZING BIG DATA...</TableCell></TableRow>
+                                        ) : reports.length === 0 ? (
+                                            <TableRow><TableCell colSpan={9} className="text-center py-20 font-black text-slate-300 uppercase tracking-widest text-xs">No analytics meta-data found</TableCell></TableRow>
+                                        ) : (
+                                            reports.map((camp: any) => (
+                                                <TableRow key={camp.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100">
+                                                    <TableCell className="py-4 px-6">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <p className="font-bold text-slate-800 text-[13px]">{camp.name || 'Untitled'}</p>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase">{camp.source || 'Manual'}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-4 text-center">
+                                                        <Badge variant="outline" className={cn("text-[9px] px-2 py-0 h-5 border-none font-black uppercase rounded-lg", 
+                                                            camp.channel === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700")}>
+                                                            {camp.channel || 'RCS'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-4 text-center text-[11px] text-slate-500 font-bold truncate max-w-[150px]">{camp.template_name || camp.template_id}</TableCell>
+                                                    <TableCell className="py-4 px-4 text-center font-bold text-slate-700 text-[11px]">
+                                                        {format(new Date(camp.created_at), 'dd MMM yy')}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-3 text-center font-black text-slate-800 text-xs">{(camp.recipient_count || camp.total_recipient || 0).toLocaleString()}</TableCell>
+                                                    <TableCell className="py-4 px-3 text-center font-black text-indigo-600 text-xs">{camp.sent_count?.toLocaleString()}</TableCell>
+                                                    <TableCell className="py-4 px-3 text-center font-black text-emerald-600 text-xs">{camp.delivered_count?.toLocaleString()}</TableCell>
+                                                    <TableCell className="py-4 px-3 text-center font-black text-purple-600 text-xs">{camp.read_count?.toLocaleString()}</TableCell>
+                                                    <TableCell className="py-4 px-3 text-center font-black text-rose-600 text-xs">{camp.failed_count?.toLocaleString()}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>
-                            {renderPagination(activeTab === 'api' ? apiPage : detailedPage, activeTab === 'api' ? apiTotal : detailedTotal, activeTab === 'api' ? setApiPage : setDetailedPage)}
-                          </CardContent>
+                            {renderPagination(summaryPage, summaryTotal, setSummaryPage)}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* Detailed & API Content */}
+                {(activeTab === 'detailed' || activeTab === 'api') && (
+                    <TabsContent value={activeTab} className="m-0">
+                        <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto max-h-[75vh] relative overflow-y-auto">
+                                    <Table className="border-collapse">
+                                        <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                            <TableRow className="h-12">
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 w-[60px] font-black text-slate-800 border-r border-slate-100 px-3 text-[10px] uppercase shadow-sm">Id</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-slate-500 uppercase tracking-widest py-3 text-center border-r border-slate-100 shadow-sm">Rtime</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-slate-500 uppercase tracking-widest py-3 text-center border-r border-slate-100 shadow-sm">Mobile</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-slate-500 uppercase tracking-widest py-3 text-center border-r border-slate-100 shadow-sm">Status</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-slate-500 uppercase tracking-widest py-3 text-center border-r border-slate-100 shadow-sm">Send</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-emerald-600 uppercase tracking-widest py-3 text-center border-r border-slate-100 shadow-sm">Deliv</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-purple-600 uppercase tracking-widest py-3 text-center border-r border-slate-100 shadow-sm">Read</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-slate-500 uppercase tracking-widest py-3 text-center border-r border-slate-100 shadow-sm">Template</TableHead>
+                                                <TableHead className="sticky top-0 bg-slate-50 z-30 text-[10px] font-black text-slate-500 uppercase tracking-widest py-3 text-left pl-6 shadow-sm min-w-[300px]">Message Content</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {loadingLogs ? (
+                                                <TableRow><TableCell colSpan={9} className="text-center py-20 font-black text-slate-300 tracking-widest text-xs">FETCHING LOGS...</TableCell></TableRow>
+                                            ) : (
+                                                webhookLogs.map((log) => (
+                                                    <TableRow key={log.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 min-h-[60px]">
+                                                        <TableCell className="text-[10px] font-black text-slate-400 border-r border-slate-100 px-3 py-4">{log.id}</TableCell>
+                                                        <TableCell className="text-[10px] border-r border-slate-100 text-center px-3 font-bold text-slate-500">
+                                                            {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[11px] border-r border-slate-100 text-center px-3 font-black text-slate-800">
+                                                            {log.recipient?.replace(/^\+/, '')}
+                                                        </TableCell>
+                                                        <TableCell className="text-center border-r border-slate-100 px-2">
+                                                            <Badge variant="outline" className={cn("text-[9px] px-2 h-5 border-none font-black uppercase rounded-lg", getStatusColor(log.status))}>
+                                                                {log.status}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r border-slate-100 text-center px-2 font-bold text-slate-500">
+                                                            {log.send_time ? format(new Date(log.send_time), 'HH:mm') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r border-slate-100 text-center text-emerald-600 font-black px-2">
+                                                            {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r border-slate-100 text-center text-purple-600 font-black px-2">
+                                                            {log.read_time ? format(new Date(log.read_time), 'HH:mm') : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] border-r border-slate-100 text-center px-3 font-bold text-slate-400 truncate max-w-[100px]" title={log.template_name}>
+                                                            {log.template_name || '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-[11px] text-slate-600 font-medium py-3 pl-6 leading-relaxed max-w-[400px]">
+                                                            <div className="line-clamp-3 hover:line-clamp-none transition-all duration-300">
+                                                                {log.message_content || '-'}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                {renderPagination(activeTab === 'api' ? apiPage : detailedPage, activeTab === 'api' ? apiTotal : detailedTotal, activeTab === 'api' ? setApiPage : setDetailedPage)}
+                            </CardContent>
                         </Card>
                     </TabsContent>
                 )}
 
-                {/* Engagement Tab Content */}
-                <TabsContent value="engagement" className="m-0 outline-none">
+                {/* Engagement Tab */}
+                <TabsContent value="engagement" className="m-0">
                     <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
-                        <Table>
-                            <TableHeader className="bg-slate-50 border-b">
-                                <TableRow>
-                                    <TableHead className="sticky top-0 bg-slate-50 z-20 py-5 px-8 text-[10px] font-bold uppercase text-slate-500 tracking-widest">Type</TableHead>
-                                    <TableHead className="sticky top-0 bg-slate-50 z-20 py-5 px-6 text-[10px] font-bold uppercase text-slate-500 text-center tracking-widest">Mobile</TableHead>
-                                    <TableHead className="sticky top-0 bg-slate-50 z-20 py-5 px-6 text-[10px] font-bold uppercase text-slate-500 text-center tracking-widest">Campaign</TableHead>
-                                    <TableHead className="sticky top-0 bg-slate-50 z-20 py-5 px-6 text-[10px] font-bold uppercase text-slate-500 tracking-widest">URL / Destination</TableHead>
-                                    <TableHead className="sticky top-0 bg-slate-50 z-20 py-5 px-8 text-[10px] font-bold uppercase text-slate-500 text-right tracking-widest">Time</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {loadingEngagement ? <TableRow><TableCell colSpan={5} className="text-center py-28 text-xs font-bold text-slate-300">ANALYZING CLICKSTREAMS...</TableCell></TableRow> :
-                                 engagementReports.map((e, idx) => (
-                                    <TableRow key={idx} className="hover:bg-slate-50/60 border-b border-slate-100 transition-colors h-14">
-                                        <TableCell className="py-4 px-8"><Badge className="bg-blue-600 text-white border-none rounded px-2.5 font-black text-[8px] uppercase shadow-sm tracking-tighter">{e.type}</Badge></TableCell>
-                                        <TableCell className="text-center font-black text-[11px] text-slate-800 tracking-tight">{e.msisdn?.replace(/^\+/, '')}</TableCell>
-                                        <TableCell className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{e.campaign_name}</TableCell>
-                                        <TableCell className="text-[11px] font-bold text-slate-600 truncate max-w-[350px] px-3">{e.interaction}</TableCell>
-                                        <TableCell className="text-right text-[10px] font-black text-slate-500 italic px-8">{format(new Date(e.timestamp), 'dd MMM HH:mm')}</TableCell>
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto max-h-[75vh] overflow-y-auto relative">
+                                <Table className="border-collapse">
+                                <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                    <TableRow className="h-12">
+                                        <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest">Type</TableHead>
+                                        <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-6 text-[10px] font-black uppercase text-slate-500 text-center tracking-widest">Mobile</TableHead>
+                                        <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-6 text-[10px] font-black uppercase text-slate-500 text-center tracking-widest">Campaign</TableHead>
+                                        <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest">Details</TableHead>
+                                        <TableHead className="sticky top-0 bg-slate-50 z-20 py-4 px-6 text-[10px] font-black uppercase text-slate-500 text-right tracking-widest">Time</TableHead>
                                     </TableRow>
-                                 ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {loadingEngagement ? (
+                                        <TableRow><TableCell colSpan={5} className="text-center py-20 font-black text-slate-300 tracking-widest text-xs">ANALYZING CLICKS...</TableCell></TableRow>
+                                    ) : (
+                                        engagementReports.map((e, idx) => (
+                                            <TableRow key={idx} className="hover:bg-slate-50/50 border-b border-slate-100 transition-colors">
+                                                <TableCell className="py-4 px-6">
+                                                    <Badge className={cn("text-[8px] font-black border-none uppercase shadow-none ring-1 px-2 rounded-lg", 
+                                                        e.type === 'URL CLICKED' ? "bg-blue-50 text-blue-600 ring-blue-100" : "bg-emerald-50 text-emerald-600 ring-emerald-100")}>
+                                                        {e.type}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-center font-black text-[11px] text-slate-800 tracking-tight">{e.msisdn?.replace(/^\+/, '')}</TableCell>
+                                                <TableCell className="text-center text-[10px] font-black text-slate-400 uppercase">{e.campaign_name}</TableCell>
+                                                <TableCell className="text-[11px] font-bold text-slate-600 max-w-[250px] truncate">{e.interaction}</TableCell>
+                                                <TableCell className="text-right text-[10px] font-black text-slate-500 italic">
+                                                    {format(new Date(e.timestamp), 'dd MMM HH:mm')}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                            </div>
+                        </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>
