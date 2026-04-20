@@ -79,7 +79,9 @@ export default function SuperAdminRoles() {
         
         if (selectedRoleType === 'user') {
            const users = data.clients || [];
-           const filtered = selectedPlanId ? users.filter((u: any) => u.plan_id === selectedPlanId) : users;
+           const filtered = selectedPlanId 
+             ? users.filter((u: any) => String(u.plan_id) === String(selectedPlanId)) 
+             : users;
            setEntities(filtered);
         } else {
            const resellers = data.resellers || [];

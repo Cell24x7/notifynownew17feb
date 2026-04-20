@@ -1,3 +1,12 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Smart env loading: production uses .env.production, dev uses .env
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: path.join(__dirname, '..', envFile) });
+
+console.log(`📡 Migration Environment: ${process.env.NODE_ENV || 'development'} (using ${envFile})`);
+
 const { query } = require('../config/db');
 
 async function migrate() {
