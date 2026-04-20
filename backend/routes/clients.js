@@ -48,7 +48,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
         rcs_limit, wa_limit, sms_limit, voice_limit,
-        reseller_id, is_read, is_social_signup, pe_id, hash_id
+        reseller_id, is_read, is_social_signup, pe_id, hash_id, is_api_allowed
       FROM users
       WHERE role IN ('client', 'user')
     `;
@@ -85,7 +85,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     wa_marketing_price = 0.80, wa_utility_price = 0.40, wa_authentication_price = 0.30,
     sms_promotional_price = 1.00, sms_transactional_price = 1.00, sms_service_price = 1.00,
     rcs_limit = null, wa_limit = null, sms_limit = null, voice_limit = null,
-    pe_id = null, hash_id = null
+    pe_id = null, hash_id = null, is_api_allowed = false
   } = req.body;
 
   if (!email || !password) {
@@ -128,8 +128,8 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
         rcs_limit, wa_limit, sms_limit, voice_limit,
-        reseller_id, pe_id, hash_id
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        reseller_id, pe_id, hash_id, is_api_allowed
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, company_name, contact_phone, email, hash,
       status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), 
@@ -139,7 +139,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       sms_promotional_price, sms_transactional_price, sms_service_price,
       rcs_limit || null, wa_limit || null, sms_limit || null, voice_limit || null,
       req.user.role === 'reseller' ? (req.user.actual_reseller_id || req.user.id) : (req.body.reseller_id || null),
-      pe_id || null, hash_id || null
+      pe_id || null, hash_id || null, is_api_allowed || false
     ]);
 
     // Log Initial Transaction
@@ -168,7 +168,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
     wa_marketing_price, wa_utility_price, wa_authentication_price,
     sms_promotional_price, sms_transactional_price, sms_service_price,
     rcs_limit, wa_limit, sms_limit, voice_limit,
-    pe_id, hash_id
+    pe_id, hash_id, is_api_allowed
   } = req.body;
 
   const fields = [];
@@ -201,6 +201,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   if (voice_limit !== undefined) { fields.push('voice_limit = ?'); values.push(voice_limit); }
   if (pe_id !== undefined) { fields.push('pe_id = ?'); values.push(pe_id); }
   if (hash_id !== undefined) { fields.push('hash_id = ?'); values.push(hash_id); }
+  if (is_api_allowed !== undefined) { fields.push('is_api_allowed = ?'); values.push(is_api_allowed); }
 
   if (credits_available !== undefined) {
     fields.push('wallet_balance = ?');
@@ -327,7 +328,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
              u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit,
              u.whatsapp_config_id, u.rcs_config_id, u.sms_gateway_id,
-             u.pe_id, u.hash_id,
+             u.pe_id, u.hash_id, u.is_api_allowed,
              p.permissions as plan_permissions, u.reseller_id
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
@@ -393,6 +394,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       sms_gateway_id: client.sms_gateway_id,
       pe_id: client.pe_id,
       hash_id: client.hash_id,
+      is_api_allowed: client.is_api_allowed,
       rcs_text_price: client.rcs_text_price,
       rcs_rich_card_price: client.rcs_rich_card_price,
       rcs_carousel_price: client.rcs_carousel_price,

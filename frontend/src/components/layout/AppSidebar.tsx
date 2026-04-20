@@ -25,7 +25,8 @@ import {
   Globe,
   Bot,
   ListFilter,
-  Mail
+  Mail,
+  Terminal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -116,6 +117,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: hasPermission('Wallet - View') },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
+    { icon: Terminal, label: 'API Hub', path: '/api-docs', show: !!user?.is_api_allowed },
   ];
 
   // Mobile pe collapse mat karo – text dikhega

@@ -70,6 +70,7 @@ export default function SuperAdminClients() {
     sms_gateway_id: '',
     pe_id: '',
     hash_id: '',
+    is_api_allowed: false,
   });
 
   // Fetch real plans
@@ -347,6 +348,7 @@ export default function SuperAdminClients() {
       sms_gateway_id: '',
       pe_id: '',
       hash_id: '',
+      is_api_allowed: false,
     });
   }
 
@@ -404,6 +406,7 @@ export default function SuperAdminClients() {
       sms_gateway_id: client.sms_gateway_id ? String(client.sms_gateway_id) : '',
       pe_id: client.pe_id || '',
       hash_id: client.hash_id || '',
+      is_api_allowed: !!client.is_api_allowed,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -442,6 +445,7 @@ export default function SuperAdminClients() {
       sms_gateway_id: client.sms_gateway_id ? String(client.sms_gateway_id) : '',
       pe_id: client.pe_id || '',
       hash_id: client.hash_id || '',
+      is_api_allowed: !!client.is_api_allowed,
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -903,6 +907,26 @@ export default function SuperAdminClients() {
                       value={currentClient.password}
                       onChange={e => setCurrentClient(prev => ({ ...prev, password: e.target.value }))}
                     />
+                  </div>
+                )}
+                {modalMode !== 'view' && (
+                  <div className="flex items-center space-x-2 pt-2 md:col-span-2">
+                    <Checkbox 
+                      id="api_hub_access" 
+                      checked={currentClient.is_api_allowed}
+                      onCheckedChange={(checked) => setCurrentClient(prev => ({ ...prev, is_api_allowed: !!checked }))}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label htmlFor="api_hub_access" className="text-sm font-semibold cursor-pointer">Enable API Hub Access</Label>
+                      <p className="text-[10px] text-muted-foreground">Allows the client to view API Documentation and integrate via REST APIs.</p>
+                    </div>
+                  </div>
+                )}
+                {modalMode === 'view' && (
+                  <div className="md:col-span-2">
+                    <Badge variant={currentClient.is_api_allowed ? 'default' : 'outline'} className="text-[10px]">
+                      API HUB: {currentClient.is_api_allowed ? 'ENABLED' : 'DISABLED'}
+                    </Badge>
                   </div>
                 )}
               </div>

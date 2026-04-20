@@ -137,6 +137,7 @@ log "🎙️  Deploying AI Voice Bot Infrastructure..."
 NODE_ENV=production node scripts/voice_bot_infrastructure.js || true
 NODE_ENV=production node scripts/add_failover_cols.js || true
 NODE_ENV=production node scripts/add_media_support.js || true
+NODE_ENV=production node migrate_api_flag.js || true
 NODE_ENV=production node apply_schema_updates.js || true
 
 ok "Database schema and environment are synced for $ENV_DESC."

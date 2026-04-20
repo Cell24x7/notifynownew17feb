@@ -335,7 +335,8 @@ router.post('/login', async (req, res) => {
         wa_authentication_price: user.wa_authentication_price,
         sms_promotional_price: user.sms_promotional_price,
         sms_transactional_price: user.sms_transactional_price,
-        sms_service_price: user.sms_service_price
+        sms_service_price: user.sms_service_price,
+        is_api_allowed: user.is_api_allowed
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -385,7 +386,8 @@ router.post('/login', async (req, res) => {
         wa_authentication_price: user.wa_authentication_price,
         sms_promotional_price: user.sms_promotional_price,
         sms_transactional_price: user.sms_transactional_price,
-        sms_service_price: user.sms_service_price
+        sms_service_price: user.sms_service_price,
+        is_api_allowed: user.is_api_allowed
       }
     });
 
@@ -469,6 +471,7 @@ router.post('/google', async (req, res) => {
         company: user.company, channels_enabled: user.channels_enabled,
         permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
+        is_api_allowed: user.is_api_allowed,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -485,6 +488,7 @@ router.post('/google', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressPermissions(finalPermissions), plan_name: user.plan_name,
+        is_api_allowed: user.is_api_allowed
       }
     });
 
@@ -590,6 +594,7 @@ router.post('/linkedin', async (req, res) => {
         company: user.company, channels_enabled: user.channels_enabled,
         permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
+        is_api_allowed: user.is_api_allowed,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -606,6 +611,7 @@ router.post('/linkedin', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
+        is_api_allowed: user.is_api_allowed
       }
     });
 
@@ -691,6 +697,7 @@ router.post('/facebook', async (req, res) => {
         company: user.company, channels_enabled: user.channels_enabled,
         permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
+        is_api_allowed: user.is_api_allowed,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -707,6 +714,7 @@ router.post('/facebook', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
+        is_api_allowed: user.is_api_allowed
       }
     });
 
@@ -831,7 +839,8 @@ router.post('/signup', async (req, res) => {
         wa_authentication_price: finalUser.wa_authentication_price,
         sms_promotional_price: finalUser.sms_promotional_price,
         sms_transactional_price: finalUser.sms_transactional_price,
-        sms_service_price: finalUser.sms_service_price
+        sms_service_price: finalUser.sms_service_price,
+        is_api_allowed: finalUser.is_api_allowed
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -859,7 +868,8 @@ router.post('/signup', async (req, res) => {
         wa_authentication_price: finalUser.wa_authentication_price,
         sms_promotional_price: finalUser.sms_promotional_price,
         sms_transactional_price: finalUser.sms_transactional_price,
-        sms_service_price: finalUser.sms_service_price
+        sms_service_price: finalUser.sms_service_price,
+        is_api_allowed: finalUser.is_api_allowed
       }
     });
 

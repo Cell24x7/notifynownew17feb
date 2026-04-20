@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import Templates from "./pages/Templates";
 import Chatflows from "./pages/Chatflows";
 import LinkedInCallback from "./pages/LinkedInCallback";
+import ApiDocs from "./pages/ApiDocs";
 
 
 // Super Admin Pages
@@ -93,6 +94,7 @@ const App = () => (
                     <Route path="/wallet" element={<Wallet />} />
                     <Route path="/user-plans" element={<UserPlans />} />
                     <Route path="/settings" element={<Settings />} />
+                    <Route path="/api-docs" element={<ApiDocs />} />
 
                     {/* Reseller Specific Routes */}
                     <Route path="/reseller/branding" element={<ResellerBranding />} />
