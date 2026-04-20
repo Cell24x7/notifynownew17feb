@@ -370,46 +370,44 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
     // Final fallback to empty if still null
     if (finalPermissions === null) {
       // Users/Clients default to empty if no plan/override exists, to be safe.
-      finalPermissions = [];
+      if (client.role === 'reseller') {
+        const { DEFAULT_RESELLER_PERMISSIONS } = require('./auth'); // Assuming shared constants
+        finalPermissions = DEFAULT_RESELLER_PERMISSIONS; 
+      } else {
+        const { DEFAULT_CLIENT_PERMISSIONS } = require('./auth');
+        finalPermissions = DEFAULT_CLIENT_PERMISSIONS;
+      }
     }
 
-    // Parse channels if string
-    const channelsEnabled = client.channels_enabled
-      ? (typeof client.channels_enabled === 'string' ? JSON.parse(client.channels_enabled) : client.channels_enabled)
-      : [];
+    const channelsEnabled = typeof client.channels_enabled === 'string' 
+      ? JSON.parse(client.channels_enabled) 
+      : (client.channels_enabled || []);
 
-    // Safe payload with defaults
+    // Safe payload with defaults - EXACT MATCH OF LOGIN PAYLOAD
     const payload = {
       id: client.id,
-      email: client.email || 'unknown@email.com',
-      name: client.name || 'Unknown User',
-      company: client.company || null,
-      role: client.role || 'user',
-      impersonatedBy: 'superadmin',
-      originalRole: 'user',
+      email: client.email,
+      role: client.role,
+      name: client.name,
+      company: client.company,
+      channels_enabled: client.channels_enabled,
       permissions: compressPermissions(finalPermissions),
-      channels_enabled: channelsEnabled,
-      is_api_allowed: client.is_api_allowed, // Ensure this is explicitly set from DB
       wallet_balance: client.wallet_balance,
       credits_available: client.credits_available,
-      rcs_config_id: client.rcs_config_id,
-      whatsapp_config_id: client.whatsapp_config_id,
-      sms_gateway_id: client.sms_gateway_id,
-      pe_id: client.pe_id,
-      hash_id: client.hash_id,
       rcs_text_price: client.rcs_text_price,
       rcs_rich_card_price: client.rcs_rich_card_price,
       rcs_carousel_price: client.rcs_carousel_price,
+      rcs_config_id: client.rcs_config_id,
+      whatsapp_config_id: client.whatsapp_config_id,
+      actual_reseller_id: client.actual_reseller_id,
       wa_marketing_price: client.wa_marketing_price,
       wa_utility_price: client.wa_utility_price,
       wa_authentication_price: client.wa_authentication_price,
       sms_promotional_price: client.sms_promotional_price,
       sms_transactional_price: client.sms_transactional_price,
       sms_service_price: client.sms_service_price,
-      rcs_limit: client.rcs_limit,
-      wa_limit: client.wa_limit,
-      sms_limit: client.sms_limit,
-      voice_limit: client.voice_limit,
+      is_api_allowed: client.is_api_allowed,
+      impersonatedBy: 'superadmin',
       iat: Math.floor(Date.now() / 1000)
     };
 
