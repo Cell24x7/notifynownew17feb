@@ -595,9 +595,9 @@ export default function Reports() {
                     <TabsTrigger value="api" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">API Logs</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4 overflow-hidden">
-                    <Card className="flex-1 border border-border shadow-md rounded-xl bg-card overflow-hidden flex flex-col">
-                        <CardContent className="p-0 flex-1 overflow-auto">
+                <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4 overflow-visible">
+                    <Card className="flex-1 border border-border shadow-md rounded-xl bg-card overflow-visible">
+                        <CardContent className="p-0 overflow-visible">
                             <Table>
                                 <TableHeader className="bg-muted/50 border-b border-border">
                                     <TableRow className="hover:bg-transparent h-12">
@@ -656,8 +656,8 @@ export default function Reports() {
 
 
                 {(activeTab === 'detailed' || activeTab === 'api') && (
-                    <TabsContent value={activeTab} className="flex-1 mt-4 overflow-hidden">
-                        <Card className="border-none shadow-sm flex flex-col h-[calc(100vh-280px)] overflow-hidden bg-card">
+                    <TabsContent value={activeTab} className="flex-1 mt-4 overflow-visible">
+                        <Card className="border-none shadow-sm h-full overflow-visible bg-card">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <div className="space-y-1">
                                     <CardTitle className="text-xl font-bold">{activeTab === 'api' ? 'API Delivery Logs' : 'Detailed Delivery Reports'}</CardTitle>
@@ -669,7 +669,7 @@ export default function Reports() {
                                     </Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-0 flex-1 overflow-auto">
+                            <CardContent className="p-0 overflow-visible">
                                 <Table className="border border-border">
                                         <TableHeader className="sticky top-0 bg-white z-[999] shadow-md">
                                             <TableRow className="bg-white hover:bg-white h-12">
@@ -766,12 +766,12 @@ export default function Reports() {
                     </TabsContent>
                 )}
 
-                <TabsContent value="engagement" className="flex-1 mt-4 overflow-hidden">
-                    <Card className="border border-border shadow-md rounded-xl bg-card flex flex-col h-[calc(100vh-280px)] overflow-hidden">
-                        <CardHeader className="py-4 px-6 border-b bg-muted/30 shrink-0">
+                <TabsContent value="engagement" className="flex-1 mt-4 overflow-visible">
+                    <Card className="border border-border shadow-md rounded-xl bg-card overflow-visible">
+                        <CardHeader className="py-4 px-6 border-b bg-muted/30">
                             <CardTitle className="text-lg font-bold">User Engagement & Click Reports</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-0 flex-1 overflow-auto">
+                        <CardContent className="p-0 overflow-visible">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-white z-50 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">
                                     <TableRow className="bg-white hover:bg-white h-12">
