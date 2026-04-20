@@ -387,14 +387,16 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       role: client.role || 'user',
       impersonatedBy: 'superadmin',
       originalRole: 'user',
-      permissions: compressPermissions(finalPermissions), // Added
-      channels_enabled: channelsEnabled, // Added
+      permissions: compressPermissions(finalPermissions),
+      channels_enabled: channelsEnabled,
+      is_api_allowed: client.is_api_allowed, // Ensure this is explicitly set from DB
+      wallet_balance: client.wallet_balance,
+      credits_available: client.credits_available,
       rcs_config_id: client.rcs_config_id,
       whatsapp_config_id: client.whatsapp_config_id,
       sms_gateway_id: client.sms_gateway_id,
       pe_id: client.pe_id,
       hash_id: client.hash_id,
-      is_api_allowed: client.is_api_allowed,
       rcs_text_price: client.rcs_text_price,
       rcs_rich_card_price: client.rcs_rich_card_price,
       rcs_carousel_price: client.rcs_carousel_price,
