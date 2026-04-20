@@ -417,8 +417,9 @@ export default function Reports() {
                 {(activeTab === 'detailed' || activeTab === 'api') && (
                     <TabsContent value={activeTab} className="m-0">
                         <Card className="rounded-xl border-none shadow-sm ring-1 ring-slate-200 bg-white overflow-hidden">
-                            <div className="overflow-x-auto max-h-[75vh]">
-                                <Table>
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto max-h-[75vh]">
+                                    <Table>
                                     <TableHeader className="bg-slate-50 border-b">
                                         <TableRow>
                                             <TableHead className="sticky top-0 bg-slate-50 z-30 font-bold text-slate-800 border-r px-4 text-[11px] uppercase shadow-sm">ID</TableHead>
