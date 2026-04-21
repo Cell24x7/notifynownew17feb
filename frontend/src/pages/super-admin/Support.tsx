@@ -48,11 +48,11 @@ export default function SuperAdminSupport() {
         api.get("/api/support/admin/tickets"),
         api.get("/api/clients/all")
       ]);
-      setTickets(ticksRes.data.data);
-      setStaff(staffRes.data.data.filter((u: any) => u.role === "admin" || u.role === "staff"));
+      setTickets(ticksRes.data.tickets || []);
+      setStaff((staffRes.data.data || []).filter((u: any) => u.role === "admin" || u.role === "staff"));
     } catch (error) {
       console.error("Fetch Error:", error);
-      toast.error("Failed to load dashboard data");
+      toast.error("Sync failure: Admin clearance required");
     } finally {
       setLoading(false);
     }
@@ -67,8 +67,8 @@ export default function SuperAdminSupport() {
   const fetchTicketDetails = async (id: number) => {
     try {
       const res = await api.get(`/api/support/tickets/${id}`);
-      setSelectedTicket(res.data.data);
-      setReplies(res.data.data.replies || []);
+      setSelectedTicket(res.data.ticket || res.data.data);
+      setReplies(res.data.replies || res.data.data?.replies || []);
     } catch (error) {
       toast.error("Error loading conversation");
     }
@@ -78,11 +78,11 @@ export default function SuperAdminSupport() {
     if (!selectedTicket) return;
     try {
       await api.patch(`/api/support/admin/tickets/${selectedTicket.id}`, updates);
-      toast.success("Ticket updated successfully");
+      toast.success("Updated");
       fetchData();
       fetchTicketDetails(selectedTicket.id);
     } catch (error) {
-      toast.error("Failed to update ticket");
+      toast.error("Update failed");
     }
   };
 
@@ -92,13 +92,13 @@ export default function SuperAdminSupport() {
       await api.post(`/api/support/tickets/${selectedTicket.id}/replies`, { message: newMessage });
       setNewMessage("");
       fetchTicketDetails(selectedTicket.id);
-      toast.success("Reply sent");
+      toast.success("Sent");
     } catch (error) {
-      toast.error("Failed to send message");
+      toast.error("Failed to post");
     }
   };
 
-  const filteredTickets = tickets.filter(t => {
+  const filteredTickets = (tickets || []).filter(t => {
     if (filter === "all") return true;
     return t.status === filter;
   });
@@ -109,22 +109,22 @@ export default function SuperAdminSupport() {
     resolved: tickets.filter(t => t.status === 'resolved').length
   };
 
-  if (loading) return <div className="p-8 text-center font-black animate-pulse uppercase tracking-widest text-slate-400">Initializing Command Center...</div>;
+  if (loading) return <div className="p-8 text-center font-bold animate-pulse text-slate-400">CONNECTING TO SUPPORT SERVER...</div>;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 dark:bg-black/10 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50/50 dark:bg-black/10 overflow-hidden">
       
-      {/* 🚀 Header Area with Stats */}
-      <div className="p-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10">
-        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+      {/* 🚀 Header Area */}
+      <div className="p-5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10">
+        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-                <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-                    <LifeBuoy className="h-7 w-7 text-primary" /> Support Command Center
+                <h1 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
+                    <LifeBuoy className="h-6 w-6 text-primary" /> Support Command Center
                 </h1>
-                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">Real-time Resolution Pipeline</p>
+                <p className="text-slate-400 font-semibold text-[9px] uppercase tracking-[0.15em] mt-0.5">Real-time Resolution Pipeline</p>
             </div>
 
-            <div className="flex items-center gap-4 w-full lg:w-auto">
+            <div className="flex items-center gap-6 w-full lg:w-auto">
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                    {[
                        { id: 'all', label: 'All', icon: ListFilter },
@@ -135,32 +135,33 @@ export default function SuperAdminSupport() {
                          key={f.id}
                          onClick={() => setFilter(f.id)}
                          className={cn(
-                           "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                           "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                            filter === f.id ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
                          )}
                        >
-                           <f.icon className="h-3.5 w-3.5" /> {f.label}
+                            {f.label}
                        </button>
                    ))}
                 </div>
                 
-                <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 hidden lg:block" />
-
-                <div className="flex gap-4">
+                <div className="flex gap-6 border-l pl-6 border-slate-200 dark:border-slate-800">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Pending</span>
-                        <span className="text-xl font-black text-rose-500">{stats.open}</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pending</span>
+                        <span className="text-lg font-bold text-rose-500">{stats.open}</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Success</span>
-                        <span className="text-xl font-black text-emerald-500">{stats.resolved}</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Success</span>
+                        <span className="text-lg font-bold text-emerald-500">{stats.resolved}</span>
                     </div>
                 </div>
                 
-                <Button onClick={fetchData} size="sm" variant="outline" className="rounded-xl border-2 h-10 font-bold"><Clock className="h-4 w-4 mr-2" /> Sync</Button>
+                <Button onClick={fetchData} size="sm" variant="outline" className="rounded-xl h-9 font-bold px-4">
+                  <Clock className="h-3.5 w-3.5 mr-2" /> Sync
+                </Button>
             </div>
         </div>
       </div>
+
 
       {/* 🧩 Container Shell */}
       <div className="flex-1 flex overflow-hidden max-w-[1600px] mx-auto w-full">
@@ -191,18 +192,18 @@ export default function SuperAdminSupport() {
                     >
                         <div className="flex justify-between items-start mb-4">
                             <Badge className={cn(
-                                "text-[8px] font-black px-2 py-1 uppercase rounded-md tracking-widest",
+                                "text-[8px] font-bold px-2 py-1 uppercase rounded-md tracking-widest",
                                 t.priority === 'urgent' ? "bg-rose-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
                             )}>{t.priority}</Badge>
-                            <span className="text-[10px] font-black text-slate-300">#{t.id}</span>
+                            <span className="text-[10px] font-bold text-slate-300">#{t.id}</span>
                         </div>
-                        <h4 className="font-black text-slate-800 dark:text-slate-100 mb-2 leading-tight line-clamp-2">{t.subject}</h4>
+                        <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2 leading-tight line-clamp-2">{t.subject}</h4>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black">{t.user_name?.charAt(0)}</div>
+                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">{t.user_name?.charAt(0)}</div>
                                 <span className="text-[11px] font-bold text-slate-500">{t.user_name}</span>
                             </div>
-                            <span className="text-[10px] font-black text-slate-300 uppercase">{format(new Date(t.created_at), 'MMM dd')}</span>
+                            <span className="text-[10px] font-bold text-slate-300 uppercase">{format(new Date(t.created_at), 'MMM dd')}</span>
                         </div>
                     </div>
                 ))}
@@ -218,22 +219,22 @@ export default function SuperAdminSupport() {
                       <div className="flex flex-col xl:flex-row justify-between gap-8">
                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-4 mb-4">
-                                <Badge className="bg-slate-900 text-white uppercase text-[10px] font-black px-4 py-1 rounded-lg">Documentation</Badge>
+                                <Badge className="bg-slate-900 text-white uppercase text-[10px] font-bold px-4 py-1 rounded-lg">Documentation</Badge>
                                 <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">ID: {selectedTicket.id}</span>
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">ID: {selectedTicket.id}</span>
                             </div>
-                            <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-[1.1] mb-6">
+                            <h2 className="text-3xl font-bold text-slate-900 dark:text-white leading-[1.1] mb-6">
                                 {selectedTicket.subject}
                             </h2>
                             <div className="flex flex-wrap gap-6 mt-6">
                                 <div className="flex flex-col gap-1">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Contact Person</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Contact Person</span>
                                     <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                                         <UserCircle className="h-4 w-4 text-primary" /> {selectedTicket.user_name} (UID: {selectedTicket.user_id})
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Registered Email</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Registered Email</span>
                                     <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                                         <Mail className="h-4 w-4 text-primary" /> {selectedTicket.user_email}
                                     </span>
@@ -244,7 +245,7 @@ export default function SuperAdminSupport() {
                          <div className="flex flex-col gap-4 min-w-[280px]">
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lifecycle</Label>
+                                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Lifecycle</Label>
                                     <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
                                         <SelectTrigger className="h-11 bg-white border-2 font-bold text-xs">
                                             <SelectValue />
@@ -255,7 +256,7 @@ export default function SuperAdminSupport() {
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agent</Label>
+                                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Agent</Label>
                                     <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
                                         <SelectTrigger className="h-11 bg-emerald-50 border-emerald-500/20 text-emerald-700 font-bold text-xs uppercase">
                                             <SelectValue placeholder="staff" />
@@ -267,7 +268,7 @@ export default function SuperAdminSupport() {
                                     </Select>
                                 </div>
                              </div>
-                             <Button variant="outline" className="w-full h-11 border-2 font-black uppercase text-[10px] tracking-widest rounded-xl">
+                             <Button variant="outline" className="w-full h-11 border-2 font-bold uppercase text-[10px] tracking-widest rounded-xl">
                                 <Activity className="h-4 w-4 mr-2" /> View Client Activity Logs
                              </Button>
                          </div>
@@ -280,15 +281,15 @@ export default function SuperAdminSupport() {
                       {/* 🚩 The Original Case Description */}
                       <div className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
                          <div className="absolute top-0 right-0 p-6">
-                            <Badge variant="outline" className="uppercase text-[9px] font-black">Issue Statement</Badge>
+                            <Badge variant="outline" className="uppercase text-[9px] font-bold">Issue Statement</Badge>
                          </div>
                          <div className="flex items-center gap-4 mb-8">
-                            <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-lg">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold shadow-lg">
                                 {selectedTicket.user_name?.charAt(0)}
                             </div>
                             <div>
-                                <p className="text-lg font-black text-slate-900 dark:text-white leading-none mb-1">{selectedTicket.user_name}</p>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reported on {format(new Date(selectedTicket.created_at), 'PPPp')}</p>
+                                <p className="text-lg font-bold text-slate-900 dark:text-white leading-none mb-1">{selectedTicket.user_name}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reported on {format(new Date(selectedTicket.created_at), 'PPPp')}</p>
                             </div>
                          </div>
                          <div className="relative">
@@ -301,7 +302,7 @@ export default function SuperAdminSupport() {
                          {/* 🖇️ Visual Attachments */}
                          {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
                             <div className="mt-10 pt-10 border-t-2 border-slate-50 dark:border-slate-900">
-                                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 block">Evidence Documentation ({selectedTicket.attachments.length})</Label>
+                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-6 block">Evidence Documentation ({selectedTicket.attachments.length})</Label>
                                 <div className="flex flex-wrap gap-6">
                                     {selectedTicket.attachments.map((file: any) => {
                                         const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
@@ -327,7 +328,7 @@ export default function SuperAdminSupport() {
                         <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10" />
                         {replies.map(r => (
                            <div key={r.id} className={cn("flex gap-8", r.user_role === 'admin' ? "flex-row-reverse" : "")}>
-                               <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center font-black flex-shrink-0 z-10 shadow-md border-4 border-slate-50 dark:border-slate-900">
+                               <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center font-bold flex-shrink-0 z-10 shadow-md border-4 border-slate-50 dark:border-slate-900">
                                     {r.user_name?.charAt(0)}
                                </div>
                                <div className={cn("max-w-[80%] space-y-2", r.user_role === 'admin' ? "items-end text-right" : "")}>
@@ -337,7 +338,7 @@ export default function SuperAdminSupport() {
                                    )}>
                                        {r.message}
                                    </div>
-                                   <p className="text-[9px] font-black text-slate-400 tracking-widest uppercase px-2">
+                                   <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase px-2">
                                        Replied by {r.user_name} • {format(new Date(r.created_at), 'p')}
                                    </p>
                                </div>
@@ -357,7 +358,7 @@ export default function SuperAdminSupport() {
                             onKeyDown={(e) => e.ctrlKey && e.key === 'Enter' && handleSendReply()}
                         />
                         <Button 
-                            className="h-auto px-10 rounded-[28px] font-black uppercase text-xs tracking-[0.2em] flex flex-col gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95"
+                            className="h-auto px-10 rounded-[28px] font-bold uppercase text-xs tracking-[0.2em] flex flex-col gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95"
                             onClick={handleSendReply}
                         >
                             <Send className="h-6 w-6" /> POST REPLY
@@ -370,7 +371,7 @@ export default function SuperAdminSupport() {
                     <div className="w-32 h-32 bg-slate-100 dark:bg-slate-800 rounded-[48px] flex items-center justify-center mb-10 rotate-12 transition-all hover:rotate-0 hover:scale-110 shadow-2xl">
                         <ShieldCheck className="h-16 w-16 text-slate-400" />
                     </div>
-                    <h3 className="text-4xl font-black text-slate-900 dark:text-white mb-4 italic tracking-tight">System Ready.</h3>
+                    <h3 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 italic tracking-tight">System Ready.</h3>
                     <p className="text-slate-400 font-bold max-w-sm text-lg leading-relaxed">Select an active ticket from the sidebar to engage. Your response is critical to our SLAs.</p>
                 </div>
             )}
