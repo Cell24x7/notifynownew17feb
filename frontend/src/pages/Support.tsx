@@ -184,18 +184,18 @@ export default function Support() {
     <div className="space-y-8 max-w-7xl mx-auto p-4 lg:p-0">
       
       {/* 📘 Knowledge Base Promo */}
-      <div className="bg-gradient-to-r from-primary to-indigo-600 rounded-3xl p-8 text-white shadow-2xl shadow-primary/20 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden relative group">
-          <div className="relative z-10 space-y-3">
-             <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-white/20 text-white border-none font-bold px-3 py-1 text-[10px] uppercase tracking-widest rounded-full">Documentation Hub</Badge>
+      <div className="bg-gradient-to-r from-primary to-indigo-600 rounded-2xl p-6 text-white shadow-xl shadow-primary/20 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
+          <div className="relative z-10 space-y-1.5">
+             <div className="flex items-center gap-2 mb-1">
+                <Badge className="bg-white/20 text-white border-none font-bold px-2 py-0.5 text-[9px] uppercase tracking-widest rounded-full">Self-Service Hub</Badge>
              </div>
-             <h2 className="text-3xl md:text-4xl font-black tracking-tight">Need Instant Solutions?</h2>
-             <p className="text-white/80 font-medium max-w-lg text-lg">Search our extensive Knowledge Base for quick answers to API and Billing issues before raising a ticket.</p>
+             <h2 className="text-xl md:text-2xl font-black tracking-tight">Need Instant Solutions?</h2>
+             <p className="text-white/80 font-medium max-w-lg text-sm">Search our extensive Knowledge Base for quick answers before raising a ticket.</p>
           </div>
-          <Button asChild className="h-14 px-10 rounded-2xl bg-white text-primary hover:bg-slate-100 font-black relative z-10 shadow-xl text-lg group/btn">
+          <Button asChild className="h-11 px-8 rounded-xl bg-white text-primary hover:bg-slate-100 font-bold relative z-10 shadow-lg text-sm group/btn">
              <Link to="/support/help" className="flex items-center gap-2">
-                Search Help Center 
-                <ArrowRight className="h-5 w-5 transition-transform group-hover/btn:translate-x-1" />
+                Search Documentation 
+                <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
              </Link>
           </Button>
 

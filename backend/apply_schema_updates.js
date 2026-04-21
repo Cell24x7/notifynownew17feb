@@ -626,6 +626,43 @@ async function updateSchema() {
                 console.log('✅ Default KB categories seeded');
             }
             console.log('✅ Knowledge Base tables - READY.');
+
+            // 3. Seed Professional Dummy Content if empty
+            const [artCount] = await connection.execute('SELECT COUNT(*) as count FROM knowledge_articles');
+            if (artCount[0].count === 0) {
+                console.log('🌱 Seeding professional FAQ articles...');
+                
+                const faqs = [
+                    // WhatsApp API (Category 2)
+                    { cid: 2, t: 'How to get WhatsApp Business API?', s: 'Step-by-step guide to onboarding.', c: '<h1>Onboarding Guide</h1><p>Follow these steps: 1. Verify Facebook Business Manager. 2. Register phone number. 3. Setup payment method...</p>' },
+                    { cid: 2, t: 'WhatsApp Message Template Guidelines', s: 'Rules for getting templates approved.', c: '<h2>Writing winning templates</h2><ul><li>Avoid promotional language.</li><li>Use clear variables.</li><li>Provide samples.</li></ul>' },
+                    { cid: 2, t: 'Solving 24-hour Session Limit', s: 'Understanding customer care windows.', c: '<p>WhatsApp sessions last 24 hours. Outside this window, you must use a Template Message.</p>' },
+                    
+                    // RCS (Category 2 mapping - I will assume 2 is RCS if WhatsApp is 2, wait categories are: 1.Getting Started, 2.WhatsApp, 3.Billing)
+                    // I'll adjust to: 1:General, 2:WhatsApp, 3:Billing
+                    { cid: 1, t: 'RCS File Type Support', s: 'Supported media for Rich Communication.', c: '<p>RCS supports JPG, PNG, MP4 up to 10MB. Carousels can have up to 10 cards.</p>' },
+                    { cid: 1, t: 'RCS Agent Verification', s: 'How to get the blue tick.', c: '<p>Verification requires brand logo, banner, and website proof. Takes 5-7 business days.</p>' },
+                    
+                    // Billing (Category 3)
+                    { cid: 3, t: 'How to recharge my wallet?', s: 'Payment methods and process.', c: '<p>Go to Wallet > Add Money. We support UPI, Cards, and Net Banking.</p>' },
+                    { cid: 3, t: 'Refund Policy for Failed Messages', s: 'Automatic refund rules.', c: '<p>Refunds for undelivered (Expired) messages are processed automatically within 24 hours.</p>' },
+                    { cid: 3, t: 'Low Balance Alerts', s: 'Setting up notifications.', c: '<p>You can set custom low-balance thresholds in Settings > Billing Notifications.</p>' },
+                    
+                    // API (Category 1)
+                    { cid: 1, t: 'Handling 500 Internal Server Error', s: 'Troubleshooting API failures.', c: '<p>Check your JSON headers and ensure your API key/Token is correct.</p>' },
+                    { cid: 1, t: 'Token Expiration & Rotation', s: 'How long do API keys last?', c: '<p>API keys are permanent until deleted. Tokens should be stored securely in .env files.</p>' },
+                    { cid: 1, t: 'Webhook Configuration Guide', s: 'Receiving delivery reports.', c: '<p>Point your webhook to a public HTTPS URL. We send POST requests with delivery status.</p>' }
+                ];
+
+                for (const faq of faqs) {
+                    const slug = faq.t.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substr(2, 5);
+                    await connection.execute(
+                        "INSERT INTO knowledge_articles (category_id, title, slug, summary, content, is_published) VALUES (?, ?, ?, ?, ?, TRUE)",
+                        [faq.cid, faq.t, slug, faq.s, faq.c]
+                    );
+                }
+                console.log('✅ 11 FAQ Articles Seeded successfully.');
+            }
         } catch (e) {
             console.log('KB Schema Update Error:', e.message);
         }
