@@ -69,9 +69,15 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static files from uploads (Code-Relative Path)
 const uploadsDir = path.join(__dirname, 'uploads');
-if (!require('fs').existsSync(uploadsDir)) require('fs').mkdirSync(uploadsDir, { recursive: true });
+const supportUploadsDir = path.join(uploadsDir, 'support');
+
+// Ensure directories exist
+const fs = require('fs');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(supportUploadsDir)) fs.mkdirSync(supportUploadsDir, { recursive: true });
+
 app.use('/api/uploads', express.static(uploadsDir));
-app.use('/uploads', express.static(uploadsDir)); 
+app.use('/uploads', express.static(uploadsDir));
 
 
 
