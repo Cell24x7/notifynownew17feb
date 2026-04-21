@@ -1,0 +1,61 @@
+/* Knowledge Base Content Styles (Fixing Quill Render) */
+.kb-content {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #334155;
+}
+
+.dark .kb-content {
+    color: #cbd5e1;
+}
+
+.kb-content h1, .kb-content h2, .kb-content h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.dark .kb-content h1, .dark .kb-content h2, .dark .kb-content h3 {
+    color: #f8fafc;
+}
+
+.kb-content p {
+    margin-bottom: 1.5rem;
+}
+
+.kb-content ul, .kb-content ol {
+    margin-bottom: 1.5rem;
+    padding-left: 1.5rem;
+}
+
+.kb-content li {
+    margin-bottom: 0.5rem;
+}
+
+.kb-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    margin: 2rem 0;
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+}
+
+.kb-content a {
+    color: #6366f1;
+    text-decoration: underline;
+    font-weight: 700;
+}
+
+.kb-content pre {
+    background: #f1f5f9;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    font-family: monospace;
+    overflow-x: auto;
+    margin: 2rem 0;
+}
+
+.dark .kb-content pre {
+    background: #1e293b;
+}

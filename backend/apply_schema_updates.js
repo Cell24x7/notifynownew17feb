@@ -574,7 +574,52 @@ async function updateSchema() {
             console.log('Error during AI Voice Bot updates:', e.message);
         }
 
-        // 15. Support System Tables (Moved to top)
+        // 16. KNOWLEDGE BASE SYSTEM
+        try {
+            console.log('Synchronizing Knowledge Base infrastructure...');
+            
+            // 1. Knowledge Categories
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS knowledge_categories (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    icon_name VARCHAR(50) DEFAULT 'HelpCircle',
+                    display_order INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // 2. Knowledge Articles
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS knowledge_articles (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    category_id INT NOT NULL,
+                    title VARCHAR(255) NOT NULL,
+                    slug VARCHAR(255) UNIQUE NOT NULL,
+                    content LONGTEXT NOT NULL,
+                    summary TEXT,
+                    is_published BOOLEAN DEFAULT TRUE,
+                    view_count INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (category_id) REFERENCES knowledge_categories(id) ON DELETE CASCADE
+                )
+            `);
+
+            // Add default categories if empty
+            const [catCount] = await connection.execute('SELECT COUNT(*) as count FROM knowledge_categories');
+            if (catCount[0].count === 0) {
+                await connection.execute("INSERT INTO knowledge_categories (name, description, icon_name) VALUES ('Getting Started', 'Basic setup and configuration', 'Rocket')");
+                await connection.execute("INSERT INTO knowledge_categories (name, description, icon_name) VALUES ('WhatsApp API', 'Managing templates and messages', 'MessageCircle')");
+                await connection.execute("INSERT INTO knowledge_categories (name, description, icon_name) VALUES ('Billing & Subscriptions', 'Invoices and payment methods', 'CreditCard')");
+                console.log('✅ Default KB categories seeded');
+            }
+            console.log('✅ Knowledge Base tables - READY.');
+        } catch (e) {
+            console.log('KB Schema Update Error:', e.message);
+        }
+
         console.log('--- Schema updates finished ---');
 
 

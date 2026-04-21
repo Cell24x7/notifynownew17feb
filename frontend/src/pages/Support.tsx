@@ -13,8 +13,10 @@ import {
   Paperclip,
   ImageIcon,
   ListFilter,
-  Users
+  Users,
+  ArrowRight
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -179,11 +181,33 @@ export default function Support() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 lg:p-0">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 max-w-7xl mx-auto p-4 lg:p-0">
+      
+      {/* 📘 Knowledge Base Promo */}
+      <div className="bg-gradient-to-r from-primary to-indigo-600 rounded-3xl p-8 text-white shadow-2xl shadow-primary/20 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden relative group">
+          <div className="relative z-10 space-y-3">
+             <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-white/20 text-white border-none font-bold px-3 py-1 text-[10px] uppercase tracking-widest rounded-full">Documentation Hub</Badge>
+             </div>
+             <h2 className="text-3xl md:text-4xl font-black tracking-tight">Need Instant Solutions?</h2>
+             <p className="text-white/80 font-medium max-w-lg text-lg">Search our extensive Knowledge Base for quick answers to API and Billing issues before raising a ticket.</p>
+          </div>
+          <Button asChild className="h-14 px-10 rounded-2xl bg-white text-primary hover:bg-slate-100 font-black relative z-10 shadow-xl text-lg group/btn">
+             <Link to="/support/help" className="flex items-center gap-2">
+                Search Help Center 
+                <ArrowRight className="h-5 w-5 transition-transform group-hover/btn:translate-x-1" />
+             </Link>
+          </Button>
+
+          {/* Decorative Orbs */}
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-white/10 rounded-full blur-[100px] group-hover:scale-125 transition-transform duration-1000" />
+          <div className="absolute left-1/4 -top-10 w-40 h-40 bg-indigo-400/20 rounded-full blur-[80px]" />
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-10 border-t border-slate-100 dark:border-slate-800">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Help & Support</h1>
-          <p className="text-muted-foreground mt-1 text-lg">Need help? Raise a ticket and our team will get back to you.</p>
+          <h1 className="text-3xl font-black tracking-tight text-foreground uppercase tracking-widest">Active Tickets</h1>
+          <p className="text-muted-foreground mt-1 text-lg font-medium">Manage your existing support conversations</p>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
