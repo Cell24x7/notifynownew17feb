@@ -135,6 +135,11 @@ router.get('/tickets/:id', authenticate, async (req, res) => {
             return res.status(403).json({ success: false, message: 'Unauthorized' });
         }
 
+        const [replies] = await query(
+            'SELECT r.*, u.name as sender_name FROM ticket_replies r JOIN users u ON r.user_id = u.id WHERE r.ticket_id = ? ORDER BY r.created_at ASC',
+            [ticketId]
+        );
+
         const [attachments] = await query(
             'SELECT * FROM ticket_attachments WHERE ticket_id = ?',
             [ticketId]
