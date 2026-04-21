@@ -52,10 +52,13 @@ export default function SuperAdminSupport() {
       const allClients = clientsRes.data.clients || [];
       // Filter for staff/admin to assign tickets
       setStaff(allClients.filter((u: any) => u.role === "admin" || u.role === "staff" || u.role === "superadmin"));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fetch Error:", error);
-      toast.error("Sync failure: Admin clearance required");
+      const status = error.response?.status;
+      const msg = error.response?.data?.message || error.message;
+      toast.error(`Sync failure (${status || 'Network'}): ${msg}`);
     } finally {
+
       setLoading(false);
     }
   };
