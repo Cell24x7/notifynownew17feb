@@ -60,6 +60,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import DLTTemplates from "./pages/DLTTemplates";
 import HelpCenter from "./pages/support/HelpCenter";
 import ArticleDetail from "./pages/support/ArticleDetail";
+import SearchResults from "./pages/support/SearchResults";
 import KnowledgeBase from "./pages/super-admin/KnowledgeBase";
 
 const queryClient = new QueryClient();
@@ -105,6 +106,7 @@ const App = () => (
                     <Route path="/support" element={<Support />} />
                     <Route path="/support/help" element={<HelpCenter />} />
                     <Route path="/support/help/:slug" element={<ArticleDetail />} />
+                    <Route path="/support/search" element={<SearchResults />} />
 
 
                     {/* Reseller Specific Routes */}
