@@ -69,13 +69,18 @@ router.post('/tickets', authenticate, upload.array('attachments'), async (req, r
             
             // Reusing existing admin notification system with a new type
             try {
+                const attachments = (req.files || []).map(f => ({
+                    file_url: `/api/uploads/support/${f.filename}`
+                }));
                 await sendAdminNotification({
                     ...user,
                     id: userId,
                     ticket_id: ticketId,
                     subject: subject,
                     category: category,
-                    description: description
+                    description: description,
+                    priority: priority,
+                    attachments
                 }, 'TICKET_RAISED');
             } catch (err) {
                 console.error('Failed to send admin ticket notification:', err.message);

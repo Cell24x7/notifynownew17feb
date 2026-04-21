@@ -136,69 +136,93 @@ const sendAdminNotification = async (user, type) => {
       Channel Config Enabled: ${user.channels_enabled ? 'Yes' : 'No'}
         Time: ${new Date().toLocaleString()}
         `;
-  } else if (type === 'TICKET_RAISED') {
-    subject = `New Support Ticket [#${user.ticket_id}]: ${user.subject}`;
+  } else if (type === 'TICKET_RAISED' || type === 'EDIT_REQUEST') {
+    const isEdit = type === 'EDIT_REQUEST';
+    subject = isEdit ? `[UPDATED] Support Ticket [#${user.ticket_id}]: ${user.subject}` : `[NEW TICKET] #${user.ticket_id}: ${user.subject}`;
+    
+    // Build attachments HTML if any exist
+    let attachmentsHtml = '';
+    if (user.attachments && user.attachments.length > 0) {
+        attachmentsHtml = `
+            <div style="margin-top: 20px;">
+                <p style="font-size: 14px; font-weight: bold; color: #475569; margin-bottom: 10px;">📎 Attachments (${user.attachments.length}):</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    ${user.attachments.map((a, i) => `
+                        <a href="${process.env.APP_URL || 'https://notifynow.in'}${a.file_url}" 
+                           style="display: inline-block; padding: 8px 12px; background: #f1f5f9; border-radius: 6px; color: #0f172a; text-decoration: none; font-size: 12px; font-weight: bold; border: 1px solid #e2e8f0;">
+                           View Attachment ${i + 1}
+                        </a>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     body = `
-      <h3>New Support Ticket Details:</h3>
-      <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif; width: 100%; max-width: 600px;">
-        <tr style="background-color: #f2f2f2;">
-          <th style="text-align: left;">Field</th>
-          <th style="text-align: left;">Value</th>
-        </tr>
-        <tr>
-          <td><b>Ticket ID</b></td>
-          <td>#${user.ticket_id}</td>
-        </tr>
-        <tr>
-          <td><b>Subject</b></td>
-          <td>${user.subject}</td>
-        </tr>
-        <tr>
-          <td><b>Category</b></td>
-          <td>${user.category}</td>
-        </tr>
-        <tr>
-          <td><b>User Name</b></td>
-          <td>${user.name || 'N/A'}</td>
-        </tr>
-        <tr>
-          <td><b>User Email</b></td>
-          <td>${user.email || 'N/A'}</td>
-        </tr>
-        <tr>
-          <td><b>Company</b></td>
-          <td>${user.company || 'N/A'}</td>
-        </tr>
-        <tr>
-          <td><b>Description</b></td>
-          <td>${user.description}</td>
-        </tr>
-        <tr>
-          <td><b>Time</b></td>
-          <td>${new Date().toLocaleString()}</td>
-        </tr>
-      </table>
-      <p><a href="${process.env.APP_URL || 'https://notifynow.in'}/admin/support/tickets/${user.ticket_id}">View Ticket in Dashboard</a></p>
+      <div style="font-family: 'Inter', Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); padding: 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Support Command Center</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">${isEdit ? 'Ticket Modification Alert' : 'New Incoming Resolvable Item'}</p>
+        </div>
+        
+        <div style="padding: 30px;">
+          <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
+             <span style="background: #fef2f2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Priority: ${user.priority || 'Normal'}</span>
+             <span style="font-size: 12px; font-weight: bold; color: #94a3b8;">Ref ID: #${user.ticket_id}</span>
+          </div>
+
+          <h3 style="color: #0f172a; font-size: 18px; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Ticket Details</h3>
+          
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 0; font-size: 13px; color: #64748b; width: 30%;"><b>Subject</b></td>
+              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;"><b>${user.subject}</b></td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; font-size: 13px; color: #64748b;"><b>Category</b></td>
+              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;">${user.category}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; font-size: 13px; color: #64748b;"><b>Contact Person</b></td>
+              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;">${user.name} (${user.email})</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; font-size: 13px; color: #64748b;"><b>Company</b></td>
+              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;">${user.company || 'Individual'}</td>
+            </tr>
+          </table>
+
+          <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-top: 25px; border: 1px solid #f1f5f9;">
+            <p style="margin: 0 0 10px 0; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Issue Statement</p>
+            <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #334155;">${user.description}</p>
+          </div>
+
+          ${attachmentsHtml}
+
+          <div style="margin-top: 40px; text-align: center;">
+            <a href="${process.env.APP_URL || 'https://notifynow.in'}/admin/support/tickets/${user.ticket_id}" 
+               style="background: #0f172a; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; transition: background 0.3s;">
+               Take Action in Dashboard
+            </a>
+          </div>
+        </div>
+
+        <div style="background: #f1f5f9; padding: 25px 30px; border-top: 1px solid #e2e8f0; text-align: left;">
+          <p style="margin: 0; font-size: 13px; font-weight: bold; color: #0f172a;">Best Regards,</p>
+          <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: 800; color: #4f46e5;">Support Notify Team</p>
+          <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Technical Support Specialist</p>
+          <div style="margin-top: 15px; border-top: 1px dotted #cbd5e1; pt: 10px;">
+            <p style="margin: 0; font-size: 10px; color: #94a3b8;">© ${new Date().getFullYear()} NotifyNow. Comprehensive Engagement Platform.</p>
+          </div>
+        </div>
+      </div>
     `;
 
-    // 🚀 WhatsApp Notification Logic for Admins can be triggered here
+    // 🚀 WhatsApp Admin Notification
     try {
         const { sendAdminWhatsAppNotification } = require('./whatsappUtils');
-        sendAdminWhatsAppNotification(`🔔 *New Support Ticket Raised!* \n\n*ID:* #${user.ticket_id} \n*User:* ${user.name} \n*Subject:* ${user.subject} \n*Category:* ${user.category} \n\nPlease visit the dashboard to respond.`, user.ticket_id);
-    } catch(e) {
-        console.warn('WhatsApp Admin notification skipped (util not found/failed)');
-    }
-  } else if (type === 'EDIT_REQUEST') {
-    subject = `Support Ticket Edited: #${user.ticket_id}`;
-    body = `
-      <h3>Ticket Update Notification:</h3>
-      <p><b>User:</b> ${user.name} (${user.email})</p>
-      <p><b>Ticket ID:</b> #${user.ticket_id}</p>
-      <p><b>New Subject:</b> ${user.subject}</p>
-      <p><b>Description:</b> ${user.description}</p>
-      <hr/>
-      <p>Please review the changes in the Super Admin dashboard.</p>
-    `;
+        sendAdminWhatsAppNotification(`🔔 *${isEdit ? 'Ticket Modified' : 'New Ticket'}!* \n\n*ID:* #${user.ticket_id} \n*User:* ${user.name} \n*Subject:* ${user.subject} \n\nPlease visit the dashboard to respond.`, user.ticket_id);
+    } catch(e) {}
   }
 
   // console.log(`🔔 Sending ${type} notification to admins...`);
