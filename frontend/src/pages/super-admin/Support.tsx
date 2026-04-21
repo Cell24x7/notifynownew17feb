@@ -235,73 +235,74 @@ export default function SuperAdminSupport() {
            {selectedTicket ? (
              <>
                {/* Ticket Meta Controls */}
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 mb-6 shadow-sm">
-                   <div className="flex flex-wrap items-center justify-between gap-6">
-                      <div className="space-y-4 flex-1">
-                         <div className="flex items-center gap-3 flex-wrap">
-                            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black px-3 py-1">#{selectedTicket.id}</Badge>
-                            <Badge className={cn(
-                               "uppercase text-[10px] font-black px-3 py-1",
-                               selectedTicket.priority === 'urgent' ? "bg-red-500" : "bg-slate-500"
-                            )}>{selectedTicket.priority} Priority</Badge>
-                            {selectedTicket.status && getStatusBadge(selectedTicket.status)}
+                <Card className="shadow-2xl border-none bg-background mb-8 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
+                   <CardContent className="p-0">
+                      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800">
+                         {/* Details Section */}
+                         <div className="flex-1 p-7 space-y-6">
+                            <div className="flex items-center gap-4">
+                               <Badge className={cn(
+                                   "uppercase text-[10px] font-black px-3 py-1.5 rounded-lg tracking-widest shadow-sm",
+                                   selectedTicket.priority === 'urgent' ? "bg-rose-500 text-white animate-pulse" : "bg-slate-800 text-white"
+                               )}>{selectedTicket.priority} Priority</Badge>
+                               <div className="h-6 w-px bg-slate-200 dark:bg-slate-800" />
+                               <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em]">Ticket #{selectedTicket.id}</span>
+                            </div>
+
+                            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{selectedTicket.subject}</h2>
+
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-8 pt-4">
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Client Name</p>
+                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><UserCircle className="h-4 w-4 text-primary" /> {selectedTicket.user_name}</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Email Identity</p>
+                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> {selectedTicket.user_email}</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Unique ID</p>
+                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><Terminal className="h-4 w-4 text-primary" /> {selectedTicket.user_id}</p>
+                               </div>
+                            </div>
                          </div>
-                         
-                         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{selectedTicket.subject}</h2>
-                         
-                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 py-4 border-t border-slate-100 dark:border-slate-800">
-                             <div className="flex flex-col">
-                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">User Name</span>
-                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedTicket.user_name}</span>
-                             </div>
-                             <div className="flex flex-col">
-                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Email Address</span>
-                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedTicket.user_email}</span>
-                             </div>
-                             <div className="flex flex-col">
-                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">User ID</span>
-                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedTicket.user_id}</span>
-                             </div>
-                             <div className="flex flex-col">
-                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Created Date</span>
-                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(selectedTicket.created_at).toLocaleDateString()}</span>
-                             </div>
+
+                         {/* Actions Section */}
+                         <div className="lg:w-80 p-7 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col justify-center gap-5">
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Lifecycle Status</Label>
+                               <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
+                                   <SelectTrigger className="h-11 bg-white border-2 border-slate-200 font-bold text-slate-700">
+                                       <SelectValue />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                       <SelectItem value="open" className="font-bold">🔴 New / Open</SelectItem>
+                                       <SelectItem value="pending" className="font-bold">🟠 In Progress</SelectItem>
+                                       <SelectItem value="resolved" className="font-bold">🟢 Resolved</SelectItem>
+                                       <SelectItem value="closed" className="font-bold">⚫ Closed</SelectItem>
+                                   </SelectContent>
+                               </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Assigned Agent</Label>
+                               <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
+                                   <SelectTrigger className="h-11 bg-emerald-50/50 border-2 border-emerald-500/20 font-bold text-emerald-700">
+                                       <SelectValue placeholder="Select Agent" />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                       <SelectItem value="unassigned">No Agent Assigned</SelectItem>
+                                       {staff.map(u => (
+                                           <SelectItem key={u.id} value={String(u.id)} className="font-bold">{u.name}</SelectItem>
+                                       ))}
+                                   </SelectContent>
+                               </Select>
+                            </div>
                          </div>
                       </div>
+                   </CardContent>
+                </Card>
 
-                      <div className="flex flex-col gap-4 border-l pl-8 border-slate-100 dark:border-slate-800 min-w-[200px]">
-                          <div className="space-y-1.5">
-                             <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Update status</Label>
-                             <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
-                                 <SelectTrigger className="w-full h-9 text-xs font-bold shadow-none border-slate-200">
-                                     <SelectValue />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                     <SelectItem value="open">Open</SelectItem>
-                                     <SelectItem value="pending">In Progress</SelectItem>
-                                     <SelectItem value="resolved">Resolved</SelectItem>
-                                     <SelectItem value="closed">Closed</SelectItem>
-                                 </SelectContent>
-                             </Select>
-                          </div>
-
-                          <div className="space-y-1.5">
-                             <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assign staff</Label>
-                             <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
-                                 <SelectTrigger className="w-full h-9 text-xs font-bold border-emerald-500/20 text-emerald-600 bg-emerald-50/10">
-                                     <SelectValue />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                     <SelectItem value="unassigned">Unassigned</SelectItem>
-                                     {staff.map(u => (
-                                         <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                                     ))}
-                                 </SelectContent>
-                             </Select>
-                          </div>
-                      </div>
-                   </div>
-                </div>
 
 
 
