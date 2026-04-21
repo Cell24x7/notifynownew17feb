@@ -44,12 +44,14 @@ export default function SuperAdminSupport() {
 
   const fetchData = async () => {
     try {
-      const [ticksRes, staffRes] = await Promise.all([
+      const [ticksRes, clientsRes] = await Promise.all([
         api.get("/api/support/admin/tickets"),
-        api.get("/api/clients/all")
+        api.get("/api/clients")
       ]);
       setTickets(ticksRes.data.tickets || []);
-      setStaff((staffRes.data.data || []).filter((u: any) => u.role === "admin" || u.role === "staff"));
+      const allClients = clientsRes.data.clients || [];
+      // Filter for staff/admin to assign tickets
+      setStaff(allClients.filter((u: any) => u.role === "admin" || u.role === "staff" || u.role === "superadmin"));
     } catch (error) {
       console.error("Fetch Error:", error);
       toast.error("Sync failure: Admin clearance required");
