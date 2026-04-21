@@ -1,11 +1,21 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Smart env loading: production uses .env.production, dev uses .env
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+// Smart env loading: try .env.production first if it exists, then fallback to .env
+const fs = require('fs');
+let envFile = '.env';
+const prodEnv = path.join(__dirname, '.env.production');
+const devEnv = path.join(__dirname, '.env');
+
+if (fs.existsSync(prodEnv)) {
+    envFile = '.env.production';
+} else if (fs.existsSync(devEnv)) {
+    envFile = '.env';
+}
+
 dotenv.config({ path: path.join(__dirname, envFile) });
 
-console.log(`📡 Migration Environment: ${process.env.NODE_ENV || 'development'} (using ${envFile})`);
+console.log(`📡 Migration Environment: ${process.env.NODE_ENV || 'auto-detected'} (using ${envFile})`);
 
 const mysql = require('mysql2/promise');
 
