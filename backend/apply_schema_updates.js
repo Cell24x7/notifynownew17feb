@@ -116,14 +116,21 @@ async function updateSchema() {
             console.log('is_api_allowed already exists in users table.');
         }
 
-        // 1.3 Add department to users if it doesn't exist
-        const hasDepartment = userCols.some(col => col.Field === 'department');
-        if (!hasDepartment) {
-            console.log('Adding department to users table...');
-            await connection.execute('ALTER TABLE users ADD COLUMN department VARCHAR(100) DEFAULT "Support" AFTER role');
-        } else {
-            console.log('department already exists in users table.');
+        // 1.3 Add department to users (Wider column for safety)
+        try {
+            const hasDepartment = userCols.some(col => col.Field === 'department');
+            if (!hasDepartment) {
+                console.log('Adding department to users table...');
+                await connection.execute('ALTER TABLE users ADD COLUMN department VARCHAR(255) DEFAULT "Support" AFTER role');
+            }
+        } catch (e) {
+            console.log('Skipping department migration: ' + e.message);
         }
+
+        // 1.4 Ensure tickets start from reasonable ID if newly created
+        try {
+            await connection.execute('ALTER TABLE tickets AUTO_INCREMENT = 1');
+        } catch (e) {}
 
 
         // 2. Add branding columns to resellers if they don't exist

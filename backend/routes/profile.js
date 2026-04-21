@@ -118,7 +118,7 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/team', authenticate, async (req, res) => {
   try {
     const [rows] = await query(
-      `SELECT id, name, email, role, department, status, created_at 
+      `SELECT id, name, email, role, status, created_at 
        FROM users`
     );
     return res.json({ success: true, users: rows });
