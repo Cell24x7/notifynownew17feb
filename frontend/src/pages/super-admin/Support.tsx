@@ -70,8 +70,9 @@ export default function SuperAdminSupport() {
         });
         setReplies(response.data.replies);
       }
-    } catch (err) {
-      toast.error("Failed to load conversation");
+    } catch (err: any) {
+      const msg = err.response?.data?.error || "Failed to load conversation";
+      toast.error(msg);
     }
   };
 

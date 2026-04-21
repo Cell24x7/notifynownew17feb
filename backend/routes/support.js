@@ -143,7 +143,8 @@ router.get('/tickets/:id', authenticate, async (req, res) => {
         res.json({ success: true, ticket: tickets[0], replies, attachments });
 
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Failed to fetch ticket details' });
+        console.error(`❌ Fetch Ticket ${req.params.id} Error:`, error.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch ticket details', error: error.message });
     }
 });
 
