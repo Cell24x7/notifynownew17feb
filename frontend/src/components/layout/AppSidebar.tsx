@@ -26,7 +26,8 @@ import {
   Bot,
   ListFilter,
   Mail,
-  Terminal
+  Terminal,
+  LifeBuoy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -126,6 +127,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
             user?.role === 'reseller' || 
             user?.impersonatedBy === 'superadmin'
     },
+    { icon: LifeBuoy, label: 'Support', path: '/support', show: true },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
 

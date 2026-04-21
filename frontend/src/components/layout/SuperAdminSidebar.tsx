@@ -21,7 +21,8 @@ import {
   Send,
   ChevronDown,
   Rocket,
-  Zap
+  Zap,
+  LifeBuoy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -68,6 +69,7 @@ const menuItems = [
   { icon: Send, label: 'SMS Gateways', path: '/super-admin/sms-gateways', permission: 'SMS Gateways - View' },
   { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
+  { icon: LifeBuoy, label: 'Support Tickets', path: '/super-admin/support', permission: 'Dashboard - View' },
 ];
 
 interface SuperAdminSidebarProps {

@@ -135,6 +135,58 @@ const sendAdminNotification = async (user, type) => {
       Channel Config Enabled: ${user.channels_enabled ? 'Yes' : 'No'}
         Time: ${new Date().toLocaleString()}
         `;
+  } else if (type === 'TICKET_RAISED') {
+    subject = `New Support Ticket [#${user.ticket_id}]: ${user.subject}`;
+    body = `
+      <h3>New Support Ticket Details:</h3>
+      <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif; width: 100%; max-width: 600px;">
+        <tr style="background-color: #f2f2f2;">
+          <th style="text-align: left;">Field</th>
+          <th style="text-align: left;">Value</th>
+        </tr>
+        <tr>
+          <td><b>Ticket ID</b></td>
+          <td>#${user.ticket_id}</td>
+        </tr>
+        <tr>
+          <td><b>Subject</b></td>
+          <td>${user.subject}</td>
+        </tr>
+        <tr>
+          <td><b>Category</b></td>
+          <td>${user.category}</td>
+        </tr>
+        <tr>
+          <td><b>User Name</b></td>
+          <td>${user.name || 'N/A'}</td>
+        </tr>
+        <tr>
+          <td><b>User Email</b></td>
+          <td>${user.email || 'N/A'}</td>
+        </tr>
+        <tr>
+          <td><b>Company</b></td>
+          <td>${user.company || 'N/A'}</td>
+        </tr>
+        <tr>
+          <td><b>Description</b></td>
+          <td>${user.description}</td>
+        </tr>
+        <tr>
+          <td><b>Time</b></td>
+          <td>${new Date().toLocaleString()}</td>
+        </tr>
+      </table>
+      <p><a href="${process.env.APP_URL || 'https://notifynow.in'}/admin/support/tickets/${user.ticket_id}">View Ticket in Dashboard</a></p>
+    `;
+
+    // 🚀 WhatsApp Notification Logic for Admins can be triggered here
+    try {
+        const { sendAdminWhatsAppNotification } = require('./whatsappUtils');
+        sendAdminWhatsAppNotification(`🔔 *New Support Ticket Raised!* \n\n*ID:* #${user.ticket_id} \n*User:* ${user.name} \n*Subject:* ${user.subject} \n*Category:* ${user.category} \n\nPlease visit the dashboard to respond.`, user.ticket_id);
+    } catch(e) {
+        console.warn('WhatsApp Admin notification skipped (util not found/failed)');
+    }
   }
 
   // console.log(`🔔 Sending ${type} notification to admins...`);

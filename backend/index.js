@@ -143,6 +143,8 @@ app.use('/api/sms-v1', require('./routes/smsApiV1'));
 app.use('/api/automations', require('./routes/automations'));
 app.use('/api/l', require('./routes/links'));
 app.use('/api/shopify', require('./routes/shopify'));
+app.use('/api/support', require('./routes/support'));
+
 
 // Developer Webhook Endpoint (Must have /api/ prefix for Nginx proxy pass)
 app.use('/api/webhook', require('./routes/developerWebhooks'));

@@ -24,6 +24,8 @@ import Templates from "./pages/Templates";
 import Chatflows from "./pages/Chatflows";
 import LinkedInCallback from "./pages/LinkedInCallback";
 import ApiDocs from "./pages/ApiDocs";
+import Support from "./pages/Support";
+
 
 
 // Super Admin Pages
@@ -48,6 +50,8 @@ import SuperAdminSystemEngine from "./pages/super-admin/SystemEngine";
 import SuperAdminDevelopmentEfficiency from "./pages/super-admin/DevelopmentEfficiency";
 import ResellerBranding from "./pages/reseller/Branding";
 import ResellerUsers from "./pages/reseller/Users";
+import SuperAdminSupport from "./pages/super-admin/Support";
+
 
 import UserPlans from "./pages/UserPlans";
 import Marketplace from "./pages/Marketplace";
@@ -95,6 +99,8 @@ const App = () => (
                     <Route path="/user-plans" element={<UserPlans />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/api-docs" element={<ApiDocs />} />
+                    <Route path="/support" element={<Support />} />
+
 
                     {/* Reseller Specific Routes */}
                     <Route path="/reseller/branding" element={<ResellerBranding />} />
@@ -122,6 +128,8 @@ const App = () => (
                     <Route path="/super-admin/ledger" element={<SuperAdminUsageLedger />} />
                     <Route path="/super-admin/engine" element={<SuperAdminSystemEngine />} />
                     <Route path="/super-admin/dev-progress" element={<SuperAdminDevelopmentEfficiency />} />
+                    <Route path="/super-admin/support" element={<SuperAdminSupport />} />
+
                   </Route>
 
                   <Route path="*" element={<NotFound />} />
