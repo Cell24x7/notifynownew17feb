@@ -23,7 +23,7 @@ async function getGeminiResponse(userPrompt) {
                     text: `You are Notify Assistant. Use the following context to help users regarding SMS, WhatsApp, RCS, or Billing issues. Keep answers professional and tech-friendly. If no info is found, suggest connecting to technical staff (Sandeep Yadav).\n\nUser Question: ${userPrompt}` 
                 }] 
             }]
-        }, { timeout: 8000 }); // 8 seconds timeout for safety
+        }, { timeout: 15000 }); // Increased to 15 seconds for reliability
 
         if (response.data && response.data.candidates && response.data.candidates[0].content) {
             return response.data.candidates[0].content.parts[0].text;
