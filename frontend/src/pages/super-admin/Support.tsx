@@ -64,13 +64,27 @@ export default function SuperAdminSupport() {
     try {
       const response = await api.get(`/support/tickets/${id}`);
       if (response.data.success) {
-        setSelectedTicket(response.data.ticket);
+        setSelectedTicket({
+            ...response.data.ticket,
+            attachments: response.data.attachments || []
+        });
         setReplies(response.data.replies);
       }
     } catch (err) {
       toast.error("Failed to load conversation");
     }
   };
+
+  // Real-time polling for new replies when a ticket is selected
+  useEffect(() => {
+    let interval: any;
+    if (selectedTicket) {
+      interval = setInterval(() => {
+        fetchTicketDetails(selectedTicket.id);
+      }, 5000); // Poll every 5 seconds
+    }
+    return () => clearInterval(interval);
+  }, [selectedTicket?.id]);
 
   const handleUpdateTicket = async (updates: any) => {
     if (!selectedTicket) return;
@@ -100,6 +114,16 @@ export default function SuperAdminSupport() {
       toast.error("Failed to send reply");
     }
   };
+
+  const generateMeetLink = () => {
+    const randomId = Math.random().toString(36).substring(2, 5) + "-" + 
+                     Math.random().toString(36).substring(2, 6) + "-" + 
+                     Math.random().toString(36).substring(2, 5);
+    const link = `https://meet.google.com/${randomId}`;
+    setNewMessage(prev => prev + `\n\nI have generated a support meeting link for you: ${link}`);
+    toast.success("Meet link generated and added to message!");
+  };
+
 
   useEffect(() => {
     fetchData();
@@ -263,12 +287,37 @@ export default function SuperAdminSupport() {
                   <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-transparent">
                       <div className="space-y-8">
                          {/* Description */}
-                         <div className="p-4 bg-muted/40 rounded-xl border-l-4 border-muted text-muted-foreground">
+                          <div className="p-4 bg-muted/40 rounded-xl border-l-4 border-muted text-muted-foreground">
                             <div className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-wider">
                                <AlertCircle className="h-3 w-3" /> Original Issue Description
                             </div>
-                            <p className="text-sm whitespace-pre-wrap">{selectedTicket.description}</p>
-                         </div>
+                            <p className="text-sm whitespace-pre-wrap mb-4">{selectedTicket.description}</p>
+                            
+                            {/* Render Attachments if any */}
+                            {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-muted/20">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest mb-2">Attached Screenshots ({selectedTicket.attachments.length})</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedTicket.attachments.map((file: any) => (
+                                            <a 
+                                                key={file.id} 
+                                                href={`${import.meta.env.VITE_API_BASE_URL || ''}${file.file_url}`} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="block hover:opacity-80 transition-opacity"
+                                            >
+                                                <img 
+                                                    src={`${import.meta.env.VITE_API_BASE_URL || ''}${file.file_url}`} 
+                                                    alt="attachment" 
+                                                    className="w-32 h-32 object-cover rounded-lg border shadow-sm"
+                                                />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                          </div>
+
 
                          {replies.map(reply => (
                             <div key={reply.id} className={cn("flex gap-3", reply.is_admin_reply ? "flex-row-reverse" : "")}>
@@ -315,7 +364,13 @@ export default function SuperAdminSupport() {
                         <div className="flex gap-4">
                            <button className="hover:text-primary transition-colors">Attach Logs</button>
                            <button className="hover:text-primary transition-colors">Shared Docs</button>
-                           <button className="hover:text-primary transition-colors text-blue-500 flex items-center gap-1">Generate Meet Link <ExternalLink className="h-3 w-3" /></button>
+                            <button 
+                              className="hover:text-primary transition-colors text-blue-500 flex items-center gap-1"
+                              onClick={generateMeetLink}
+                            >
+                                Generate Meet Link <ExternalLink className="h-3 w-3" />
+                            </button>
+
                         </div>
                      </div>
                   </div>

@@ -76,13 +76,28 @@ export default function Support() {
     try {
       const response = await api.get(`/support/tickets/${id}`);
       if (response.data.success) {
-        setSelectedTicket(response.data.ticket);
+        setSelectedTicket({
+            ...response.data.ticket,
+            attachments: response.data.attachments || []
+        });
         setReplies(response.data.replies);
       }
     } catch (err) {
       toast.error("Failed to load conversation");
     }
   };
+
+  // Poll for replies
+  useEffect(() => {
+    let interval: any;
+    if (selectedTicket) {
+      interval = setInterval(() => {
+        fetchTicketDetails(selectedTicket.id);
+      }, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [selectedTicket?.id]);
+
 
   const handleCreateTicket = async () => {
     if (!newTicket.subject || !newTicket.description) {
@@ -355,10 +370,33 @@ export default function Support() {
                         </div>
                         <div className="space-y-2 max-w-[85%]">
                             <div className="bg-card p-4 rounded-2xl rounded-tl-none shadow-sm border border-muted/20">
-                                <p className="text-foreground whitespace-pre-wrap leading-relaxed">{selectedTicket.description}</p>
+                                <p className="text-foreground whitespace-pre-wrap leading-relaxed mb-4">{selectedTicket.description}</p>
+                                
+                                {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                                    <div className="mt-4 pt-4 border-t border-muted/20">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest mb-2">My Attachments ({selectedTicket.attachments.length})</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedTicket.attachments.map((file: any) => (
+                                                <a 
+                                                    key={file.id} 
+                                                    href={`${import.meta.env.VITE_API_BASE_URL || ''}${file.file_url}`} 
+                                                    target="_blank" 
+                                                    rel="noreferrer"
+                                                >
+                                                    <img 
+                                                        src={`${import.meta.env.VITE_API_BASE_URL || ''}${file.file_url}`} 
+                                                        alt="attachment" 
+                                                        className="w-24 h-24 object-cover rounded-lg border shadow-sm hover:opacity-80 transition-opacity"
+                                                    />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <span className="text-[11px] text-muted-foreground font-semibold px-2">{format(new Date(selectedTicket.created_at), 'MMM d, h:mm a')}</span>
                         </div>
+
                     </div>
 
                     {/* Conversation Replies */}

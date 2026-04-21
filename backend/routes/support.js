@@ -135,12 +135,13 @@ router.get('/tickets/:id', authenticate, async (req, res) => {
             return res.status(403).json({ success: false, message: 'Unauthorized' });
         }
 
-        const [replies] = await query(
-            'SELECT r.*, u.name as sender_name FROM ticket_replies r JOIN users u ON r.user_id = u.id WHERE r.ticket_id = ? ORDER BY r.created_at ASC',
+        const [attachments] = await query(
+            'SELECT * FROM ticket_attachments WHERE ticket_id = ?',
             [ticketId]
         );
 
-        res.json({ success: true, ticket: tickets[0], replies });
+        res.json({ success: true, ticket: tickets[0], replies, attachments });
+
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to fetch ticket details' });
     }
@@ -225,7 +226,26 @@ router.patch('/admin/tickets/:id', authenticate, async (req, res) => {
         if (updates.length > 0) {
             params.push(ticketId);
             await query(`UPDATE tickets SET ${updates.join(', ')} WHERE id = ?`, params);
+
+            // Special Notification if Resolved/Closed
+            if (status === 'resolved' || status === 'closed') {
+                const [ticketData] = await query(
+                    'SELECT t.subject, u.email, u.name FROM tickets t JOIN users u ON t.user_id = u.id WHERE t.id = ?',
+                    [ticketId]
+                );
+                if (ticketData.length > 0) {
+                    const { subject, email, name } = ticketData[0];
+                    await sendEmail(
+                        email, 
+                        `Ticket #${ticketId} Resolved - NotifyNow`, 
+                        `Hello ${name},\n\nYour support ticket "#${ticketId}: ${subject}" has been marked as ${status.toUpperCase()}.\n\nIf you have further questions, please reply to the ticket in your dashboard.\n\nTeam NotifyNow`,
+                        null,
+                        'ticket_resolved'
+                    );
+                }
+            }
         }
+
 
         res.json({ success: true, message: 'Ticket updated' });
     } catch (error) {
