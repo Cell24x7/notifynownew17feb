@@ -152,18 +152,34 @@ export default function Support() {
     fetchTickets();
   }, []);
 
+  // Smart URL Resolver for Attachments (Handles legacy and new paths)
+  const resolveImageUrl = (path: string) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    let cleanPath = path;
+    
+    // Ensure /api/ prefix if missing for internal paths
+    if (!cleanPath.startsWith('/api/') && !cleanPath.startsWith('/uploads/')) {
+      cleanPath = `/api${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+    }
+    
+    return cleanPath.startsWith('http') ? cleanPath : `${baseUrl}${cleanPath}`;
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "open": return <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200">Open</Badge>;
-      case "pending": return <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-200">Pending</Badge>;
-      case "resolved": return <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200">Resolved</Badge>;
-      case "closed": return <Badge variant="outline" className="text-gray-500">Closed</Badge>;
+      case "open": return <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200 uppercase text-[10px] font-bold">Open</Badge>;
+      case "pending": return <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-200 uppercase text-[10px] font-bold">Pending</Badge>;
+      case "resolved": return <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 uppercase text-[10px] font-bold">Resolved</Badge>;
+      case "closed": return <Badge variant="outline" className="text-gray-500 uppercase text-[10px] font-bold">Closed</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 lg:p-0">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Help & Support</h1>
@@ -177,32 +193,33 @@ export default function Support() {
               New Support Ticket
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] gap-6">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden rounded-2xl border-none shadow-2xl">
+            <DialogHeader className="p-6 bg-slate-50 border-b">
               <DialogTitle className="text-2xl font-bold">Raise a New Ticket</DialogTitle>
               <DialogDescription className="text-base text-muted-foreground">
                 Provide details about your issue. We aim to respond within 2-4 hours.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-6 py-4">
+
+            <div className="overflow-y-auto max-h-[70vh] p-6 space-y-6">
               <div className="grid gap-2">
-                <Label htmlFor="subject" className="text-base">Subject</Label>
+                <Label htmlFor="subject" className="text-sm font-bold uppercase tracking-widest text-slate-500">Subject</Label>
                 <Input 
                   id="subject" 
                   placeholder="e.g., API is returning 500 error" 
-                  className="h-11"
+                  className="h-11 rounded-xl border-2 focus-visible:ring-primary"
                   value={newTicket.subject}
                   onChange={(e) => setNewTicket({...newTicket, subject: e.target.value})}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="category" className="text-base">Category</Label>
+                  <Label htmlFor="category" className="text-sm font-bold uppercase tracking-widest text-slate-500">Category</Label>
                   <Select 
                     value={newTicket.category} 
                     onValueChange={(v) => setNewTicket({...newTicket, category: v})}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 rounded-xl border-2">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -215,12 +232,12 @@ export default function Support() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="priority" className="text-base">Priority Level</Label>
+                  <Label htmlFor="priority" className="text-sm font-bold uppercase tracking-widest text-slate-500">Priority Level</Label>
                   <Select 
                     value={newTicket.priority} 
                     onValueChange={(v) => setNewTicket({...newTicket, priority: v})}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 rounded-xl border-2">
                       <SelectValue placeholder="Priority" />
                     </SelectTrigger>
                     <SelectContent>
@@ -233,21 +250,21 @@ export default function Support() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="description" className="text-base">Describe your issue</Label>
+                <Label htmlFor="description" className="text-sm font-bold uppercase tracking-widest text-slate-500">Describe your issue</Label>
                 <Textarea 
                   id="description" 
                   placeholder="Please provide as much detail as possible..."
-                  className="min-h-[150px] text-base resize-none"
+                  className="min-h-[120px] text-base resize-none rounded-xl border-2 focus-visible:ring-primary"
                   value={newTicket.description}
                   onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
                 />
               </div>
               <div 
-                className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-dashed text-sm text-muted-foreground cursor-pointer hover:bg-muted transition-colors"
+                className="flex items-center gap-3 p-4 bg-primary/5 rounded-xl border-2 border-dashed border-primary/20 text-sm font-bold text-primary cursor-pointer hover:bg-primary/10 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <ImageIcon className="h-4 w-4" />
-                <span>{attachments.length > 0 ? `${attachments.length} files selected` : "Click here to upload screenshots (Optional)"}</span>
+                <ImageIcon className="h-5 w-5" />
+                <span>{attachments.length > 0 ? `${attachments.length} files selected` : "Attach screenshots (Optional)"}</span>
               </div>
               <input 
                 type="file" 
@@ -259,15 +276,16 @@ export default function Support() {
                   if (e.target.files) setAttachments(Array.from(e.target.files));
                 }}
               />
-
             </div>
-            <DialogFooter>
-              <Button variant="outline" className="h-11 px-6" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button className="h-11 px-8 font-semibold" onClick={handleCreateTicket}>Submit Ticket</Button>
+
+            <DialogFooter className="p-6 bg-slate-50 border-t items-center sm:justify-between">
+              <Button variant="ghost" className="font-bold text-slate-500" onClick={() => setIsCreateOpen(false)}>Discard</Button>
+              <Button className="h-11 px-8 font-bold rounded-xl shadow-lg shadow-primary/20" onClick={handleCreateTicket}>Create Ticket</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Sidebar: Ticket List */}
@@ -379,18 +397,19 @@ export default function Support() {
                                             {selectedTicket.attachments.map((file: any) => (
                                                 <a 
                                                     key={file.id} 
-                                                    href={`${import.meta.env.VITE_API_BASE_URL || ''}${file.file_url}`} 
+                                                    href={resolveImageUrl(file.file_url)} 
                                                     target="_blank" 
                                                     rel="noreferrer"
                                                 >
                                                     <img 
-                                                        src={`${import.meta.env.VITE_API_BASE_URL || ''}${file.file_url}`} 
+                                                        src={resolveImageUrl(file.file_url)} 
                                                         alt="attachment" 
                                                         className="w-24 h-24 object-cover rounded-lg border shadow-sm hover:opacity-80 transition-opacity"
                                                     />
                                                 </a>
                                             ))}
                                         </div>
+
                                     </div>
                                 )}
                             </div>
