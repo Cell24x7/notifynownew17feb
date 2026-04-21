@@ -21,6 +21,62 @@ async function updateSchema() {
 
         console.log('--- Applying schema changes ---');
 
+        // 0. Ensure support system tables exist (HIGHEST PRIORITY)
+        try {
+            console.log('Ensuring support system tables exist...');
+            
+            // tickets
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS tickets (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    subject VARCHAR(255) NOT NULL,
+                    category VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    status ENUM('open', 'pending', 'resolved', 'closed') DEFAULT 'open',
+                    priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
+                    assigned_to INT DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_user (user_id),
+                    INDEX idx_status (status),
+                    INDEX idx_assigned (assigned_to)
+                )
+            `);
+
+            // ticket_replies
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS ticket_replies (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    ticket_id INT NOT NULL,
+                    user_id INT NOT NULL,
+                    message TEXT NOT NULL,
+                    is_admin_reply TINYINT(1) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_ticket (ticket_id)
+                )
+            `);
+
+            // ticket_attachments
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS ticket_attachments (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    ticket_id INT NOT NULL,
+                    reply_id INT DEFAULT NULL,
+                    file_url VARCHAR(255) NOT NULL,
+                    file_type VARCHAR(50),
+                    file_name VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_ticket_attach (ticket_id)
+                )
+            `);
+            
+            console.log('✅ Support system tables ready.');
+        } catch (e) {
+            console.log('Error creating support system tables:', e.message);
+        }
+
+
         // 1. Add reseller_id to users if it doesn't exist
         const [userCols] = await connection.execute('DESCRIBE users');
         const hasResellerId = userCols.some(col => col.Field === 'reseller_id');
@@ -511,60 +567,9 @@ async function updateSchema() {
             console.log('Error during AI Voice Bot updates:', e.message);
         }
 
-        // 15. Support System Tables
-        try {
-            console.log('Ensuring support system tables exist...');
-            
-            // tickets
-            await connection.execute(`
-                CREATE TABLE IF NOT EXISTS tickets (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id INT NOT NULL,
-                    subject VARCHAR(255) NOT NULL,
-                    category VARCHAR(100) NOT NULL,
-                    description TEXT,
-                    status ENUM('open', 'pending', 'resolved', 'closed') DEFAULT 'open',
-                    priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
-                    assigned_to INT DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX idx_user (user_id),
-                    INDEX idx_status (status),
-                    INDEX idx_assigned (assigned_to)
-                )
-            `);
+        // 15. Support System Tables (Moved to top)
+        console.log('--- Schema updates finished ---');
 
-            // ticket_replies
-            await connection.execute(`
-                CREATE TABLE IF NOT EXISTS ticket_replies (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    ticket_id INT NOT NULL,
-                    user_id INT NOT NULL,
-                    message TEXT NOT NULL,
-                    is_admin_reply TINYINT(1) DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_ticket (ticket_id)
-                )
-            `);
-
-            // ticket_attachments
-            await connection.execute(`
-                CREATE TABLE IF NOT EXISTS ticket_attachments (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    ticket_id INT NOT NULL,
-                    reply_id INT DEFAULT NULL,
-                    file_url VARCHAR(255) NOT NULL,
-                    file_type VARCHAR(50),
-                    file_name VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_ticket_attach (ticket_id)
-                )
-            `);
-            
-            console.log('✅ Support system tables ready.');
-        } catch (e) {
-            console.log('Error creating support system tables:', e.message);
-        }
 
     } catch (err) {
         console.error('Error:', err.message);
