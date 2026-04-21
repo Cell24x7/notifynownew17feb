@@ -58,13 +58,13 @@ git reset --hard origin/main
 COMMIT=$(git log -1 --pretty=format:'%h — %s (%ar)')
 ok "Updated to: $COMMIT"
 
-# ── Step 3: Dependencies ──────────────────────────────────
-log "[3/8] Building dependency tree..."
+# ── Step 3: Dependencies (Mandatory) ───────────────────────
+log "[3/8] Installing fresh dependencies..."
 cd "$BACKEND_DIR"
-npm install --production --silent
+npm install --production
 cd "$FRONTEND_DIR"
-npm install --silent
-ok "Dependencies installed."
+npm install
+ok "All dependencies are synced."
 
 # ── Step 4: Build Frontend (Production) ────────────────────
 log "[4/8] Building Frontend Assets..."

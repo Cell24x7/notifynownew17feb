@@ -2,6 +2,43 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const authenticate = require('../middleware/authMiddleware');
+const { getGeminiResponse } = require('../utils/geminiHelper');
+
+// New AI Chat Endpoint (Safe Integration)
+router.post('/ai/chat', async (req, res) => {
+    try {
+        const { message } = req.body;
+        if (!message) return res.status(400).json({ success: false, message: 'Message required' });
+
+        // 1. Search Local DB for context
+        let context = "";
+        try {
+            const [articles] = await query(
+                'SELECT title, content FROM knowledge_articles WHERE is_published = TRUE AND (title LIKE ? OR content LIKE ?)', 
+                [`%${message}%`, `%${message}%`]
+            );
+            if (articles && articles.length > 0) {
+                context = `Relevant Docs: ${articles.map(a => `${a.title}: ${a.content}`).join(' | ')}`;
+            }
+        } catch (dbErr) {
+            console.error('Local Search Error:', dbErr.message);
+        }
+
+        // 2. Try Gemini AI
+        const aiAnswer = await getGeminiResponse(`${context}\n\nUser Question: ${message}`);
+
+        if (aiAnswer) {
+            return res.json({ success: true, reply: aiAnswer });
+        }
+
+        // 3. Final Fallback if AI fails
+        res.json({ success: true, reply: "I'm processing your request in standard mode. How can I assist you?" });
+
+    } catch (err) {
+        console.error('Global AI Route Error:', err.message);
+        res.status(500).json({ success: false, message: 'Assistant is taking a quick break. Try again!' });
+    }
+});
 
 /**
  * Utility to generate slug from title
