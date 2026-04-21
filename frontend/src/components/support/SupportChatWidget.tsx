@@ -49,7 +49,23 @@ export default function SupportChatWidget() {
     setIsTyping(true);
 
     try {
-        // --- 🤖 AI BOT LOGIC: Search Knowledge Base ---
+        // --- 🤖 AI BOT LOGIC: Persona-driven Conversations ---
+        const lowerInput = queryTerm.toLowerCase();
+        
+        // 1. Handling Greetings
+        if (lowerInput.match(/^(hi|hello|hey|hola|good morning|good evening)/)) {
+            setTimeout(() => {
+                setIsTyping(false);
+                setMessages(prev => [...prev, { 
+                    id: Date.now().toString(), 
+                    sender: 'bot', 
+                    text: "Hi there! 👋 Welcome to Notify Support. I'm here to help you solve your technical issues instantly. What's on your mind? (API issues, WhatsApp connectivity, Billing?)" 
+                }]);
+            }, 800);
+            return;
+        }
+
+        // 2. Search Knowledge Base
         const res = await api.get(`/knowledge/articles?search=${encodeURIComponent(queryTerm)}`);
         const articles = res.data.articles || [];
 
@@ -59,7 +75,7 @@ export default function SupportChatWidget() {
                 setMessages(prev => [...prev, { 
                     id: (Date.now()+1).toString(), 
                     sender: 'bot', 
-                    text: `I found ${articles.length} helpful articles for you:`,
+                    text: `I've analyzed our documentation for "${queryTerm}" and found these resources that might help you immediately:`,
                     type: 'suggestion',
                     suggestions: articles.slice(0, 3)
                 }]);
@@ -67,10 +83,10 @@ export default function SupportChatWidget() {
                 setMessages(prev => [...prev, { 
                     id: (Date.now()+1).toString(), 
                     sender: 'bot', 
-                    text: "I couldn't find a direct answer. Would you like to connect with a human agent or raise a ticket?",
+                    text: `I searched our database for "${queryTerm}" but couldn't find a direct match. Don't worry! I can notify our technical team for you. \n\nWould you like to raise a support ticket or talk to a human agent?`
                 }]);
             }
-        }, 1000);
+        }, 1200);
 
     } catch (e) {
         setIsTyping(false);
