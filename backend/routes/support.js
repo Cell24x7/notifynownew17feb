@@ -238,6 +238,8 @@ router.patch('/admin/tickets/:id', authenticate, async (req, res) => {
         if (status) { updates.push('status = ?'); params.push(status); }
         if (priority) { updates.push('priority = ?'); params.push(priority); }
         if (assigned_to !== undefined) { updates.push('assigned_to = ?'); params.push(assigned_to); }
+        if (req.body.subject) { updates.push('subject = ?'); params.push(req.body.subject); }
+        if (req.body.description) { updates.push('description = ?'); params.push(req.body.description); }
 
         if (updates.length > 0) {
             params.push(ticketId);
@@ -262,10 +264,33 @@ router.patch('/admin/tickets/:id', authenticate, async (req, res) => {
             }
         }
 
-
         res.json({ success: true, message: 'Ticket updated' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to update ticket' });
+    }
+});
+
+/**
+ * @route DELETE /api/support/admin/tickets/:id
+ * @desc Delete a ticket (Admin only)
+ */
+router.delete('/admin/tickets/:id', authenticate, async (req, res) => {
+    const userRole = (req.user.role || '').toLowerCase();
+    if (!['admin', 'superadmin'].includes(userRole)) {
+        return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    try {
+        const ticketId = req.params.id;
+        // Delete attachments, then replies, then ticket
+        await query('DELETE FROM ticket_attachments WHERE ticket_id = ?', [ticketId]);
+        await query('DELETE FROM ticket_replies WHERE ticket_id = ?', [ticketId]);
+        await query('DELETE FROM tickets WHERE id = ?', [ticketId]);
+
+        res.json({ success: true, message: 'Ticket deleted successfully' });
+    } catch (error) {
+        console.error('DELETE Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to delete ticket' });
     }
 });
 

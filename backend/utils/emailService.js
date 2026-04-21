@@ -188,6 +188,17 @@ const sendAdminNotification = async (user, type) => {
     } catch(e) {
         console.warn('WhatsApp Admin notification skipped (util not found/failed)');
     }
+  } else if (type === 'EDIT_REQUEST') {
+    subject = `Support Ticket Edited: #${user.ticket_id}`;
+    body = `
+      <h3>Ticket Update Notification:</h3>
+      <p><b>User:</b> ${user.name} (${user.email})</p>
+      <p><b>Ticket ID:</b> #${user.ticket_id}</p>
+      <p><b>New Subject:</b> ${user.subject}</p>
+      <p><b>Description:</b> ${user.description}</p>
+      <hr/>
+      <p>Please review the changes in the Super Admin dashboard.</p>
+    `;
   }
 
   // console.log(`🔔 Sending ${type} notification to admins...`);
