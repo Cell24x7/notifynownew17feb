@@ -65,28 +65,37 @@ export default function SupportChatWidget() {
             return;
         }
 
-        // 2. Search Knowledge Base
+        // 2. Search & Summarize (GPT Style)
         const res = await api.get(`/knowledge/articles?search=${encodeURIComponent(queryTerm)}`);
         const articles = res.data.articles || [];
 
-        setTimeout(() => {
+        setTimeout(async () => {
             setIsTyping(false);
             if (articles.length > 0) {
-                setMessages(prev => [...prev, { 
-                    id: (Date.now()+1).toString(), 
-                    sender: 'bot', 
-                    text: `I've analyzed our documentation for "${queryTerm}" and found these resources that might help you immediately:`,
-                    type: 'suggestion',
-                    suggestions: articles.slice(0, 3)
-                }]);
+                const topArt = articles[0];
+                // Fetch full article to speak its content
+                try {
+                    const detailRes = await api.get(`/knowledge/articles/${topArt.slug}`);
+                    const fullContent = detailRes.data.article.content.replace(/<[^>]*>/g, '').substring(0, 300) + '...';
+                    
+                    setMessages(prev => [...prev, { 
+                        id: (Date.now()+1).toString(), 
+                        sender: 'bot', 
+                        text: `Based on our database for "${queryTerm}", here is what I found: \n\n"${fullContent}"\n\nYou can read the full guide below:`,
+                        type: 'suggestion',
+                        suggestions: [topArt]
+                    }]);
+                } catch (e) {
+                    setMessages(prev => [...prev, { id: 'err', sender: 'bot', text: "I found something but had trouble summarizing it. Check the link below!" }]);
+                }
             } else {
                 setMessages(prev => [...prev, { 
                     id: (Date.now()+1).toString(), 
                     sender: 'bot', 
-                    text: `I searched our database for "${queryTerm}" but couldn't find a direct match. Don't worry! I can notify our technical team for you. \n\nWould you like to raise a support ticket or talk to a human agent?`
+                    text: `I've analyzed your query regarding "${queryTerm}" but I couldn't find a localized solution in our AI records. \n\nShould I connect you to our technical leadership team (Sandeep Yadav) directly?`
                 }]);
             }
-        }, 1200);
+        }, 1500);
 
     } catch (e) {
         setIsTyping(false);
