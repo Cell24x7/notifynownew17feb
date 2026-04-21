@@ -240,12 +240,12 @@ export default function SuperAdminSupport() {
                                     </SelectContent>
                                 </Select>
 
-                                <Select value={String(selectedTicket.assigned_to || '')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v })}>
+                                <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
                                     <SelectTrigger className="w-[160px] h-9 text-xs font-bold border-primary/20 text-primary">
                                         <SelectValue placeholder="Assign To..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Unassigned</SelectItem>
+                                        <SelectItem value="unassigned">Unassigned</SelectItem>
                                         {staff.map(u => (
                                             <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role})</SelectItem>
                                         ))}
