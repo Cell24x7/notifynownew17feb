@@ -12,7 +12,8 @@ import {
   Building2,
   Trash2,
   ShieldCheck,
-  ExternalLink
+  ExternalLink,
+  ListFilter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
