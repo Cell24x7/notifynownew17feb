@@ -16,7 +16,10 @@ import {
   ListFilter,
   UserCircle,
   Mail,
-  Terminal
+  Terminal,
+  Activity,
+  CheckCircle,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,392 +44,337 @@ export default function SuperAdminSupport() {
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const [ticketRes, staffRes] = await Promise.all([
-        api.get("/support/admin/tickets"),
-        api.get("/profile/team")
+      const [ticksRes, staffRes] = await Promise.all([
+        api.get("/api/support/admin/tickets"),
+        api.get("/api/clients/all")
       ]);
-      
-      if (ticketRes.data.success) setTickets(ticketRes.data.tickets);
-      if (staffRes.data.success) {
-          // Filter users who can handle support (Admin, Staff, Superadmin)
-          const supportStaff = staffRes.data.users.filter((u: any) => {
-            const role = (u.role || "").toLowerCase();
-            const name = (u.name || "").toLowerCase();
-            // Filter users who can handle support (Admin, Staff, Superadmin) 
-            // AND filter out 'Sandy' if requested
-            return ['admin', 'superadmin', 'staff'].includes(role) && !name.includes('sandy');
-          });
-          setStaff(supportStaff);
-
-      }
-    } catch (err) {
-      toast.error("Failed to load administration data");
+      setTickets(ticksRes.data.data);
+      setStaff(staffRes.data.data.filter((u: any) => u.role === "admin" || u.role === "staff"));
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchTicketDetails = async (id: number) => {
     try {
-      const response = await api.get(`/support/tickets/${id}`);
-      if (response.data.success) {
-        setSelectedTicket({
-            ...response.data.ticket,
-            attachments: response.data.attachments || []
-        });
-        setReplies(response.data.replies);
-      }
-    } catch (err: any) {
-      const msg = err.response?.data?.error || "Failed to load conversation";
-      toast.error(msg);
+      const res = await api.get(`/api/support/tickets/${id}`);
+      setSelectedTicket(res.data.data);
+      setReplies(res.data.data.replies || []);
+    } catch (error) {
+      toast.error("Error loading conversation");
     }
   };
-
-  // Real-time polling for new replies when a ticket is selected
-  useEffect(() => {
-    let interval: any;
-    if (selectedTicket) {
-      interval = setInterval(() => {
-        fetchTicketDetails(selectedTicket.id);
-      }, 5000); // Poll every 5 seconds
-    }
-    return () => clearInterval(interval);
-  }, [selectedTicket?.id]);
 
   const handleUpdateTicket = async (updates: any) => {
     if (!selectedTicket) return;
     try {
-      const response = await api.patch(`/support/admin/tickets/${selectedTicket.id}`, updates);
-      if (response.data.success) {
-        toast.success("Ticket updated successfully");
-        fetchData();
-        fetchTicketDetails(selectedTicket.id);
-      }
-    } catch (err) {
-      toast.error("Update failed");
+      await api.patch(`/api/support/admin/tickets/${selectedTicket.id}`, updates);
+      toast.success("Ticket updated successfully");
+      fetchData();
+      fetchTicketDetails(selectedTicket.id);
+    } catch (error) {
+      toast.error("Failed to update ticket");
     }
   };
 
   const handleSendReply = async () => {
     if (!newMessage.trim() || !selectedTicket) return;
     try {
-      const response = await api.post(`/support/tickets/${selectedTicket.id}/replies`, {
-        message: newMessage
-      });
-      if (response.data.success) {
-        setNewMessage("");
-        fetchTicketDetails(selectedTicket.id);
-      }
-    } catch (err) {
-      toast.error("Failed to send reply");
-    }
-  };
-
-  const generateMeetLink = () => {
-    const randomId = Math.random().toString(36).substring(2, 5) + "-" + 
-                     Math.random().toString(36).substring(2, 6) + "-" + 
-                     Math.random().toString(36).substring(2, 5);
-    const link = `https://meet.google.com/${randomId}`;
-    setNewMessage(prev => prev + `\n\nI have generated a support meeting link for you: ${link}`);
-    toast.success("Meet link generated and added to message!");
-  };
-
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "open": return <Badge className="bg-red-100 text-red-700 border-red-200">New / Open</Badge>;
-      case "pending": return <Badge className="bg-amber-100 text-amber-700 border-amber-200">In Progress</Badge>;
-      case "resolved": return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Resolved</Badge>;
-      case "closed": return <Badge variant="outline">Closed</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      await api.post(`/api/support/tickets/${selectedTicket.id}/replies`, { message: newMessage });
+      setNewMessage("");
+      fetchTicketDetails(selectedTicket.id);
+      toast.success("Reply sent");
+    } catch (error) {
+      toast.error("Failed to send message");
     }
   };
 
   const filteredTickets = tickets.filter(t => {
-      if (filter === 'all') return true;
-      if (filter === 'open') return t.status === 'open';
-      if (filter === 'mine') return t.assigned_to === selectedTicket?.assigned_to; // Needs fix but okay for now
-      return true;
+    if (filter === "all") return true;
+    return t.status === filter;
   });
 
+  const stats = {
+    total: tickets.length,
+    open: tickets.filter(t => t.status === 'open').length,
+    resolved: tickets.filter(t => t.status === 'resolved').length
+  };
+
+  if (loading) return <div className="p-8 text-center font-black animate-pulse uppercase tracking-widest text-slate-400">Initializing Command Center...</div>;
+
   return (
-    <div className="space-y-6 h-[calc(100vh-140px)]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-black tracking-tighter flex items-center gap-3">
-             <LifeBuoy className="h-8 w-8 text-primary" />
-             TICKET COMMAND CENTER
-          </h1>
-          <p className="text-muted-foreground font-medium">Manage user queries and assign support engineers.</p>
-        </div>
-        <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={fetchData} className="gap-2">
-                <Clock className="h-4 w-4" /> Refresh
-            </Button>
-            <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter Status" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">All Tickets</SelectItem>
-                    <SelectItem value="open">Open Only</SelectItem>
-                    <SelectItem value="resolved">Resolved Only</SelectItem>
-                </SelectContent>
-            </Select>
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 dark:bg-black/10 overflow-hidden">
+      
+      {/* 🚀 Header Area with Stats */}
+      <div className="p-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-10">
+        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div>
+                <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                    <LifeBuoy className="h-7 w-7 text-primary" /> Support Command Center
+                </h1>
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">Real-time Resolution Pipeline</p>
+            </div>
+
+            <div className="flex items-center gap-4 w-full lg:w-auto">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                   {[
+                       { id: 'all', label: 'All', icon: ListFilter },
+                       { id: 'open', label: 'Open', icon: Activity },
+                       { id: 'resolved', label: 'Closed', icon: CheckCircle }
+                   ].map((f) => (
+                       <button 
+                         key={f.id}
+                         onClick={() => setFilter(f.id)}
+                         className={cn(
+                           "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                           filter === f.id ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
+                         )}
+                       >
+                           <f.icon className="h-3.5 w-3.5" /> {f.label}
+                       </button>
+                   ))}
+                </div>
+                
+                <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 hidden lg:block" />
+
+                <div className="flex gap-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Pending</span>
+                        <span className="text-xl font-black text-rose-500">{stats.open}</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Success</span>
+                        <span className="text-xl font-black text-emerald-500">{stats.resolved}</span>
+                    </div>
+                </div>
+                
+                <Button onClick={fetchData} size="sm" variant="outline" className="rounded-xl border-2 h-10 font-bold"><Clock className="h-4 w-4 mr-2" /> Sync</Button>
+            </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6 h-full overflow-hidden">
-        {/* LEFT: Ticket Queue */}
-        <Card className="col-span-4 flex flex-col shadow-xl overflow-hidden border-none bg-slate-50/30 dark:bg-slate-900/10">
-          <CardHeader className="p-4 border-b bg-background/50">
-             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search ticket ID or User..." className="pl-10 h-11" />
-             </div>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto p-0">
-             {loading ? (
-                <div className="p-12 text-center space-y-4">
-                   <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-                   <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Scanning Queue...</p>
+      {/* 🧩 Container Shell */}
+      <div className="flex-1 flex overflow-hidden max-w-[1600px] mx-auto w-full">
+         
+         {/* 📋 Left Sidebar: Ticket List */}
+         <div className="w-full lg:w-[400px] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input 
+                        placeholder="Search tickets..." 
+                        className="h-11 pl-11 rounded-xl bg-slate-50 dark:bg-slate-800 border-none font-bold text-sm" 
+                    />
                 </div>
-             ) : filteredTickets.length === 0 ? (
-                <div className="p-12 text-center">
-                   <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-4 opacity-20" />
-                   <p className="font-bold text-muted-foreground">Queue Clear!</p>
-                </div>
-             ) : (
-                <div className="divide-y divide-slate-200/50 dark:divide-slate-700/30">
-                   {filteredTickets.map(t => (
-                     <div 
-                        key={t.id}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                {filteredTickets.map(t => (
+                    <div 
+                        key={t.id} 
                         onClick={() => fetchTicketDetails(t.id)}
                         className={cn(
-                            "p-4 cursor-pointer hover:bg-white dark:hover:bg-slate-800 transition-all border-l-4",
-                            selectedTicket?.id === t.id ? "bg-white dark:bg-slate-800 border-primary shadow-md" : "border-transparent"
+                            "group p-5 rounded-2xl border-2 transition-all cursor-pointer",
+                            selectedTicket?.id === t.id 
+                                ? "bg-white dark:bg-slate-800 border-primary shadow-xl ring-4 ring-primary/5 scale-[1.02]" 
+                                : "bg-transparent border-transparent hover:bg-white dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
                         )}
-                     >
-                        <div className="flex items-center justify-between mb-2">
-                           <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{t.category}</span>
-                           {getStatusBadge(t.status)}
+                    >
+                        <div className="flex justify-between items-start mb-4">
+                            <Badge className={cn(
+                                "text-[8px] font-black px-2 py-1 uppercase rounded-md tracking-widest",
+                                t.priority === 'urgent' ? "bg-rose-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
+                            )}>{t.priority}</Badge>
+                            <span className="text-[10px] font-black text-slate-300">#{t.id}</span>
                         </div>
-                        <h4 className="font-bold text-sm line-clamp-1 mb-1">{t.subject}</h4>
-                        <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground opacity-70">
-                            <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {t.company || t.user_name}</span>
-                            <span>#{t.id}</span>
+                        <h4 className="font-black text-slate-800 dark:text-slate-100 mb-2 leading-tight line-clamp-2">{t.subject}</h4>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black">{t.user_name?.charAt(0)}</div>
+                                <span className="text-[11px] font-bold text-slate-500">{t.user_name}</span>
+                            </div>
+                            <span className="text-[10px] font-black text-slate-300 uppercase">{format(new Date(t.created_at), 'MMM dd')}</span>
                         </div>
-                        {t.assigned_to_name && (
-                            <div className="mt-2 flex items-center gap-1.5 text-[10px] text-primary font-bold">
-                                <Users className="h-3 w-3" /> Assigned: {t.assigned_to_name.split(' ')[0]}
+                    </div>
+                ))}
+            </div>
+         </div>
+
+         {/* 💬 Right Pane: Conversational Detail */}
+         <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-transparent overflow-hidden">
+            {selectedTicket ? (
+                <>
+                   {/* 🏷️ Detail Strip */}
+                   <div className="p-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex flex-col xl:flex-row justify-between gap-8">
+                         <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-4 mb-4">
+                                <Badge className="bg-slate-900 text-white uppercase text-[10px] font-black px-4 py-1 rounded-lg">Documentation</Badge>
+                                <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">ID: {selectedTicket.id}</span>
                             </div>
-                        )}
-                     </div>
-                   ))}
-                </div>
-             )}
-          </CardContent>
-        </Card>
-
-        {/* RIGHT: Management & Conversation */}
-        <div className="col-span-8 grid grid-rows-12 gap-6 h-full overflow-hidden">
-           {selectedTicket ? (
-             <>
-               {/* Ticket Meta Controls */}
-                <Card className="shadow-2xl border-none bg-background mb-8 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
-                   <CardContent className="p-0">
-                      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800">
-                         {/* Details Section */}
-                         <div className="flex-1 p-7 space-y-6">
-                            <div className="flex items-center gap-4">
-                               <Badge className={cn(
-                                   "uppercase text-[10px] font-black px-3 py-1.5 rounded-lg tracking-widest shadow-sm",
-                                   selectedTicket.priority === 'urgent' ? "bg-rose-500 text-white animate-pulse" : "bg-slate-800 text-white"
-                               )}>{selectedTicket.priority} Priority</Badge>
-                               <div className="h-6 w-px bg-slate-200 dark:bg-slate-800" />
-                               <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em]">Ticket #{selectedTicket.id}</span>
-                            </div>
-
-                            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{selectedTicket.subject}</h2>
-
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-8 pt-4">
-                               <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Client Name</p>
-                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><UserCircle className="h-4 w-4 text-primary" /> {selectedTicket.user_name}</p>
-                               </div>
-                               <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Email Identity</p>
-                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> {selectedTicket.user_email}</p>
-                               </div>
-                               <div className="space-y-1">
-                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Unique ID</p>
-                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><Terminal className="h-4 w-4 text-primary" /> {selectedTicket.user_id}</p>
-                               </div>
+                            <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-[1.1] mb-6">
+                                {selectedTicket.subject}
+                            </h2>
+                            <div className="flex flex-wrap gap-6 mt-6">
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Contact Person</span>
+                                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                        <UserCircle className="h-4 w-4 text-primary" /> {selectedTicket.user_name} (UID: {selectedTicket.user_id})
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Registered Email</span>
+                                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                        <Mail className="h-4 w-4 text-primary" /> {selectedTicket.user_email}
+                                    </span>
+                                </div>
                             </div>
                          </div>
 
-                         {/* Actions Section */}
-                         <div className="lg:w-80 p-7 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col justify-center gap-5">
-                            <div className="space-y-2">
-                               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Lifecycle Status</Label>
-                               <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
-                                   <SelectTrigger className="h-11 bg-white border-2 border-slate-200 font-bold text-slate-700">
-                                       <SelectValue />
-                                   </SelectTrigger>
-                                   <SelectContent>
-                                       <SelectItem value="open" className="font-bold">🔴 New / Open</SelectItem>
-                                       <SelectItem value="pending" className="font-bold">🟠 In Progress</SelectItem>
-                                       <SelectItem value="resolved" className="font-bold">🟢 Resolved</SelectItem>
-                                       <SelectItem value="closed" className="font-bold">⚫ Closed</SelectItem>
-                                   </SelectContent>
-                               </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Assigned Agent</Label>
-                               <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
-                                   <SelectTrigger className="h-11 bg-emerald-50/50 border-2 border-emerald-500/20 font-bold text-emerald-700">
-                                       <SelectValue placeholder="Select Agent" />
-                                   </SelectTrigger>
-                                   <SelectContent>
-                                       <SelectItem value="unassigned">No Agent Assigned</SelectItem>
-                                       {staff.map(u => (
-                                           <SelectItem key={u.id} value={String(u.id)} className="font-bold">{u.name}</SelectItem>
-                                       ))}
-                                   </SelectContent>
-                               </Select>
-                            </div>
+                         <div className="flex flex-col gap-4 min-w-[280px]">
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lifecycle</Label>
+                                    <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
+                                        <SelectTrigger className="h-11 bg-white border-2 font-bold text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {['open', 'pending', 'resolved', 'closed'].map(s => <SelectItem key={s} value={s}>{s.toUpperCase()}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agent</Label>
+                                    <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
+                                        <SelectTrigger className="h-11 bg-emerald-50 border-emerald-500/20 text-emerald-700 font-bold text-xs uppercase">
+                                            <SelectValue placeholder="staff" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unassigned">NONE</SelectItem>
+                                            {staff.map(st => <SelectItem key={st.id} value={String(st.id)}>{st.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                             </div>
+                             <Button variant="outline" className="w-full h-11 border-2 font-black uppercase text-[10px] tracking-widest rounded-xl">
+                                <Activity className="h-4 w-4 mr-2" /> View Client Activity Logs
+                             </Button>
                          </div>
                       </div>
-                   </CardContent>
-                </Card>
+                   </div>
 
-
-
-
-
-               {/* Conversation & Reply */}
-               <Card className="row-span-9 flex flex-col shadow-2xl border-none overflow-hidden h-full">
-                  <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-transparent">
-                      <div className="space-y-8">
-                         {/* Description */}
-                          <div className="p-4 bg-muted/40 rounded-xl border-l-4 border-muted text-muted-foreground">
-                            <div className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-wider">
-                               <AlertCircle className="h-3 w-3" /> Original Issue Description
+                   {/* 🌊 Thread View */}
+                   <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
+                      
+                      {/* 🚩 The Original Case Description */}
+                      <div className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                         <div className="absolute top-0 right-0 p-6">
+                            <Badge variant="outline" className="uppercase text-[9px] font-black">Issue Statement</Badge>
+                         </div>
+                         <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-lg">
+                                {selectedTicket.user_name?.charAt(0)}
                             </div>
-                            <p className="text-sm whitespace-pre-wrap mb-4">{selectedTicket.description}</p>
-                            
-                            {/* Render Attachments if any */}
-                            {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
-                                <div className="mt-4 pt-4 border-t border-muted/20">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest mb-2">Attached Screenshots ({selectedTicket.attachments.length})</p>
-                                    <div className="flex flex-wrap gap-4">
-                                        {selectedTicket.attachments.map((file: any) => {
-                                            const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-                                            let path = file.file_url;
-                                            // Fix for legacy records missing /api/ prefix
-                                            if (!path.startsWith('http') && !path.startsWith('/api/')) {
-                                                path = `/api${path}`;
-                                            }
-                                            const fullUrl = path.startsWith('http') ? path : `${baseUrl}${path}`;
-                                            return (
-                                                <a 
-                                                    key={file.id} 
-                                                    href={fullUrl} 
-                                                    target="_blank" 
-                                                    rel="noreferrer"
-                                                    className="block group relative"
-                                                >
-                                                    <img 
-                                                        src={fullUrl} 
-                                                        alt="attachment" 
-                                                        className="w-48 h-48 object-cover rounded-xl border-2 border-white dark:border-slate-800 shadow-lg group-hover:scale-[1.03] transition-transform duration-300"
-                                                    />
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl">
-                                                        <ExternalLink className="h-6 w-6 text-white" />
-                                                    </div>
-                                                </a>
-                                            );
-                                        })}
-                                    </div>
+                            <div>
+                                <p className="text-lg font-black text-slate-900 dark:text-white leading-none mb-1">{selectedTicket.user_name}</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reported on {format(new Date(selectedTicket.created_at), 'PPPp')}</p>
+                            </div>
+                         </div>
+                         <div className="relative">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full opacity-20" />
+                            <p className="text-xl font-bold text-slate-700 dark:text-slate-300 pl-8 leading-relaxed">
+                               {selectedTicket.description}
+                            </p>
+                         </div>
 
-
-
+                         {/* 🖇️ Visual Attachments */}
+                         {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                            <div className="mt-10 pt-10 border-t-2 border-slate-50 dark:border-slate-900">
+                                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 block">Evidence Documentation ({selectedTicket.attachments.length})</Label>
+                                <div className="flex flex-wrap gap-6">
+                                    {selectedTicket.attachments.map((file: any) => {
+                                        const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+                                        let path = file.file_url;
+                                        if (!path.startsWith('http') && !path.startsWith('/api/')) path = `/api${path}`;
+                                        const fullUrl = path.startsWith('http') ? path : `${baseUrl}${path}`;
+                                        return (
+                                            <a key={file.id} href={fullUrl} target="_blank" rel="noreferrer" className="group rounded-2xl overflow-hidden border-[3px] border-white dark:border-slate-700 shadow-xl block w-64 aspect-video relative">
+                                                <img src={fullUrl} alt="attach" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                                                    <Eye className="h-8 w-8 text-white scale-75 group-hover:scale-100 transition-transform" />
+                                                </div>
+                                            </a>
+                                        );
+                                    })}
                                 </div>
-                            )}
-                          </div>
+                            </div>
+                         )}
+                      </div>
 
-
-                         {replies.map(reply => (
-                            <div key={reply.id} className={cn("flex gap-3", reply.is_admin_reply ? "flex-row-reverse" : "")}>
-                                <div className={cn(
-                                    "w-9 h-9 rounded-full flex items-center justify-center shrink-0 border font-bold text-sm",
-                                    reply.is_admin_reply ? "bg-primary text-white border-primary" : "bg-white text-muted-foreground border-muted-foreground/20"
-                                )}>
-                                    {reply.sender_name[0].toUpperCase()}
-                                </div>
-                                <div className={cn("space-y-1.5 max-w-[80%]", reply.is_admin_reply ? "items-end text-right" : "")}>
+                      {/* 🔄 Timeline Replies */}
+                      <div className="space-y-8 relative pl-6">
+                        <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10" />
+                        {replies.map(r => (
+                           <div key={r.id} className={cn("flex gap-8", r.user_role === 'admin' ? "flex-row-reverse" : "")}>
+                               <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center font-black flex-shrink-0 z-10 shadow-md border-4 border-slate-50 dark:border-slate-900">
+                                    {r.user_name?.charAt(0)}
+                               </div>
+                               <div className={cn("max-w-[80%] space-y-2", r.user_role === 'admin' ? "items-end text-right" : "")}>
                                    <div className={cn(
-                                       "p-4 rounded-2xl shadow-sm text-sm leading-relaxed",
-                                       reply.is_admin_reply ? "bg-primary text-white rounded-tr-none" : "bg-white border rounded-tl-none"
+                                       "p-7 rounded-[28px] font-bold text-sm leading-relaxed shadow-sm",
+                                       r.user_role === 'admin' ? "bg-primary text-white" : "bg-white dark:bg-slate-800 border"
                                    )}>
-                                      {reply.message}
+                                       {r.message}
                                    </div>
-                                   <span className="text-[10px] text-muted-foreground font-bold px-1">{format(new Date(reply.created_at), 'MMM d, p')}</span>
-                                </div>
-                            </div>
-                         ))}
+                                   <p className="text-[9px] font-black text-slate-400 tracking-widest uppercase px-2">
+                                       Replied by {r.user_name} • {format(new Date(r.created_at), 'p')}
+                                   </p>
+                               </div>
+                           </div>
+                        ))}
                       </div>
-                  </div>
+                   </div>
 
-                  <div className="p-4 bg-background border-t space-y-4">
-                     <div className="relative">
+                   {/* ✍️ Action Bar */}
+                   <div className="p-8 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 shadow-[0_-15px_40px_rgba(0,0,0,0.03)]">
+                      <div className="flex gap-6 max-w-[1200px] mx-auto">
                         <Textarea 
-                           placeholder="Type your official response..." 
-                           className="min-h-[120px] rounded-xl border-2 focus-visible:ring-primary hocus:border-primary transition-all p-4 text-sm"
-                           value={newMessage}
-                           onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Draft your professional response... (CTRL + ENTER to broadcast)" 
+                            className="flex-1 rounded-[24px] border-2 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 p-8 min-h-[100px] font-bold text-base focus-visible:ring-primary/50 transition-all shadow-inner"
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyDown={(e) => e.ctrlKey && e.key === 'Enter' && handleSendReply()}
                         />
-                        <div className="absolute right-4 bottom-4 flex items-center gap-3">
-                           <Button 
-                              className="gap-2 px-6 shadow-lg shadow-primary/20" 
-                              onClick={handleSendReply}
-                              disabled={!newMessage.trim()}
-                           >
-                              <ShieldCheck className="h-4 w-4" /> Send Response
-                           </Button>
-                        </div>
-                     </div>
-                     <div className="flex items-center justify-between px-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                        <span>Ctrl + Enter to send fast</span>
-                        <div className="flex gap-4">
-                           <button className="hover:text-primary transition-colors">Attach Logs</button>
-                           <button className="hover:text-primary transition-colors">Shared Docs</button>
-                            <button 
-                              className="hover:text-primary transition-colors text-blue-500 flex items-center gap-1"
-                              onClick={generateMeetLink}
-                            >
-                                Generate Meet Link <ExternalLink className="h-3 w-3" />
-                            </button>
-
-                        </div>
-                     </div>
-                  </div>
-               </Card>
-             </>
-           ) : (
-             <div className="col-span-12 h-full flex flex-col items-center justify-center text-center p-20 grayscale opacity-40">
-                <LifeBuoy className="h-24 w-24 mb-6" />
-                <h2 className="text-3xl font-black italic tracking-tighter uppercase">No Ticket Selected</h2>
-                <p className="text-lg font-medium max-w-sm uppercase tracking-wider">Select a conversation from the left queue to begin processing support tasks.</p>
-             </div>
-           )}
-        </div>
+                        <Button 
+                            className="h-auto px-10 rounded-[28px] font-black uppercase text-xs tracking-[0.2em] flex flex-col gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95"
+                            onClick={handleSendReply}
+                        >
+                            <Send className="h-6 w-6" /> POST REPLY
+                        </Button>
+                      </div>
+                   </div>
+                </>
+            ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-white/50 dark:bg-transparent rounded-[40px] m-12 border-4 border-dashed border-slate-200 dark:border-slate-800">
+                    <div className="w-32 h-32 bg-slate-100 dark:bg-slate-800 rounded-[48px] flex items-center justify-center mb-10 rotate-12 transition-all hover:rotate-0 hover:scale-110 shadow-2xl">
+                        <ShieldCheck className="h-16 w-16 text-slate-400" />
+                    </div>
+                    <h3 className="text-4xl font-black text-slate-900 dark:text-white mb-4 italic tracking-tight">System Ready.</h3>
+                    <p className="text-slate-400 font-bold max-w-sm text-lg leading-relaxed">Select an active ticket from the sidebar to engage. Your response is critical to our SLAs.</p>
+                </div>
+            )}
+         </div>
       </div>
     </div>
   );
