@@ -103,6 +103,12 @@ async function updateSchema() {
             console.log('reseller_id already exists in users table.');
         }
 
+        // Add department column if missing
+        if (!userCols.some(col => col.Field === 'department')) {
+            console.log('Adding department column to users table...');
+            await connection.execute('ALTER TABLE users ADD COLUMN department VARCHAR(100) DEFAULT NULL');
+        }
+
         // 1.1 Add api_key to users if it doesn't exist
         const hasApiKey = userCols.some(col => col.Field === 'api_key');
         if (!hasApiKey) {
