@@ -47,9 +47,10 @@ export default function SuperAdminSupport() {
       if (ticketRes.data.success) setTickets(ticketRes.data.tickets);
       if (staffRes.data.success) {
           // Filter users who can handle support (Admin, Staff, Superadmin)
-          const supportStaff = staffRes.data.users.filter((u: any) => 
-            ['admin', 'superadmin', 'staff'].includes(u.role)
-          );
+          const supportStaff = staffRes.data.users.filter((u: any) => {
+            const role = (u.role || "").toLowerCase();
+            return ['admin', 'superadmin', 'staff'].includes(role);
+          });
           setStaff(supportStaff);
       }
     } catch (err) {
