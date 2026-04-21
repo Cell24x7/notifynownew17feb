@@ -49,57 +49,48 @@ export default function SupportChatWidget() {
     setIsTyping(true);
 
     try {
-        // --- 🤖 AI BOT LOGIC: Persona-driven Conversations ---
         const lowerInput = queryTerm.toLowerCase();
         
-        // 1. Handling Greetings
-        if (lowerInput.match(/^(hi|hello|hey|hola|good morning|good evening)/)) {
+        // 1. Handling Greetings & Politeness
+        if (lowerInput.match(/^(hi|hello|hey|hola|namaste)/)) {
             setTimeout(() => {
                 setIsTyping(false);
                 setMessages(prev => [...prev, { 
                     id: Date.now().toString(), 
                     sender: 'bot', 
-                    text: "Hi there! 👋 Welcome to Notify Support. I'm here to help you solve your technical issues instantly. What's on your mind? (API issues, WhatsApp connectivity, Billing?)" 
+                    text: "Hello! 👋 I'm Notify Assistant. How can I help you today with your API, WhatsApp, or Campaigns?" 
                 }]);
-            }, 800);
+            }, 600);
             return;
         }
 
-        // 2. Search & Summarize (GPT Style)
-        const res = await api.get(`/knowledge/articles?search=${encodeURIComponent(queryTerm)}`);
-        const articles = res.data.articles || [];
+        if (lowerInput.match(/^(thanks|thank you|shukriya|solved|done)/)) {
+            setTimeout(() => {
+                setIsTyping(false);
+                setMessages(prev => [...prev, { id: 'bot-bye', sender: 'bot', text: "You're very welcome! 😊 Reach out anytime." }]);
+            }, 600);
+            return;
+        }
 
-        setTimeout(async () => {
+        // 2. Call Intelligent AI Brain
+        const res = await api.post('/knowledge/ai/chat', { message: queryTerm });
+        
+        setTimeout(() => {
             setIsTyping(false);
-            if (articles.length > 0) {
-                const topArt = articles[0];
-                // Fetch full article to speak its content
-                try {
-                    const detailRes = await api.get(`/knowledge/articles/${topArt.slug}`);
-                    const fullContent = detailRes.data.article.content.replace(/<[^>]*>/g, '').substring(0, 300) + '...';
-                    
-                    setMessages(prev => [...prev, { 
-                        id: (Date.now()+1).toString(), 
-                        sender: 'bot', 
-                        text: `Based on our database for "${queryTerm}", here is what I found: \n\n"${fullContent}"\n\nYou can read the full guide below:`,
-                        type: 'suggestion',
-                        suggestions: [topArt]
-                    }]);
-                } catch (e) {
-                    setMessages(prev => [...prev, { id: 'err', sender: 'bot', text: "I found something but had trouble summarizing it. Check the link below!" }]);
-                }
-            } else {
+            if (res.data.success && res.data.reply) {
                 setMessages(prev => [...prev, { 
-                    id: (Date.now()+1).toString(), 
+                    id: Date.now().toString(), 
                     sender: 'bot', 
-                    text: `I've analyzed your query regarding "${queryTerm}" but I couldn't find a localized solution in our AI records. \n\nShould I connect you to our technical leadership team (Sandeep Yadav) directly?`
+                    text: res.data.reply
                 }]);
+            } else {
+                setMessages(prev => [...prev, { id: 'err', sender: 'bot', text: "I'm having a technical thought... please try asking again about 'API' or 'WhatsApp'!" }]);
             }
-        }, 1500);
+        }, 1000);
 
     } catch (e) {
         setIsTyping(false);
-        setMessages(prev => [...prev, { id: 'err', sender: 'bot', text: "Sorry, I'm having trouble connecting to the system." }]);
+        setMessages(prev => [...prev, { id: 'err', sender: 'bot', text: "Sorry, I am taking a short nap. Please try again in a minute!" }]);
     }
   };
 
