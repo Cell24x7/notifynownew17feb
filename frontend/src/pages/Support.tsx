@@ -33,6 +33,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useRef } from "react";
+
 
 export default function Support() {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -50,6 +53,9 @@ export default function Support() {
     priority: "medium",
     description: ""
   });
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const fetchTickets = async () => {
     try {
@@ -82,17 +88,32 @@ export default function Support() {
     }
 
     try {
-      const response = await api.post("/support/tickets", newTicket);
+      const formData = new FormData();
+      formData.append('subject', newTicket.subject);
+      formData.append('category', newTicket.category);
+      formData.append('priority', newTicket.priority);
+      formData.append('description', newTicket.description);
+      
+      attachments.forEach((file) => {
+        formData.append('attachments', file);
+      });
+
+      const response = await api.post("/support/tickets", formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
       if (response.data.success) {
         toast.success("Support ticket raised successfully!");
         setIsCreateOpen(false);
         setNewTicket({ subject: "", category: "General", priority: "medium", description: "" });
+        setAttachments([]);
         fetchTickets();
       }
     } catch (err) {
       toast.error("Failed to raise ticket");
     }
   };
+
 
   const handleSendReply = async () => {
     if (!newMessage.trim() || !selectedTicket) return;
@@ -204,10 +225,24 @@ export default function Support() {
                   onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
                 />
               </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-dashed text-sm text-muted-foreground cursor-pointer hover:bg-muted transition-colors">
+              <div 
+                className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-dashed text-sm text-muted-foreground cursor-pointer hover:bg-muted transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <ImageIcon className="h-4 w-4" />
-                <span>Click here to upload screenshots (Optional)</span>
+                <span>{attachments.length > 0 ? `${attachments.length} files selected` : "Click here to upload screenshots (Optional)"}</span>
               </div>
+              <input 
+                type="file" 
+                multiple 
+                hidden 
+                ref={fileInputRef} 
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files) setAttachments(Array.from(e.target.files));
+                }}
+              />
+
             </div>
             <DialogFooter>
               <Button variant="outline" className="h-11 px-6" onClick={() => setIsCreateOpen(false)}>Cancel</Button>

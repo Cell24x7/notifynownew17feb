@@ -3,15 +3,28 @@ const router = express.Router();
 const { query } = require('../config/db');
 const authenticate = require('../middleware/authMiddleware');
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { sendAdminNotification, sendEmail } = require('../utils/emailService');
+
 const { logSystem } = require('../utils/logger');
 
-// Setup Multer for screenshots (Memory storage for now, or disk)
-const storage = multer.memoryStorage();
+// Setup Multer for screenshots
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = 'uploads/support';
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `ticket-${Date.now()}-${file.originalname}`);
+    }
+});
 const upload = multer({ 
     storage: storage,
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
+
 
 /**
  * @route POST /api/support/tickets
@@ -33,12 +46,17 @@ router.post('/tickets', authenticate, upload.array('attachments'), async (req, r
         );
         const ticketId = result.insertId;
 
-        // 2. Handle Attachments (Simulated for now, would upload to S3/Local in real app)
+        // 2. Handle Attachments
         if (req.files && req.files.length > 0) {
-            // Logic to save files and insert into ticket_attachments
-            // For now, we'll log it
-            console.log(`📎 Ticket ${ticketId} has ${req.files.length} attachments`);
+            for (const file of req.files) {
+                await query(
+                    'INSERT INTO ticket_attachments (ticket_id, file_url, file_type, file_name) VALUES (?, ?, ?, ?)',
+                    [ticketId, `/uploads/support/${file.filename}`, file.mimetype, file.originalname]
+                );
+            }
+            console.log(`📎 Ticket ${ticketId} has ${req.files.length} attachments saved.`);
         }
+
 
         // 3. Notify Admins (Email & WhatsApp Integration)
         const [userRows] = await query('SELECT name, email, contact_phone, company FROM users WHERE id = ?', [userId]);
