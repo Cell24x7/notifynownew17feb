@@ -5,7 +5,8 @@ const ADMIN_EMAILS = [
   'vikas@cell24x7.in',
   'sd@cell24x7.com',
   'pillai@cell24x7.com',
-  'raghunath@cell24x7.com'
+  'raghunath@cell24x7.com',
+  'sandeep@cell24x7.in'
 ];
 
 /**

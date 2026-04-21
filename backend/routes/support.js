@@ -115,7 +115,9 @@ router.get('/tickets/:id', authenticate, async (req, res) => {
     try {
         const ticketId = req.params.id;
         const userId = req.user.id;
-        const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'staff';
+        const userRole = (req.user.role || '').toLowerCase();
+        const isAdmin = userRole === 'admin' || userRole === 'superadmin' || userRole === 'staff';
+
 
         const [tickets] = await query(
             `SELECT t.*, u.name as user_name, u.email as user_email, a.name as assistant_name 
@@ -152,7 +154,9 @@ router.post('/tickets/:id/replies', authenticate, async (req, res) => {
     const { message } = req.body;
     const ticketId = req.params.id;
     const userId = req.user.id;
-    const isAdmin = ['admin', 'superadmin', 'staff'].includes(req.user.role);
+    const userRole = (req.user.role || '').toLowerCase();
+    const isAdmin = ['admin', 'superadmin', 'staff'].includes(userRole);
+
 
     if (!message) return res.status(400).json({ success: false, message: 'Message required' });
 
@@ -176,9 +180,11 @@ router.post('/tickets/:id/replies', authenticate, async (req, res) => {
  * @desc Get all tickets (Admin/Staff only)
  */
 router.get('/admin/tickets', authenticate, async (req, res) => {
-    if (!['admin', 'superadmin', 'staff'].includes(req.user.role)) {
+    const userRole = (req.user.role || '').toLowerCase();
+    if (!['admin', 'superadmin', 'staff'].includes(userRole)) {
         return res.status(403).json({ success: false, message: 'Admin access required' });
     }
+
 
     try {
         const [rows] = await query(
@@ -199,9 +205,11 @@ router.get('/admin/tickets', authenticate, async (req, res) => {
  * @desc Update ticket status or assignment
  */
 router.patch('/admin/tickets/:id', authenticate, async (req, res) => {
-    if (!['admin', 'superadmin', 'staff'].includes(req.user.role)) {
+    const userRole = (req.user.role || '').toLowerCase();
+    if (!['admin', 'superadmin', 'staff'].includes(userRole)) {
         return res.status(403).json({ success: false, message: 'Admin access required' });
     }
+
 
     const { status, priority, assigned_to } = req.body;
     const ticketId = req.params.id;
