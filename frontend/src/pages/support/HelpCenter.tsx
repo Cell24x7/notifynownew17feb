@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import SupportChatWidget from "@/components/support/SupportChatWidget";
 
 interface Article {
   id: number;
@@ -132,7 +133,11 @@ export default function HelpCenter() {
 
                 <div className="space-y-4">
                    {popularArticles.map(art => (
-                     <div key={art.id} className="group p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-primary/20 transition-all cursor-pointer flex items-center justify-between">
+                     <Link 
+                       key={art.id} 
+                       to={`/support/help/${art.slug}`}
+                       className="group p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-primary/20 transition-all cursor-pointer flex items-center justify-between no-underline"
+                     >
                         <div className="flex items-center gap-4">
                            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
                               <Book className="h-5 w-5" />
@@ -146,7 +151,7 @@ export default function HelpCenter() {
                            </div>
                         </div>
                         <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-2" />
-                     </div>
+                     </Link>
                    ))}
                 </div>
             </div>
@@ -184,6 +189,7 @@ export default function HelpCenter() {
 
       </div>
 
+      <SupportChatWidget />
     </div>
   );
 }

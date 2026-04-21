@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
+import SupportChatWidget from "@/components/support/SupportChatWidget";
 
 
 export default function Support() {
@@ -538,6 +539,7 @@ export default function Support() {
           )}
         </div>
       </div>
+      <SupportChatWidget />
     </div>
   );
 }
