@@ -289,8 +289,8 @@ router.post('/send-campaign', authenticate, async (req, res) => {
       if (!campaignId) {
         campaignId = `CAMP${Date.now()}`;
         await query(
-          `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, template_type, recipient_count, sent_count, failed_count, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW())`,
+          `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, template_type, recipient_count, sent_count, failed_count, status, created_at, template_body, template_metadata, variable_mapping)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW(), ?, ?, ?)`,
           [
             campaignId,
             userId,
@@ -299,7 +299,10 @@ router.post('/send-campaign', authenticate, async (req, res) => {
             finalTemplate,
             finalTemplate,
             templateType,
-            contacts.length
+            contacts.length,
+            req.body.template_body || null,
+            req.body.template_metadata ? (typeof req.body.template_metadata === 'object' ? JSON.stringify(req.body.template_metadata) : req.body.template_metadata) : null,
+            req.body.variable_mapping ? (typeof req.body.variable_mapping === 'object' ? JSON.stringify(req.body.variable_mapping) : req.body.variable_mapping) : '{}'
           ]
         );
         console.log(`✅ Created new Dotgo campaign ${campaignId} for ${contacts.length} contacts (Type: ${templateType})`);
@@ -309,18 +312,19 @@ router.post('/send-campaign', authenticate, async (req, res) => {
 
       // Prepare queue items
       const values = contacts.map(c => {
-        const mobile = typeof c === 'object' ? (c.mobile || c.phone) : c;
+        const mobile = typeof c === 'object' ? (c.mobile || c.phone || c.to) : c;
         if (!mobile) return null;
         const cleanMobile = mobile.replace(/\D/g, '');
-        return [campaignId, userId, cleanMobile, 'pending'];
+        const vars = typeof c === 'object' ? (c.variables || c) : {};
+        return [campaignId, userId, cleanMobile, JSON.stringify(vars), 'pending', 'rcs'];
       }).filter(Boolean);
 
       if (values.length > 0) {
         // SUPER-FAST INGESTION: Bulk insert with high throughput
         const BATCH_SIZE = 5000;
         for (let i = 0; i < values.length; i += BATCH_SIZE) {
-          const batch = values.slice(i, i + BATCH_SIZE).map(v => [...v, 'rcs']);
-          await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, status, channel) VALUES ?', [batch]);
+          const batch = values.slice(i, i + BATCH_SIZE);
+          await query('INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status, channel) VALUES ?', [batch]);
         }
         console.log(`🚀 [SuperFast] Ingested ${values.length} contacts for Dotgo campaign ${campaignId}`);
       }

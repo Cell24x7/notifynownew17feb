@@ -508,6 +508,10 @@ const getExternalTemplates = async (config) => {
       name: t.name || t.id,
       status: t.status || t.templateStatus,
       type: t.templateType || t.type,
+      textMessageContent: t.textMessageContent,
+      fallbackText: t.fallbackText,
+      standAlone: t.standAlone,
+      carouselList: t.carouselList,
       lastUpdate: t.lastUpdate || t.updatedAt
     }));
 

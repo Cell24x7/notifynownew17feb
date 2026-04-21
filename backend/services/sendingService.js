@@ -216,8 +216,38 @@ const sendUniversalMessage = async (item) => {
             if (item.template_name && item.template_name.length > 2) {
                 const body = item.template_body || '';
                 const metaStr = typeof item.template_metadata === 'string' ? item.template_metadata : JSON.stringify(item.template_metadata || {});
-                const customParams = getOrderedVariables(`${body} ${metaStr}`, resolvedVars);
+                let customParams = getOrderedVariables(`${body} ${metaStr}`, resolvedVars);
+
+                // 🔄 FALLBACK: If customParams is empty, try to grab any numeric variables ({{1}}, {{2}} style)
+                if (customParams.length === 0) {
+                    const numericKeys = Object.keys(resolvedVars)
+                        .filter(k => {
+                            const n = parseInt(k);
+                            return !isNaN(n) && n > 0 && n < 50;
+                        })
+                        .sort((a, b) => parseInt(a) - parseInt(b));
+
+                    if (numericKeys.length > 0) {
+                        const uniqueIndices = [...new Set(numericKeys.map(k => parseInt(k)))].sort((a, b) => a - b);
+                        customParams = uniqueIndices.map(idx => resolvedVars[idx] || resolvedVars[String(idx)]);
+                        console.log(`[RCS-DEBUG] (${item.mobile}) Falling back to numeric params: ${JSON.stringify(customParams)}`);
+                    }
+                }
+
                 processedMessage = body || `Template: ${item.template_name}`;
+                
+                // Reconstruct processedMessage for logging if we have variables
+                if (customParams.length > 0 && body) {
+                    let bodyText = body;
+                    customParams.forEach((val, i) => {
+                        const placeholder = `{{${i + 1}}}`;
+                        if (bodyText.includes(placeholder)) {
+                            bodyText = bodyText.split(placeholder).join(val || ' ');
+                        }
+                    });
+                    processedMessage = bodyText;
+                }
+
                 result = await sendRcsTemplate(item.mobile, item.template_name, rcsConfig, customParams);
             } else {
                 const body = item.template_body || '';
