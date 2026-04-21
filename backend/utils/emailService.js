@@ -2,8 +2,6 @@ const axios = require('axios');
 // Redundant dotenv call removed - handled by index.js
 
 const ADMIN_EMAILS = [
-  'vikas@cell24x7.in',
-  'sd@cell24x7.com',
   'pillai@cell24x7.com',
   'raghunath@cell24x7.com',
   'sandeep@cell24x7.in'
@@ -61,7 +59,7 @@ const sendEmail = async (to, subject, text, otp = null, template = process.env.E
     const logParams = { ...params, pwd: '****' };
     // console.log(`📧 [EMAIL] Request Params:`, JSON.stringify(logParams));
     // console.log(`📧 [EMAIL] API Response for ${to}:`, response.data);
-    
+
     return response.data;
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
@@ -139,11 +137,11 @@ const sendAdminNotification = async (user, type) => {
   } else if (type === 'TICKET_RAISED' || type === 'EDIT_REQUEST') {
     const isEdit = type === 'EDIT_REQUEST';
     subject = isEdit ? `[UPDATED] Support Ticket [#${user.ticket_id}]: ${user.subject}` : `[NEW TICKET] #${user.ticket_id}: ${user.subject}`;
-    
+
     // Build attachments HTML if any exist
     let attachmentsHtml = '';
     if (user.attachments && user.attachments.length > 0) {
-        attachmentsHtml = `
+      attachmentsHtml = `
             <div style="margin-top: 20px;">
                 <p style="font-size: 14px; font-weight: bold; color: #475569; margin-bottom: 10px;">📎 Attachments (${user.attachments.length}):</p>
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
@@ -220,9 +218,9 @@ const sendAdminNotification = async (user, type) => {
 
     // 🚀 WhatsApp Admin Notification
     try {
-        const { sendAdminWhatsAppNotification } = require('./whatsappUtils');
-        sendAdminWhatsAppNotification(`🔔 *${isEdit ? 'Ticket Modified' : 'New Ticket'}!* \n\n*ID:* #${user.ticket_id} \n*User:* ${user.name} \n*Subject:* ${user.subject} \n\nPlease visit the dashboard to respond.`, user.ticket_id);
-    } catch(e) {}
+      const { sendAdminWhatsAppNotification } = require('./whatsappUtils');
+      sendAdminWhatsAppNotification(`🔔 *${isEdit ? 'Ticket Modified' : 'New Ticket'}!* \n\n*ID:* #${user.ticket_id} \n*User:* ${user.name} \n*Subject:* ${user.subject} \n\nPlease visit the dashboard to respond.`, user.ticket_id);
+    } catch (e) { }
   }
 
   // console.log(`🔔 Sending ${type} notification to admins...`);
