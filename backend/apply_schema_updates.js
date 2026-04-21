@@ -50,10 +50,25 @@ async function updateSchema() {
         const hasIsApiAllowed = userCols.some(col => col.Field === 'is_api_allowed');
         if (!hasIsApiAllowed) {
             console.log('Adding is_api_allowed to users table...');
-            await connection.execute('ALTER TABLE users ADD COLUMN is_api_allowed BOOLEAN DEFAULT FALSE');
+            try {
+                await connection.execute('ALTER TABLE users ADD COLUMN is_api_allowed BOOLEAN DEFAULT FALSE');
+            } catch (e) {
+                if (e.code !== 'ER_DUP_COLUMN_NAME') throw e;
+                console.log('is_api_allowed already exists (detected via error).');
+            }
         } else {
             console.log('is_api_allowed already exists in users table.');
         }
+
+        // 1.3 Add department to users if it doesn't exist
+        const hasDepartment = userCols.some(col => col.Field === 'department');
+        if (!hasDepartment) {
+            console.log('Adding department to users table...');
+            await connection.execute('ALTER TABLE users ADD COLUMN department VARCHAR(100) DEFAULT "Support" AFTER role');
+        } else {
+            console.log('department already exists in users table.');
+        }
+
 
         // 2. Add branding columns to resellers if they don't exist
         const [resellerCols] = await connection.execute('DESCRIBE resellers');

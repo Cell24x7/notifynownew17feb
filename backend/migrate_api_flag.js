@@ -16,7 +16,7 @@ async function migrate() {
         console.log('✅ Success: is_api_allowed column added.');
         process.exit(0);
     } catch (err) {
-        if (err.code === 'ER_DUP_COLUMN_NAME') {
+        if (err.code === 'ER_DUP_COLUMN_NAME' || err.message.includes('Duplicate column name')) {
             console.log('ℹ️ Column already exists, skipping.');
             process.exit(0);
         }
