@@ -12,10 +12,11 @@ const { logSystem } = require('../utils/logger');
 // Setup Multer for screenshots
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = 'uploads/support';
+        const dir = path.join(process.cwd(), 'backend', 'uploads', 'support');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
+
     filename: (req, file, cb) => {
         cb(null, `ticket-${Date.now()}-${file.originalname}`);
     }

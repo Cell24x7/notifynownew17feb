@@ -235,58 +235,74 @@ export default function SuperAdminSupport() {
            {selectedTicket ? (
              <>
                {/* Ticket Meta Controls */}
-                <Card className="shadow-lg border-none bg-card mb-4 overflow-hidden">
-                   <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                         <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-3">
-                               <Badge className={cn(
-                                   "uppercase text-[9px] font-bold px-2 py-0.5",
-                                   selectedTicket.priority === 'urgent' ? "bg-red-500" : "bg-primary"
-                               )}>{selectedTicket.priority}</Badge>
-                               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">#{selectedTicket.id}</span>
-                            </div>
-                            <h2 className="text-xl font-bold text-foreground">{selectedTicket.subject}</h2>
-                            <div className="flex items-center gap-4 text-xs font-semibold text-muted-foreground">
-                               <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {selectedTicket.user_name}</span>
-                               <span className="flex items-center gap-1.5"><MessageCircle className="h-3.5 w-3.5" /> {selectedTicket.user_email}</span>
-                            </div>
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 mb-6 shadow-sm">
+                   <div className="flex flex-wrap items-center justify-between gap-6">
+                      <div className="space-y-4 flex-1">
+                         <div className="flex items-center gap-3 flex-wrap">
+                            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black px-3 py-1">#{selectedTicket.id}</Badge>
+                            <Badge className={cn(
+                               "uppercase text-[10px] font-black px-3 py-1",
+                               selectedTicket.priority === 'urgent' ? "bg-red-500" : "bg-slate-500"
+                            )}>{selectedTicket.priority} Priority</Badge>
+                            {selectedTicket.status && getStatusBadge(selectedTicket.status)}
                          </div>
-
-                         <div className="flex items-center gap-3">
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Status</Label>
-                                <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
-                                    <SelectTrigger className="w-[140px] h-9 text-xs">
-                                        <SelectValue placeholder="Status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="open">Open</SelectItem>
-                                        <SelectItem value="pending">In Progress</SelectItem>
-                                        <SelectItem value="resolved">Resolved</SelectItem>
-                                        <SelectItem value="closed">Closed</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Assigned To</Label>
-                                <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
-                                    <SelectTrigger className="w-[160px] h-9 text-xs text-primary border-primary/20">
-                                        <SelectValue placeholder="Assign To..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                                        {staff.map(u => (
-                                            <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                         
+                         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{selectedTicket.subject}</h2>
+                         
+                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 py-4 border-t border-slate-100 dark:border-slate-800">
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">User Name</span>
+                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedTicket.user_name}</span>
+                             </div>
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Email Address</span>
+                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedTicket.user_email}</span>
+                             </div>
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">User ID</span>
+                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedTicket.user_id}</span>
+                             </div>
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Created Date</span>
+                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(selectedTicket.created_at).toLocaleDateString()}</span>
+                             </div>
                          </div>
                       </div>
-                   </CardContent>
-                </Card>
+
+                      <div className="flex flex-col gap-4 border-l pl-8 border-slate-100 dark:border-slate-800 min-w-[200px]">
+                          <div className="space-y-1.5">
+                             <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Update status</Label>
+                             <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
+                                 <SelectTrigger className="w-full h-9 text-xs font-bold shadow-none border-slate-200">
+                                     <SelectValue />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                     <SelectItem value="open">Open</SelectItem>
+                                     <SelectItem value="pending">In Progress</SelectItem>
+                                     <SelectItem value="resolved">Resolved</SelectItem>
+                                     <SelectItem value="closed">Closed</SelectItem>
+                                 </SelectContent>
+                             </Select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                             <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Assign staff</Label>
+                             <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
+                                 <SelectTrigger className="w-full h-9 text-xs font-bold border-emerald-500/20 text-emerald-600 bg-emerald-50/10">
+                                     <SelectValue />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                     <SelectItem value="unassigned">Unassigned</SelectItem>
+                                     {staff.map(u => (
+                                         <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                     ))}
+                                 </SelectContent>
+                             </Select>
+                          </div>
+                      </div>
+                   </div>
+                </div>
+
 
 
 
