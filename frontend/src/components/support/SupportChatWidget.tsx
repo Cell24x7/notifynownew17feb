@@ -99,13 +99,16 @@ export default function SupportChatWidget() {
       
       {/* 🟢 Launcher Button */}
       {!isOpen && (
-        <Button 
+        <button 
            onClick={() => setIsOpen(true)}
-           className="h-16 w-16 rounded-full shadow-2xl shadow-primary/40 bg-primary hover:bg-primary/90 flex items-center justify-center p-0 transition-transform hover:scale-110 active:scale-95"
+           className="h-16 w-16 rounded-full shadow-[0_10px_40px_-10px_rgba(99,102,241,0.5)] bg-primary hover:bg-primary/90 flex items-center justify-center p-0 transition-all hover:scale-105 active:scale-95 relative border-4 border-white dark:border-slate-800"
         >
-           <MessageCircle className="h-8 w-8 text-white" />
-           <Badge className="absolute -top-1 -right-1 bg-emerald-500 border-2 border-white animate-pulse">Online</Badge>
-        </Button>
+           <MessageCircle className="h-7 w-7 text-white" />
+           <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+              ONLINE
+           </div>
+        </button>
       )}
 
       {/* 💬 Chat Window */}
