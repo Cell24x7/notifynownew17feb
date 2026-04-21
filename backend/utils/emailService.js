@@ -134,14 +134,20 @@ const sendAdminNotification = async (user, type) => {
       Channel Config Enabled: ${user.channels_enabled ? 'Yes' : 'No'}
         Time: ${new Date().toLocaleString()}
         `;
-  } else if (type === 'TICKET_RAISED' || type === 'EDIT_REQUEST') {
+  } else if (type === 'TICKET_RAISED' || type === 'EDIT_REQUEST' || type === 'TICKET_RESOLVED') {
     const isEdit = type === 'EDIT_REQUEST';
-    subject = isEdit ? `[UPDATED] Support Ticket [#${user.ticket_id}]: ${user.subject}` : `[NEW TICKET] #${user.ticket_id}: ${user.subject}`;
-
+    const isResolved = type === 'TICKET_RESOLVED';
+    
+    if (isResolved) {
+        subject = `[RESOLVED] Ticket #${user.ticket_id}: ${user.subject}`;
+    } else {
+        subject = isEdit ? `[UPDATED] Support Ticket [#${user.ticket_id}]: ${user.subject}` : `[NEW TICKET] #${user.ticket_id}: ${user.subject}`;
+    }
+    
     // Build attachments HTML if any exist
     let attachmentsHtml = '';
     if (user.attachments && user.attachments.length > 0) {
-      attachmentsHtml = `
+        attachmentsHtml = `
             <div style="margin-top: 20px;">
                 <p style="font-size: 14px; font-weight: bold; color: #475569; margin-bottom: 10px;">📎 Attachments (${user.attachments.length}):</p>
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
@@ -158,58 +164,71 @@ const sendAdminNotification = async (user, type) => {
 
     body = `
       <div style="font-family: 'Inter', Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); padding: 30px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Support Command Center</h1>
-          <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">${isEdit ? 'Ticket Modification Alert' : 'New Incoming Resolvable Item'}</p>
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); padding: 15px 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">Support Command Center</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 2px 0 0 0; font-size: 12px;">${isResolved ? 'Issue Resolution Confirmed' : (isEdit ? 'Ticket Modification Alert' : 'New Incoming Resolvable Item')}</p>
         </div>
         
-        <div style="padding: 30px;">
-          <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
-             <span style="background: #fef2f2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Priority: ${user.priority || 'Normal'}</span>
+        <div style="padding: 25px 30px;">
+          <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+             <span style="background: ${isResolved ? '#f0fdf4' : '#fef2f2'}; color: ${isResolved ? '#16a34a' : '#dc2626'}; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase;">
+                ${isResolved ? 'Status: RESOLVED' : `Priority: ${user.priority || 'Normal'}`}
+             </span>
              <span style="font-size: 12px; font-weight: bold; color: #94a3b8;">Ref ID: #${user.ticket_id}</span>
           </div>
 
-          <h3 style="color: #0f172a; font-size: 18px; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Ticket Details</h3>
+          <h3 style="color: #0f172a; font-size: 16px; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">
+            ${isResolved ? 'Resolution Summary' : 'Ticket Details'}
+          </h3>
           
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
-              <td style="padding: 12px 0; font-size: 13px; color: #64748b; width: 30%;"><b>Subject</b></td>
-              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;"><b>${user.subject}</b></td>
+              <td style="padding: 8px 0; font-size: 13px; color: #64748b; width: 30%;"><b>Subject</b></td>
+              <td style="padding: 8px 0; font-size: 13px; color: #1e293b;"><b>${user.subject}</b></td>
+            </tr>
+            ${!isResolved ? `
+            <tr>
+              <td style="padding: 8px 0; font-size: 13px; color: #64748b;"><b>Category</b></td>
+              <td style="padding: 8px 0; font-size: 13px; color: #1e293b;">${user.category}</td>
             </tr>
             <tr>
-              <td style="padding: 12px 0; font-size: 13px; color: #64748b;"><b>Category</b></td>
-              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;">${user.category}</td>
+              <td style="padding: 8px 0; font-size: 13px; color: #64748b;"><b>Contact Person</b></td>
+              <td style="padding: 8px 0; font-size: 13px; color: #1e293b;">${user.name} (${user.email})</td>
             </tr>
+            ` : `
             <tr>
-              <td style="padding: 12px 0; font-size: 13px; color: #64748b;"><b>Contact Person</b></td>
-              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;">${user.name} (${user.email})</td>
+              <td style="padding: 8px 0; font-size: 13px; color: #64748b;"><b>Resolved At</b></td>
+              <td style="padding: 8px 0; font-size: 13px; color: #1e293b;">${new Date().toLocaleString()}</td>
             </tr>
-            <tr>
-              <td style="padding: 12px 0; font-size: 13px; color: #64748b;"><b>Company</b></td>
-              <td style="padding: 12px 0; font-size: 13px; color: #1e293b;">${user.company || 'Individual'}</td>
-            </tr>
+            `}
           </table>
 
-          <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-top: 25px; border: 1px solid #f1f5f9;">
-            <p style="margin: 0 0 10px 0; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Issue Statement</p>
-            <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #334155;">${user.description}</p>
+          <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-top: 20px; border: 1px solid #f1f5f9;">
+            <p style="margin: 0 0 10px 0; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">
+                ${isResolved ? 'Conclusion Message' : 'Issue Statement'}
+            </p>
+            <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #334155;">
+                ${isResolved ? `Hello ${user.name || 'User'}, Your issue has been successfully resolved. Thank you for your patience.` : user.description}
+            </p>
           </div>
 
-          ${attachmentsHtml}
+          ${!isResolved ? attachmentsHtml : ''}
 
-          <div style="margin-top: 40px; text-align: center;">
-            <a href="${process.env.APP_URL || 'https://notifynow.in'}/admin/support/tickets/${user.ticket_id}" 
-               style="background: #0f172a; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; transition: background 0.3s;">
-               Take Action in Dashboard
+          <div style="margin-top: 30px; text-align: center;">
+            <a href="${process.env.APP_URL || 'https://notifynow.in'}/${isResolved ? 'support' : 'admin/support/tickets/' + user.ticket_id}" 
+               style="background: #0f172a; color: #ffffff; padding: 10px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">
+               ${isResolved ? 'View Ticket Status' : 'Take Action in Dashboard'}
             </a>
           </div>
         </div>
 
-        <div style="background: #f1f5f9; padding: 25px 30px; border-top: 1px solid #e2e8f0; text-align: left;">
+        <div style="background: #f1f5f9; padding: 20px 30px; border-top: 1px solid #e2e8f0; text-align: left;">
           <p style="margin: 0; font-size: 13px; font-weight: bold; color: #0f172a;">Best Regards,</p>
           <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: 800; color: #4f46e5;">Support Notify Team</p>
-          <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Technical Support Specialist</p>
-          <div style="margin-top: 15px; border-top: 1px dotted #cbd5e1; pt: 10px;">
+          <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">
+             ${isResolved ? 'Resolved by Sandeep Yadav — Senior Software Developer' : 'Technical Support Specialist'}
+          </p>
+          <div style="margin-top: 12px; border-top: 1px dotted #cbd5e1; pt: 8px;">
             <p style="margin: 0; font-size: 10px; color: #94a3b8;">© ${new Date().getFullYear()} NotifyNow. Comprehensive Engagement Platform.</p>
           </div>
         </div>
@@ -218,16 +237,19 @@ const sendAdminNotification = async (user, type) => {
 
     // 🚀 WhatsApp Admin Notification
     try {
-      const { sendAdminWhatsAppNotification } = require('./whatsappUtils');
-      sendAdminWhatsAppNotification(`🔔 *${isEdit ? 'Ticket Modified' : 'New Ticket'}!* \n\n*ID:* #${user.ticket_id} \n*User:* ${user.name} \n*Subject:* ${user.subject} \n\nPlease visit the dashboard to respond.`, user.ticket_id);
-    } catch (e) { }
+        const { sendAdminWhatsAppNotification } = require('./whatsappUtils');
+        sendAdminWhatsAppNotification(`🔔 *${isResolved ? 'Ticket Resolved' : (isEdit ? 'Ticket Modified' : 'New Ticket')}!* \n\n*ID:* #${user.ticket_id} \n*User:* ${user.name} \n*Subject:* ${user.subject} \n\n${isResolved ? 'Status updated to RESOLVED.' : 'Please visit the dashboard.'}`, user.ticket_id);
+    } catch(e) {}
   }
 
-  // console.log(`🔔 Sending ${type} notification to admins...`);
-
   // Send to all admins in parallel
+  const recipients = [...ADMIN_EMAILS];
+  if (type === 'TICKET_RESOLVED' && user.email) {
+    if (!recipients.includes(user.email)) recipients.push(user.email);
+  }
+
   await Promise.all(
-    ADMIN_EMAILS.map(email => sendEmail(email, subject, body))
+    recipients.map(email => sendEmail(email, subject, body))
   );
 };
 

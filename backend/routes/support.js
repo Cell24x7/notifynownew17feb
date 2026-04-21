@@ -253,18 +253,14 @@ router.patch('/admin/tickets/:id', authenticate, async (req, res) => {
             // Special Notification if Resolved/Closed
             if (status === 'resolved' || status === 'closed') {
                 const [ticketData] = await query(
-                    'SELECT t.subject, u.email, u.name FROM tickets t JOIN users u ON t.user_id = u.id WHERE t.id = ?',
+                    'SELECT t.subject, t.description, u.email, u.name FROM tickets t JOIN users u ON t.user_id = u.id WHERE t.id = ?',
                     [ticketId]
                 );
                 if (ticketData.length > 0) {
-                    const { subject, email, name } = ticketData[0];
-                    await sendEmail(
-                        email, 
-                        `Ticket #${ticketId} Resolved - NotifyNow`, 
-                        `Hello ${name},\n\nYour support ticket "#${ticketId}: ${subject}" has been marked as ${status.toUpperCase()}.\n\nIf you have further questions, please reply to the ticket in your dashboard.\n\nTeam NotifyNow`,
-                        null,
-                        'ticket_resolved'
-                    );
+                    await sendAdminNotification({
+                        ...ticketData[0],
+                        ticket_id: ticketId
+                    }, 'TICKET_RESOLVED');
                 }
             }
         }
