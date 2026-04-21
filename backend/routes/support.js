@@ -51,8 +51,9 @@ router.post('/tickets', authenticate, upload.array('attachments'), async (req, r
             for (const file of req.files) {
                 await query(
                     'INSERT INTO ticket_attachments (ticket_id, file_url, file_type, file_name) VALUES (?, ?, ?, ?)',
-                    [ticketId, `/uploads/support/${file.filename}`, file.mimetype, file.originalname]
+                    [ticketId, `/api/uploads/support/${file.filename}`, file.mimetype, file.originalname]
                 );
+
             }
             console.log(`📎 Ticket ${ticketId} has ${req.files.length} attachments saved.`);
         }

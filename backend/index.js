@@ -70,7 +70,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Serve static files from uploads (Absolute Path)
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!require('fs').existsSync(uploadsDir)) require('fs').mkdirSync(uploadsDir, { recursive: true });
-app.use('/uploads', express.static(uploadsDir));
+app.use('/api/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir)); // Fallback
+
 
 /* ==================================
    START SERVER & SOCKET.IO

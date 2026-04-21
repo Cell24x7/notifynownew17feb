@@ -235,69 +235,59 @@ export default function SuperAdminSupport() {
            {selectedTicket ? (
              <>
                {/* Ticket Meta Controls */}
-                <Card className="row-span-4 shadow-2xl border-none bg-slate-50 dark:bg-slate-900 mb-6 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
-                   <CardContent className="p-0">
-                      <div className="grid grid-cols-1 md:grid-cols-12 items-stretch divide-y md:divide-y-0 md:divide-x divide-slate-200 dark:divide-slate-800">
-                         <div className="md:col-span-8 p-6 space-y-4">
+                <Card className="shadow-lg border-none bg-card mb-4 overflow-hidden">
+                   <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                         <div className="flex-1 space-y-2">
                             <div className="flex items-center gap-3">
                                <Badge className={cn(
-                                   "uppercase text-[10px] font-black px-3 py-1 rounded-full shadow-sm tracking-[0.1em]",
-                                   selectedTicket.priority === 'urgent' ? "bg-red-600 text-white" : 
-                                   selectedTicket.priority === 'high' ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-700"
-                               )}>{selectedTicket.priority} Priority</Badge>
-                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white dark:bg-black/20 border px-2 py-1 rounded">Ticket ID: #{selectedTicket.id}</span>
-                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white dark:bg-black/20 border px-2 py-1 rounded">UID: {selectedTicket.user_id}</span>
+                                   "uppercase text-[9px] font-bold px-2 py-0.5",
+                                   selectedTicket.priority === 'urgent' ? "bg-red-500" : "bg-primary"
+                               )}>{selectedTicket.priority}</Badge>
+                               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">#{selectedTicket.id}</span>
                             </div>
-                            <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none">
-                                {selectedTicket.subject}
-                            </h2>
-                            <div className="flex flex-wrap items-center gap-6 pt-2">
-                               <div className="flex flex-col">
-                                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Client Name</span>
-                                  <span className="text-sm font-bold flex items-center gap-2 mt-1"><Users className="h-4 w-4 text-primary" /> {selectedTicket.user_name}</span>
-                               </div>
-                               <div className="flex flex-col">
-                                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Contact Email</span>
-                                  <span className="text-sm font-bold flex items-center gap-2 mt-1 border-b border-primary/20 pb-0.5"><MessageCircle className="h-4 w-4 text-primary" /> {selectedTicket.user_email}</span>
-                               </div>
+                            <h2 className="text-xl font-bold text-foreground">{selectedTicket.subject}</h2>
+                            <div className="flex items-center gap-4 text-xs font-semibold text-muted-foreground">
+                               <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {selectedTicket.user_name}</span>
+                               <span className="flex items-center gap-1.5"><MessageCircle className="h-3.5 w-3.5" /> {selectedTicket.user_email}</span>
                             </div>
                          </div>
 
-                         <div className="md:col-span-4 p-6 bg-white dark:bg-slate-950 flex flex-col justify-center space-y-4">
-                            <div>
-                               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Resolution Pipeline</Label>
-                               <div className="grid grid-cols-2 gap-3">
-                                  <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
-                                      <SelectTrigger className="h-10 text-[11px] font-black uppercase border-2 border-slate-100 hover:border-primary transition-all shadow-sm">
-                                          <SelectValue placeholder="Status" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                          <SelectItem value="open">New / Open</SelectItem>
-                                          <SelectItem value="pending">In Progress</SelectItem>
-                                          <SelectItem value="resolved">Resolved</SelectItem>
-                                          <SelectItem value="closed">Closed</SelectItem>
-                                      </SelectContent>
-                                  </Select>
+                         <div className="flex items-center gap-3">
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Status</Label>
+                                <Select value={selectedTicket.status} onValueChange={(v) => handleUpdateTicket({ status: v })}>
+                                    <SelectTrigger className="w-[140px] h-9 text-xs">
+                                        <SelectValue placeholder="Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="open">Open</SelectItem>
+                                        <SelectItem value="pending">In Progress</SelectItem>
+                                        <SelectItem value="resolved">Resolved</SelectItem>
+                                        <SelectItem value="closed">Closed</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                                  <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
-                                      <SelectTrigger className="h-10 text-[11px] font-black uppercase border-2 border-emerald-100 text-emerald-600 bg-emerald-50/20 hover:bg-emerald-50/50 transition-all shadow-sm">
-                                          <SelectValue placeholder="Assign To..." />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                          <SelectItem value="unassigned" className="opacity-50">Not Managed</SelectItem>
-                                          {staff.map(u => (
-                                              <SelectItem key={u.id} value={String(u.id)} className="font-bold">
-                                                  {u.name}
-                                              </SelectItem>
-                                          ))}
-                                      </SelectContent>
-                                  </Select>
-                               </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Assigned To</Label>
+                                <Select value={String(selectedTicket.assigned_to || 'unassigned')} onValueChange={(v) => handleUpdateTicket({ assigned_to: v === 'unassigned' ? null : v })}>
+                                    <SelectTrigger className="w-[160px] h-9 text-xs text-primary border-primary/20">
+                                        <SelectValue placeholder="Assign To..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                                        {staff.map(u => (
+                                            <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                          </div>
                       </div>
                    </CardContent>
                 </Card>
+
 
 
                {/* Conversation & Reply */}
@@ -318,7 +308,12 @@ export default function SuperAdminSupport() {
                                     <div className="flex flex-wrap gap-4">
                                         {selectedTicket.attachments.map((file: any) => {
                                             const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-                                            const fullUrl = file.file_url.startsWith('http') ? file.file_url : `${baseUrl}${file.file_url}`;
+                                            let path = file.file_url;
+                                            // Fix for legacy records missing /api/ prefix
+                                            if (!path.startsWith('http') && !path.startsWith('/api/')) {
+                                                path = `/api${path}`;
+                                            }
+                                            const fullUrl = path.startsWith('http') ? path : `${baseUrl}${path}`;
                                             return (
                                                 <a 
                                                     key={file.id} 
@@ -330,15 +325,16 @@ export default function SuperAdminSupport() {
                                                     <img 
                                                         src={fullUrl} 
                                                         alt="attachment" 
-                                                        className="w-48 h-48 object-cover rounded-2xl border-4 border-white dark:border-slate-800 shadow-2xl group-hover:scale-[1.03] transition-transform duration-300"
+                                                        className="w-48 h-48 object-cover rounded-xl border-2 border-white dark:border-slate-800 shadow-lg group-hover:scale-[1.03] transition-transform duration-300"
                                                     />
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 rounded-2xl backdrop-blur-[2px]">
-                                                        <ExternalLink className="h-8 w-8 text-white scale-75 group-hover:scale-100 transition-transform" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl">
+                                                        <ExternalLink className="h-6 w-6 text-white" />
                                                     </div>
                                                 </a>
                                             );
                                         })}
                                     </div>
+
 
 
                                 </div>
