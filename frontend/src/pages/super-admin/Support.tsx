@@ -72,12 +72,19 @@ export default function SuperAdminSupport() {
   const fetchTicketDetails = async (id: number) => {
     try {
       const res = await api.get(`/support/tickets/${id}`);
-      setSelectedTicket(res.data.ticket || res.data.data);
+      const ticketData = res.data.ticket || res.data.data;
+      if (ticketData) {
+        setSelectedTicket({
+          ...ticketData,
+          attachments: res.data.attachments || []
+        });
+      }
       setReplies(res.data.replies || res.data.data?.replies || []);
     } catch (error) {
       toast.error("Error loading conversation");
     }
   };
+
 
   const handleUpdateTicket = async (updates: any) => {
     if (!selectedTicket) return;
@@ -215,20 +222,18 @@ export default function SuperAdminSupport() {
             </div>
          </div>
 
-         {/* 💬 Right Pane: Conversational Detail */}
          <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-transparent overflow-hidden">
             {selectedTicket ? (
                 <>
-                   {/* 🏷️ Detail Strip */}
-                   <div className="p-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                      <div className="flex flex-col xl:flex-row justify-between gap-8">
+                   <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex flex-col xl:flex-row justify-between gap-4">
                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-4 mb-4">
-                                <Badge className="bg-slate-900 text-white uppercase text-[10px] font-bold px-4 py-1 rounded-lg">Documentation</Badge>
-                                <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">ID: {selectedTicket.id}</span>
+                            <div className="flex items-center gap-3 mb-2">
+                                <Badge className="bg-slate-900 text-white uppercase text-[9px] font-bold px-2 py-0.5 rounded-md">Documentation</Badge>
+                                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID: {selectedTicket.id}</span>
                             </div>
-                            <h2 className="text-3xl font-bold text-slate-900 dark:text-white leading-[1.1] mb-6">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight mb-3">
                                 {selectedTicket.subject}
                             </h2>
                             <div className="flex flex-wrap gap-6 mt-6">
@@ -273,18 +278,12 @@ export default function SuperAdminSupport() {
                                     </Select>
                                 </div>
                              </div>
-                             <Button variant="outline" className="w-full h-11 border-2 font-bold uppercase text-[10px] tracking-widest rounded-xl">
-                                <Activity className="h-4 w-4 mr-2" /> View Client Activity Logs
-                             </Button>
                          </div>
                       </div>
                    </div>
 
-                   {/* 🌊 Thread View */}
-                   <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
-                      
-                      {/* 🚩 The Original Case Description */}
-                      <div className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                   <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+                      <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
                          <div className="absolute top-0 right-0 p-6">
                             <Badge variant="outline" className="uppercase text-[9px] font-bold">Issue Statement</Badge>
                          </div>
@@ -297,14 +296,13 @@ export default function SuperAdminSupport() {
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reported on {format(new Date(selectedTicket.created_at), 'PPPp')}</p>
                             </div>
                          </div>
-                         <div className="relative">
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full opacity-20" />
-                            <p className="text-xl font-bold text-slate-700 dark:text-slate-300 pl-8 leading-relaxed">
-                               {selectedTicket.description}
-                            </p>
-                         </div>
+                          <div className="relative">
+                             <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-full opacity-20" />
+                             <p className="text-sm font-bold text-slate-700 dark:text-slate-300 pl-4 leading-relaxed">
+                                {selectedTicket.description}
+                             </p>
+                          </div>
 
-                         {/* 🖇️ Visual Attachments */}
                          {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
                             <div className="mt-10 pt-10 border-t-2 border-slate-50 dark:border-slate-900">
                                 <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-6 block">Evidence Documentation ({selectedTicket.attachments.length})</Label>
@@ -328,7 +326,6 @@ export default function SuperAdminSupport() {
                          )}
                       </div>
 
-                      {/* 🔄 Timeline Replies */}
                       <div className="space-y-8 relative pl-6">
                         <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10" />
                         {replies.map(r => (
@@ -336,9 +333,9 @@ export default function SuperAdminSupport() {
                                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center font-bold flex-shrink-0 z-10 shadow-md border-4 border-slate-50 dark:border-slate-900">
                                     {r.user_name?.charAt(0)}
                                </div>
-                               <div className={cn("max-w-[80%] space-y-2", r.user_role === 'admin' ? "items-end text-right" : "")}>
+                                <div className={cn("max-w-[85%] space-y-1", r.user_role === 'admin' ? "items-end text-right" : "")}>
                                    <div className={cn(
-                                       "p-7 rounded-[28px] font-bold text-sm leading-relaxed shadow-sm",
+                                       "p-4 rounded-2xl font-bold text-xs leading-relaxed shadow-sm",
                                        r.user_role === 'admin' ? "bg-primary text-white" : "bg-white dark:bg-slate-800 border"
                                    )}>
                                        {r.message}
