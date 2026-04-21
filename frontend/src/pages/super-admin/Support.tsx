@@ -349,21 +349,23 @@ export default function SuperAdminSupport() {
                       </div>
                    </div>
 
-                   {/* ✍️ Action Bar */}
-                   <div className="p-8 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 shadow-[0_-15px_40px_rgba(0,0,0,0.03)]">
-                      <div className="flex gap-6 max-w-[1200px] mx-auto">
-                        <Textarea 
-                            placeholder="Draft your professional response... (CTRL + ENTER to broadcast)" 
-                            className="flex-1 rounded-[24px] border-2 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 p-8 min-h-[100px] font-bold text-base focus-visible:ring-primary/50 transition-all shadow-inner"
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyDown={(e) => e.ctrlKey && e.key === 'Enter' && handleSendReply()}
-                        />
+                   {/* ✍️ Action Bar (Compact & Decent) */}
+                   <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                      <div className="flex gap-3 max-w-[1200px] mx-auto items-end">
+                        <div className="flex-1 relative group">
+                            <Textarea 
+                                placeholder="Write your response... (CTRL + ENTER)" 
+                                className="w-full rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 px-4 py-3 min-h-[50px] max-h-[150px] font-semibold text-sm focus-visible:ring-primary/30 transition-all resize-none overflow-y-auto"
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                onKeyDown={(e) => e.ctrlKey && e.key === 'Enter' && handleSendReply()}
+                            />
+                        </div>
                         <Button 
-                            className="h-auto px-10 rounded-[28px] font-bold uppercase text-xs tracking-[0.2em] flex flex-col gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95"
+                            className="h-[50px] px-6 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/20 bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2"
                             onClick={handleSendReply}
                         >
-                            <Send className="h-6 w-6" /> POST REPLY
+                            <Send className="h-3.5 w-3.5" /> POST
                         </Button>
                       </div>
                    </div>
