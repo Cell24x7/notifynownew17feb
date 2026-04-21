@@ -25,11 +25,13 @@ const compressPermissions = (perms) => {
 };
 
 const isResellerOrAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'reseller') {
+  const role = (req.user.role || '').toLowerCase();
+  if (role !== 'admin' && role !== 'superadmin' && role !== 'reseller') {
     return res.status(403).json({ success: false, message: 'Unauthorized. Admin or Reseller access required.' });
   }
   next();
 };
+
 
 if (!JWT_SECRET) {
   console.error('CRITICAL: JWT_SECRET is missing in .env file! Impersonate will fail.');
