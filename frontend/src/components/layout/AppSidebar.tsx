@@ -56,7 +56,29 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const { theme, setTheme } = useTheme();
   const { settings } = useBranding();
 
+  const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const isDark = theme === 'dark';
+
+  const fetchOpenTicketsCount = async () => {
+    if (user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'staff') {
+      try {
+        const response = await api.get('/support/admin/tickets');
+        if (response.data.success) {
+          const openCount = response.data.tickets.filter((t: any) => t.status === 'open').length;
+          setOpenTicketsCount(openCount);
+        }
+      } catch (err) {
+        // Silent fail for background check
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchOpenTicketsCount();
+    const interval = setInterval(fetchOpenTicketsCount, 30000); // Check every 30 secs
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
 
 
   // Permissions check
@@ -248,7 +270,13 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
               )}
             >
               {item.icon && <item.icon className="h-5 w-5 flex-shrink-0" />}
-              <span>{item.label}</span> {/* ← text hamesha dikhega */}
+              <span className="flex-1">{item.label}</span>
+              {item.label === 'Support' && openTicketsCount > 0 && (
+                <span className="flex items-center justify-center bg-red-500 text-white text-[10px] font-bold h-5 w-5 rounded-full animate-bounce shadow-lg">
+                  {openTicketsCount}
+                </span>
+              )}
+
             </NavLink>
           );
         })}
