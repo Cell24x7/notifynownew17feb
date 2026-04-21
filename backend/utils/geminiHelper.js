@@ -14,7 +14,8 @@ async function getGeminiResponse(userPrompt) {
     }
 
     try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`;
+        // Correcting the model name to exactly what worked in your manual CURL
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`;
         
         const response = await axios.post(url, {
             contents: [{ 
