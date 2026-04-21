@@ -45,8 +45,8 @@ export default function SuperAdminSupport() {
   const fetchData = async () => {
     try {
       const [ticksRes, clientsRes] = await Promise.all([
-        api.get("/api/support/admin/tickets"),
-        api.get("/api/clients")
+        api.get("/support/admin/tickets"),
+        api.get("/clients")
       ]);
       setTickets(ticksRes.data.tickets || []);
       const allClients = clientsRes.data.clients || [];
@@ -71,7 +71,7 @@ export default function SuperAdminSupport() {
 
   const fetchTicketDetails = async (id: number) => {
     try {
-      const res = await api.get(`/api/support/tickets/${id}`);
+      const res = await api.get(`/support/tickets/${id}`);
       setSelectedTicket(res.data.ticket || res.data.data);
       setReplies(res.data.replies || res.data.data?.replies || []);
     } catch (error) {
@@ -82,7 +82,7 @@ export default function SuperAdminSupport() {
   const handleUpdateTicket = async (updates: any) => {
     if (!selectedTicket) return;
     try {
-      await api.patch(`/api/support/admin/tickets/${selectedTicket.id}`, updates);
+      await api.patch(`/support/admin/tickets/${selectedTicket.id}`, updates);
       toast.success("Updated");
       fetchData();
       fetchTicketDetails(selectedTicket.id);
@@ -94,7 +94,7 @@ export default function SuperAdminSupport() {
   const handleSendReply = async () => {
     if (!newMessage.trim() || !selectedTicket) return;
     try {
-      await api.post(`/api/support/tickets/${selectedTicket.id}/replies`, { message: newMessage });
+      await api.post(`/support/tickets/${selectedTicket.id}/replies`, { message: newMessage });
       setNewMessage("");
       fetchTicketDetails(selectedTicket.id);
       toast.success("Sent");
