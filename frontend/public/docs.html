@@ -180,24 +180,87 @@
             </section>
 
             <hr class="my-12">
-
-            <!-- Campaigns -->
-            <section id="static-campaign" class="mb-16">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Static vs Dynamic Campaigns</h2>
+            <!-- Campaigns Masterclass -->
+            <section id="campaign-guide" class="mb-16">
+                <h2 class="text-3xl font-bold text-gray-900 mb-8">🚀 Campaign Creation Masterclass</h2>
                 
-                <div class="mb-8">
-                    <h4 class="font-bold text-emerald-700 mb-2">Static Campaigns</h4>
-                    <p class="text-sm text-gray-600">The same message is sent to all selected contacts. Best for general announcements or festival greetings.</p>
+                <!-- Step 1: Template Selection -->
+                <div class="mb-12 border-l-4 border-emerald-500 pl-6">
+                    <h3 class="text-xl font-bold mb-3">Step 1: Understanding Templates & Headers</h3>
+                    <p class="text-gray-600 mb-4">Templates can have different <b>Header Types</b>. Proper mapping here is key to delivery:</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <span class="font-bold text-emerald-600 block mb-1">TEXT Header</span>
+                            <p class="text-gray-500 italic">Example: "Welcome to CMT!"</p>
+                            <p class="mt-2">Static text, no mapping needed.</p>
+                        </div>
+                        <div class="p-4 bg-emerald-50 rounded-lg">
+                            <span class="font-bold text-emerald-600 block mb-1">MEDIA Header (Image/Video/PDF)</span>
+                            <p class="text-gray-500 italic">Example: Your monthly invoice.</p>
+                            <p class="mt-2 font-medium">Mapping: You must provide a valid URL of the media file (JPEG, PNG, MP4, PDF).</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mb-8 p-6 bg-gray-900 text-white rounded-2xl">
-                    <h4 class="font-bold text-emerald-400 mb-4">Dynamic (CSV) Campaigns - The Powerhouse</h4>
-                    <p class="text-sm text-gray-300 mb-4">Send personalized messages to thousands by uploading a CSV/Excel file. Each column in your file can be mapped to a variable in your template.</p>
-                    <div class="space-y-3">
-                        <div class="text-xs font-mono text-gray-400 bg-black/30 p-3 rounded border border-white/10">
-                            Example Template: Dear {{1}}, your order ID {{2}} is ready!
+                <!-- Step 2: Static vs Dynamic -->
+                <div class="mb-12 border-l-4 border-blue-500 pl-6">
+                    <h3 class="text-xl font-bold mb-3">Step 2: Choose Your Audience</h3>
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="flex-1 p-4 border rounded-xl">
+                            <h4 class="font-bold text-blue-700 mb-2">Static Campaign</h4>
+                            <p class="text-sm text-gray-600 mb-3">Same message for everyone. Select contacts from your groups or enter numbers manually.</p>
+                            <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded">Quick & Simple</span>
                         </div>
-                        <p class="text-xs text-gray-400 italic">Your CSV should have columns like 'Name' and 'OrderID'. During step 3 of campaign creation, map {{1}} to 'Name' and {{2}} to 'OrderID'.</p>
+                        <div class="flex-1 p-4 border rounded-xl bg-blue-900 text-white shadow-xl">
+                            <h4 class="font-bold text-blue-300 mb-2">Dynamic (CSV) Campaign</h4>
+                            <p class="text-sm text-blue-100 mb-3">Personalized messages. System picks data from your CSV/Excel file for each person.</p>
+                            <span class="text-[10px] bg-white/20 text-white px-2 py-1 rounded">Pro Feature</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Mapping -->
+                <div class="mb-12 border-l-4 border-amber-500 pl-6 bg-amber-50/30 py-4 pr-4">
+                    <h3 class="text-xl font-bold mb-3">Step 3: The Mapping Magic (Crucial)</h3>
+                    <p class="text-gray-600 mb-6">This is where you connect your CSV columns to the Template placeholders ({{1}}, {{2}}).</p>
+                    
+                    <div class="space-y-6">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border">
+                            <h5 class="text-sm font-bold mb-2 flex items-center gap-2">
+                                <span class="w-2 h-2 bg-amber-500 rounded-full"></span> Mapping Text Variables
+                            </h5>
+                            <p class="text-xs text-gray-500 mb-4">If your template has <b>Dear {{1}}, your OTP is {{2}}</b>:</p>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded border border-dashed">
+                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Placeholder</span><span class="font-mono font-bold text-amber-600">{{1}}</span></div>
+                                <div class="text-gray-300">→</div>
+                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Select Column</span><span class="font-bold text-emerald-600">"CustomerName"</span></div>
+                                <div class="text-gray-300">|</div>
+                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Placeholder</span><span class="font-mono font-bold text-amber-600">{{2}}</span></div>
+                                <div class="text-gray-300">→</div>
+                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Select Column</span><span class="font-bold text-emerald-600">"OTP_Value"</span></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-lg shadow-sm border">
+                            <h5 class="text-sm font-bold mb-2 flex items-center gap-2">
+                                <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Mapping Media Headers
+                            </h5>
+                            <p class="text-xs text-gray-500 mb-4">If your template has an <b>IMAGE Header</b>:</p>
+                            <div class="p-3 bg-blue-50 rounded border border-blue-100">
+                                <p class="text-xs text-blue-800">You can either paste a <b>Fixed URL</b> (same image for all) OR map it to a <b>Column</b> (different image for each user, e.g., 'Invoice_Link').</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Final Review -->
+                <div class="p-6 bg-emerald-900 text-white rounded-3xl shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+                    <h3 class="text-xl font-bold mb-3">Final Step: Preview & Send</h3>
+                    <p class="text-sm text-emerald-100 mb-6">Always check the <b>Live Preview</b> on the right side of the screen. If you see variables like <i>{{1}}</i> instead of actual data, your mapping is incomplete.</p>
+                    <div class="flex items-center gap-3">
+                        <button class="bg-white text-emerald-900 px-6 py-2 rounded-full font-bold text-sm">Review Now</button>
+                        <span class="text-xs text-emerald-400">Campaigns are queued instantly for maximum speed.</span>
                     </div>
                 </div>
             </section>
