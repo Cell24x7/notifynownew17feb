@@ -131,7 +131,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         sms_promotional_price, sms_transactional_price, sms_service_price,
         rcs_limit, wa_limit, sms_limit, voice_limit,
         reseller_id, pe_id, hash_id, is_api_allowed
-      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, company_name, contact_phone, email, hash,
       status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), 
