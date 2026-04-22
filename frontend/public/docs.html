@@ -3,326 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NotifyNow | Official Platform Documentation</title>
+    <title>NotifyNow | Premium Platform Documentation</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
-        .sidebar-link.active { background: #f3f4f6; border-left: 4px solid #10b981; color: #059669; }
-        pre { background: #1f2937; color: #f9fafb; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
-        .step-number { background: #10b981; color: white; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.75rem; font-weight: bold; margin-right: 8px; }
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --accent: #3b82f6;
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            scroll-behavior: smooth;
+            background-color: #f8fafc;
+        }
+        h1, h2, h3, h4, h5 { font-family: 'Outfit', sans-serif; }
+        
+        /* Glassmorphism Styles */
+        .glass-nav {
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .sidebar-link {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .sidebar-link.active {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0) 100%);
+            color: var(--primary-dark);
+            font-weight: 700;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .step-number {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .premium-card {
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .premium-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.08);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .section-reveal {
+            animation: reveal 0.6s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes reveal {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-sidebar {
+                position: fixed;
+                top: 64px;
+                left: -100%;
+                width: 100%;
+                height: calc(100vh - 64px);
+                background: white;
+                z-index: 50;
+                transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .mobile-sidebar.open {
+                left: 0;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="text-slate-800 antialiased">
 
-    <!-- Header -->
-    <header class="bg-white border-b sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="bg-emerald-600 p-1.5 rounded-lg">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                </div>
-                <h1 class="text-xl font-bold tracking-tight text-emerald-900">NotifyNow <span class="text-gray-400 font-medium">Docs</span></h1>
-            </div>
+    <!-- Premium Header -->
+    <header class="glass-nav sticky top-0 z-[100]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex justify-between items-center">
             <div class="flex items-center gap-4">
-                <span class="text-xs font-semibold px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">v1.2.0</span>
-                <a href="https://notifynow.in/dashboard" class="text-sm font-medium text-emerald-600 hover:text-emerald-700 underline">Back to Dashboard</a>
+                <button id="mobile-toggle" class="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold tracking-tight text-slate-900 leading-none">NotifyNow</h1>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Documentation Portal</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
+                    <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">v2.0.0 Stable</span>
+                </div>
+                <a href="/dashboard" class="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">Go to Panel</a>
             </div>
         </div>
     </header>
 
-    <div class="max-w-7xl mx-auto flex flex-col md:flex-row">
+    <div class="max-w-7xl mx-auto flex min-h-screen relative">
         
-        <!-- Sidebar -->
-        <nav class="w-full md:w-64 p-6 border-r md:h-[calc(100vh-64px)] overflow-y-auto sticky top-16 bg-white">
-            <div class="space-y-8">
-                <div>
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Get Started</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#intro" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Overview</a></li>
-                        <li><a href="#workflow" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">System Workflow</a></li>
+        <!-- Premium Sidebar -->
+        <nav id="sidebar" class="mobile-sidebar md:block w-72 border-r border-slate-100 p-8 md:h-[calc(100vh-64px)] sticky md:top-16 overflow-y-auto bg-white/50">
+            <div class="space-y-10">
+                <div class="section-group">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">Foundation</h3>
+                    <ul class="space-y-1">
+                        <li><a href="#intro" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Overview</a></li>
+                        <li><a href="#workflow" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">System Workflow</a></li>
                     </ul>
                 </div>
 
-                <div>
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Admin Operations</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#user-creation" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">User Creation</a></li>
-                        <li><a href="#roles-permissions" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Roles & Permissions</a></li>
-                        <li><a href="#credit-management" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Credit Management</a></li>
-                        <li><a href="#gateway-assignment" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Gateway Assignment</a></li>
+                <div class="section-group">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">Management</h3>
+                    <ul class="space-y-1">
+                        <li><a href="#user-creation" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">User Onboarding</a></li>
+                        <li><a href="#roles-permissions" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Roles & Access</a></li>
+                        <li><a href="#credit-management" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Credit Control</a></li>
                     </ul>
                 </div>
 
-                <div>
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Messaging Channels</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#channel-whatsapp" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">WhatsApp API</a></li>
-                        <li><a href="#channel-rcs" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">RCS Business Messaging</a></li>
-                        <li><a href="#channel-sms" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">SMS & DLT Management</a></li>
-                        <li><a href="#channel-voice-email" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Voicebot & Email</a></li>
+                <div class="section-group">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">Channels</h3>
+                    <ul class="space-y-1">
+                        <li><a href="#channel-whatsapp" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">WhatsApp Business</a></li>
+                        <li><a href="#channel-rcs" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">RCS Messaging</a></li>
+                        <li><a href="#channel-sms" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">SMS & DLT</a></li>
                     </ul>
                 </div>
 
-                <div>
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Campaigns & Reports</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#static-campaign" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Static Campaigns</a></li>
-                        <li><a href="#dynamic-campaign" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Dynamic (CSV) Campaigns</a></li>
-                        <li><a href="#failover" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Smart Failover (Fallback)</a></li>
-                        <li><a href="#reports" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Analytics & Logs</a></li>
+                <div class="section-group">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">Operations</h3>
+                    <ul class="space-y-1">
+                        <li><a href="#dynamic-campaign" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Campaign Engine</a></li>
+                        <li><a href="#failover" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Intelligent Failover</a></li>
+                        <li><a href="#reports" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Data & Analytics</a></li>
                     </ul>
                 </div>
+            </div>
+            
+            <div class="mt-20 pt-10 border-t border-slate-100 opacity-50">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">&copy; 2026 NotifyNow</p>
             </div>
         </nav>
 
         <!-- Main Content -->
-        <main class="flex-1 p-6 md:p-12 bg-white max-w-4xl">
-            
-            <!-- Intro -->
-            <section id="intro" class="mb-16">
-                <h2 class="text-3xl font-bold text-gray-900 mb-6">Overview</h2>
-                <p class="text-lg text-gray-600 leading-relaxed mb-6">
-                    NotifyNow is an omni-channel messaging automation platform designed for enterprises and resellers. It integrates WhatsApp, RCS, SMS, Voice, and Email into a single dashboard with advanced failover capabilities.
-                </p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="p-4 border rounded-xl bg-emerald-50 border-emerald-100">
-                        <h4 class="font-bold text-emerald-800 mb-2">Reseller Ready</h4>
-                        <p class="text-sm text-emerald-700">Manage multiple clients, set custom pricing, and monitor usage pools.</p>
-                    </div>
-                    <div class="p-4 border rounded-xl bg-blue-50 border-blue-100">
-                        <h4 class="font-bold text-blue-800 mb-2">Developer API</h4>
-                        <p class="text-sm text-blue-700">Robust REST APIs for transactional OTPs and automated notifications.</p>
-                    </div>
-                </div>
-            </section>
-
-            <hr class="my-12">
-
-            <!-- Admin Operations -->
-            <section id="user-creation" class="mb-16">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Admin: Creating a New User</h2>
-                <div class="space-y-6">
-                    <div class="flex items-start">
-                        <span class="step-number">1</span>
-                        <div>
-                            <h4 class="font-semibold">Access Clients Panel</h4>
-                            <p class="text-gray-600 text-sm">Navigate to <b>Super Admin > Clients</b> from the sidebar.</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <span class="step-number">2</span>
-                        <div>
-                            <h4 class="font-semibold">Fill Details</h4>
-                            <p class="text-gray-600 text-sm">Click on <b>+ Add Client</b>. Enter Name, Email, Password, and Mobile Number.</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <span class="step-number">3</span>
-                        <div>
-                            <h4 class="font-semibold">Role Selection</h4>
-                            <p class="text-gray-600 text-sm">Choose <b>Client</b> (Direct End User) or <b>Reseller</b> (Who can create their own clients).</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="roles-permissions" class="mb-16">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Roles & Permissions</h2>
-                <p class="text-gray-600 mb-4">Every user can have specific channels enabled or disabled. This controls their dashboard menu and API access.</p>
-                <div class="bg-gray-50 rounded-lg p-4 border border-dashed border-gray-300">
-                    <ul class="grid grid-cols-2 gap-4 text-sm font-medium">
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> WhatsApp Access</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> RCS Access</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> SMS Access</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> Voice & Email Access</li>
-                    </ul>
-                </div>
-            </section>
-
-            <section id="credit-management" class="mb-16">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Credit Management</h2>
-                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
-                    <p class="text-sm text-amber-800 font-medium">NotifyNow works on a pre-paid wallet model. Users must have balance to send campaigns.</p>
-                </div>
-                <h4 class="font-bold mb-3">Methods to Add Credits:</h4>
-                <ol class="list-decimal pl-5 space-y-4 text-gray-600">
-                    <li><b>Manual Adjustment (Admin)</b>: Go to <b>Wallet > Adjust</b>, select the user, choose 'Credit', enter amount, and hit save.</li>
-                    <li><b>Self-Recharge (User)</b>: Users can click <b>"Top-up Wallet"</b> on their dashboard and pay via CCAvenue.</li>
-                </ol>
-            </section>
-
-            <section id="gateway-assignment" class="mb-16">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Gateway Assignment</h2>
-                <p class="text-gray-600 mb-4">Gateways define which provider is used to route messages. This is crucial for pricing and deliverability.</p>
-                <div class="space-y-4">
-                    <div class="p-4 border rounded-lg hover:shadow-md transition">
-                        <h5 class="font-bold text-sm">SMS Gateway</h5>
-                        <p class="text-xs text-gray-500">Go to <b>Integrations > SMS Gateways</b>. Assign a specific gateway to a user. This gateway must have their DLT-approved Sender ID.</p>
-                    </div>
-                    <div class="p-4 border rounded-lg hover:shadow-md transition">
-                        <h5 class="font-bold text-sm">RCS Config</h5>
-                        <p class="text-xs text-gray-500">Enable specific Bots for users in <b>Integrations > RCS Config</b>.</p>
-                    </div>
-                </div>
-            </section>
-
-            <hr class="my-12">
-
-            <!-- Messaging Channels -->
-            <section id="channel-whatsapp" class="mb-16">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">WhatsApp Business API</h2>
-                <p class="text-gray-600 mb-4">Requires a Meta-approved Business Account and WhatsApp Number.</p>
-                <ul class="space-y-3 text-sm text-gray-600">
-                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> <b>Template Creation</b>: Must include Variables like {{1}}, {{2}} for dynamic content.</li>
-                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> <b>Approval</b>: Meta takes 2 mins to 2 hours to approve templates.</li>
-                </ul>
-            </section>
-
-            <hr class="my-12">
-            <!-- Campaigns Masterclass -->
-            <section id="campaign-guide" class="mb-16">
-                <h2 class="text-3xl font-bold text-gray-900 mb-8">🚀 Campaign Creation Masterclass</h2>
+        <main class="flex-1 min-w-0 bg-white">
+            <div class="max-w-4xl mx-auto px-6 py-12 md:px-12 md:py-20">
                 
-                <!-- Step 1: Template Selection -->
-                <div class="mb-12 border-l-4 border-emerald-500 pl-6">
-                    <h3 class="text-xl font-bold mb-3">Step 1: Understanding Templates & Headers</h3>
-                    <p class="text-gray-600 mb-4">Templates can have different <b>Header Types</b>. Proper mapping here is key to delivery:</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div class="p-4 bg-gray-50 rounded-lg">
-                            <span class="font-bold text-emerald-600 block mb-1">TEXT Header</span>
-                            <p class="text-gray-500 italic">Example: "Welcome to CMT!"</p>
-                            <p class="mt-2">Static text, no mapping needed.</p>
+                <!-- Intro Section -->
+                <section id="intro" class="section-reveal mb-24 scroll-mt-24">
+                    <span class="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest mb-6">Introduction</span>
+                    <h2 class="text-4xl md:text-5xl font-black text-slate-900 mb-8 tracking-tight leading-[1.1]">The Modern Messaging Infrastructure</h2>
+                    <p class="text-lg text-slate-600 leading-relaxed mb-12 font-medium">
+                        NotifyNow is an enterprise-grade omni-channel messaging platform designed for high-throughput transactional and marketing communications. Our system orchestrates complex workflows across WhatsApp, RCS, and SMS with real-time tracking and intelligent fallback capabilities.
+                    </p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div class="premium-card p-8 rounded-3xl bg-gradient-to-br from-white to-slate-50">
+                            <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-emerald-500/20">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            </div>
+                            <h4 class="text-xl font-bold text-slate-900 mb-3">Enterprise Scalability</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed font-medium">Native DLT integration, Meta Cloud API certified, and distributed gateway architecture for 99.9% delivery success.</p>
                         </div>
-                        <div class="p-4 bg-emerald-50 rounded-lg">
-                            <span class="font-bold text-emerald-600 block mb-1">MEDIA Header (Image/Video/PDF)</span>
-                            <p class="text-gray-500 italic">Example: Your monthly invoice.</p>
-                            <p class="mt-2 font-medium">Mapping: You must provide a valid URL of the media file (JPEG, PNG, MP4, PDF).</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 2: Static vs Dynamic -->
-                <div class="mb-12 border-l-4 border-blue-500 pl-6">
-                    <h3 class="text-xl font-bold mb-3">Step 2: Choose Your Audience</h3>
-                    <div class="flex flex-col md:flex-row gap-6">
-                        <div class="flex-1 p-4 border rounded-xl">
-                            <h4 class="font-bold text-blue-700 mb-2">Static Campaign</h4>
-                            <p class="text-sm text-gray-600 mb-3">Same message for everyone. Select contacts from your groups or enter numbers manually.</p>
-                            <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded">Quick & Simple</span>
-                        </div>
-                        <div class="flex-1 p-4 border rounded-xl bg-blue-900 text-white shadow-xl">
-                            <h4 class="font-bold text-blue-300 mb-2">Dynamic (CSV) Campaign</h4>
-                            <p class="text-sm text-blue-100 mb-3">Personalized messages. System picks data from your CSV/Excel file for each person.</p>
-                            <span class="text-[10px] bg-white/20 text-white px-2 py-1 rounded">Pro Feature</span>
+                        <div class="premium-card p-8 rounded-3xl bg-gradient-to-br from-white to-slate-50">
+                            <div class="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-500/20">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            </div>
+                            <h4 class="text-xl font-bold text-slate-900 mb-3">Reseller Ecosystem</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed font-medium">Built-in white labeling, multi-tenant billing, and granular client isolation for agency partners.</p>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Step 3: Mapping -->
-                <div class="mb-12 border-l-4 border-amber-500 pl-6 bg-amber-50/30 py-4 pr-4">
-                    <h3 class="text-xl font-bold mb-3">Step 3: The Mapping Magic (Crucial)</h3>
-                    <p class="text-gray-600 mb-6">This is where you connect your CSV columns to the Template placeholders ({{1}}, {{2}}).</p>
+                <!-- Management Section -->
+                <section id="user-creation" class="section-reveal mb-24 scroll-mt-24">
+                    <div class="flex items-center gap-3 mb-10">
+                        <div class="w-8 h-1 bg-emerald-500 rounded-full"></div>
+                        <h2 class="text-3xl font-black text-slate-900 tracking-tight">Administrative Control</h2>
+                    </div>
                     
                     <div class="space-y-6">
-                        <div class="bg-white p-4 rounded-lg shadow-sm border">
-                            <h5 class="text-sm font-bold mb-2 flex items-center gap-2">
-                                <span class="w-2 h-2 bg-amber-500 rounded-full"></span> Mapping Text Variables
-                            </h5>
-                            <p class="text-xs text-gray-500 mb-4">If your template has <b>Dear {{1}}, your OTP is {{2}}</b>:</p>
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded border border-dashed">
-                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Placeholder</span><span class="font-mono font-bold text-amber-600">{{1}}</span></div>
-                                <div class="text-gray-300">→</div>
-                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Select Column</span><span class="font-bold text-emerald-600">"CustomerName"</span></div>
-                                <div class="text-gray-300">|</div>
-                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Placeholder</span><span class="font-mono font-bold text-amber-600">{{2}}</span></div>
-                                <div class="text-gray-300">→</div>
-                                <div class="text-center"><span class="block text-[10px] text-gray-400 font-bold uppercase">Select Column</span><span class="font-bold text-emerald-600">"OTP_Value"</span></div>
+                        <div class="flex items-start gap-6 p-6 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 group">
+                            <span class="step-number group-hover:scale-110 transition-transform">1</span>
+                            <div>
+                                <h4 class="font-bold text-slate-900 mb-1">Global Client Discovery</h4>
+                                <p class="text-slate-500 text-sm font-medium leading-relaxed">Centralized management of client accounts, verification statuses, and billing profiles via the Admin Command Center.</p>
                             </div>
                         </div>
-
-                        <div class="bg-white p-4 rounded-lg shadow-sm border">
-                            <h5 class="text-sm font-bold mb-2 flex items-center gap-2">
-                                <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Mapping Media Headers
-                            </h5>
-                            <p class="text-xs text-gray-500 mb-4">If your template has an <b>IMAGE Header</b>:</p>
-                            <div class="p-3 bg-blue-50 rounded border border-blue-100">
-                                <p class="text-xs text-blue-800">You can either paste a <b>Fixed URL</b> (same image for all) OR map it to a <b>Column</b> (different image for each user, e.g., 'Invoice_Link').</p>
+                        <div class="flex items-start gap-6 p-6 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 group">
+                            <span class="step-number group-hover:scale-110 transition-transform">2</span>
+                            <div>
+                                <h4 class="font-bold text-slate-900 mb-1">Role-Based Provisioning</h4>
+                                <p class="text-slate-500 text-sm font-medium leading-relaxed">Granular entitlement control. Define exactly which communication channels and API features each user can access.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-6 p-6 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 group">
+                            <span class="step-number group-hover:scale-110 transition-transform">3</span>
+                            <div>
+                                <h4 class="font-bold text-slate-900 mb-1">Fiscal Governance</h4>
+                                <p class="text-slate-500 text-sm font-medium leading-relaxed">Dynamic credit allocation and real-time wallet monitoring. Set custom pricing per user to maximize profitability.</p>
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Final Review -->
-                <div class="p-6 bg-emerald-900 text-white rounded-3xl shadow-2xl relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
-                    <h3 class="text-xl font-bold mb-3">Final Step: Preview & Send</h3>
-                    <p class="text-sm text-emerald-100 mb-6">Always check the <b>Live Preview</b> on the right side of the screen. If you see variables like <i>{{1}}</i> instead of actual data, your mapping is incomplete.</p>
-                    <div class="flex items-center gap-3">
-                        <button class="bg-white text-emerald-900 px-6 py-2 rounded-full font-bold text-sm">Review Now</button>
-                        <span class="text-xs text-emerald-400">Campaigns are queued instantly for maximum speed.</span>
+                <!-- Campaign Section -->
+                <section id="dynamic-campaign" class="section-reveal mb-24 scroll-mt-24">
+                    <h2 class="text-3xl font-black text-slate-900 mb-12 tracking-tight">Campaign Orchestration</h2>
+                    
+                    <div class="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden mb-12">
+                        <div class="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px]"></div>
+                        <div class="relative z-10">
+                            <h3 class="text-2xl font-bold mb-6 text-emerald-400">Intelligent Variable Injection</h3>
+                            <p class="text-slate-400 font-medium mb-10 leading-relaxed text-base">
+                                Transform raw CSV data into personalized experiences. Our engine dynamically maps your spreadsheet columns to template placeholders in real-time.
+                            </p>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-colors">
+                                    <div class="flex items-center gap-3 mb-4">
+                                        <div class="w-2 h-2 bg-slate-500 rounded-full"></div>
+                                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Static Workflow</span>
+                                    </div>
+                                    <h5 class="text-lg font-bold mb-2">Mass Notification</h5>
+                                    <p class="text-xs text-slate-400 leading-relaxed">One message, thousands of recipients. Best for service alerts and broad announcements.</p>
+                                </div>
+                                <div class="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-colors">
+                                    <div class="flex items-center gap-3 mb-4">
+                                        <div class="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                        <span class="text-[10px] font-black uppercase tracking-widest text-emerald-500">Dynamic Workflow</span>
+                                    </div>
+                                    <h5 class="text-lg font-bold mb-2">Hyper-Personalized</h5>
+                                    <p class="text-xs text-slate-400 leading-relaxed">Unique data per recipient. Auto-inject names, order IDs, or custom deep links with zero overhead.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </section>
 
-            <section id="failover" class="mb-16">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Smart Failover (Fallback)</h2>
-                <p class="text-gray-600 mb-4">Ensure 100% delivery. If a WhatsApp or RCS message fails (e.g., user is offline), the system automatically sends an SMS.</p>
-                <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                    <h5 class="font-bold text-emerald-800 text-sm mb-2">How to Setup?</h5>
-                    <ol class="text-xs text-emerald-700 space-y-2 list-decimal pl-4">
-                        <li>During Campaign Creation, enable <b>"Failover"</b>.</li>
-                        <li>Select an <b>SMS Template</b> (DLT approved).</li>
-                        <li>The system will automatically map dynamic variables from WhatsApp/RCS to the SMS template.</li>
-                    </ol>
-                </div>
-            </section>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="failover">
+                        <div class="p-8 rounded-[2rem] bg-indigo-50 border border-indigo-100 hover:shadow-xl transition-all">
+                            <div class="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white mb-6">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            </div>
+                            <h4 class="text-xl font-bold text-indigo-900 mb-4 tracking-tight">Enterprise Failover</h4>
+                            <p class="text-sm text-indigo-600/80 leading-relaxed font-medium mb-6">Guarantee delivery even when data is unavailable. If a rich message (WA/RCS) fails, our system automatically triggers a compliant SMS backup.</p>
+                            <span class="inline-flex px-3 py-1 bg-white text-indigo-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">DLT Protected</span>
+                        </div>
+                        
+                        <div class="p-8 rounded-[2rem] bg-emerald-50 border border-emerald-100 hover:shadow-xl transition-all">
+                            <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white mb-6">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            </div>
+                            <h4 class="text-xl font-bold text-emerald-900 mb-4 tracking-tight">Delivery Intelligence</h4>
+                            <p class="text-sm text-emerald-600/80 leading-relaxed font-medium mb-6">Deep-dive into conversion metrics. Track delivered, read, and interaction rates with millisecond precision across all channels.</p>
+                            <span class="inline-flex px-3 py-1 bg-white text-emerald-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">Real-time Sync</span>
+                        </div>
+                    </div>
+                </section>
 
-            <section id="reports" class="mb-16 text-center py-12 bg-gray-50 rounded-3xl border border-dashed">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">Analytics & Logs</h2>
-                <p class="text-gray-600 mb-6 max-w-md mx-auto text-sm">Monitor Sent, Delivered, Read, and Failed status in real-time. Export detailed logs to CSV for client reporting.</p>
-                <div class="flex justify-center gap-4">
-                    <div class="px-4 py-2 bg-white rounded-lg shadow-sm border"><span class="text-emerald-500 font-bold">99.9%</span> <p class="text-[10px] uppercase text-gray-400">Uptime</p></div>
-                    <div class="px-4 py-2 bg-white rounded-lg shadow-sm border"><span class="text-emerald-500 font-bold">1Cr+</span> <p class="text-[10px] uppercase text-gray-400">Messages/Day</p></div>
-                </div>
-            </section>
-
+                <section id="reports" class="py-20 text-center border-t border-slate-100">
+                    <div class="max-w-xl mx-auto">
+                        <h2 class="text-3xl font-black text-slate-900 mb-6 tracking-tight leading-tight">Empower Your Decisions With Data</h2>
+                        <p class="text-slate-500 mb-12 font-medium">Export audit-ready logs for stakeholders and monitor your platform health through our advanced telemetry dashboard.</p>
+                        <div class="flex justify-center gap-6">
+                            <div class="px-8 py-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                <span class="block text-3xl font-black text-emerald-600 tracking-tighter mb-1">99.9%</span>
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Platform Uptime</span>
+                            </div>
+                            <div class="px-8 py-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                <span class="block text-3xl font-black text-emerald-600 tracking-tighter mb-1">< 10ms</span>
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">API Latency</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
 
-    <!-- Footer -->
-    <footer class="bg-gray-900 text-gray-400 py-12 border-t border-white/10">
-        <div class="max-w-7xl mx-auto px-4 text-center">
-            <p class="text-sm mb-4">&copy; 2026 NotifyNow Platform. All rights reserved.</p>
-            <div class="flex justify-center gap-6 text-xs uppercase tracking-widest">
-                <a href="#" class="hover:text-white transition">Terms of Service</a>
-                <a href="#" class="hover:text-white transition">Privacy Policy</a>
-                <a href="#" class="hover:text-white transition">Support</a>
+    <!-- Premium Footer -->
+    <footer class="bg-slate-50 border-t border-slate-200 py-16">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="flex items-center justify-center gap-3 mb-8">
+                <div class="w-8 h-8 bg-slate-200 rounded-lg"></div>
+                <span class="text-lg font-black text-slate-900">NotifyNow</span>
+            </div>
+            <p class="text-[10px] font-bold text-slate-400 mb-10 uppercase tracking-[0.3em]">&copy; 2026 NotifyNow Technology Platform &bull; All Rights Reserved</p>
+            <div class="flex justify-center flex-wrap gap-10 text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                <a href="#" class="hover:text-emerald-600 transition-colors">Architecture</a>
+                <a href="#" class="hover:text-emerald-600 transition-colors">API Reference</a>
+                <a href="#" class="hover:text-emerald-600 transition-colors">Privacy Cloud</a>
+                <a href="#" class="hover:text-emerald-600 transition-colors">Enterprise Support</a>
             </div>
         </div>
     </footer>
 
     <script>
-        // Simple scroll spy for sidebar
-        const links = document.querySelectorAll('.sidebar-link');
+        const mobileToggle = document.getElementById('mobile-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
         const sections = document.querySelectorAll('section');
 
-        window.onscroll = () => {
+        // Smooth mobile toggle
+        mobileToggle.onclick = () => {
+            sidebar.classList.toggle('open');
+        };
+
+        // Close sidebar on link click (mobile)
+        sidebarLinks.forEach(link => {
+            link.onclick = () => {
+                if (window.innerWidth < 768) {
+                    sidebar.classList.remove('open');
+                }
+            };
+        });
+
+        // Enhanced Scroll Spy with smooth highlighting
+        const updateActiveLink = () => {
             let current = "";
+            const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
+
             sections.forEach(section => {
                 const sectionTop = section.offsetTop;
-                if (pageYOffset >= sectionTop - 100) {
+                const sectionHeight = section.offsetHeight;
+                if (scrollPos >= sectionTop - 150) {
                     current = section.getAttribute('id');
                 }
             });
 
-            links.forEach(link => {
+            sidebarLinks.forEach(link => {
                 link.classList.remove('active');
-                if (link.getAttribute('href').includes(current)) {
+                if (link.getAttribute('href') === `#${current}`) {
                     link.classList.add('active');
                 }
             });
         };
+
+        window.addEventListener('scroll', updateActiveLink);
+        window.addEventListener('load', updateActiveLink);
+
+        // Section Reveal Intersection Observer
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = "1";
+                    entry.target.classList.add('section-reveal');
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach(section => {
+            section.style.opacity = "0";
+            observer.observe(section);
+        });
     </script>
 </body>
 </html>

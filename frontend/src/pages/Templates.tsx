@@ -28,6 +28,7 @@ import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesSer
 import { whatsappService } from '@/services/whatsappService';
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClient } from '@/contexts/ClientContext';
 import { dltTemplateService } from '@/services/dltTemplateService';
 import { useNavigate } from 'react-router-dom';
 import { EmailTemplateForm } from '@/components/campaigns/EmailTemplateForm';
@@ -39,6 +40,7 @@ export default function Templates() {
   const { user } = useAuth();
   const { syncTemplate } = useRCSTemplates();
   const navigate = useNavigate();
+  const { selectedClientId } = useClient();
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -78,13 +80,13 @@ export default function Templates() {
     if (user) {
       fetchTemplates();
     }
-  }, [user?.id, user?.rcs_config_id, user?.whatsapp_config_id, page, templateSubTab]);
+  }, [user?.id, user?.rcs_config_id, user?.whatsapp_config_id, page, templateSubTab, selectedClientId]); // Added selectedClientId
 
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const templatesRes = templateSubTab === 'pending' && isAdmin
-        ? await templateService.getAdminTemplates(page)
+      const templatesRes = isAdmin
+        ? await templateService.getAdminTemplates(page, 20, selectedClientId)
         : await templateService.getTemplates(page);
       
       const templatesData = templatesRes.templates;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClient } from '@/contexts/ClientContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +70,7 @@ const downloadCsv = (content: string, filename: string) => {
 
 export default function Reports() {
     const { user } = useAuth();
+    const { selectedClientId } = useClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
@@ -85,7 +87,12 @@ export default function Reports() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [channelFilter, setChannelFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [targetUserId, setTargetUserId] = useState('all');
+    const [targetUserId, setTargetUserId] = useState(selectedClientId || 'all');
+
+    // Update targetUserId when global selector changes
+    useEffect(() => {
+        setTargetUserId(selectedClientId);
+    }, [selectedClientId]);
     const [users, setUsers] = useState<any[]>([]);
     const [apiPage, setApiPage] = useState(1);
     const [apiTotal, setApiTotal] = useState(0);

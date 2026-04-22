@@ -1,11 +1,12 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
+import { SuperAdminSidebar } from './SuperAdminSidebar';
 import { Topbar } from './Topbar';
 import { useState } from 'react';
 
 export function AppLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   if (isLoading) {
@@ -20,11 +21,13 @@ export function AppLayout() {
     return <Navigate to="/auth" replace />;
   }
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   return (
     <div className="flex min-h-screen w-full bg-background">
       {/* Desktop Fixed Sidebar */}
       <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:border-r lg:border-border">
-        <AppSidebar />
+        {isAdmin ? <SuperAdminSidebar /> : <AppSidebar />}
       </div>
 
       {/* Mobile Sidebar (slide-in, not fixed) */}
@@ -40,7 +43,11 @@ export function AppLayout() {
           ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           w-[90vw] max-w-[380px]`}
       >
-        <AppSidebar onClose={() => setMobileSidebarOpen(false)} />
+        {isAdmin ? (
+          <SuperAdminSidebar onClose={() => setMobileSidebarOpen(false)} />
+        ) : (
+          <AppSidebar onClose={() => setMobileSidebarOpen(false)} />
+        )}
       </div>
 
       {/* Main Content – scrollable, with left margin on desktop */}

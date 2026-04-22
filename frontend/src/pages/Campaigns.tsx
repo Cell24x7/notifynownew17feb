@@ -45,6 +45,7 @@ import { rcsTemplatesService, useRCSTemplates } from '@/services/rcsTemplatesSer
 import { rcsCampaignApi } from '@/services/rcsCampaignApi';
 import { whatsappService } from '@/services/whatsappService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClient } from '@/contexts/ClientContext';
 
 // Date range presets for analytics
 const dateRangePresets = ['Today', 'Last 7 Days', 'Last 30 Days', 'This Month', 'Last Month', 'Custom Range'];
@@ -53,6 +54,7 @@ export default function Campaigns() {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
   const { syncTemplate } = useRCSTemplates();
+  const { selectedClientId } = useClient();
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const enabledChannels = user?.channels_enabled || [];
 
@@ -73,7 +75,7 @@ export default function Campaigns() {
       refreshUser();
     }
     return () => clearInterval(interval);
-  }, [user?.id, page]);
+  }, [user?.id, page, selectedClientId]); // Added selectedClientId dependency
 
   const fetchData = async () => {
     setLoading(true);
@@ -81,8 +83,12 @@ export default function Campaigns() {
       // Refresh user to get latest wallet balance and custom pricing
       await refreshUser();
 
-      const [campaignsRes, templatesRes] = await Promise.all([
-        campaignService.getCampaigns(page),
+      // Use Admin API if selectedClientId is present (for Admin) or fallback to standard
+      const campaignsRes = isAdmin 
+        ? await campaignService.getAdminCampaigns({ page, clientId: selectedClientId })
+        : await campaignService.getCampaigns(page);
+
+      const [templatesRes] = await Promise.all([
         templateService.getTemplates()
       ]);
       

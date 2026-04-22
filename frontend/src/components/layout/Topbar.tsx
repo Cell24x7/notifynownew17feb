@@ -1,9 +1,13 @@
-import { Wallet, Zap, ChevronDown, Sun, Moon, LogOut, Menu, User } from 'lucide-react';
+import { Wallet, Zap, ChevronDown, Sun, Moon, LogOut, Menu, User, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import logo from '@/assets/logo-full.png';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClient } from '@/contexts/ClientContext';
 import { useTheme } from 'next-themes';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,6 +16,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface TopbarProps {
     onMenuClick?: () => void;
@@ -19,8 +30,30 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
     const { user, logout } = useAuth();
+    const { selectedClientId, setSelectedClientId } = useClient();
     const { theme, setTheme } = useTheme();
     const isDark = theme === 'dark';
+    const [clients, setClients] = useState<any[]>([]);
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+    useEffect(() => {
+        if (isAdmin) {
+            const fetchClients = async () => {
+                try {
+                    const token = localStorage.getItem('authToken');
+                    const res = await axios.get(`${API_BASE_URL}/api/clients`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.data.success) {
+                        setClients(res.data.clients || []);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch clients for selector', err);
+                }
+            };
+            fetchClients();
+        }
+    }, [isAdmin]);
 
     return (
         <div className="flex items-center justify-between w-full h-16 px-4 md:px-8 bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-800 sticky top-0 z-20">
@@ -32,7 +65,26 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 <img src={logo} alt="Logo" className="h-8 md:hidden" />
             </div>
 
-            <div className="flex-1 hidden md:block" />
+            <div className="flex-1 hidden md:flex items-center px-4">
+                {isAdmin && (
+                    <div className="flex items-center gap-2 max-w-xs w-full">
+                        <Users className="h-4 w-4 text-slate-400 shrink-0" />
+                        <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                            <SelectTrigger className="h-9 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl text-xs font-semibold">
+                                <SelectValue placeholder="Select Client (All)" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                                <SelectItem value="all" className="text-xs font-bold">All Clients (System)</SelectItem>
+                                {clients.map(client => (
+                                    <SelectItem key={client.id} value={String(client.id)} className="text-xs">
+                                        {client.name} ({client.company_name})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+            </div>
 
             <div className="flex items-center gap-3 ml-auto">
                 {/* Wallet Balance */}

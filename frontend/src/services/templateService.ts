@@ -62,8 +62,8 @@ export const templateService = {
         return response.data as PaginatedTemplates;
     },
 
-    async getAdminTemplates(page: number = 1, limit: number = 20) {
-        const response = await axios.get(`${API_BASE_URL_TEMPLATES}/admin?page=${page}&limit=${limit}`, { headers: getAuthHeader() });
+    async getAdminTemplates(page: number = 1, limit: number = 20, clientId: string = 'all') {
+        const response = await axios.get(`${API_BASE_URL_TEMPLATES}/admin?page=${page}&limit=${limit}&clientId=${clientId}`, { headers: getAuthHeader() });
         return response.data as PaginatedTemplates;
     },
 
