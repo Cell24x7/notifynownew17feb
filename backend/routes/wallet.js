@@ -158,7 +158,7 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
     const redirectUrl = `${process.env.BACKEND_URL || 'https://notifynow.in/api'}/wallet/ccavenue-response`;
     const cancelUrl = `${process.env.BACKEND_URL || 'https://notifynow.in/api'}/wallet/ccavenue-response`;
 
-    // 1. Prepare data (Added tid and cleaned up)
+    // 1. Prepare data (Added mandatory billing fields for authentication)
     const paymentData = {
         merchant_id: merchantId,
         order_id: orderId,
@@ -169,6 +169,12 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
         language: 'EN',
         billing_name: (req.user.name || 'User').replace(/[^a-zA-Z0-9 ]/g, ''),
         billing_email: req.user.email || '',
+        billing_tel: req.user.contact_phone || '9999999999',
+        billing_address: 'Main Street',
+        billing_city: 'Mumbai',
+        billing_state: 'Maharashtra',
+        billing_zip: '400001',
+        billing_country: 'India',
         merchant_param1: userId.toString(),
         tid: Date.now().toString()
     };
