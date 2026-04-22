@@ -474,7 +474,7 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
         }
 
         if (smsContent) {
-            let finalVars = payload.variables || {};
+            let finalVars = payload.variables || payload.contact_variables || payload.metadata?.variables || {};
             // Resolve custom CSV variables using campaign's field mapping
             if (payload.campaign_id && Object.keys(finalVars).length > 0) {
                 try {
