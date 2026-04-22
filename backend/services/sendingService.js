@@ -468,13 +468,20 @@ const sendUniversalMessage = async (item) => {
 
             console.log(`[Meta] Sending via Bot: ${waConfig.ph_no_id} | Template: ${payload.template.name} | Payload: ${JSON.stringify(payload)}`);
 
-            const response = await axios.post(msgUrl, payload, { headers });
-            const respData = response.data;
-            result = { 
-                success: true, 
-                messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${item.mobile}`,
-                processedMessage
-            };
+            try {
+                const response = await axios.post(msgUrl, payload, { headers });
+                const respData = response.data;
+                console.log(`✅ [Meta Response] Success: ${JSON.stringify(respData)}`);
+                result = { 
+                    success: true, 
+                    messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${item.mobile}`,
+                    processedMessage
+                };
+            } catch (metaErr) {
+                const metaResp = metaErr.response?.data;
+                console.error(`❌ [Meta Response] Failed:`, JSON.stringify(metaResp || metaErr.message));
+                throw metaErr; // Re-throw to be caught by the main catch block
+            }
         } 
         else if (channelParsed === 'email') {
             const body = item.template_body || '';
