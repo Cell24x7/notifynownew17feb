@@ -1428,7 +1428,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                     <Label>{campaignData.channel === 'email' ? 'Enter Email Addresses' : 'Enter Mobile Numbers'}</Label>
                                     <textarea
                                        className="flex min-h-[200px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                       placeholder={campaignData.channel === 'email' ? `user1@example.com\nuser2@example.com\nuser3@example.com` : `919876543210\n919876543211\n919876543212`}
+                                       placeholder={campaignData.channel === 'email' ? `user1@example.com\nuser2@example.com\nuser3@example.com` : `919892891772\n918779721034`}
                                        value={campaignData.manualNumbers}
                                        onChange={(e) => {
                                           const val = e.target.value;

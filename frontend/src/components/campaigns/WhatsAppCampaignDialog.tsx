@@ -325,7 +325,7 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                                                         {recipientSource === 'manual' && (
                                                             <div className="mt-3">
                                                                 <Textarea
-                                                                    placeholder="+919876543210, +919988776655"
+                                                                    placeholder="+919892891772, +918779721034"
                                                                     className="min-h-[120px] bg-[#f9fafb] border-gray-200 resize-none text-sm"
                                                                     value={manualRecipients}
                                                                     onChange={(e) => setManualRecipients(e.target.value)}
