@@ -1,496 +1,265 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NotifyNow | Documentation Portal</title>
-    <!-- Google Fonts: Outfit for Headings, Inter for Body -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet">
-    <!-- Highlight.js: GitHub Light Theme for better readability on light mode -->
-    <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <!-- Marked.js for Markdown Rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
+    <title>NotifyNow | Official Platform Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #0052cc;
-            --primary-dark: #0747a6;
-            --primary-glow: rgba(0, 82, 204, 0.15);
-            --secondary: #00c853;
-            --bg-deep: #f8faff;
-            --sidebar-bg: #ffffff;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #475569;
-            --text-dim: #94a3b8;
-            --border: #e2e8f0;
-            --accent-gradient: linear-gradient(135deg, #0052cc 0%, #0747a6 100%);
-            --glass-bg: rgba(255, 255, 255, 0.9);
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            outline: none;
-        }
-
-        body {
-            background-color: var(--bg-deep);
-            color: var(--text-main);
-            height: 100vh;
-            display: flex;
-            overflow: hidden;
-            font-family: 'Inter', sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* Modern Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-dim);
-        }
-
-        #loader {
-            position: fixed;
-            inset: 0;
-            background: var(--bg-deep);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.6s ease;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid var(--border);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        aside {
-            width: 300px;
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-            backdrop-filter: blur(20px);
-        }
-
-        .sidebar-header {
-            padding: 2.5rem 2rem;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .logo-box {
-            width: 38px;
-            height: 38px;
-            background: var(--accent-gradient);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 20px var(--primary-glow);
-        }
-
-        .sidebar-nav {
-            flex: 1;
-            padding: 1.5rem;
-            overflow-y: auto;
-        }
-
-        .nav-group-label {
-            padding: 1.5rem 1rem 0.5rem;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            letter-spacing: 0.1em;
-            font-weight: 700;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            border-radius: 12px;
-            color: var(--text-muted);
-            text-decoration: none;
-            transition: var(--transition);
-            margin-bottom: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 0.95rem;
-            border: 1px solid transparent;
-        }
-
-        .nav-item:hover {
-            background: rgba(255, 255, 255, 0.03);
-            color: var(--text-main);
-            transform: translateX(4px);
-        }
-
-        .nav-item.active {
-            background: rgba(167, 139, 250, 0.1);
-            color: var(--primary);
-            border-color: rgba(167, 139, 250, 0.2);
-            box-shadow: inset 0 0 10px rgba(167, 139, 250, 0.05);
-        }
-
-        main {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0;
-            background: radial-gradient(circle at 50% -20%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
-        }
-
-        .content-container {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 5rem 3rem;
-        }
-
-        /* Markdown Styling - PREMIUM */
-        .markdown-content {
-            line-height: 1.8;
-            font-size: 1.1rem;
-            color: var(--text-main);
-        }
-
-        .markdown-content h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 2rem;
-            letter-spacing: -0.02em;
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .markdown-content h2 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2rem;
-            font-weight: 600;
-            margin: 3.5rem 0 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .markdown-content h2::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
-        }
-
-        .markdown-content h3 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.4rem;
-            margin: 2rem 0 1rem;
-            color: var(--primary);
-        }
-
-        .markdown-content p {
-            color: var(--text-muted);
-            margin-bottom: 1.5rem;
-            font-weight: 400;
-        }
-
-        .markdown-content strong {
-            color: var(--text-main);
-            font-weight: 600;
-        }
-
-        .markdown-content code {
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-            background: rgba(255, 255, 255, 0.06);
-            padding: 0.2em 0.4em;
-            border-radius: 6px;
-            font-size: 0.9em;
-            color: var(--primary);
-        }
-
-        .markdown-content pre {
-            background: #fdfdfd;
-            padding: 2rem;
-            border-radius: 16px;
-            margin: 2rem 0;
-            border: 1px solid var(--border);
-            position: relative;
-            overflow-x: auto;
-        }
-
-        .markdown-content blockquote {
-            border-left: 4px solid var(--primary);
-            background: rgba(167, 139, 250, 0.05);
-            padding: 1.5rem 2rem;
-            border-radius: 0 12px 12px 0;
-            margin: 2rem 0;
-            font-style: italic;
-            color: var(--text-muted);
-        }
-
-        /* Alert Callouts */
-        .alert {
-            padding: 1.5rem 2rem;
-            border-radius: 16px;
-            margin: 2.5rem 0;
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-            border: 1px solid transparent;
-        }
-
-        .alert-note {
-            background: rgba(30, 64, 175, 0.1);
-            border-color: rgba(59, 130, 246, 0.2);
-            color: #93c5fd;
-        }
-
-        .alert-note::before {
-            content: 'ℹ️';
-            font-size: 1.2rem;
-        }
-
-        /* Table Design */
-        .markdown-content table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin: 2rem 0;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            background: var(--card-bg);
-        }
-
-        .markdown-content th {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 1rem 1.5rem;
-            text-align: left;
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-dim);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .markdown-content td {
-            padding: 1.2rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
-
-        .markdown-content tr:last-child td {
-            border-bottom: none;
-        }
-
-        @media (max-width: 1024px) {
-            aside {
-                width: 0;
-                position: fixed;
-                box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
-            }
-
-            aside.open {
-                width: 300px;
-            }
-
-            .content-container {
-                padding: 4rem 1.5rem;
-            }
-        }
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        .sidebar-link.active { background: #f3f4f6; border-left: 4px solid #10b981; color: #059669; }
+        pre { background: #1f2937; color: #f9fafb; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+        .step-number { background: #10b981; color: white; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.75rem; font-weight: bold; margin-right: 8px; }
     </style>
 </head>
+<body class="bg-gray-50 text-gray-800">
 
-<body>
-    <div id="loader">
-        <div class="spinner"></div>
-        <p style="font-family: 'Outfit'; font-size: 1.2rem; letter-spacing: 2px;">NOTIFYNOW</p>
+    <!-- Header -->
+    <header class="bg-white border-b sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-emerald-600 p-1.5 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-emerald-900">NotifyNow <span class="text-gray-400 font-medium">Docs</span></h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-semibold px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">v1.2.0</span>
+                <a href="https://notifynow.in/dashboard" class="text-sm font-medium text-emerald-600 hover:text-emerald-700 underline">Back to Dashboard</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row">
+        
+        <!-- Sidebar -->
+        <nav class="w-full md:w-64 p-6 border-r md:h-[calc(100vh-64px)] overflow-y-auto sticky top-16 bg-white">
+            <div class="space-y-8">
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Get Started</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#intro" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Overview</a></li>
+                        <li><a href="#workflow" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">System Workflow</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Admin Operations</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#user-creation" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">User Creation</a></li>
+                        <li><a href="#roles-permissions" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Roles & Permissions</a></li>
+                        <li><a href="#credit-management" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Credit Management</a></li>
+                        <li><a href="#gateway-assignment" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Gateway Assignment</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Messaging Channels</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#channel-whatsapp" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">WhatsApp API</a></li>
+                        <li><a href="#channel-rcs" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">RCS Business Messaging</a></li>
+                        <li><a href="#channel-sms" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">SMS & DLT Management</a></li>
+                        <li><a href="#channel-voice-email" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Voicebot & Email</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Campaigns & Reports</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#static-campaign" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Static Campaigns</a></li>
+                        <li><a href="#dynamic-campaign" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Dynamic (CSV) Campaigns</a></li>
+                        <li><a href="#failover" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Smart Failover (Fallback)</a></li>
+                        <li><a href="#reports" class="sidebar-link block py-2 px-3 rounded transition hover:bg-gray-100">Analytics & Logs</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 md:p-12 bg-white max-w-4xl">
+            
+            <!-- Intro -->
+            <section id="intro" class="mb-16">
+                <h2 class="text-3xl font-bold text-gray-900 mb-6">Overview</h2>
+                <p class="text-lg text-gray-600 leading-relaxed mb-6">
+                    NotifyNow is an omni-channel messaging automation platform designed for enterprises and resellers. It integrates WhatsApp, RCS, SMS, Voice, and Email into a single dashboard with advanced failover capabilities.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 border rounded-xl bg-emerald-50 border-emerald-100">
+                        <h4 class="font-bold text-emerald-800 mb-2">Reseller Ready</h4>
+                        <p class="text-sm text-emerald-700">Manage multiple clients, set custom pricing, and monitor usage pools.</p>
+                    </div>
+                    <div class="p-4 border rounded-xl bg-blue-50 border-blue-100">
+                        <h4 class="font-bold text-blue-800 mb-2">Developer API</h4>
+                        <p class="text-sm text-blue-700">Robust REST APIs for transactional OTPs and automated notifications.</p>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="my-12">
+
+            <!-- Admin Operations -->
+            <section id="user-creation" class="mb-16">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Admin: Creating a New User</h2>
+                <div class="space-y-6">
+                    <div class="flex items-start">
+                        <span class="step-number">1</span>
+                        <div>
+                            <h4 class="font-semibold">Access Clients Panel</h4>
+                            <p class="text-gray-600 text-sm">Navigate to <b>Super Admin > Clients</b> from the sidebar.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="step-number">2</span>
+                        <div>
+                            <h4 class="font-semibold">Fill Details</h4>
+                            <p class="text-gray-600 text-sm">Click on <b>+ Add Client</b>. Enter Name, Email, Password, and Mobile Number.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="step-number">3</span>
+                        <div>
+                            <h4 class="font-semibold">Role Selection</h4>
+                            <p class="text-gray-600 text-sm">Choose <b>Client</b> (Direct End User) or <b>Reseller</b> (Who can create their own clients).</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="roles-permissions" class="mb-16">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Roles & Permissions</h2>
+                <p class="text-gray-600 mb-4">Every user can have specific channels enabled or disabled. This controls their dashboard menu and API access.</p>
+                <div class="bg-gray-50 rounded-lg p-4 border border-dashed border-gray-300">
+                    <ul class="grid grid-cols-2 gap-4 text-sm font-medium">
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> WhatsApp Access</li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> RCS Access</li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> SMS Access</li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg> Voice & Email Access</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="credit-management" class="mb-16">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Credit Management</h2>
+                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
+                    <p class="text-sm text-amber-800 font-medium">NotifyNow works on a pre-paid wallet model. Users must have balance to send campaigns.</p>
+                </div>
+                <h4 class="font-bold mb-3">Methods to Add Credits:</h4>
+                <ol class="list-decimal pl-5 space-y-4 text-gray-600">
+                    <li><b>Manual Adjustment (Admin)</b>: Go to <b>Wallet > Adjust</b>, select the user, choose 'Credit', enter amount, and hit save.</li>
+                    <li><b>Self-Recharge (User)</b>: Users can click <b>"Top-up Wallet"</b> on their dashboard and pay via CCAvenue.</li>
+                </ol>
+            </section>
+
+            <section id="gateway-assignment" class="mb-16">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Gateway Assignment</h2>
+                <p class="text-gray-600 mb-4">Gateways define which provider is used to route messages. This is crucial for pricing and deliverability.</p>
+                <div class="space-y-4">
+                    <div class="p-4 border rounded-lg hover:shadow-md transition">
+                        <h5 class="font-bold text-sm">SMS Gateway</h5>
+                        <p class="text-xs text-gray-500">Go to <b>Integrations > SMS Gateways</b>. Assign a specific gateway to a user. This gateway must have their DLT-approved Sender ID.</p>
+                    </div>
+                    <div class="p-4 border rounded-lg hover:shadow-md transition">
+                        <h5 class="font-bold text-sm">RCS Config</h5>
+                        <p class="text-xs text-gray-500">Enable specific Bots for users in <b>Integrations > RCS Config</b>.</p>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="my-12">
+
+            <!-- Messaging Channels -->
+            <section id="channel-whatsapp" class="mb-16">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">WhatsApp Business API</h2>
+                <p class="text-gray-600 mb-4">Requires a Meta-approved Business Account and WhatsApp Number.</p>
+                <ul class="space-y-3 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> <b>Template Creation</b>: Must include Variables like {{1}}, {{2}} for dynamic content.</li>
+                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> <b>Approval</b>: Meta takes 2 mins to 2 hours to approve templates.</li>
+                </ul>
+            </section>
+
+            <hr class="my-12">
+
+            <!-- Campaigns -->
+            <section id="static-campaign" class="mb-16">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Static vs Dynamic Campaigns</h2>
+                
+                <div class="mb-8">
+                    <h4 class="font-bold text-emerald-700 mb-2">Static Campaigns</h4>
+                    <p class="text-sm text-gray-600">The same message is sent to all selected contacts. Best for general announcements or festival greetings.</p>
+                </div>
+
+                <div class="mb-8 p-6 bg-gray-900 text-white rounded-2xl">
+                    <h4 class="font-bold text-emerald-400 mb-4">Dynamic (CSV) Campaigns - The Powerhouse</h4>
+                    <p class="text-sm text-gray-300 mb-4">Send personalized messages to thousands by uploading a CSV/Excel file. Each column in your file can be mapped to a variable in your template.</p>
+                    <div class="space-y-3">
+                        <div class="text-xs font-mono text-gray-400 bg-black/30 p-3 rounded border border-white/10">
+                            Example Template: Dear {{1}}, your order ID {{2}} is ready!
+                        </div>
+                        <p class="text-xs text-gray-400 italic">Your CSV should have columns like 'Name' and 'OrderID'. During step 3 of campaign creation, map {{1}} to 'Name' and {{2}} to 'OrderID'.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="failover" class="mb-16">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Smart Failover (Fallback)</h2>
+                <p class="text-gray-600 mb-4">Ensure 100% delivery. If a WhatsApp or RCS message fails (e.g., user is offline), the system automatically sends an SMS.</p>
+                <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                    <h5 class="font-bold text-emerald-800 text-sm mb-2">How to Setup?</h5>
+                    <ol class="text-xs text-emerald-700 space-y-2 list-decimal pl-4">
+                        <li>During Campaign Creation, enable <b>"Failover"</b>.</li>
+                        <li>Select an <b>SMS Template</b> (DLT approved).</li>
+                        <li>The system will automatically map dynamic variables from WhatsApp/RCS to the SMS template.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section id="reports" class="mb-16 text-center py-12 bg-gray-50 rounded-3xl border border-dashed">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">Analytics & Logs</h2>
+                <p class="text-gray-600 mb-6 max-w-md mx-auto text-sm">Monitor Sent, Delivered, Read, and Failed status in real-time. Export detailed logs to CSV for client reporting.</p>
+                <div class="flex justify-center gap-4">
+                    <div class="px-4 py-2 bg-white rounded-lg shadow-sm border"><span class="text-emerald-500 font-bold">99.9%</span> <p class="text-[10px] uppercase text-gray-400">Uptime</p></div>
+                    <div class="px-4 py-2 bg-white rounded-lg shadow-sm border"><span class="text-emerald-500 font-bold">1Cr+</span> <p class="text-[10px] uppercase text-gray-400">Messages/Day</p></div>
+                </div>
+            </section>
+
+        </main>
     </div>
 
-    <aside id="sidebar">
-        <div class="sidebar-header">
-            <div class="logo-box"><i data-lucide="zap" color="white" size="20"></i></div>
-            <h2 style="font-family: 'Outfit'; font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em;">Knowledge
-                base</h2>
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-12 border-t border-white/10">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-sm mb-4">&copy; 2026 NotifyNow Platform. All rights reserved.</p>
+            <div class="flex justify-center gap-6 text-xs uppercase tracking-widest">
+                <a href="#" class="hover:text-white transition">Terms of Service</a>
+                <a href="#" class="hover:text-white transition">Privacy Policy</a>
+                <a href="#" class="hover:text-white transition">Support</a>
+            </div>
         </div>
-        <div class="sidebar-nav">
-            <a onclick="loadDoc('CHANGELOG.md', this)" class="nav-item">
-                <i data-lucide="history" size="18"></i> Project History
-            </a>
-            <a onclick="loadDoc('README.md', this)" class="nav-item">
-                <i data-lucide="compass" size="18"></i> Getting Started
-            </a>
-
-            <div class="nav-group-label">Core Resources</div>
-            <a onclick="loadDoc('USER_GUIDE.md', this)" class="nav-item">
-                <i data-lucide="book-open" size="18"></i> User Guide
-            </a>
-            <a onclick="loadDoc('DEVELOPER.md', this)" class="nav-item">
-                <i data-lucide="code-2" size="18"></i> Backend Dev
-            </a>
-            <a onclick="loadDoc('API_REFERENCE.md', this)" class="nav-item">
-                <i data-lucide="terminal" size="18"></i> API Reference
-            </a>
-
-            <div class="nav-group-label">Architecture</div>
-            <a onclick="loadDoc('DEVELOPER.md', this, true)" class="nav-item">
-                <i data-lucide="cpu" size="18"></i> System Design
-            </a>
-        </div>
-        <div style="padding: 2rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim);">
-            &copy; 2026 Cell24x7. All rights reserved.
-        </div>
-    </aside>
-
-    <main>
-        <div class="content-container">
-            <article class="markdown-content" id="doc-container"></article>
-        </div>
-    </main>
+    </footer>
 
     <script>
-        // Dependencies health check
-        const deps = { marked: typeof marked, hljs: typeof hljs, lucide: typeof lucide };
-        console.log('Portal dependencies initialized:', deps);
+        // Simple scroll spy for sidebar
+        const links = document.querySelectorAll('.sidebar-link');
+        const sections = document.querySelectorAll('section');
 
-        // Marked Initialization
-        if (typeof marked !== 'undefined') {
-            marked.setOptions({
-                highlight: (code, lang) => {
-                    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
-                        return hljs.highlight(code, { language: lang }).value;
-                    }
-                    return code;
-                },
-                breaks: true,
-                gfm: true
+        window.onscroll = () => {
+            let current = "";
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
             });
-        }
 
-        async function loadDoc(fileName, element) {
-            const container = document.getElementById('doc-container');
-            const loader = document.getElementById('loader');
-
-            // UI Feedback
-            if (element) {
-                document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-                element.classList.add('active');
-            }
-
-            loader.style.opacity = '1';
-            loader.style.display = 'flex';
-
-            try {
-                // Determine Environment and Strategy
-                // Strategy: Try local roots first, then fallback to backend data routes
-                const isBackend = window.location.port === '5000' || window.location.pathname === '/docs';
-
-                let urls = [];
-                if (isBackend) {
-                    const dataRoute = (fileName === 'CHANGELOG.md') ? '/changelog-data/' : '/docs-data/';
-                    urls.push(dataRoute + fileName);
-                    urls.push('/root-docs/' + fileName);
-                } else {
-                    urls.push(fileName);
-                    urls.push('./' + fileName);
+            links.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active');
                 }
-
-                console.log(`[Docs] Fetching ${fileName} via strategies:`, urls);
-
-                let response = null;
-                for (let url of urls) {
-                    try {
-                        const r = await fetch(url);
-                        if (r.ok) {
-                            response = r;
-                            console.log(`[Docs] Successfully resolved: ${url}`);
-                            break;
-                        }
-                    } catch (e) { }
-                }
-
-                if (!response) throw new Error(`Document "${fileName}" not found in current environment.`);
-
-                const markdown = await response.text();
-
-                // Clear and Render
-                container.style.opacity = '0';
-                container.innerHTML = marked.parse(markdown);
-
-                // Apply Lucide Icons to any rendered MD content
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-
-                // Entrance animation
-                setTimeout(() => {
-                    container.style.transition = 'opacity 0.5s ease';
-                    container.style.opacity = '1';
-                }, 100);
-
-                // Scroll to top
-                document.querySelector('main').scrollTo({ top: 0, behavior: 'smooth' });
-
-            } catch (err) {
-                container.innerHTML = `
-                    <div style="padding-top: 100px; text-align: center;">
-                        <h1 style="color: #ef4444; font-family: 'Outfit'; font-size: 3rem;">Error 404</h1>
-                        <p style="color: var(--text-dim); margin-bottom: 30px;">${err.message}</p>
-                        <button onclick="location.reload()" style="background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: 600;">Try Again</button>
-                    </div>`;
-            } finally {
-                setTimeout(() => {
-                    loader.style.opacity = '0';
-                    setTimeout(() => { loader.style.display = 'none'; }, 600);
-                }, 400);
-            }
-        }
-
-        // Boot
-        window.onload = () => {
-            const historyItem = Array.from(document.querySelectorAll('.nav-item')).find(el => el.textContent.includes('History'));
-            loadDoc('CHANGELOG.md', historyItem);
+            });
         };
     </script>
 </body>
-
 </html>
