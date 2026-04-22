@@ -180,6 +180,7 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
     // 3. Return initiation data
     res.json({
         success: true,
+        merchant_id: merchantId,
         access_code: accessCode,
         enc_request: encryptedData,
         gateway_url: 'https://secure.ccavenue.com/transaction/transaction.do?command=initiateTransaction'

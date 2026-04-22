@@ -101,6 +101,12 @@ export default function Wallet() {
             form.method = 'POST';
             form.action = res.gateway_url;
 
+            const merchantInput = document.createElement('input');
+            merchantInput.type = 'hidden';
+            merchantInput.name = 'merchant_id';
+            merchantInput.value = res.merchant_id;
+            form.appendChild(merchantInput);
+
             const encInput = document.createElement('input');
             encInput.type = 'hidden';
             encInput.name = 'encRequest';
