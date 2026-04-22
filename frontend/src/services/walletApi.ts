@@ -34,5 +34,14 @@ export const walletApi = {
             { headers: { Authorization: `Bearer ${token}` } }
         );
         return response.data;
+    },
+
+    ccavenueInitiate: async (amount: number) => {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.post(`${API_BASE_URL}/api/wallet/ccavenue-initiate`,
+            { amount },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return response.data;
     }
 };

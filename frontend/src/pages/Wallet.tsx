@@ -13,6 +13,10 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
 import { ChannelBadge } from '@/components/ui/channel-icon';
+import { walletApi } from '@/services/walletApi';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -23,6 +27,10 @@ export default function Wallet() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [rechargeAmount, setRechargeAmount] = useState('1000');
+  const [isRechargeLoading, setIsRechargeLoading] = useState(false);
+  const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   
   // Pagination states
   const [page, setPage] = useState(1);
@@ -59,7 +67,67 @@ export default function Wallet() {
 
   useEffect(() => {
     refreshUser(); // Sync balance with DB
-  }, []);
+    
+    // Check for payment status in URL
+    const status = searchParams.get('status');
+    const amt = searchParams.get('amt');
+    if (status === 'success') {
+        toast({
+            title: 'Recharge Successful!',
+            description: `₹${amt} has been added to your wallet.`,
+            className: "bg-emerald-500 text-white border-none"
+        });
+    } else if (status === 'failed') {
+        toast({
+            title: 'Payment Failed',
+            description: 'The transaction could not be completed. Please try again.',
+            variant: 'destructive'
+        });
+    }
+  }, [searchParams]);
+
+  const handleInitiatePayment = async () => {
+    if (!rechargeAmount || isNaN(Number(rechargeAmount)) || Number(rechargeAmount) < 1) {
+        toast({ title: 'Invalid Amount', description: 'Minimum recharge amount is ₹1', variant: 'destructive' });
+        return;
+    }
+
+    setIsRechargeLoading(true);
+    try {
+        const res = await walletApi.ccavenueInitiate(Number(rechargeAmount));
+        if (res.success) {
+            // Create a hidden form and submit it to CCAvenue
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = res.gateway_url;
+
+            const encInput = document.createElement('input');
+            encInput.type = 'hidden';
+            encInput.name = 'encRequest';
+            encInput.value = res.enc_request;
+            form.appendChild(encInput);
+
+            const accessInput = document.createElement('input');
+            accessInput.type = 'hidden';
+            accessInput.name = 'access_code';
+            accessInput.value = res.access_code;
+            form.appendChild(accessInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        } else {
+            toast({ title: 'Payment Initiation Failed', description: res.message || 'Something went wrong', variant: 'destructive' });
+        }
+    } catch (err: any) {
+        toast({ 
+            title: 'Error', 
+            description: err.response?.data?.message || 'Failed to connect to payment gateway', 
+            variant: 'destructive' 
+        });
+    } finally {
+        setIsRechargeLoading(false);
+    }
+  };
 
   const filteredTransactions = transactions.filter(txn => {
     const matchesSearch = txn.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -123,9 +191,80 @@ export default function Wallet() {
                 <WalletIcon className="w-6 h-6 text-white" />
               </div>
             </div>
-            <div className="mt-6 flex items-center gap-2 text-xs text-primary-foreground/70">
+            
+            {user?.role !== 'admin' && user?.role !== 'superadmin' && (
+                <div className="mt-4">
+                    <Dialog open={isRechargeOpen} onOpenChange={setIsRechargeOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="secondary" className="w-full bg-white text-primary hover:bg-white/90 font-bold border-none shadow-sm">
+                                <CreditCard className="w-4 h-4 mr-2" /> Top-up Wallet
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2 text-2xl">
+                                    <CreditCard className="w-6 h-6 text-primary" />
+                                    Recharge Wallet
+                                </DialogTitle>
+                                <DialogDescription>
+                                    Add funds to your wallet instantly via CCAvenue Secure Gateway.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Enter Amount (INR)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">₹</span>
+                                        <Input
+                                            type="number"
+                                            value={rechargeAmount}
+                                            onChange={(e) => setRechargeAmount(e.target.value)}
+                                            className="pl-8 text-lg font-bold h-12"
+                                            placeholder="Min. 100"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 mt-2">
+                                        {['500', '1000', '5000'].map(amt => (
+                                            <Button 
+                                                key={amt} 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="h-8 font-bold"
+                                                onClick={() => setRechargeAmount(amt)}
+                                            >
+                                                +₹{amt}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="bg-muted/50 p-3 rounded-lg flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                    <p className="text-xs text-muted-foreground">
+                                        You will be redirected to CCAvenue secure payment page to complete your transaction.
+                                    </p>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button 
+                                    className="w-full h-12 text-lg font-bold" 
+                                    onClick={handleInitiatePayment}
+                                    disabled={isRechargeLoading}
+                                >
+                                    {isRechargeLoading ? (
+                                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</>
+                                    ) : (
+                                        `Pay ₹${Number(rechargeAmount || 0).toLocaleString()}`
+                                    )}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            )}
+
+            <div className="mt-4 flex items-center gap-2 text-xs text-primary-foreground/70">
               <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              Last updated just now
+              Secure Payment Gateway Active
             </div>
           </CardContent>
         </Card>
