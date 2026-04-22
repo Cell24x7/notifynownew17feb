@@ -203,7 +203,7 @@ router.post('/tickets/:id/replies', authenticate, async (req, res) => {
  */
 router.get('/admin/tickets', authenticate, async (req, res) => {
     const userRole = (req.user.role || '').toLowerCase();
-    if (!['admin', 'superadmin', 'staff'].includes(userRole)) {
+    if (!['admin', 'superadmin', 'staff', 'reseller'].includes(userRole)) {
         return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
@@ -228,7 +228,7 @@ router.get('/admin/tickets', authenticate, async (req, res) => {
  */
 router.patch('/admin/tickets/:id', authenticate, async (req, res) => {
     const userRole = (req.user.role || '').toLowerCase();
-    if (!['admin', 'superadmin', 'staff'].includes(userRole)) {
+    if (!['admin', 'superadmin', 'staff', 'reseller'].includes(userRole)) {
         return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
@@ -277,7 +277,7 @@ router.patch('/admin/tickets/:id', authenticate, async (req, res) => {
  */
 router.delete('/admin/tickets/:id', authenticate, async (req, res) => {
     const userRole = (req.user.role || '').toLowerCase();
-    if (!['admin', 'superadmin'].includes(userRole)) {
+    if (!['admin', 'superadmin', 'reseller'].includes(userRole)) {
         return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
