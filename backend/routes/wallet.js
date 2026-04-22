@@ -23,6 +23,29 @@ router.get('/balance', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * DEBUG: Verify CCAvenue Config (Securely)
+ */
+router.get('/debug-config', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json({ success: false, message: 'Admin only' });
+    }
+
+    const mid = process.env.CCAVENUE_MERCHANT_ID || 'MISSING';
+    const acc = process.env.CCAVENUE_ACCESS_CODE || 'MISSING';
+    const key = process.env.CCAVENUE_WORKING_KEY || 'MISSING';
+
+    res.json({
+        success: true,
+        merchant_id: mid.length > 4 ? `${mid.substring(0, 3)}***` : mid,
+        access_code: acc.length > 6 ? `${acc.substring(0, 4)}***${acc.substring(acc.length-2)}` : acc,
+        working_key_length: key.length,
+        working_key_preview: key.length > 5 ? `${key.substring(0, 3)}***` : 'Too Short',
+        backend_url: process.env.BACKEND_URL,
+        frontend_url: process.env.FRONTEND_URL
+    });
+});
+
 // GET wallet transactions (Admin sees all, User sees theirs)
 router.get('/transactions', authenticateToken, async (req, res) => {
   try {
