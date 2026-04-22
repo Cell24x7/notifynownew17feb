@@ -123,30 +123,31 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid recharge amount' });
     }
 
-    const merchantId = process.env.CCAVENUE_MERCHANT_ID;
-    const accessCode = process.env.CCAVENUE_ACCESS_CODE;
-    const workingKey = process.env.CCAVENUE_WORKING_KEY;
+    const merchantId = (process.env.CCAVENUE_MERCHANT_ID || '').trim();
+    const accessCode = (process.env.CCAVENUE_ACCESS_CODE || '').trim();
+    const workingKey = (process.env.CCAVENUE_WORKING_KEY || '').trim();
 
     if (!merchantId || !accessCode || !workingKey) {
         return res.status(500).json({ success: false, message: 'CCAvenue configuration missing on server' });
     }
 
-    const orderId = `PAY${Date.now()}${userId}`;
+    const orderId = `${Date.now()}${userId}`; // Keep it numeric-ish, no special chars
     const redirectUrl = `${process.env.BACKEND_URL || 'https://notifynow.in/api'}/wallet/ccavenue-response`;
     const cancelUrl = `${process.env.BACKEND_URL || 'https://notifynow.in/api'}/wallet/ccavenue-response`;
 
-    // 1. Prepare data
+    // 1. Prepare data (Added tid and cleaned up)
     const paymentData = {
         merchant_id: merchantId,
         order_id: orderId,
-        currency: 'INR',
         amount: parseFloat(amount).toFixed(2),
+        currency: 'INR',
         redirect_url: redirectUrl,
         cancel_url: cancelUrl,
         language: 'EN',
-        billing_name: req.user.name || 'User',
+        billing_name: (req.user.name || 'User').replace(/[^a-zA-Z0-9 ]/g, ''),
         billing_email: req.user.email || '',
-        merchant_param1: userId.toString(), // Store userId to recover it in callback
+        merchant_param1: userId.toString(),
+        tid: Date.now().toString()
     };
 
     // 2. Encrypt
