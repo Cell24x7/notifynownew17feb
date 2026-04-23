@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Calendar, Users, MessageSquare, PhoneIncoming, Zap } from 'lucide-react';
+import { RefreshCw, Calendar, Users, MessageSquare, PhoneIncoming, Zap, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
