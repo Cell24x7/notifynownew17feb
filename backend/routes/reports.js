@@ -252,6 +252,43 @@ router.get('/user-summary', authenticate, async (req, res) => {
     }
 });
 
+// GET /api/reports/today-summary
+// Real-time report for current day's activities across all users
+router.get('/today-summary', authenticate, async (req, res) => {
+    try {
+        if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+
+        // Fetch counts for today from both manual and API campaigns
+        const [rows] = await query(`
+            SELECT 
+                u.email as username,
+                u.company,
+                c.channel,
+                SUM(c.recipient_count) as total,
+                SUM(c.sent_count) as submitted,
+                SUM(c.delivered_count) as delivered,
+                SUM(c.failed_count) as failed
+            FROM (
+                SELECT user_id, channel, recipient_count, sent_count, delivered_count, failed_count, created_at FROM campaigns WHERE created_at >= ?
+                UNION ALL
+                SELECT user_id, channel, recipient_count, sent_count, delivered_count, failed_count, created_at FROM api_campaigns WHERE created_at >= ?
+            ) c
+            JOIN users u ON c.user_id = u.id
+            GROUP BY u.id, c.channel
+            ORDER BY total DESC
+        `, [today + ' 00:00:00', today + ' 00:00:00']);
+
+        res.json({ success: true, summary: rows });
+    } catch (error) {
+        console.error('Today summary error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch today summary' });
+    }
+});
+
 // GET /api/reports/detail
 router.get('/detail', authenticate, async (req, res) => {
     try {

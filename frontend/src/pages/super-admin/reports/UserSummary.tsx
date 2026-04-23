@@ -43,7 +43,8 @@ export default function UserSummary({ channel }: UserSummaryProps) {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
-            const url = `${import.meta.env.VITE_RCS_API_URL}/api/reports/user-summary?channel=${channel}&from=${startDate}&to=${endDate}`;
+            const baseUrl = import.meta.env.VITE_RCS_API_URL || '';
+            const url = `${baseUrl}/api/reports/user-summary?channel=${channel}&from=${startDate}&to=${endDate}`;
             const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });

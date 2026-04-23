@@ -65,6 +65,7 @@ import SearchResults from "./pages/support/SearchResults";
 import KnowledgeBase from "./pages/super-admin/KnowledgeBase";
 import QueueStatus from "./pages/super-admin/reports/QueueStatus";
 import UserSummary from "./pages/super-admin/reports/UserSummary";
+import TodayReport from "./pages/super-admin/reports/TodayReport";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +132,7 @@ const App = () => (
                       <Route path="/super-admin/wallet" element={<SuperAdminWallet />} />
                       <Route path="/super-admin/logs" element={<SuperAdminLogs />} />
                        <Route path="/super-admin/reports" element={<SuperAdminReports />} />
+                       <Route path="/super-admin/reports/today" element={<TodayReport />} />
                        <Route path="/super-admin/reports/queue" element={<QueueStatus />} />
                        <Route path="/super-admin/reports/sms" element={<UserSummary channel="sms" />} />
                        <Route path="/super-admin/reports/whatsapp" element={<UserSummary channel="whatsapp" />} />

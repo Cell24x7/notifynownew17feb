@@ -43,6 +43,7 @@ const menuItems = [
     path: '/super-admin/reports', 
     permission: 'Reports - View',
     subItems: [
+      { label: 'Today Report', path: '/super-admin/reports/today' },
       { label: 'Queue Status', path: '/super-admin/reports/queue' },
       { label: 'SMS Summary', path: '/super-admin/reports/sms' },
       { label: 'WhatsApp Summary', path: '/super-admin/reports/whatsapp' },

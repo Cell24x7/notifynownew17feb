@@ -20,7 +20,8 @@ export default function QueueStatus() {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
-            const res = await fetch(`${import.meta.env.VITE_RCS_API_URL}/api/reports/queue-status`, {
+            const baseUrl = import.meta.env.VITE_RCS_API_URL || '';
+            const res = await fetch(`${baseUrl}/api/reports/queue-status`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
