@@ -39,11 +39,14 @@ const menuItems = [
   { icon: Building2, label: 'Clients', path: '/super-admin/clients', permission: 'Clients - View' },
   { 
     icon: ScrollText, 
-    label: 'Reports', 
+    label: 'Reports Hub', 
     path: '/super-admin/reports', 
     permission: 'Reports - View',
     subItems: [
-      { label: 'Summary Report', path: '/super-admin/reports?tab=summary' },
+      { label: 'Queue Status', path: '/super-admin/reports/queue' },
+      { label: 'SMS Summary', path: '/super-admin/reports/sms' },
+      { label: 'WhatsApp Summary', path: '/super-admin/reports/whatsapp' },
+      { label: 'RCS Summary', path: '/super-admin/reports/rcs' },
       { label: 'Detailed Report', path: '/super-admin/reports?tab=detailed' },
       { label: 'API Report', path: '/super-admin/reports?tab=api' }
     ]

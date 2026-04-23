@@ -158,6 +158,100 @@ router.get('/summary', authenticate, async (req, res) => {
     }
 });
 
+// GET /api/reports/queue-status
+// Real-time monitoring of campaign queues
+router.get('/queue-status', authenticate, async (req, res) => {
+    try {
+        if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const [rows] = await query(`
+            SELECT channel, status, COUNT(*) as count 
+            FROM campaign_queue 
+            GROUP BY channel, status
+        `);
+
+        const [apiRows] = await query(`
+            SELECT 'API' as channel, status, COUNT(*) as count 
+            FROM api_campaign_queue 
+            GROUP BY status
+        `);
+
+        // Format into a structured response
+        const queues = [
+            { name: 'WhatsApp Queue', count: rows.filter(r => r.channel === 'whatsapp').reduce((acc, curr) => acc + curr.count, 0) },
+            { name: 'RCS Queue', count: rows.filter(r => r.channel === 'rcs').reduce((acc, curr) => acc + curr.count, 0) },
+            { name: 'SMS Queue', count: rows.filter(r => r.channel === 'sms').reduce((acc, curr) => acc + curr.count, 0) },
+            { name: 'API Queue', count: apiRows.reduce((acc, curr) => acc + curr.count, 0) }
+        ];
+
+        res.json({ success: true, queues });
+    } catch (error) {
+        console.error('Queue status error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch queue status' });
+    }
+});
+
+// GET /api/reports/user-summary
+// Aggregated report for SMS/WhatsApp/RCS by user and date
+router.get('/user-summary', authenticate, async (req, res) => {
+    try {
+        if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const { channel, from, to, userId } = req.query;
+        let conditions = [];
+        let params = [];
+
+        if (channel && channel !== 'all') {
+            conditions.push("c.channel = ?");
+            params.push(channel);
+        }
+        if (from) {
+            conditions.push("c.created_at >= ?");
+            params.push(from + ' 00:00:00');
+        }
+        if (to) {
+            conditions.push("c.created_at <= ?");
+            params.push(to + ' 23:59:59');
+        }
+        if (userId && userId !== 'all') {
+            conditions.push("c.user_id = ?");
+            params.push(userId);
+        }
+
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+        // Optimized query to fetch aggregated metrics per user per day
+        const [rows] = await query(`
+            SELECT 
+                u.id as user_id,
+                u.email as username,
+                u.company,
+                DATE(c.created_at) as summary_date,
+                COALESCE(SUM(c.recipient_count), 0) as total_sent,
+                COALESCE(SUM(c.delivered_count), 0) as delivered,
+                COALESCE(SUM(c.sent_count), 0) as submitted,
+                COALESCE(SUM(c.failed_count), 0) as failed,
+                COALESCE(SUM(c.read_count), 0) as read_count,
+                'prepaid' as billing -- Hardcoded for now based on wallet system
+            FROM campaigns c
+            JOIN users u ON c.user_id = u.id
+            ${whereClause}
+            GROUP BY u.id, summary_date
+            ORDER BY summary_date DESC, total_sent DESC
+            LIMIT 500
+        `, params);
+
+        res.json({ success: true, summary: rows });
+    } catch (error) {
+        console.error('User summary error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch user summary' });
+    }
+});
+
 // GET /api/reports/detail
 router.get('/detail', authenticate, async (req, res) => {
     try {

@@ -63,6 +63,8 @@ import HelpCenter from "./pages/support/HelpCenter";
 import ArticleDetail from "./pages/support/ArticleDetail";
 import SearchResults from "./pages/support/SearchResults";
 import KnowledgeBase from "./pages/super-admin/KnowledgeBase";
+import QueueStatus from "./pages/super-admin/reports/QueueStatus";
+import UserSummary from "./pages/super-admin/reports/UserSummary";
 
 const queryClient = new QueryClient();
 
@@ -128,7 +130,11 @@ const App = () => (
                       <Route path="/super-admin/affiliates" element={<SuperAdminAffiliates />} />
                       <Route path="/super-admin/wallet" element={<SuperAdminWallet />} />
                       <Route path="/super-admin/logs" element={<SuperAdminLogs />} />
-                      <Route path="/super-admin/reports" element={<SuperAdminReports />} />
+                       <Route path="/super-admin/reports" element={<SuperAdminReports />} />
+                       <Route path="/super-admin/reports/queue" element={<QueueStatus />} />
+                       <Route path="/super-admin/reports/sms" element={<UserSummary channel="sms" />} />
+                       <Route path="/super-admin/reports/whatsapp" element={<UserSummary channel="whatsapp" />} />
+                       <Route path="/super-admin/reports/rcs" element={<UserSummary channel="rcs" />} />
                       <Route path="/super-admin/vendors" element={<SuperAdminVendors />} />
                       <Route path="/super-admin/numbers" element={<SuperAdminNumbers />} />
                       <Route path="/super-admin/rcs-configs" element={<SuperAdminRcsConfigs />} />
