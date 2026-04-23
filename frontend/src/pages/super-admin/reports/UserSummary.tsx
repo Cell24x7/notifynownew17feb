@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, Search, Filter, Calendar as CalendarIcon, MessageSquare, PhoneIncoming, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { API_BASE_URL } from '@/config/api';
 
 interface SummaryRecord {
     user_id: number;
@@ -42,9 +43,8 @@ export default function UserSummary({ channel }: UserSummaryProps) {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const baseUrl = import.meta.env.VITE_RCS_API_URL || '';
-            const url = `${baseUrl}/api/reports/user-summary?channel=${channel}&from=${startDate}&to=${endDate}`;
+            const token = localStorage.getItem('authToken');
+            const url = `${API_BASE_URL}/api/reports/user-summary?channel=${channel}&from=${startDate}&to=${endDate}`;
             const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });

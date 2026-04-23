@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Activity, RefreshCw, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '@/config/api';
 
 interface Queue {
     name: string;
@@ -19,9 +20,8 @@ export default function QueueStatus() {
     const fetchStatus = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const baseUrl = import.meta.env.VITE_RCS_API_URL || '';
-            const res = await fetch(`${baseUrl}/api/reports/queue-status`, {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${API_BASE_URL}/api/reports/queue-status`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();

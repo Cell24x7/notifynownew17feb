@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Calendar, Users, MessageSquare, PhoneIncoming, Zap, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { API_BASE_URL } from '@/config/api';
 
 interface TodayRecord {
     username: string;
@@ -24,9 +25,8 @@ export default function TodayReport() {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const baseUrl = import.meta.env.VITE_RCS_API_URL || '';
-            const res = await fetch(`${baseUrl}/api/reports/today-summary`, {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${API_BASE_URL}/api/reports/today-summary`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const result = await res.json();
