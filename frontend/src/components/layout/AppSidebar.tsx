@@ -136,7 +136,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Bot, label: 'Chatflows', path: '/chatflows', show: hasPermission('Chatflows - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: Users, label: 'Manage Users', path: '/reseller/users', show: hasPermission('Reseller Users - View') },
-    { icon: Globe, label: 'White-labeling', path: '/reseller/branding', show: hasPermission('Reseller Branding - View') },
+    { icon: Globe, label: 'Whitelabel & Payments', path: '/reseller/branding', show: hasPermission('Reseller Branding - View') },
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: hasPermission('Wallet - View') },
     { 
