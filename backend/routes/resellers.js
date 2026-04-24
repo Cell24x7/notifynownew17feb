@@ -184,10 +184,78 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET logged-in reseller's own branding
+router.get('/my-branding', authenticate, async (req, res) => {
+  if (req.user.role !== 'reseller' && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only resellers and admins can access this' });
+  }
+
+  try {
+    const [rows] = await query(`
+      SELECT brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone, domain,
+             payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
+      FROM resellers
+      WHERE email = ?
+      LIMIT 1
+    `, [req.user.email]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Reseller profile not found for this account' });
+    }
+
+    res.json({ success: true, branding: rows[0] });
+  } catch (err) {
+    console.error('MY BRANDING FETCH ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// UPDATE logged-in reseller's own branding
+router.put('/my-branding', authenticate, async (req, res) => {
+  if (req.user.role !== 'reseller' && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only resellers and admins can access this' });
+  }
+
+  const {
+    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
+    payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
+  } = req.body;
+
+  const fields = [];
+  const values = [];
+
+  if (brand_name !== undefined) { fields.push('brand_name = ?'); values.push(brand_name); }
+  if (logo_url !== undefined) { fields.push('logo_url = ?'); values.push(logo_url); }
+  if (favicon_url !== undefined) { fields.push('favicon_url = ?'); values.push(favicon_url); }
+  if (primary_color !== undefined) { fields.push('primary_color = ?'); values.push(primary_color); }
+  if (secondary_color !== undefined) { fields.push('secondary_color = ?'); values.push(secondary_color); }
+  if (support_email !== undefined) { fields.push('support_email = ?'); values.push(support_email); }
+  if (support_phone !== undefined) { fields.push('support_phone = ?'); values.push(support_phone); }
+  if (payment_gateway_type !== undefined) { fields.push('payment_gateway_type = ?'); values.push(payment_gateway_type); }
+  if (ccavenue_merchant_id !== undefined) { fields.push('ccavenue_merchant_id = ?'); values.push(ccavenue_merchant_id); }
+  if (ccavenue_access_code !== undefined) { fields.push('ccavenue_access_code = ?'); values.push(ccavenue_access_code); }
+  if (ccavenue_working_key !== undefined) { fields.push('ccavenue_working_key = ?'); values.push(ccavenue_working_key); }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ success: false, message: 'No fields to update' });
+  }
+
+  try {
+    const sql = `UPDATE resellers SET ${fields.join(', ')} WHERE email = ?`;
+    values.push(req.user.email);
+    await query(sql, values);
+
+    res.json({ success: true, message: 'Branding updated successfully' });
+  } catch (err) {
+    console.error('MY BRANDING UPDATE ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // UPDATE reseller (Admin only)
 router.put('/:id', authenticate, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Unauthorized' });
+    return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
   }
   console.log(`RESELLER PUT/${req.params.id} BODY:`, req.body);
   const resellerId = req.params.id;
@@ -347,73 +415,6 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
-// GET logged-in reseller's own branding
-router.get('/my-branding', authenticate, async (req, res) => {
-  if (req.user.role !== 'reseller') {
-    return res.status(403).json({ success: false, message: 'Only resellers can access this' });
-  }
-
-  try {
-    const [rows] = await query(`
-      SELECT brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone, domain,
-             payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
-      FROM resellers
-      WHERE email = ?
-      LIMIT 1
-    `, [req.user.email]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Reseller profile not found' });
-    }
-
-    res.json({ success: true, branding: rows[0] });
-  } catch (err) {
-    console.error('MY BRANDING FETCH ERROR:', err.message);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// UPDATE logged-in reseller's own branding
-router.put('/my-branding', authenticate, async (req, res) => {
-  if (req.user.role !== 'reseller') {
-    return res.status(403).json({ success: false, message: 'Only resellers can access this' });
-  }
-
-  const {
-    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
-    payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
-  } = req.body;
-
-  const fields = [];
-  const values = [];
-
-  if (brand_name !== undefined) { fields.push('brand_name = ?'); values.push(brand_name); }
-  if (logo_url !== undefined) { fields.push('logo_url = ?'); values.push(logo_url); }
-  if (favicon_url !== undefined) { fields.push('favicon_url = ?'); values.push(favicon_url); }
-  if (primary_color !== undefined) { fields.push('primary_color = ?'); values.push(primary_color); }
-  if (secondary_color !== undefined) { fields.push('secondary_color = ?'); values.push(secondary_color); }
-  if (support_email !== undefined) { fields.push('support_email = ?'); values.push(support_email); }
-  if (support_phone !== undefined) { fields.push('support_phone = ?'); values.push(support_phone); }
-  if (payment_gateway_type !== undefined) { fields.push('payment_gateway_type = ?'); values.push(payment_gateway_type); }
-  if (ccavenue_merchant_id !== undefined) { fields.push('ccavenue_merchant_id = ?'); values.push(ccavenue_merchant_id); }
-  if (ccavenue_access_code !== undefined) { fields.push('ccavenue_access_code = ?'); values.push(ccavenue_access_code); }
-  if (ccavenue_working_key !== undefined) { fields.push('ccavenue_working_key = ?'); values.push(ccavenue_working_key); }
-
-  if (fields.length === 0) {
-    return res.status(400).json({ success: false, message: 'No fields to update' });
-  }
-
-  try {
-    const sql = `UPDATE resellers SET ${fields.join(', ')} WHERE email = ?`;
-    values.push(req.user.email);
-    await query(sql, values);
-
-    res.json({ success: true, message: 'Branding updated successfully' });
-  } catch (err) {
-    console.error('MY BRANDING UPDATE ERROR:', err.message);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
 
 // IMPERSONATE reseller (Admin only)
 router.post('/:id/impersonate', authenticate, async (req, res) => {

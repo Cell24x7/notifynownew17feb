@@ -1,6 +1,7 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
+import { AppSidebar } from './AppSidebar';
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.svg';
 
 export function SuperAdminLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   if (isLoading) {
@@ -24,11 +25,13 @@ export function SuperAdminLayout() {
     return <Navigate to="/auth" replace />;
   }
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   return (
     <div className="flex min-h-screen w-full bg-background overflow-hidden">
       {/* Desktop Fixed Sidebar */}
       <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:border-r lg:border-border">
-        <SuperAdminSidebar />
+        {isAdmin ? <SuperAdminSidebar /> : <AppSidebar />}
       </div>
 
       {/* Mobile Overlay */}
@@ -45,7 +48,11 @@ export function SuperAdminLayout() {
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <SuperAdminSidebar onClose={() => setMobileSidebarOpen(false)} />
+        {isAdmin ? (
+          <SuperAdminSidebar onClose={() => setMobileSidebarOpen(false)} />
+        ) : (
+          <AppSidebar onClose={() => setMobileSidebarOpen(false)} />
+        )}
       </div>
 
       {/* Main Content – offset by sidebar width on desktop */}
