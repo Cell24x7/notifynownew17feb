@@ -76,7 +76,6 @@ const menuItems = [
   { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
   { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
   { icon: LifeBuoy, label: 'Support Tickets', path: '/super-admin/support', permission: 'Dashboard - View' },
-  { icon: Globe, label: 'Branding & Identity', path: '/reseller/branding', permission: 'Reseller Branding - View' },
   { icon: Settings, label: 'Settings', path: '/settings', permission: 'Settings - View' },
 ];
 
