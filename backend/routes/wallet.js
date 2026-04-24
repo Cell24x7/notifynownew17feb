@@ -165,7 +165,11 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
             workingKey = reseller[0].ccavenue_working_key;
             console.log(`[Payment] Using Reseller Gateway (ID: ${currentResellerId})`);
         } else {
-            currentResellerId = null; // Fallback to system gateway
+            // Error for sub-users if reseller hasn't configured gateway
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Payment gateway is not configured by your provider. Please contact your administrator/reseller.' 
+            });
         }
     }
 
