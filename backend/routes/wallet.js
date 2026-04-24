@@ -152,7 +152,8 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
     let currentResellerId = req.user.actual_reseller_id;
 
     // Check if user belongs to a reseller with their own gateway
-    if (currentResellerId) {
+    // NOTE: If the logged in user IS a reseller, they should pay the Super Admin (Platform)
+    if (currentResellerId && req.user.role !== 'reseller') {
         const [reseller] = await query(
             'SELECT payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key FROM resellers WHERE id = ?',
             [currentResellerId]
