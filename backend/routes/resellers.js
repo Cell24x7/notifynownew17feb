@@ -20,6 +20,7 @@ router.get('/', authenticate, async (req, res) => {
         r.plan_id, r.channels_enabled, r.permissions,
         r.brand_name, r.logo_url, r.favicon_url, r.primary_color, r.secondary_color,
         r.support_email, r.support_phone,
+        r.payment_gateway_type, r.ccavenue_merchant_id, r.ccavenue_access_code, r.ccavenue_working_key,
         u.wallet_balance as credits_available, u.credits_used as credits_spent
       FROM resellers r
       LEFT JOIN users u ON r.email = u.email
@@ -154,8 +155,9 @@ router.post('/', async (req, res) => {
         commission_percent, status, 
         revenue_generated, clients_managed, payout_pending,
         plan_id, channels_enabled,
-        brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
+        payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, email, phone, domain, api_base_url,
       commission_percent, status,
@@ -353,7 +355,8 @@ router.get('/my-branding', authenticate, async (req, res) => {
 
   try {
     const [rows] = await query(`
-      SELECT brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone, domain
+      SELECT brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone, domain,
+             payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
       FROM resellers
       WHERE email = ?
       LIMIT 1
@@ -377,7 +380,8 @@ router.put('/my-branding', authenticate, async (req, res) => {
   }
 
   const {
-    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
+    brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
+    payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
   } = req.body;
 
   const fields = [];
@@ -390,6 +394,10 @@ router.put('/my-branding', authenticate, async (req, res) => {
   if (secondary_color !== undefined) { fields.push('secondary_color = ?'); values.push(secondary_color); }
   if (support_email !== undefined) { fields.push('support_email = ?'); values.push(support_email); }
   if (support_phone !== undefined) { fields.push('support_phone = ?'); values.push(support_phone); }
+  if (payment_gateway_type !== undefined) { fields.push('payment_gateway_type = ?'); values.push(payment_gateway_type); }
+  if (ccavenue_merchant_id !== undefined) { fields.push('ccavenue_merchant_id = ?'); values.push(ccavenue_merchant_id); }
+  if (ccavenue_access_code !== undefined) { fields.push('ccavenue_access_code = ?'); values.push(ccavenue_access_code); }
+  if (ccavenue_working_key !== undefined) { fields.push('ccavenue_working_key = ?'); values.push(ccavenue_working_key); }
 
   if (fields.length === 0) {
     return res.status(400).json({ success: false, message: 'No fields to update' });

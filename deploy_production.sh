@@ -161,6 +161,7 @@ NODE_ENV=production node scripts/add_failover_cols.js || true
 NODE_ENV=production node scripts/add_media_support.js || true
 NODE_ENV=production node migrate_api_flag.js || true
 NODE_ENV=production node apply_schema_updates.js || true
+NODE_ENV=production node migration_reseller_payment.js || true
 
 ok "Database schema and environment are synced for $ENV_DESC."
 

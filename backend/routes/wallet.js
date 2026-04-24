@@ -146,17 +146,38 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid recharge amount' });
     }
 
-    const merchantId = (process.env.CCAVENUE_MERCHANT_ID || '').trim();
-    const accessCode = (process.env.CCAVENUE_ACCESS_CODE || '').trim();
-    const workingKey = (process.env.CCAVENUE_WORKING_KEY || '').trim();
+    let merchantId = (process.env.CCAVENUE_MERCHANT_ID || '').trim();
+    let accessCode = (process.env.CCAVENUE_ACCESS_CODE || '').trim();
+    let workingKey = (process.env.CCAVENUE_WORKING_KEY || '').trim();
+    let currentResellerId = req.user.actual_reseller_id;
+
+    // Check if user belongs to a reseller with their own gateway
+    if (currentResellerId) {
+        const [reseller] = await query(
+            'SELECT payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key FROM resellers WHERE id = ?',
+            [currentResellerId]
+        );
+
+        if (reseller.length > 0 && reseller[0].payment_gateway_type === 'ccavenue' && reseller[0].ccavenue_merchant_id) {
+            merchantId = reseller[0].ccavenue_merchant_id;
+            accessCode = reseller[0].ccavenue_access_code;
+            workingKey = reseller[0].ccavenue_working_key;
+            console.log(`[Payment] Using Reseller Gateway (ID: ${currentResellerId})`);
+        } else {
+            currentResellerId = null; // Fallback to system gateway
+        }
+    }
 
     if (!merchantId || !accessCode || !workingKey) {
-        return res.status(500).json({ success: false, message: 'CCAvenue configuration missing on server' });
+        return res.status(500).json({ success: false, message: 'Payment gateway configuration missing' });
     }
 
     const orderId = `${Date.now()}${userId}`; // Keep it numeric-ish, no special chars
-    const redirectUrl = `${process.env.BACKEND_URL || 'https://notifynow.in/api'}/wallet/ccavenue-response`;
-    const cancelUrl = `${process.env.BACKEND_URL || 'https://notifynow.in/api'}/wallet/ccavenue-response`;
+    const baseUrl = process.env.BACKEND_URL || 'https://notifynow.in/api';
+    const redirectUrl = currentResellerId 
+        ? `${baseUrl}/wallet/ccavenue-response?reseller_id=${currentResellerId}`
+        : `${baseUrl}/wallet/ccavenue-response`;
+    const cancelUrl = redirectUrl;
 
     // 1. Prepare data (Added mandatory billing fields for authentication)
     const paymentData = {
@@ -204,7 +225,16 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
 router.post('/ccavenue-response', async (req, res) => {
     try {
         const { encResp } = req.body;
-        const workingKey = process.env.CCAVENUE_WORKING_KEY;
+        const { reseller_id } = req.query;
+        let workingKey = process.env.CCAVENUE_WORKING_KEY;
+
+        if (reseller_id) {
+            const [rows] = await query('SELECT ccavenue_working_key FROM resellers WHERE id = ?', [reseller_id]);
+            if (rows.length > 0 && rows[0].ccavenue_working_key) {
+                workingKey = rows[0].ccavenue_working_key;
+                console.log(`[Payment Response] Using Reseller Working Key (ID: ${reseller_id})`);
+            }
+        }
 
         if (!encResp) return res.status(400).send('Invalid Response');
 

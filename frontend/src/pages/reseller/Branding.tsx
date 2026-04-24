@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Globe, Palette, Mail, Phone, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Save, Globe, Palette, Mail, Phone, Image as ImageIcon, CreditCard, Lock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import axios from 'axios';
 import { API_BASE_URL } from '@/config/api';
 import { useBranding } from '@/contexts/BrandingContext';
@@ -22,7 +23,11 @@ export default function ResellerBranding() {
         secondary_color: '#1d4ed8',
         support_email: '',
         support_phone: '',
-        domain: ''
+        domain: '',
+        payment_gateway_type: 'none',
+        ccavenue_merchant_id: '',
+        ccavenue_access_code: '',
+        ccavenue_working_key: ''
     });
 
     useEffect(() => {
@@ -230,6 +235,72 @@ export default function ResellerBranding() {
                                 />
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* Payment Gateway */}
+                <Card shadow-sm className="md:col-span-2 border-primary/20">
+                    <CardHeader className="bg-primary/5">
+                        <CardTitle className="flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-primary" />
+                            Payment Gateway Configuration
+                        </CardTitle>
+                        <CardDescription>Configure how your clients pay for wallet top-ups. If "None" is selected, the platform's default gateway will be used.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label>Gateway Type</Label>
+                                <Select 
+                                    value={settings.payment_gateway_type} 
+                                    onValueChange={val => setSettings({ ...settings, payment_gateway_type: val })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Gateway" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None (Use Platform Default)</SelectItem>
+                                        <SelectItem value="ccavenue">CCAvenue</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        {settings.payment_gateway_type === 'ccavenue' && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-muted/30 rounded-lg border border-dashed animate-in fade-in slide-in-from-top-2">
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-1">
+                                        <Lock className="w-3 h-3" /> Merchant ID
+                                    </Label>
+                                    <Input
+                                        value={settings.ccavenue_merchant_id}
+                                        onChange={e => setSettings({ ...settings, ccavenue_merchant_id: e.target.value })}
+                                        placeholder="CCAvenue Merchant ID"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-1">
+                                        <Lock className="w-3 h-3" /> Access Code
+                                    </Label>
+                                    <Input
+                                        value={settings.ccavenue_access_code}
+                                        onChange={e => setSettings({ ...settings, ccavenue_access_code: e.target.value })}
+                                        placeholder="CCAvenue Access Code"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-1">
+                                        <Lock className="w-3 h-3" /> Working Key
+                                    </Label>
+                                    <Input
+                                        type="password"
+                                        value={settings.ccavenue_working_key}
+                                        onChange={e => setSettings({ ...settings, ccavenue_working_key: e.target.value })}
+                                        placeholder="CCAvenue Working Key"
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
