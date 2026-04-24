@@ -51,6 +51,19 @@ export default function ResellerBranding() {
     }, []);
 
     const handleSave = async () => {
+        // Basic Validation
+        if (settings.payment_gateway_type === 'ccavenue') {
+            if (!settings.ccavenue_merchant_id || settings.ccavenue_merchant_id.length < 5) {
+                return toast({ title: 'Invalid Input', description: 'Please enter a valid Merchant ID', variant: 'destructive' });
+            }
+            if (!settings.ccavenue_access_code || settings.ccavenue_access_code.length < 5) {
+                return toast({ title: 'Invalid Input', description: 'Please enter a valid Access Code', variant: 'destructive' });
+            }
+            if (!settings.ccavenue_working_key || settings.ccavenue_working_key.length < 10) {
+                return toast({ title: 'Invalid Input', description: 'Please enter a valid Working Key', variant: 'destructive' });
+            }
+        }
+
         setLoading(true);
         try {
             const token = localStorage.getItem('authToken');

@@ -52,7 +52,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const location = useLocation();
   const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith('/reports'));
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const { settings } = useBranding();
 
@@ -282,15 +282,27 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         })}
       </nav>
 
-      {/* Sidebar Footer - Minimized */}
-      <div className="p-4 border-t bg-slate-50/50 flex items-center justify-between">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-          v1.2.0
-        </p>
-        <div className="flex items-center gap-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] font-medium text-slate-500">System Live</span>
+      {/* Sidebar Footer */}
+      <div className="p-4 border-t bg-slate-50/50">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+            v1.2.0
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-medium text-slate-500">System Live</span>
+          </div>
         </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={logout}
+          className="w-full flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 justify-center"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Logout Session</span>
+        </Button>
       </div>
     </aside>
   );
