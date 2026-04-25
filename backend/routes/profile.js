@@ -238,16 +238,40 @@ router.put('/change-email', authenticate, async (req, res) => {
     // Update email
     await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, req.user.id]);
 
-    // Generate new token with updated email
-    const [updated] = await query('SELECT id, name, email, role, company, channels_enabled, sms_transactional_price, sms_promotional_price, sms_service_price FROM users WHERE id = ?', [req.user.id]);
+    // Generate new token with updated email - MUST include all fields from login token
+    const [updated] = await query(`
+      SELECT u.*, COALESCE(r.id, u.reseller_id) as actual_reseller_id 
+      FROM users u 
+      LEFT JOIN resellers r ON (u.email = r.email AND u.role = 'reseller') OR (u.reseller_id = r.id)
+      WHERE u.id = ?`, [req.user.id]);
+    
+    if (!updated.length) return res.status(404).json({ success: false, message: 'User not found' });
+    const user = updated[0];
+
     const token = jwt.sign(
       {
-        id: updated[0].id,
-        email: updated[0].email,
-        role: updated[0].role,
-        name: updated[0].name,
-        company: updated[0].company,
-        channels_enabled: updated[0].channels_enabled
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        company: user.company,
+        channels_enabled: user.channels_enabled,
+        wallet_balance: user.wallet_balance,
+        credits_available: user.credits_available,
+        rcs_text_price: user.rcs_text_price,
+        rcs_rich_card_price: user.rcs_rich_card_price,
+        rcs_carousel_price: user.rcs_carousel_price,
+        rcs_config_id: user.rcs_config_id,
+        whatsapp_config_id: user.whatsapp_config_id,
+        actual_reseller_id: user.actual_reseller_id,
+        wa_marketing_price: user.wa_marketing_price,
+        wa_utility_price: user.wa_utility_price,
+        wa_authentication_price: user.wa_authentication_price,
+        sms_promotional_price: user.sms_promotional_price,
+        sms_transactional_price: user.sms_transactional_price,
+        sms_service_price: user.sms_service_price,
+        is_api_allowed: user.is_api_allowed,
+        permissions: req.user.permissions // Keep existing permissions from current token
       },
       JWT_SECRET,
       { expiresIn: '24h' }

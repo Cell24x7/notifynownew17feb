@@ -401,7 +401,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       rcs_carousel_price: client.rcs_carousel_price,
       rcs_config_id: client.rcs_config_id,
       whatsapp_config_id: client.whatsapp_config_id,
-      actual_reseller_id: client.actual_reseller_id,
+      actual_reseller_id: client.reseller_id,
       wa_marketing_price: client.wa_marketing_price,
       wa_utility_price: client.wa_utility_price,
       wa_authentication_price: client.wa_authentication_price,

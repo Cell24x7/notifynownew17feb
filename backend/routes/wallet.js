@@ -154,6 +154,7 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
     // Check if user belongs to a reseller with their own gateway
     // NOTE: If the logged in user IS a reseller, they should pay the Super Admin (Platform)
     if (currentResellerId && req.user.role !== 'reseller') {
+        console.log(`[Payment] User ${userId} (Role: ${req.user.role}) is under Reseller ${currentResellerId}. Fetching gateway...`);
         const [reseller] = await query(
             'SELECT payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key FROM resellers WHERE id = ?',
             [currentResellerId]
@@ -163,14 +164,17 @@ router.post('/ccavenue-initiate', authenticateToken, async (req, res) => {
             merchantId = reseller[0].ccavenue_merchant_id;
             accessCode = reseller[0].ccavenue_access_code;
             workingKey = reseller[0].ccavenue_working_key;
-            console.log(`[Payment] Using Reseller Gateway (ID: ${currentResellerId})`);
+            console.log(`[Payment] ✅ Using Reseller Gateway (ID: ${currentResellerId}, Merchant: ${merchantId})`);
         } else {
+            console.log(`[Payment] ⚠️ Reseller ${currentResellerId} has no gateway configured. Type: ${reseller[0]?.payment_gateway_type}`);
             // Error for sub-users if reseller hasn't configured gateway
             return res.status(400).json({ 
                 success: false, 
                 message: 'Payment gateway is not configured by your provider. Please contact your administrator/reseller.' 
             });
         }
+    } else {
+        console.log(`[Payment] Using Platform (Super Admin) Gateway for User ${userId}. ResellerID: ${currentResellerId}, Role: ${req.user.role}`);
     }
 
     if (!merchantId || !accessCode || !workingKey) {
