@@ -154,13 +154,17 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             AND status != 'running'
         `).catch(() => {});
 
-        // --- 2. SQL FETCH JOINED DATA (Restored to Original for Safety) ---
-        // Diagnostic: Check how many pending items exist in total
-        const [stats] = await query(`SELECT COUNT(*) as pendingCount FROM ${queueTable} WHERE status = 'pending'`);
+        // --- 2. SQL FETCH JOINED DATA (Optimized to ignore junk/orphaned items) ---
+        const [stats] = await query(`
+            SELECT COUNT(q.id) as pendingCount 
+            FROM ${queueTable} q 
+            JOIN ${campaignTable} c ON q.campaign_id = c.id 
+            WHERE q.status = 'pending' AND c.status = 'running'
+        `);
         const [runStats] = await query(`SELECT COUNT(*) as runningCamps FROM ${campaignTable} WHERE status = 'running'`);
         
-        if (stats[0].pendingCount > 0 || runStats[0].runningCamps > 0) {
-            console.log(`[Worker:${processorName}] Stats: ${stats[0].pendingCount} pending items, ${runStats[0].runningCamps} running campaigns.`);
+        if (stats[0].pendingCount > 0) {
+            console.log(`[Worker:${processorName}] 🚀 Found ${stats[0].pendingCount} valid pending messages across ${runStats[0].runningCamps} running campaigns.`);
         }
 
         const sql = `
@@ -291,6 +295,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
 
                     await query(`UPDATE ${queueTable} SET status = ?, processed_at = NOW() WHERE id = ?`, 
                         [sendRes.success ? 'sent' : 'failed', item.id]);
+                    await query(`UPDATE ${campaignTable} SET sent_count = sent_count + 1 WHERE id = ?`, [item.campaign_id]);
                 }
                 totalProcessed += validItems.length;
             }

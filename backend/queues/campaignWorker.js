@@ -15,13 +15,33 @@ redis.on('error', (err) => {
     }
 });
 
-// AUTO-RECOVERY: Clean up stuck jobs on startup
+// AUTO-RECOVERY: Clean up stuck jobs and orphaned data on startup
 async function rescueStuckJobsOnStartup() {
     try {
-        const [res] = await query('UPDATE campaign_queue SET status = "pending" WHERE status = "processing" AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)');
-        if (res.affectedRows > 0) {
-            // console.log(`[Rescue] Automatically recovered ${res.affectedRows} stuck processing jobs.`);
-        }
+        // 1. Reset stuck processing jobs
+        await query('UPDATE campaign_queue SET status = "pending" WHERE status = "processing" AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)');
+        
+        // 2. DELETE orphaned items (Campaign no longer exists) - CRITICAL for stability
+        await query('DELETE q FROM campaign_queue q LEFT JOIN campaigns c ON q.campaign_id = c.id WHERE c.id IS NULL');
+        
+        // 3. Mark items as 'failed' if their campaign is already finished - Prevents ghost sending
+        await query(`
+            UPDATE campaign_queue q 
+            JOIN campaigns c ON q.campaign_id = c.id 
+            SET q.status = "failed" 
+            WHERE q.status = "pending" AND c.status IN ("sent", "completed", "failed")
+        `);
+
+        // 4. Also do the same for API queue
+        await query('DELETE q FROM api_campaign_queue q LEFT JOIN api_campaigns c ON q.campaign_id = c.id WHERE c.id IS NULL');
+        await query(`
+            UPDATE api_campaign_queue q 
+            JOIN api_campaigns c ON q.campaign_id = c.id 
+            SET q.status = "failed" 
+            WHERE q.status = "pending" AND c.status IN ("sent", "completed", "failed")
+        `);
+
+        console.log('[Rescue] System background cleanup finished.');
     } catch (e) {
         console.error('[Rescue] Startup recovery failed:', e.message);
     }
