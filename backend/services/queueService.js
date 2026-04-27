@@ -192,22 +192,38 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         let totalProcessed = 0;
         while (true) {
             const [candidates] = await query(sql, [DRIP_BATCH_SIZE]);
-            if (candidates && candidates.length > 0) {
-                console.log(`[Worker:${processorName}] ✅ Found ${candidates.length} candidates in ${queueTable}. Starting processing...`);
-            } else if (stats[0].pendingCount > 0 && runStats[0].runningCamps > 0) {
-                // If we have pending items and running campaigns but NO candidates, there's a mapping/join issue
-                console.log(`[Worker:${processorName}] ⚠️ Warning: ${stats[0].pendingCount} pending items and ${runStats[0].runningCamps} running campaigns exist, but no candidates found via JOIN. Checking for ID mismatches...`);
-                const [mismatch] = await query(`
-                    SELECT q.campaign_id, COUNT(*) as count 
-                    FROM ${queueTable} q 
-                    LEFT JOIN ${campaignTable} c ON q.campaign_id = c.id 
-                    WHERE q.status = 'pending' AND c.id IS NULL 
-                    GROUP BY q.campaign_id
-                `);
-                if (mismatch.length > 0) {
-                    console.log(`[Worker:${processorName}] ❌ Found ${mismatch.length} orphaned queue items with no matching campaign record.`);
+            
+            if (!candidates || candidates.length === 0) {
+                if (stats[0].pendingCount > 0 && runStats[0].runningCamps > 0) {
+                    // If we have pending items and running campaigns but NO candidates, there's a mapping/join issue
+                    console.log(`[Worker:${processorName}] ⚠️ Warning: ${stats[0].pendingCount} pending items and ${runStats[0].runningCamps} running campaigns exist, but no candidates found via JOIN.`);
+                    
+                    // DEEP DEBUG: Check first 5 pending items and their campaigns
+                    const [debugItems] = await query(`
+                        SELECT q.id, q.campaign_id, c.id as camp_id, c.status as camp_status, c.user_id, u.id as user_db_id
+                        FROM ${queueTable} q
+                        LEFT JOIN ${campaignTable} c ON q.campaign_id = c.id
+                        LEFT JOIN users u ON c.user_id = u.id
+                        WHERE q.status = 'pending'
+                        LIMIT 5
+                    `);
+                    console.log(`[Worker:${processorName}] 🔍 JOIN Debug (Top 5 Pending):`, JSON.stringify(debugItems));
+
+                    const [mismatch] = await query(`
+                        SELECT q.campaign_id, COUNT(*) as count 
+                        FROM ${queueTable} q 
+                        LEFT JOIN ${campaignTable} c ON q.campaign_id = c.id 
+                        WHERE q.status = 'pending' AND c.id IS NULL 
+                        GROUP BY q.campaign_id
+                    `);
+                    if (mismatch.length > 0) {
+                        console.log(`[Worker:${processorName}] ❌ Found ${mismatch.length} orphaned queue groups with no matching campaign record.`);
+                    }
                 }
+                break; 
             }
+
+            console.log(`[Worker:${processorName}] ✅ Found ${candidates.length} candidates in ${queueTable}. Starting processing...`);
 
             const candidateIds = candidates.map(c => c.id);
             
