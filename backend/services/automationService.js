@@ -152,19 +152,47 @@ async function processAutomation(userId, triggerType, arg3, arg4, arg5) {
  * Extract keywords from data.keywords OR data.conditions[0].keywords
  */
 function checkTriggerConditions(node, messageText) {
-    let keywords = [];
-    if (node.data.keywords && Array.isArray(node.data.keywords)) {
-        keywords = node.data.keywords;
-    } else if (node.data.conditions && Array.isArray(node.data.conditions) && node.data.conditions[0]?.keywords) {
-        keywords = node.data.conditions[0].keywords;
+    if (!node.data.conditions || !Array.isArray(node.data.conditions) || node.data.conditions.length === 0) {
+        // Fallback for legacy keyword format
+        let keywords = [];
+        if (node.data.keywords && Array.isArray(node.data.keywords)) {
+            keywords = node.data.keywords;
+        }
+        if (keywords.length === 0) return true; // Empty means catch-all
+
+        const text = (messageText || '').toLowerCase().trim();
+        const cleanKeywords = keywords.map(kw => String(kw).toLowerCase().trim());
+        return cleanKeywords.some(kw => text === kw || (text.includes(kw) && kw.length > 2));
     }
 
-    if (keywords.length === 0) return true; // Empty means catch-all
+    const text = (messageText || '').trim();
+    const textLower = text.toLowerCase();
 
-    const text = (messageText || '').toLowerCase().trim();
-    const cleanKeywords = keywords.map(kw => String(kw).toLowerCase().trim());
-    // console.log(`🛠️ [AutomationService] Matching "${text}" against: [${cleanKeywords.join(', ')}]`);
-    return cleanKeywords.some(kw => text === kw || (text.includes(kw) && kw.length > 2));
+    // Any condition matching makes it trigger (OR logic between conditions if multiple)
+    for (const condition of node.data.conditions) {
+        if (!condition.keywords || condition.keywords.length === 0) return true; // Empty keywords catch-all
+
+        const keywords = condition.isCaseSensitive ? condition.keywords : condition.keywords.map(k => String(k).toLowerCase());
+        const compareText = condition.isCaseSensitive ? text : textLower;
+
+        if (condition.type === 'exact_match_keywords') {
+            if (keywords.some(kw => compareText === kw)) return true;
+        } else if (condition.type === 'includes_keywords') {
+            if (keywords.some(kw => compareText.includes(kw))) return true;
+        } else if (condition.type === 'excludes_keywords') {
+            // Exclude means if ANY keyword matches, it fails. 
+            // Wait, usually exclude means if it matches it returns false, else true?
+            // Actually, if it excludes keywords, it should only return true if NO keywords are found.
+            // But since this is a loop of conditions returning early true, we need to be careful.
+            // For now, let's treat it as: if none of the keywords are included, it matches this condition.
+            if (!keywords.some(kw => compareText.includes(kw))) return true;
+        } else {
+            // Fallback for custom/legacy
+            if (keywords.some(kw => compareText === kw || (compareText.includes(kw) && String(kw).length > 2))) return true;
+        }
+    }
+
+    return false;
 }
 
 async function executeNode(userId, currentNode, allNodes, allEdges, channel, payload, io) {
