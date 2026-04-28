@@ -38,10 +38,12 @@ const replaceVariables = (text, vars) => {
     // Regex to match all generic placeholders
     const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}|\{#([^#]+)#\}/g;
     const counts = {};
+    let globalCounter = 0;
 
     result = result.replace(regex, (match, p1, p2, p3, p4, p5) => {
         const key = (p1 || p2 || p3 || p4 || p5).trim();
         counts[key] = (counts[key] || 0) + 1;
+        globalCounter++;
         
         // Check if there is a specific mapped value for this occurrence
         let mappedKey = counts[key] === 1 ? key : `${key}_${counts[key]}`;
@@ -52,6 +54,21 @@ const replaceVariables = (text, vars) => {
             // Fallback to the original base key if sequential mapping doesn't exist
             return vars[key];
         }
+
+        // --- NEW: Universal Auto-Fallback for DLT style {#var#} ---
+        // If the key is 'var', 'val' or numeric but wasn't found above, fallback to sequential indices.
+        if (key.toLowerCase() === 'var' || key.toLowerCase() === 'val' || !isNaN(parseInt(key))) {
+             let seqKey1 = String(counts[key]);      // e.g. '1' for the first {#var#}
+             let seqKey2 = `var${counts[key]}`;      // e.g. 'var1'
+             let globalSeq = String(globalCounter);  // overall count
+             let globalVar = `var${globalCounter}`;
+             
+             if (vars[seqKey1] !== undefined && vars[seqKey1] !== '') return String(vars[seqKey1]);
+             if (vars[seqKey2] !== undefined && vars[seqKey2] !== '') return String(vars[seqKey2]);
+             if (vars[globalSeq] !== undefined && vars[globalSeq] !== '') return String(vars[globalSeq]);
+             if (vars[globalVar] !== undefined && vars[globalVar] !== '') return String(vars[globalVar]);
+        }
+
         return match; // Leave unreplaced if not found
     });
 
