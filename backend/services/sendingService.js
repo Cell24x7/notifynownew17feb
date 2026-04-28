@@ -33,6 +33,7 @@ const createTrackingLink = async (userId, campaignId, mobile, originalUrl) => {
  */
 const replaceVariables = (text, vars) => {
     if (!text) return '';
+    console.log(`[VAR-DEBUG] TEXT: "${text}" | VARS: ${JSON.stringify(vars)}`);
     let result = String(text);
 
     // Regex to match all generic placeholders (Priority ordered to prevent {#var#} matching {var} incorrectly)
