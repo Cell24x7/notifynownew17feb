@@ -35,8 +35,8 @@ const replaceVariables = (text, vars) => {
     if (!text) return '';
     let result = String(text);
 
-    // Regex to match all generic placeholders
-    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}|\{#([^#]+)#\}/g;
+    // Regex to match all generic placeholders (Priority ordered to prevent {#var#} matching {var} incorrectly)
+    const regex = /\[\[([^\]]+)\]\]|\{#([^#]+)#\}|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}/g;
     const counts = {};
     let globalCounter = 0;
 
@@ -129,8 +129,8 @@ const resolveMappedVariables = (mappingStr, contactVarsStr) => {
 const getOrderedVariables = (text, resolvedVars) => {
     const vars = [];
     if (!text) return vars;
-    // Regex for [[X]], [X], {{X}}, {X}, {#X#}
-    const regex = /\[\[([^\]]+)\]\]|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}|\{#([^#]+)#\}/g;
+    // Regex for [[X]], {#X#}, [X], {{X}}, {X} (Priority ordered)
+    const regex = /\[\[([^\]]+)\]\]|\{#([^#]+)#\}|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}/g;
     let match;
     const foundKeys = [];
     const counts = {};
