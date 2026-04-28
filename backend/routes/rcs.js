@@ -218,7 +218,8 @@ router.get('/reports', authenticate, async (req, res) => {
     let finalSql = `
       SELECT 
         c.id, c.name, c.template_id, c.template_name, c.created_at, c.channel,
-        c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status
+        c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status,
+        c.scheduled_at, c.next_run_at, c.schedule_type, c.scheduling_mode, c.frequency
       ${sql}
       ORDER BY c.created_at DESC
     `;

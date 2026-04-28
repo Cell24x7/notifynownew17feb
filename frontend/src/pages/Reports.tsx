@@ -27,6 +27,12 @@ interface Report {
     read_count: number;
     failed_count: number;
     created_at: string;
+    status: string;
+    scheduled_at?: string;
+    next_run_at?: string;
+    schedule_type?: string;
+    scheduling_mode?: string;
+    frequency?: string;
 }
 
 interface WebhookLog {
@@ -78,6 +84,8 @@ export default function Reports() {
     const [summaryTotal, setSummaryTotal] = useState(0);
     const [detailedPage, setDetailedPage] = useState(1);
     const [detailedTotal, setDetailedTotal] = useState(0);
+    const [scheduledPage, setScheduledPage] = useState(1);
+    const [scheduledTotal, setScheduledTotal] = useState(0);
     const ITEMS_PER_PAGE = 20;
 
     const [loading, setLoading] = useState(true);
@@ -112,7 +120,12 @@ export default function Reports() {
 
     useEffect(() => {
         setSummaryPage(1); // Reset page on filter change
-        fetchReports(1);
+        setScheduledPage(1);
+        if (activeTab === 'scheduled') {
+            fetchReports(1, 'scheduled');
+        } else {
+            fetchReports(1);
+        }
     }, [startDate, endDate, statusFilter, channelFilter]);
 
     useEffect(() => {
@@ -125,8 +138,10 @@ export default function Reports() {
     useEffect(() => {
         if (activeTab === 'summary') {
             fetchReports(summaryPage);
+        } else if (activeTab === 'scheduled') {
+            fetchReports(scheduledPage, 'scheduled');
         }
-    }, [summaryPage]);
+    }, [summaryPage, scheduledPage]);
 
     useEffect(() => {
         if (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') {
@@ -159,7 +174,7 @@ export default function Reports() {
         }
     }, [detailedPage, apiPage, engagementPage, targetUserId]);
 
-    const fetchReports = async (page: number = 1) => {
+    const fetchReports = async (page: number = 1, fetchForTab: string = activeTab) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
@@ -167,13 +182,17 @@ export default function Reports() {
 
             if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
             if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
-            if (statusFilter !== 'all') url += `status=${statusFilter}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
-            // If in summary, only show manual campaigns. If in API tab, show API campaigns.
-            if (activeTab === 'summary' || activeTab === 'detailed') url += `source=manual&`;
-            if (activeTab === 'api') url += `source=api&`;
+            if (fetchForTab === 'scheduled') {
+                url += `source=manual&status=scheduled&`;
+            } else {
+                if (statusFilter !== 'all') url += `status=${statusFilter}&`;
+                // If in summary, only show manual campaigns. If in API tab, show API campaigns.
+                if (fetchForTab === 'summary' || fetchForTab === 'detailed') url += `source=manual&`;
+                if (fetchForTab === 'api') url += `source=api&`;
+            }
 
             if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
 
@@ -184,7 +203,11 @@ export default function Reports() {
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
-                setSummaryTotal(data.pagination?.total || 0);
+                if (fetchForTab === 'scheduled') {
+                    setScheduledTotal(data.pagination?.total || 0);
+                } else {
+                    setSummaryTotal(data.pagination?.total || 0);
+                }
             }
         } catch (error) {
             console.error('Failed to fetch reports', error);
@@ -277,6 +300,7 @@ export default function Reports() {
             fetchReports(summaryPage);
             fetchSummaryStats();
         }
+        if (activeTab === 'scheduled') fetchReports(scheduledPage, 'scheduled');
         if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
         if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
         if (activeTab === 'engagement') fetchEngagementReports(engagementPage);
@@ -292,7 +316,7 @@ export default function Reports() {
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [autoRefresh, activeTab, summaryPage, detailedPage]);
+    }, [autoRefresh, activeTab, summaryPage, scheduledPage, detailedPage]);
 
     const handleExport = async () => {
         try {
@@ -375,6 +399,7 @@ export default function Reports() {
 
     const handleRefresh = () => {
         if (activeTab === 'summary') fetchReports(summaryPage);
+        if (activeTab === 'scheduled') fetchReports(scheduledPage, 'scheduled');
         if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
         if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
     };
@@ -597,6 +622,7 @@ export default function Reports() {
             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col pt-2">
                 <TabsList className="bg-muted p-1 rounded-xl w-fit h-11 mb-2 border border-border/50">
                     <TabsTrigger value="summary" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Summary Report</TabsTrigger>
+                    <TabsTrigger value="scheduled" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Scheduled</TabsTrigger>
                     <TabsTrigger value="detailed" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Detailed Reports</TabsTrigger>
                     <TabsTrigger value="engagement" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Click Reports</TabsTrigger>
                     <TabsTrigger value="api" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">API Logs</TabsTrigger>
@@ -657,6 +683,76 @@ export default function Reports() {
                                 </TableBody>
                             </Table>
                             {renderPagination(summaryPage, summaryTotal, setSummaryPage)}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="scheduled" className="flex-1 flex flex-col space-y-4 pt-4 overflow-visible">
+                    <Card className="flex-1 border border-border shadow-md rounded-xl bg-card overflow-visible">
+                        <CardContent className="p-0 overflow-visible">
+                            <Table>
+                                <TableHeader className="bg-muted/50 border-b border-border">
+                                    <TableRow className="hover:bg-transparent h-12">
+                                        <TableHead className="sticky top-0 bg-white z-[100] py-4 px-6 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Campaign Name</TableHead>
+                                        <TableHead className="sticky top-0 bg-white z-[100] py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Channel</TableHead>
+                                        <TableHead className="sticky top-0 bg-white z-[100] py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Scheduling Mode</TableHead>
+                                        <TableHead className="sticky top-0 bg-white z-[100] py-4 px-4 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Scheduled For</TableHead>
+                                        <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Total</TableHead>
+                                        <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        <TableRow><TableCell colSpan={6} className="text-center py-10">Loading scheduled campaigns...</TableCell></TableRow>
+                                    ) : filteredReports.length === 0 ? (
+                                        <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400 font-medium">No scheduled campaigns found.</TableCell></TableRow>
+                                    ) : (
+                                        filteredReports.map((camp: any) => (
+                                            <TableRow key={camp.id} className="hover:bg-muted/50 transition-colors border-b border-border">
+                                                <td className="py-4 px-6">
+                                                    <div className="flex flex-col">
+                                                        <p className="font-semibold text-foreground text-[13px]">{camp.name || 'Untitled'}</p>
+                                                        <span className="text-[10px] text-muted-foreground font-medium">{camp.template_name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-4 text-center">
+                                                    <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 rounded uppercase font-semibold border-none", 
+                                                        camp.channel === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700")}>
+                                                        {camp.channel || 'RCS'}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-4 px-4 text-center">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-[11px] font-bold text-foreground capitalize">{camp.scheduling_mode || camp.schedule_type || 'Once'}</span>
+                                                        {(camp.scheduling_mode === 'recurring' || camp.schedule_type === 'recurring') && camp.frequency && (
+                                                            <span className="text-[10px] text-muted-foreground capitalize">{camp.frequency}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-4 text-center">
+                                                    <div className="flex flex-col items-center">
+                                                        {camp.next_run_at || camp.scheduled_at ? (
+                                                            <>
+                                                                <span className="text-[11px] font-semibold text-foreground">{format(new Date(camp.next_run_at || camp.scheduled_at), 'dd MMM yy')}</span>
+                                                                <span className="text-[10px] text-muted-foreground font-bold">{format(new Date(camp.next_run_at || camp.scheduled_at), 'HH:mm')}</span>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-[11px] text-muted-foreground">-</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-3 text-center font-bold text-foreground text-xs">{(camp.recipient_count || camp.total_recipient || 0).toLocaleString()}</td>
+                                                <td className="py-4 px-3 text-center">
+                                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-none text-[9px] px-2 uppercase font-black">
+                                                        {camp.status}
+                                                    </Badge>
+                                                </td>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                            {renderPagination(scheduledPage, scheduledTotal, setScheduledPage)}
                         </CardContent>
                     </Card>
                 </TabsContent>
