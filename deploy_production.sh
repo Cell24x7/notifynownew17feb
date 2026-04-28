@@ -160,7 +160,6 @@ NODE_ENV=production node scripts/voice_bot_infrastructure.js || true
 NODE_ENV=production node scripts/add_failover_cols.js || true
 NODE_ENV=production node scripts/add_media_support.js || true
 NODE_ENV=production node migrate_api_flag.js || true
-NODE_ENV=production node apply_schema_updates.js || true
 NODE_ENV=production node migration_reseller_payment.js || true
 
 ok "Database schema and environment are synced for $ENV_DESC."
@@ -172,6 +171,12 @@ NODE_ENV=production node scripts/auto_changelog.js || true
 # ── Step 7: Zero-Downtime Restart ─────────────────────────
 log "[7/8] Restarting PM2 Cluster..."
 cd "$PROJECT_DIR"
+
+# 🛑 Automatically kill conflicting developer instances to free up DB connections
+if pm2 list | grep -q "notifynow-developer"; then
+    log "   Killing conflicting 'notifynow-developer' instance..."
+    pm2 delete "notifynow-developer" || true
+fi
 
 if pm2 list | grep -q "$APP_NAME"; then
     log "   Restarting existing instance to ensure new routes are loaded..."
