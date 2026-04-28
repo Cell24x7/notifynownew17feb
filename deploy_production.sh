@@ -172,12 +172,6 @@ NODE_ENV=production node scripts/auto_changelog.js || true
 log "[7/8] Restarting PM2 Cluster..."
 cd "$PROJECT_DIR"
 
-# 🛑 Automatically kill conflicting developer instances to free up DB connections
-if pm2 list | grep -q "notifynow-developer"; then
-    log "   Killing conflicting 'notifynow-developer' instance..."
-    pm2 delete "notifynow-developer" || true
-fi
-
 if pm2 list | grep -q "$APP_NAME"; then
     log "   Restarting existing instance to ensure new routes are loaded..."
     pm2 restart "$APP_NAME" --update-env
