@@ -49,14 +49,21 @@ const replaceVariables = (text, vars) => {
         // Check if there is a specific mapped value for this occurrence
         let mappedKey = counts[key] === 1 ? key : `${key}_${counts[key]}`;
         
+        // Check normal keys
         if (vars[mappedKey] !== undefined && vars[mappedKey] !== '') {
-            return vars[mappedKey];
+            return String(vars[mappedKey]);
         } else if (vars[key] !== undefined && vars[key] !== '') {
             // Fallback to the original base key if sequential mapping doesn't exist
-            return vars[key];
+            return String(vars[key]);
         }
 
-        // --- NEW: Universal Auto-Fallback for DLT style {#var#} ---
+        // --- NEW: Exact Hash Fallback (If CSV headers were literally named '#var') ---
+        let hashMapped = `#${mappedKey}`;
+        let hashKey = `#${key}`;
+        if (vars[hashMapped] !== undefined && vars[hashMapped] !== '') return String(vars[hashMapped]);
+        if (vars[hashKey] !== undefined && vars[hashKey] !== '') return String(vars[hashKey]);
+
+        // --- Universal Auto-Fallback for DLT style {#var#} ---
         // If the key is 'var', 'val' or numeric but wasn't found above, fallback to sequential indices.
         if (key.toLowerCase() === 'var' || key.toLowerCase() === 'val' || !isNaN(parseInt(key))) {
              let seqKey1 = String(counts[key]);      // e.g. '1' for the first {#var#}
