@@ -489,6 +489,7 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
             }
         }
 
+        if (smsContent) {
             // 🚜 Robust Variable Extraction
             let finalVars = payload.variables || payload.contact_variables || {};
             if (payload.metadata) {
