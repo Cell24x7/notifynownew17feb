@@ -489,27 +489,32 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
             }
         }
 
-        if (smsContent) {
-            let finalVars = payload.variables || payload.contact_variables || payload.metadata?.variables || {};
+            // 🚜 Robust Variable Extraction
+            let finalVars = payload.variables || payload.contact_variables || {};
+            if (payload.metadata) {
+                const meta = typeof payload.metadata === 'string' ? JSON.parse(payload.metadata) : payload.metadata;
+                if (meta.variables) finalVars = { ...finalVars, ...meta.variables };
+                else finalVars = { ...finalVars, ...meta };
+            }
             
-            // 🚑 SELF-HEALING: If variables are missing, try fetching from log table directly
+            // 🚑 SELF-HEALING: If variables are still missing, try fetching from log table directly
             if (Object.keys(finalVars).length === 0 && (payload.id || payload.message_id)) {
                 try {
                     const logsTable = payload.is_api ? 'api_message_logs' : 'message_logs';
                     const [recovery] = await query(`SELECT metadata FROM ${logsTable} WHERE id = ? OR message_id = ?`, [payload.id, payload.message_id]);
                     if (recovery.length > 0 && recovery[0].metadata) {
-                        const meta = typeof recovery[0].metadata === 'string' ? JSON.parse(recovery[0].metadata) : recovery[0].metadata;
-                        if (meta && meta.variables) {
-                            finalVars = meta.variables;
-                            console.log(`🚑 [AutomationService] Self-Healed! Recovered variables from DB: ${JSON.stringify(finalVars)}`);
-                        }
+                        const dbMeta = typeof recovery[0].metadata === 'string' ? JSON.parse(recovery[0].metadata) : recovery[0].metadata;
+                        const dbVars = dbMeta.variables || dbMeta || {};
+                        finalVars = { ...finalVars, ...dbVars };
+                        console.log(`🚑 [AutomationService] Self-Healed! Recovered variables from DB: ${JSON.stringify(finalVars)}`);
                     }
                 } catch (recoveryErr) {
                     console.error('[AutomationService] Variable recovery failed:', recoveryErr.message);
                 }
             }
 
-            console.log(`[FAILOVER-DEBUG] Final Vars from Payload (Post-Recovery): ${JSON.stringify(finalVars)}`);
+            console.log(`[FAILOVER-DEBUG] Final Vars for Replacement: ${JSON.stringify(finalVars)}`);
+
             // Resolve custom CSV variables using campaign's field mapping
             if (payload.campaign_id && Object.keys(finalVars).length > 0) {
                 try {
@@ -525,7 +530,9 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
                 }
             }
             
-            smsContent = await replaceVariables(userId, mobile, smsContent, finalVars);
+            // Use the robust replacement function from sendingService
+            const { replaceVariables: robustReplace } = require('./sendingService');
+            smsContent = robustReplace(smsContent, finalVars);
             
 
             const deduction = await deductSingleMessageCredit(userId, 'sms', templateId || 'failover_sms');
