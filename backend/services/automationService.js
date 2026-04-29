@@ -431,6 +431,7 @@ async function replaceVariables(userId, mobile, text, customVars = {}) {
 
         // Merge variables (customVars takes priority)
         const mergedVars = { ...contactVars, ...parsedCustomVars };
+        console.log(`[FAILOVER-DEBUG] Merged Vars: ${JSON.stringify(mergedVars)}`);
         
         // Delegate to the robust replaceVariables function in sendingService.js
         const { replaceVariables: sendingServiceReplace } = require('./sendingService');
@@ -490,6 +491,7 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
 
         if (smsContent) {
             let finalVars = payload.variables || payload.contact_variables || payload.metadata?.variables || {};
+            console.log(`[FAILOVER-DEBUG] Final Vars from Payload: ${JSON.stringify(finalVars)}`);
             // Resolve custom CSV variables using campaign's field mapping
             if (payload.campaign_id && Object.keys(finalVars).length > 0) {
                 try {
