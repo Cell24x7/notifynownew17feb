@@ -423,8 +423,14 @@ async function replaceVariables(userId, mobile, text, customVars = {}) {
             };
         }
 
+        // Ensure customVars is a proper object
+        let parsedCustomVars = customVars || {};
+        if (typeof parsedCustomVars === 'string') {
+            try { parsedCustomVars = JSON.parse(parsedCustomVars); } catch(e) { parsedCustomVars = {}; }
+        }
+
         // Merge variables (customVars takes priority)
-        const mergedVars = { ...contactVars, ...(customVars || {}) };
+        const mergedVars = { ...contactVars, ...parsedCustomVars };
         
         // Delegate to the robust replaceVariables function in sendingService.js
         const { replaceVariables: sendingServiceReplace } = require('./sendingService');

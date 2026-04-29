@@ -291,7 +291,10 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                         sendRes.error || null,
                         item.is_failover_enabled || 0,
                         item.failover_sms_template || null,
-                        JSON.stringify({ variables: item.variables || item.contact_variables || {} })
+                        JSON.stringify({ 
+                            variables: (typeof item.variables === 'string' ? JSON.parse(item.variables || '{}') : item.variables) || 
+                                       (typeof item.contact_variables === 'string' ? JSON.parse(item.contact_variables || '{}') : item.contact_variables) || {} 
+                        })
                     ]);
 
                     await query(`UPDATE ${queueTable} SET status = ?, processed_at = NOW() WHERE id = ?`, 
