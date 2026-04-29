@@ -71,9 +71,12 @@ const replaceVariables = (text, vars) => {
              let globalSeq = String(globalCounter);  // overall count
              let globalVar = `var${globalCounter}`;
              
+             // PRIORITIZE NUMERIC KEYS (Standard for API)
              if (vars[seqKey1] !== undefined && vars[seqKey1] !== '') return String(vars[seqKey1]);
-             if (vars[seqKey2] !== undefined && vars[seqKey2] !== '') return String(vars[seqKey2]);
              if (vars[globalSeq] !== undefined && vars[globalSeq] !== '') return String(vars[globalSeq]);
+             
+             // Fallback to named variations
+             if (vars[seqKey2] !== undefined && vars[seqKey2] !== '') return String(vars[seqKey2]);
              if (vars[globalVar] !== undefined && vars[globalVar] !== '') return String(vars[globalVar]);
         }
 
