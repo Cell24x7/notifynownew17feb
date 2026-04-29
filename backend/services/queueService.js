@@ -277,8 +277,8 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                     
                     // Log immediately to SQL (Slow, but fine for local small batches)
                     await query(`
-                        INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, template_name, recipient, channel, message_id, status, error, send_time, is_failover_enabled, failover_sms_template)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
+                        INSERT INTO ${logsTable} (user_id, campaign_id, campaign_name, template_name, recipient, channel, message_id, status, error, send_time, is_failover_enabled, failover_sms_template, metadata)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)
                     `, [
                         item.user_id, 
                         item.campaign_id, 
@@ -290,7 +290,8 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                         sendRes.success ? 'sent' : 'failed', 
                         sendRes.error || null,
                         item.is_failover_enabled || 0,
-                        item.failover_sms_template || null
+                        item.failover_sms_template || null,
+                        JSON.stringify({ variables: item.variables || item.contact_variables || {} })
                     ]);
 
                     await query(`UPDATE ${queueTable} SET status = ?, processed_at = NOW() WHERE id = ?`, 

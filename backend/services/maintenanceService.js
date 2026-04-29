@@ -24,9 +24,11 @@ async function runMaintenance() {
                 await query(`ALTER TABLE api_campaign_queue ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
             }
 
-            // Also ensure log tables have the 'error' column
+            // Also ensure log tables have the 'error' and 'metadata' columns
             await query("ALTER TABLE message_logs ADD COLUMN IF NOT EXISTS error TEXT").catch(() => {});
             await query("ALTER TABLE api_message_logs ADD COLUMN IF NOT EXISTS error TEXT").catch(() => {});
+            await query("ALTER TABLE message_logs ADD COLUMN IF NOT EXISTS metadata JSON").catch(() => {});
+            await query("ALTER TABLE api_message_logs ADD COLUMN IF NOT EXISTS metadata JSON").catch(() => {});
 
             // 🚦 NEW: Ensure sms_gateways has sender_id column
             await query("ALTER TABLE sms_gateways ADD COLUMN IF NOT EXISTS sender_id VARCHAR(20) DEFAULT 'NOTIFY'").catch(() => {});

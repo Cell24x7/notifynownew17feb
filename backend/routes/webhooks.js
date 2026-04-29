@@ -945,8 +945,14 @@ router.post('/whatsapp/callback', async (req, res) => {
                                                     const ioDummy = req.io || { to: () => ({ emit: () => {} }) };
                                                     
                                                     try {
+                                                        let parsedMetadata = log.metadata || {};
+                                                        if (typeof parsedMetadata === 'string') {
+                                                            try { parsedMetadata = JSON.parse(parsedMetadata); } catch(e) {}
+                                                        }
+
                                                         await processAutomation(log.user_id, 'message_failed', {
                                                             ...log,
+                                                            metadata: parsedMetadata,
                                                             original_channel: 'whatsapp',
                                                             failover_template_id: log.failover_sms_template
                                                         }, ioDummy);

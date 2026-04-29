@@ -1229,8 +1229,8 @@ router.post('/api/send-single', async (req, res) => {
 
             // Log to api_message_logs with failover settings
             await query(
-                'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content, is_failover_enabled, failover_sms_template) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)',
-                [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp', `Template: ${templateName}`, failover_enabled ? 1 : 0, failover_sms_template_id || null]
+                'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content, is_failover_enabled, failover_sms_template, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)',
+                [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp', `Template: ${templateName}`, failover_enabled ? 1 : 0, failover_sms_template_id || null, JSON.stringify({ variables: failover_variables || variables || {} })]
             );
 
             res.json({ success: true, messageId });
