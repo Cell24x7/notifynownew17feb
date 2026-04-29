@@ -490,31 +490,36 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
         }
 
         if (smsContent) {
+            console.log(`[FAILOVER-DEBUG] Initial SMS Content: "${smsContent}"`);
+            
             // 🚜 Robust Variable Extraction
-            let finalVars = payload.variables || payload.contact_variables || {};
+            let finalVars = payload.variables || payload.contact_variables || payload.failover_variables || {};
+            
             if (payload.metadata) {
                 const meta = typeof payload.metadata === 'string' ? JSON.parse(payload.metadata) : payload.metadata;
+                console.log(`[FAILOVER-DEBUG] Found Metadata: ${JSON.stringify(meta)}`);
                 if (meta.variables) finalVars = { ...finalVars, ...meta.variables };
+                else if (meta.failover_variables) finalVars = { ...finalVars, ...meta.failover_variables };
                 else finalVars = { ...finalVars, ...meta };
             }
             
             // 🚑 SELF-HEALING: If variables are still missing, try fetching from log table directly
-            if (Object.keys(finalVars).length === 0 && (payload.id || payload.message_id)) {
+            if (Object.keys(finalVars).length <= 1 && (payload.id || payload.message_id)) {
                 try {
                     const logsTable = payload.is_api ? 'api_message_logs' : 'message_logs';
                     const [recovery] = await query(`SELECT metadata FROM ${logsTable} WHERE id = ? OR message_id = ?`, [payload.id, payload.message_id]);
                     if (recovery.length > 0 && recovery[0].metadata) {
                         const dbMeta = typeof recovery[0].metadata === 'string' ? JSON.parse(recovery[0].metadata) : recovery[0].metadata;
-                        const dbVars = dbMeta.variables || dbMeta || {};
+                        const dbVars = dbMeta.variables || dbMeta.failover_variables || dbMeta || {};
                         finalVars = { ...finalVars, ...dbVars };
-                        console.log(`🚑 [AutomationService] Self-Healed! Recovered variables from DB: ${JSON.stringify(finalVars)}`);
+                        console.log(`🚑 [AutomationService] Self-Healed! Recovered: ${JSON.stringify(finalVars)}`);
                     }
                 } catch (recoveryErr) {
-                    console.error('[AutomationService] Variable recovery failed:', recoveryErr.message);
+                    console.error('[AutomationService] Recovery error:', recoveryErr.message);
                 }
             }
 
-            console.log(`[FAILOVER-DEBUG] Final Vars for Replacement: ${JSON.stringify(finalVars)}`);
+            console.log(`[FAILOVER-DEBUG] Final Variables before replacement: ${JSON.stringify(finalVars)}`);
 
             // Resolve custom CSV variables using campaign's field mapping
             if (payload.campaign_id && Object.keys(finalVars).length > 0) {
@@ -525,16 +530,23 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
                         const { resolveMappedVariables } = require('./sendingService');
                         const mapping = typeof cRes[0].variable_mapping === 'string' ? JSON.parse(cRes[0].variable_mapping) : cRes[0].variable_mapping;
                         finalVars = resolveMappedVariables(mapping, finalVars);
+                        console.log(`[FAILOVER-DEBUG] Mapped Variables: ${JSON.stringify(finalVars)}`);
                     }
                 } catch(e) {
-                    console.error('[AutomationService] Failed to resolve mapped variables:', e.message);
+                    console.error('[AutomationService] Mapping error:', e.message);
                 }
             }
             
-            // Use the robust replacement function from sendingService
+            // 🚀 ACTUAL REPLACEMENT
             const { replaceVariables: robustReplace } = require('./sendingService');
+            const originalContent = smsContent;
             smsContent = robustReplace(smsContent, finalVars);
             
+            console.log(`[FAILOVER-DEBUG] Content After Replacement: "${smsContent}"`);
+            
+            if (smsContent === originalContent && originalContent.includes('{#var')) {
+                console.warn(`⚠️ [FAILOVER-DEBUG] Replacement FAILED! Content still contains placeholders.`);
+            }
 
             const deduction = await deductSingleMessageCredit(userId, 'sms', templateId || 'failover_sms');
             if (deduction.success) {
