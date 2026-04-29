@@ -162,7 +162,8 @@ router.post('/', async (req, res) => {
       name, email, phone, domain, api_base_url,
       commission_percent, status,
       plan_id, channelsJson,
-      brand_name || name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone
+      brand_name || name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
+      null, null, null, null
     ]);
 
     res.status(201).json({
