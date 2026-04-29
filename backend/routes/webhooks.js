@@ -945,10 +945,14 @@ router.post('/whatsapp/callback', async (req, res) => {
                                                     const ioDummy = req.io || { to: () => ({ emit: () => {} }) };
                                                     
                                                     try {
+                                                        console.log(`[WEBHOOK-DEBUG] Raw Metadata from DB for ${messageId}: ${JSON.stringify(log.metadata)}`);
                                                         let parsedMetadata = log.metadata || {};
                                                         if (typeof parsedMetadata === 'string') {
-                                                            try { parsedMetadata = JSON.parse(parsedMetadata); } catch(e) {}
+                                                            try { parsedMetadata = JSON.parse(parsedMetadata); } catch(e) {
+                                                                console.error(`[WEBHOOK-DEBUG] JSON Parse failed for metadata: ${e.message}`);
+                                                            }
                                                         }
+                                                        console.log(`[WEBHOOK-DEBUG] Parsed Metadata: ${JSON.stringify(parsedMetadata)}`);
 
                                                         await processAutomation(log.user_id, 'message_failed', {
                                                             ...log,
