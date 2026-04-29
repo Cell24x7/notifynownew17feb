@@ -404,23 +404,7 @@ async function replaceVariables(userId, mobile, text, customVars = {}) {
     try {
         let newText = text;
         
-        // 1. First, replace custom map variables (from payload.variables)
-        if (customVars && typeof customVars === 'object') {
-            for (const [key, val] of Object.entries(customVars)) {
-                // Matches {{key}}, {key}, [key], {#key#}
-                const regexes = [
-                    new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'),
-                    new RegExp(`\\{\\s*${key}\\s*\\}`, 'gi'),
-                    new RegExp(`\\[\\s*${key}\\s*\\]`, 'gi'),
-                    new RegExp(`\\{#\\s*${key}\\s*#\\}`, 'gi')
-                ];
-                regexes.forEach(regex => {
-                    newText = newText.replace(regex, val != null ? String(val) : '');
-                });
-            }
-        }
-
-        // 2. Then fallback to contact table data
+        // 1. Fetch contact table data first (so customVars can override)
         const [contacts] = await query('SELECT * FROM contacts WHERE user_id = ? AND (phone = ? OR phone = ?)', [userId, mobile, mobile]);
         let contactVars = {
             name: 'User',
@@ -439,19 +423,16 @@ async function replaceVariables(userId, mobile, text, customVars = {}) {
             };
         }
 
-        for (const [key, val] of Object.entries(contactVars)) {
-            const regexes = [
-                new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'),
-                new RegExp(`\\{\\s*${key}\\s*\\}`, 'gi'),
-                new RegExp(`\\[\\s*${key}\\s*\\]`, 'gi'),
-                new RegExp(`\\{#\\s*${key}\\s*#\\}`, 'gi')
-            ];
-            regexes.forEach(regex => {
-                newText = newText.replace(regex, val || '');
-            });
-        }
+        // Merge variables (customVars takes priority)
+        const mergedVars = { ...contactVars, ...(customVars || {}) };
+        
+        // Delegate to the robust replaceVariables function in sendingService.js
+        const { replaceVariables: sendingServiceReplace } = require('./sendingService');
+        newText = sendingServiceReplace(newText, mergedVars);
+
         return newText;
     } catch (e) {
+        console.error('Error replacing variables in automationService:', e.message);
         return text;
     }
 }
