@@ -956,6 +956,7 @@ router.post('/whatsapp/callback', async (req, res) => {
 
                                                         await processAutomation(log.user_id, 'message_failed', {
                                                             ...log,
+                                                            is_api: isApiLog,
                                                             metadata: parsedMetadata,
                                                             original_channel: 'whatsapp',
                                                             failover_template_id: log.failover_sms_template
