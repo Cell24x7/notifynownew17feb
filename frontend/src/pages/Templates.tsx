@@ -610,7 +610,7 @@ export default function Templates() {
             <div className="w-6 sm:w-8 h-1 bg-white/5 rounded-full" />
             <div className="w-1.5 h-1.5 rounded-full bg-white/5" />
           </div>
-          <div className="h-full w-full bg-black rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden relative border-[1px] border-white/5">
+          <div className="h-full w-full bg-black rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden relative border-[1px] border-white/5 pt-2">
             {content}
           </div>
         </div>
@@ -675,7 +675,7 @@ export default function Templates() {
     return wrapInPhoneMockup(
       <div className="h-full w-full bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-sm">
         {/* Header - Increased Padding to clear notch */}
-        <div className="px-4 pt-12 pb-3 text-white flex items-center gap-3 relative z-20 shadow-md" style={{ backgroundColor: botColor }}>
+        <div className="px-4 pt-14 pb-3 text-white flex items-center gap-3 relative z-20 shadow-md" style={{ backgroundColor: botColor }}>
            <ChevronLeft className="h-5 w-5 -ml-1 cursor-pointer opacity-80" />
            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0 overflow-hidden">
               {isRCS ? (

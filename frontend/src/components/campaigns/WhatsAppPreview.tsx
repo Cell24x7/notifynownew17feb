@@ -32,7 +32,7 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
 
 
                 {/* WhatsApp Header - Premium - Increased Padding to clear notch */}
-                <div className="px-4 pt-12 pb-3 bg-[#f0f2f5] dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] flex items-center gap-3 shadow-sm relative z-20">
+                <div className="px-4 pt-14 pb-3 bg-[#f0f2f5] dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] flex items-center gap-3 shadow-sm relative z-20">
                     <ChevronLeft className="h-6 w-6 text-[#008069] dark:text-[#00a884] -ml-1 cursor-pointer opacity-80" />
                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#075E54] to-[#128C7E] relative flex items-center justify-center overflow-hidden shadow-md border border-white/10 shrink-0">
                         <span className="text-[12px] font-black text-white tracking-tighter">WA</span>
