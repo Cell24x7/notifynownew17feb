@@ -532,18 +532,27 @@ export default function Templates() {
   };
 
   const renderPhonePreview = (data: any = newTemplate) => {
-    const isRCS = data.channel === 'rcs';
-    const isSMS = data.channel === 'sms';
-    const isWA = data.channel === 'whatsapp';
+    // If it's an SMS template and we are in the creation modal, use smsFormData
+    const isSMSPreview = data.channel === 'sms';
+    const previewData = (isSMSPreview && isTemplateOpen) ? {
+        ...data,
+        body: smsFormData.template_text || data.body,
+        temp_id: smsFormData.temp_id || data.temp_id,
+        metadata: { ...data.metadata, sender: smsFormData.sender }
+    } : data;
+
+    const isRCS = previewData.channel === 'rcs';
+    const isSMS = previewData.channel === 'sms';
+    const isWA = previewData.channel === 'whatsapp';
     
     // Header Info
-    const meta = isRCS ? (data.metadata || {}) : {};
-    const botName = isRCS ? (meta.bot_name || "Business Profile") : isSMS ? "Messaging" : "WhatsApp";
+    const meta = (isRCS || isWA || isSMS) ? (previewData.metadata || {}) : {};
+    const botName = isRCS ? (meta.bot_name || "Business Profile") : isSMS ? (meta.sender || "Messaging") : "WhatsApp";
     const botColor = isRCS ? (meta.bot_color || "#1A73E8") : isSMS ? "#2A2A2E" : "#075E54";
 
     const renderRCSCard = (cardData: any, isCarousel = false, index?: number) => {
-      const orientation = cardData?.orientation || (data.metadata?.orientation) || 'VERTICAL';
-      const height = cardData?.height || (data.metadata?.height) || 'SHORT_HEIGHT';
+      const orientation = cardData?.orientation || (previewData.metadata?.orientation) || 'VERTICAL';
+      const height = cardData?.height || (previewData.metadata?.height) || 'SHORT_HEIGHT';
       const previewUrl = isCarousel && index !== undefined ? filePreviews[`carousel_${index}`] : filePreviews['main'];
       const mediaSource = cardData?.mediaUrl || previewUrl || cardData?.image_url;
 
@@ -566,7 +575,7 @@ export default function Templates() {
               <h4 className="text-[13px] font-bold text-[#111b21] dark:text-[#e9edef] truncate leading-tight">{cardData.title || cardData.cardTitle}</h4>
             )}
             <p className="text-[11px] text-[#667781] dark:text-[#8696a0] line-clamp-2 leading-snug">
-              {cardData?.description || cardData?.body || data.body || '...'}
+              {cardData?.description || cardData?.body || previewData.body || '...'}
             </p>
             {cardData?.buttons?.length > 0 && (
               <div className="pt-2 flex flex-col gap-1 mt-auto">
@@ -582,23 +591,33 @@ export default function Templates() {
       );
     };
 
-    if (data.channel === 'email') {
-        return <EmailPreview data={{ ...data, subject: data.subject || data.metadata?.subject }} />;
+    if (previewData.channel === 'email') {
+        return <EmailPreview data={{ ...previewData, subject: previewData.subject || previewData.metadata?.subject }} />;
     }
 
-    if (data.channel === 'whatsapp') {
-        let waData;
-        try {
-            waData = typeof (data.metadata || data) === 'string' 
-              ? JSON.parse(data.metadata || data) 
-              : (data.metadata || data);
-        } catch (e) {
-            waData = data.metadata || data;
+    if (previewData.channel === 'whatsapp') {
+        let waData = { ...previewData };
+        // If metadata is a string (from DB), parse it
+        if (typeof previewData.metadata === 'string') {
+            try {
+                const parsed = JSON.parse(previewData.metadata);
+                waData = { ...waData, ...parsed };
+            } catch (e) {}
+        } 
+        // If metadata is an object and has components, merge it
+        else if (previewData.metadata && typeof previewData.metadata === 'object') {
+            waData = { ...waData, ...previewData.metadata };
         }
+        
+        // Final fallback: if components are missing in merged waData but exist in previewData
+        if ((!waData.components || waData.components.length === 0) && previewData.components) {
+            waData.components = previewData.components;
+        }
+        
         return <WhatsAppPreview data={waData} />;
     }
 
-    if (data.channel === 'voicebot') {
+    if (previewData.channel === 'voicebot') {
       return (
         <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
             <div className="w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[3rem] p-3 shadow-2xl relative border-[8px] border-[#1e1e1e] flex flex-col overflow-hidden">
@@ -623,7 +642,7 @@ export default function Templates() {
                     
                     <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 w-full border border-white/10 mb-8 max-h-[160px] overflow-hidden">
                         <p className="text-[12px] text-white/80 leading-relaxed italic line-clamp-4">
-                            "{data.body || 'Playing your audio message...'}"
+                            "{previewData.body || 'Playing your audio message...'}"
                         </p>
                     </div>
 
@@ -691,16 +710,16 @@ export default function Templates() {
 
                {isRCS ? (
                 <div className="space-y-3">
-                  {data.template_type === 'text_message' && (
+                  {previewData.template_type === 'text_message' && (
                     <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-sm border border-black/5 max-w-[85%] animate-in slide-in-from-left-2 duration-300">
-                      <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">{data.body || 'Type message...'}</p>
+                      <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">{previewData.body || 'Type message...'}</p>
                       <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40">10:45 AM</span></div>
                     </div>
                   )}
-                  {data.template_type === 'rich_card' && renderRCSCard(data.metadata)}
-                  {data.template_type === 'carousel' && (
+                  {previewData.template_type === 'rich_card' && renderRCSCard(previewData.metadata)}
+                  {previewData.template_type === 'carousel' && (
                     <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
-                      {(data.metadata?.carouselList || []).map((card: any, i: number) => (
+                      {(previewData.metadata?.carouselList || []).map((card: any, i: number) => (
                         <div key={i} className="flex-shrink-0">{renderRCSCard(card, true, i)}</div>
                       ))}
                     </div>
@@ -708,24 +727,35 @@ export default function Templates() {
                 </div>
                ) : isWA ? (
                   <div className="bg-[#DCF8C6] dark:bg-[#056162] p-2.5 rounded-xl rounded-tl-sm shadow-sm self-start max-w-[90%] border border-black/5 animate-in slide-in-from-left-2 duration-300">
-                    {/* WA Components */}
+                    {/* WA Components Fallback (if WhatsAppPreview not used) */}
                     {(() => {
-                      const components = data.components || [];
+                      const components = previewData.components || [];
                       const header = components.find((c: any) => c.type === 'HEADER');
                       const body = components.find((c: any) => c.type === 'BODY');
                       const footer = components.find((c: any) => c.type === 'FOOTER');
+                      const buttons = components.find((c: any) => c.type === 'BUTTONS')?.buttons || [];
                       
                       return (
                         <>
+                          {header?.format === 'TEXT' && (
+                            <p className="text-[13px] font-extrabold text-[#111b21] dark:text-[#e9edef] mb-1">{header.text || 'Header'}</p>
+                          )}
                           {header?.format === 'IMAGE' && (
                             <div className="mb-2 rounded-lg overflow-hidden -mx-1 -mt-1 h-32 bg-muted flex items-center justify-center">
                               {header.previewUrl || header.handle ? <img src={header.previewUrl || header.handle} className="w-full h-full object-cover" alt="WA" /> : <ImageIcon className="h-8 w-8 opacity-20" />}
                             </div>
                           )}
                           <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">
-                            {body?.text || data.body || 'Message content...'}
+                            {body?.text || previewData.body || 'Message content...'}
                           </p>
                           {footer?.text && <p className="text-[10px] text-[#667781] dark:text-[#8696a0] mt-1 italic">{footer.text}</p>}
+                          {buttons.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-black/5 space-y-1">
+                              {buttons.map((btn: any, i: number) => (
+                                <div key={i} className="text-center py-1 text-[11px] font-bold text-[#00a884]">{btn.text || 'Button'}</div>
+                              ))}
+                            </div>
+                          )}
                         </>
                       );
                     })()}
@@ -734,17 +764,17 @@ export default function Templates() {
                ) : (
                 <div className="p-3 rounded-2xl max-w-[90%] shadow-sm relative animate-in slide-in-from-left-2 duration-300 bg-zinc-100 dark:bg-zinc-800 rounded-tl-sm border border-zinc-200 dark:border-zinc-700">
                   <p className="text-[13px] leading-relaxed text-foreground">
-                    {data.body || data.template_text || 'SMS Message...'}
+                    {previewData.body || previewData.template_text || 'SMS Message...'}
                   </p>
-                  {data.temp_id && <p className="text-[8px] opacity-40 mt-2 font-mono tracking-tight">ID: {data.temp_id}</p>}
+                  {previewData.temp_id && <p className="text-[8px] opacity-40 mt-2 font-mono tracking-tight">ID: {previewData.temp_id}</p>}
                   <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 font-bold uppercase tracking-widest">10:45 AM</span></div>
                 </div>
                )}
 
                {/* Buttons Support */}
-               {data.buttons?.length > 0 && !isWA && (
+               {previewData.buttons?.length > 0 && !isWA && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {data.buttons.map((btn: any, i: number) => (
+                      {previewData.buttons.map((btn: any, i: number) => (
                         <div key={i} className="bg-white dark:bg-zinc-800 border border-blue-500/30 text-blue-500 rounded-lg px-4 py-1.5 text-[11px] font-bold shadow-sm cursor-default">
                           {btn.displayText || btn.label}
                         </div>
