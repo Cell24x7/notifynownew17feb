@@ -31,22 +31,27 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                 }}></div>
 
 
-                {/* WhatsApp Header - Minimal */}
-                <div className="px-4 pt-4 pb-3 bg-[#f0f2f5] dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] flex items-center gap-3 shadow-sm relative z-20">
-                    <ChevronLeft className="h-6 w-6 text-[#008069] dark:text-[#00a884] -ml-1 cursor-pointer" />
-                    <div className="h-9 w-9 rounded-full bg-[#dfe5e7] dark:bg-[#6a7175] relative flex items-center justify-center overflow-hidden shadow-sm">
-                        <div className="w-full h-full bg-[#075E54] flex items-center justify-center text-[10px] font-bold text-white">WA</div>
+                {/* WhatsApp Header - Premium */}
+                <div className="px-4 pt-8 pb-3 bg-[#f0f2f5] dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] flex items-center gap-3 shadow-sm relative z-20">
+                    <ChevronLeft className="h-6 w-6 text-[#008069] dark:text-[#00a884] -ml-1 cursor-pointer opacity-80" />
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#075E54] to-[#128C7E] relative flex items-center justify-center overflow-hidden shadow-md border border-white/10 shrink-0">
+                        <span className="text-[12px] font-black text-white tracking-tighter">WA</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold truncate leading-tight flex items-center gap-1">
+                        <p className="text-[15px] font-bold truncate leading-tight flex items-center gap-1.5">
                             Official Account
-                            <svg viewBox="0 0 18 18" width="14" height="14" className="text-[#00a884] shrink-0">
-                                <path fill="currentColor" d="M9,1.75L2.5,4.25V7.5C2.5,11.5 5.25,15.25 9,16.25C12.75,15.25 15.5,11.5 15.5,7.5V4.25L9,1.75M9,14.5C6.5,13.5 4.5,11 4.5,8V5.5L9,3.75L13.5,5.5V8C13.5,11 11.5,13.5 9,14.5M7,8.5L8.5,10L11.5,7L12.5,8L8.5,12L6,9.5L7,8.5Z"></path>
-                            </svg>
+                            <div className="bg-[#00a884] rounded-full p-0.5">
+                                <svg viewBox="0 0 18 18" width="10" height="10" className="text-white">
+                                    <path fill="currentColor" d="M9,1.75L2.5,4.25V7.5C2.5,11.5 5.25,15.25 9,16.25C12.75,15.25 15.5,11.5 15.5,7.5V4.25L9,1.75M9,14.5C6.5,13.5 4.5,11 4.5,8V5.5L9,3.75L13.5,5.5V8C13.5,11 11.5,13.5 9,14.5M7,8.5L8.5,10L11.5,7L12.5,8L8.5,12L6,9.5L7,8.5Z"></path>
+                                </svg>
+                            </div>
                         </p>
-                        <p className="text-[10px] text-[#667781] dark:text-[#8696a0] font-medium">Business Account</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <p className="text-[10px] text-[#667781] dark:text-[#8696a0] font-bold uppercase tracking-widest opacity-80">Business Account</p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3 text-[#54656f] dark:text-[#aebac1]">
+                    <div className="flex items-center gap-3.5 text-[#54656f] dark:text-[#aebac1] opacity-80">
                         <Phone className="h-4 w-4" />
                         <MoreVertical className="h-4 w-4" />
                     </div>

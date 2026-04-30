@@ -593,13 +593,20 @@ export default function Templates() {
 
     const wrapInPhoneMockup = (content: React.ReactNode) => (
       <div className="flex flex-col items-center justify-center w-full py-4 scale-[0.85] sm:scale-100 origin-top sm:origin-center">
-        <div className="w-[280px] sm:w-[300px] aspect-[9/19] h-auto bg-[#0b141a] rounded-[2.5rem] sm:rounded-[3rem] p-2 sm:p-3 shadow-2xl relative border-[6px] sm:border-[8px] border-[#1e1e1e] flex flex-col overflow-hidden">
+        <div className="w-[280px] sm:w-[300px] aspect-[9/19] h-auto bg-[#1a1a1a] rounded-[2.5rem] sm:rounded-[3rem] p-2 sm:p-3 shadow-2xl relative border-[5px] sm:border-[7px] border-[#333] ring-1 ring-white/10 flex flex-col overflow-hidden">
+          {/* Hardware Buttons */}
+          <div className="absolute top-24 -left-[2px] w-[2px] h-10 bg-[#444] rounded-r-sm" />
+          <div className="absolute top-36 -left-[2px] w-[2px] h-10 bg-[#444] rounded-r-sm" />
+          <div className="absolute top-30 -right-[2px] w-[2px] h-14 bg-[#444] rounded-l-sm" />
+
           {/* Notch/Speaker */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 sm:w-28 h-5 sm:h-6 bg-[#1e1e1e] rounded-b-2xl z-30 flex items-center justify-center gap-1 sm:gap-1.5 px-3">
-            <div className="w-6 sm:w-8 h-1 bg-white/10 rounded-full" />
-            <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 sm:w-28 h-5 sm:h-6 bg-[#1a1a1a] rounded-b-2xl z-30 flex items-center justify-center gap-1 sm:gap-1.5 px-3">
+            <div className="w-6 sm:w-8 h-1 bg-white/5 rounded-full" />
+            <div className="w-1.5 h-1.5 rounded-full bg-white/5" />
           </div>
-          {content}
+          <div className="h-full w-full bg-black rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden relative border-[1px] border-white/5">
+            {content}
+          </div>
         </div>
       </div>
     );
@@ -658,21 +665,30 @@ export default function Templates() {
     }
 
     return wrapInPhoneMockup(
-      <div className="h-full w-full bg-[#efeae2] dark:bg-[#0b141a] rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-sm">
+      <div className="h-full w-full bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-sm">
         {/* Header */}
         <div className="px-4 pt-8 pb-3 text-white flex items-center gap-3 relative z-20 shadow-md" style={{ backgroundColor: botColor }}>
            <ChevronLeft className="h-5 w-5 -ml-1 cursor-pointer opacity-80" />
-           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0 overflow-hidden">
-              {isRCS ? <Bot className="h-4 w-4" /> : isSMS ? <Smartphone className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+           <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0 overflow-hidden">
+              {isRCS ? (
+                <div className="w-full h-full bg-[#1A73E8] flex items-center justify-center"><Bot className="h-5 w-5 text-white" /></div>
+              ) : isSMS ? (
+                <div className="w-full h-full bg-[#2A2A2E] flex items-center justify-center"><Smartphone className="h-5 w-5 text-white" /></div>
+              ) : (
+                <div className="w-full h-full bg-[#00a884] flex items-center justify-center text-[10px] font-bold text-white">WA</div>
+              )}
            </div>
            <div className="flex-1 min-w-0">
-             <p className="text-[13px] font-bold truncate leading-tight">{botName}</p>
+             <p className="text-[14px] font-bold truncate leading-tight">{isSMS && smsFormData.sender ? smsFormData.sender : botName}</p>
              <div className="flex items-center gap-1 mt-0.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] opacity-70 font-medium">Online</span>
+                <span className="text-[10px] opacity-70 font-medium">Online</span>
              </div>
            </div>
-           <MoreVertical className="h-4 w-4 opacity-70" />
+           <div className="flex items-center gap-3 opacity-80">
+              <Phone className="h-4 w-4" />
+              <MoreVertical className="h-4 w-4" />
+           </div>
         </div>
 
         {/* Message Content Area */}
@@ -736,12 +752,17 @@ export default function Templates() {
                   <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 uppercase tracking-tighter">10:45 AM</span></div>
                 </div>
              ) : (
-               <div className="p-3 rounded-2xl max-w-[90%] shadow-sm relative animate-in slide-in-from-left-2 duration-300 bg-zinc-100 dark:bg-zinc-800 rounded-tl-sm border border-zinc-200 dark:border-zinc-700">
-                <p className="text-[13px] leading-relaxed text-foreground">
-                  {previewData.body || previewData.template_text || 'SMS Message...'}
+               <div className="p-4 rounded-2xl max-w-[92%] shadow-sm relative animate-in slide-in-from-left-2 duration-300 bg-zinc-100 dark:bg-zinc-800 rounded-tl-sm border border-zinc-200 dark:border-zinc-700">
+                <p className="text-[13px] sm:text-[14px] leading-relaxed text-foreground font-medium">
+                  {previewData.body || previewData.template_text || 'SMS Message content will appear here...'}
                 </p>
-                {previewData.temp_id && <p className="text-[8px] opacity-40 mt-2 font-mono tracking-tight">ID: {previewData.temp_id}</p>}
-                <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 font-bold uppercase tracking-widest">10:45 AM</span></div>
+                {smsFormData.temp_id && (
+                  <div className="mt-3 pt-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Template ID</span>
+                    <span className="text-[9px] font-mono text-blue-500 bg-blue-500/10 px-1.5 rounded">{smsFormData.temp_id}</span>
+                  </div>
+                )}
+                <div className="flex justify-end mt-2"><span className="text-[9px] opacity-40 font-bold uppercase tracking-widest">12:34 PM</span></div>
               </div>
              )}
            </div>
