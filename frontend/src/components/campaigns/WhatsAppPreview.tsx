@@ -21,9 +21,9 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
     const buttonsComp = getComponent('BUTTONS');
 
     return (
-        <div className="flex flex-col h-full items-center justify-start overflow-y-auto overflow-x-hidden no-scrollbar w-full">
+        <div className="flex flex-col h-full items-center justify-start overflow-hidden no-scrollbar w-full">
             {/* WhatsApp Screen Content Only - No Frame/Bezel */}
-            <div className="h-full w-full bg-[#efeae2] dark:bg-[#0b141a] rounded-[2rem] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-sm min-h-[600px]">
+            <div className="h-full w-full bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-sm">
                 {/* WhatsApp Doodle Pattern */}
                 <div className="absolute inset-0 opacity-[0.06] pointer-events-none dark:opacity-[0.03]" style={{
                     backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
@@ -63,10 +63,10 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                                 {header.format === 'TEXT' && (
                                     <div className="p-3 text-sm font-extrabold text-[#111b21] dark:text-[#e9edef] w-full">{header.text || 'Header Text'}</div>
                                 )}
-                                {header.format === 'IMAGE' && (
-                                    <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-400 overflow-hidden">
+                                 {header.format === 'IMAGE' && (
+                                    <div className="w-full h-auto min-h-[120px] max-h-[220px] flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-400 overflow-hidden">
                                         {header.previewUrl || (header.handle && header.handle.startsWith('http')) ? (
-                                            <img src={header.previewUrl || header.handle} alt="Header" className="w-full h-full object-cover" />
+                                            <img src={header.previewUrl || header.handle} alt="Header" className="w-full h-full object-contain bg-black/5" />
                                         ) : (
                                             <>
                                                 <ImageIcon className="h-10 w-10 mb-2 opacity-30" />

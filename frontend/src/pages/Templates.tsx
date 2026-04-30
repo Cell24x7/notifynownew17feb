@@ -591,202 +591,175 @@ export default function Templates() {
       );
     };
 
+    const wrapInPhoneMockup = (content: React.ReactNode) => (
+      <div className="flex flex-col items-center justify-center w-full py-4 scale-[0.85] sm:scale-100 origin-top sm:origin-center">
+        <div className="w-[280px] sm:w-[300px] aspect-[9/19] h-auto bg-[#0b141a] rounded-[2.5rem] sm:rounded-[3rem] p-2 sm:p-3 shadow-2xl relative border-[6px] sm:border-[8px] border-[#1e1e1e] flex flex-col overflow-hidden">
+          {/* Notch/Speaker */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 sm:w-28 h-5 sm:h-6 bg-[#1e1e1e] rounded-b-2xl z-30 flex items-center justify-center gap-1 sm:gap-1.5 px-3">
+            <div className="w-6 sm:w-8 h-1 bg-white/10 rounded-full" />
+            <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+          </div>
+          {content}
+        </div>
+      </div>
+    );
+
     if (previewData.channel === 'email') {
-        return <EmailPreview data={{ ...previewData, subject: previewData.subject || previewData.metadata?.subject }} />;
+        return wrapInPhoneMockup(
+            <div className="h-full w-full bg-white dark:bg-zinc-900 overflow-y-auto no-scrollbar rounded-[1.5rem] sm:rounded-[2rem]">
+                <EmailPreview data={{ ...previewData, subject: previewData.subject || previewData.metadata?.subject }} />
+            </div>
+        );
     }
 
     if (previewData.channel === 'whatsapp') {
         let waData = { ...previewData };
-        // If metadata is a string (from DB), parse it
         if (typeof previewData.metadata === 'string') {
             try {
                 const parsed = JSON.parse(previewData.metadata);
                 waData = { ...waData, ...parsed };
             } catch (e) {}
-        } 
-        // If metadata is an object and has components, merge it
-        else if (previewData.metadata && typeof previewData.metadata === 'object') {
+        } else if (previewData.metadata && typeof previewData.metadata === 'object') {
             waData = { ...waData, ...previewData.metadata };
         }
         
-        // Final fallback: if components are missing in merged waData but exist in previewData
         if ((!waData.components || waData.components.length === 0) && previewData.components) {
             waData.components = previewData.components;
         }
         
-        return <WhatsAppPreview data={waData} />;
+        return wrapInPhoneMockup(<WhatsAppPreview data={waData} />);
     }
 
     if (previewData.channel === 'voicebot') {
-      return (
-        <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
-            <div className="w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[3rem] p-3 shadow-2xl relative border-[8px] border-[#1e1e1e] flex flex-col overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-[#1a1c1e] to-[#000000] z-0" />
+      return wrapInPhoneMockup(
+        <div className="h-full w-full bg-[#000a14] rounded-[1.5rem] sm:rounded-[2rem] p-3 flex flex-col overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#1a1c1e] to-[#000000] z-0" />
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-blue-500/20 flex items-center justify-center mb-6 animate-pulse border border-blue-500/30">
+                    <Phone className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2 truncate w-full">{previewData.name || 'AI Voice Bot'}</h3>
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 mb-6 sm:mb-8">Active Call</Badge>
                 
-                {/* Status Bar */}
-                <div className="relative z-10 flex justify-between px-6 pt-4 text-[10px] text-white/70 font-bold">
-                    <span>10:45 AM</span>
-                    <div className="flex gap-1.5 items-center">
-                        <div className="w-3 h-3 rounded-full bg-white/20" />
-                        <div className="w-4 h-2 bg-white/20 rounded-sm" />
-                    </div>
+                <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 w-full border border-white/10 mb-6 sm:mb-8 max-h-[140px] sm:max-h-[160px] overflow-hidden">
+                    <p className="text-[11px] sm:text-[12px] text-white/80 leading-relaxed italic line-clamp-4">
+                        "{previewData.body || 'Playing your audio message...'}"
+                    </p>
                 </div>
+            </div>
 
-                {/* Caller Content */}
-                <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-white text-center px-6">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mb-6 shadow-xl ring-4 ring-white/10 animate-pulse">
-                        <Bot className="h-12 w-12 text-white" />
-                    </div>
-                    <h3 className="text-xl font-bold mb-1 tracking-tight">AI Voice Bot</h3>
-                    <p className="text-sm text-white/50 mb-8 font-medium">NotifyNow Caller ID</p>
-                    
-                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 w-full border border-white/10 mb-8 max-h-[160px] overflow-hidden">
-                        <p className="text-[12px] text-white/80 leading-relaxed italic line-clamp-4">
-                            "{previewData.body || 'Playing your audio message...'}"
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-12">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="w-1.5 bg-purple-500 rounded-full animate-bounce" style={{ height: `${Math.random() * 24 + 10}px`, animationDelay: `${i * 0.1}s` }} />
-                        ))}
-                    </div>
-                </div>
-
-                {/* Call Controls */}
-                <div className="relative z-10 pb-12 flex justify-around w-full">
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="w-14 h-14 rounded-full bg-rose-500 flex items-center justify-center shadow-lg hover:bg-rose-600 transition-colors">
-                            <X className="h-6 w-6 text-white" />
-                        </div>
-                        <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Decline</span>
-                    </div>
-                     <div className="flex flex-col items-center gap-2">
-                        <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-colors">
-                            <Phone className="h-6 w-6 text-white" />
-                        </div>
-                        <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Accept</span>
-                    </div>
+            <div className="relative z-10 mt-auto pb-8 flex justify-center">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg shadow-red-500/20 cursor-pointer">
+                    <Phone className="h-7 w-7 sm:h-8 sm:w-8 text-white rotate-[135deg]" />
                 </div>
             </div>
         </div>
       );
     }
 
-    return (
-      <div className="flex flex-col items-center justify-center w-full py-4 scale-95 origin-center">
-        {/* Phone Frame */}
-        <div className="w-[300px] aspect-[9/19] h-auto bg-[#000a14] rounded-[2.5rem] p-2 shadow-2xl relative border-[6px] border-[#1e1e1e] flex flex-col">
-          {/* Notch */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 h-5 w-24 bg-black rounded-full z-20 flex items-center justify-end px-4">
-             <div className="w-1 h-1 rounded-full bg-blue-900/40" />
-          </div>
-
-          <div className="h-full w-full bg-[#f0f2f5] dark:bg-[#060d15] rounded-[2rem] overflow-hidden flex flex-col relative z-10 no-scrollbar">
-            {/* Dynamic Header */}
-            <div 
-              className="px-4 pt-8 pb-3 text-white flex items-center gap-3 relative z-20 shadow-md"
-              style={{ backgroundColor: botColor }}
-            >
-              <ChevronLeft className="h-5 w-5 opacity-70" />
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0 overflow-hidden">
-                 {isRCS ? <Bot className="h-4 w-4" /> : isSMS ? <Smartphone className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold truncate leading-tight">{botName}</p>
-                <p className="text-[9px] opacity-80 flex items-center gap-0.5 tracking-wide uppercase font-black">
-                  {isRCS && <Shield className="h-2.5 w-2.5 fill-white/20" />}
-                  {isRCS ? 'Verified' : isSMS ? 'DLT Registered' : 'Business'}
-                </p>
-              </div>
-              <MoreVertical className="h-4 w-4 opacity-70" />
-            </div>
-
-            {/* Message Content Area */}
-            <div className={cn("flex-1 p-4 flex flex-col gap-3 overflow-y-auto no-scrollbar pt-6", isSMS && "bg-background")}>
-               <div className="flex justify-center mb-2">
-                 <Badge variant="outline" className="text-[8px] bg-black/5 dark:bg-white/5 border-none font-bold uppercase tracking-widest text-muted-foreground">Today</Badge>
-               </div>
-
-               {isRCS ? (
-                <div className="space-y-3">
-                  {previewData.template_type === 'text_message' && (
-                    <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-sm border border-black/5 max-w-[85%] animate-in slide-in-from-left-2 duration-300">
-                      <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">{previewData.body || 'Type message...'}</p>
-                      <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40">10:45 AM</span></div>
-                    </div>
-                  )}
-                  {previewData.template_type === 'rich_card' && renderRCSCard(previewData.metadata)}
-                  {previewData.template_type === 'carousel' && (
-                    <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
-                      {(previewData.metadata?.carouselList || []).map((card: any, i: number) => (
-                        <div key={i} className="flex-shrink-0">{renderRCSCard(card, true, i)}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-               ) : isWA ? (
-                  <div className="bg-[#DCF8C6] dark:bg-[#056162] p-2.5 rounded-xl rounded-tl-sm shadow-sm self-start max-w-[90%] border border-black/5 animate-in slide-in-from-left-2 duration-300">
-                    {/* WA Components Fallback (if WhatsAppPreview not used) */}
-                    {(() => {
-                      const components = previewData.components || [];
-                      const header = components.find((c: any) => c.type === 'HEADER');
-                      const body = components.find((c: any) => c.type === 'BODY');
-                      const footer = components.find((c: any) => c.type === 'FOOTER');
-                      const buttons = components.find((c: any) => c.type === 'BUTTONS')?.buttons || [];
-                      
-                      return (
-                        <>
-                          {header?.format === 'TEXT' && (
-                            <p className="text-[13px] font-extrabold text-[#111b21] dark:text-[#e9edef] mb-1">{header.text || 'Header'}</p>
-                          )}
-                          {header?.format === 'IMAGE' && (
-                            <div className="mb-2 rounded-lg overflow-hidden -mx-1 -mt-1 h-32 bg-muted flex items-center justify-center">
-                              {header.previewUrl || header.handle ? <img src={header.previewUrl || header.handle} className="w-full h-full object-cover" alt="WA" /> : <ImageIcon className="h-8 w-8 opacity-20" />}
-                            </div>
-                          )}
-                          <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">
-                            {body?.text || previewData.body || 'Message content...'}
-                          </p>
-                          {footer?.text && <p className="text-[10px] text-[#667781] dark:text-[#8696a0] mt-1 italic">{footer.text}</p>}
-                          {buttons.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-black/5 space-y-1">
-                              {buttons.map((btn: any, i: number) => (
-                                <div key={i} className="text-center py-1 text-[11px] font-bold text-[#00a884]">{btn.text || 'Button'}</div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                    <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 uppercase tracking-tighter">10:45 AM</span></div>
-                  </div>
-               ) : (
-                <div className="p-3 rounded-2xl max-w-[90%] shadow-sm relative animate-in slide-in-from-left-2 duration-300 bg-zinc-100 dark:bg-zinc-800 rounded-tl-sm border border-zinc-200 dark:border-zinc-700">
-                  <p className="text-[13px] leading-relaxed text-foreground">
-                    {previewData.body || previewData.template_text || 'SMS Message...'}
-                  </p>
-                  {previewData.temp_id && <p className="text-[8px] opacity-40 mt-2 font-mono tracking-tight">ID: {previewData.temp_id}</p>}
-                  <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 font-bold uppercase tracking-widest">10:45 AM</span></div>
-                </div>
-               )}
-
-               {/* Buttons Support */}
-               {previewData.buttons?.length > 0 && !isWA && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {previewData.buttons.map((btn: any, i: number) => (
-                        <div key={i} className="bg-white dark:bg-zinc-800 border border-blue-500/30 text-blue-500 rounded-lg px-4 py-1.5 text-[11px] font-bold shadow-sm cursor-default">
-                          {btn.displayText || btn.label}
-                        </div>
-                      ))}
-                    </div>
-               )}
-            </div>
-
-            {/* Bottom Indicator */}
-            <div className="h-6 pb-2 flex justify-center items-end bg-transparent"><div className="w-24 h-1 bg-zinc-400/30 rounded-full" /></div>
-          </div>
+    return wrapInPhoneMockup(
+      <div className="h-full w-full bg-[#efeae2] dark:bg-[#0b141a] rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden flex flex-col relative z-10 no-scrollbar shadow-sm">
+        {/* Header */}
+        <div className="px-4 pt-8 pb-3 text-white flex items-center gap-3 relative z-20 shadow-md" style={{ backgroundColor: botColor }}>
+           <ChevronLeft className="h-5 w-5 -ml-1 cursor-pointer opacity-80" />
+           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center border border-white/20 shadow-sm shrink-0 overflow-hidden">
+              {isRCS ? <Bot className="h-4 w-4" /> : isSMS ? <Smartphone className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+           </div>
+           <div className="flex-1 min-w-0">
+             <p className="text-[13px] font-bold truncate leading-tight">{botName}</p>
+             <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[9px] opacity-70 font-medium">Online</span>
+             </div>
+           </div>
+           <MoreVertical className="h-4 w-4 opacity-70" />
         </div>
+
+        {/* Message Content Area */}
+        <div className={cn("flex-1 p-3 sm:p-4 flex flex-col gap-3 overflow-y-auto no-scrollbar pt-6", isSMS && "bg-background")}>
+           <div className="flex justify-center mb-2">
+             <Badge variant="outline" className="text-[8px] bg-black/5 dark:bg-white/5 border-none font-bold uppercase tracking-widest text-muted-foreground">Today</Badge>
+           </div>
+
+           <div className="space-y-3">
+             {isRCS ? (
+               <>
+                {previewData.template_type === 'text_message' && (
+                  <div className="bg-white dark:bg-[#1f2c33] p-3 rounded-2xl rounded-tl-sm shadow-sm border border-black/5 max-w-[85%] animate-in slide-in-from-left-2 duration-300">
+                    <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">{previewData.body || 'Type message...'}</p>
+                    <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40">10:45 AM</span></div>
+                  </div>
+                )}
+                {previewData.template_type === 'rich_card' && renderRCSCard(previewData.metadata)}
+                {previewData.template_type === 'carousel' && (
+                  <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
+                    {(previewData.metadata?.carouselList || []).map((card: any, i: number) => (
+                      <div key={i} className="flex-shrink-0">{renderRCSCard(card, true, i)}</div>
+                    ))}
+                  </div>
+                )}
+               </>
+             ) : isWA ? (
+                <div className="bg-[#DCF8C6] dark:bg-[#056162] p-2.5 rounded-xl rounded-tl-sm shadow-sm self-start max-w-[90%] border border-black/5 animate-in slide-in-from-left-2 duration-300">
+                  {/* WA Components Fallback (if WhatsAppPreview not used) */}
+                  {(() => {
+                    const components = previewData.components || [];
+                    const header = components.find((c: any) => c.type === 'HEADER');
+                    const body = components.find((c: any) => c.type === 'BODY');
+                    const footer = components.find((c: any) => c.type === 'FOOTER');
+                    const buttons = components.find((c: any) => c.type === 'BUTTONS')?.buttons || [];
+                    
+                    return (
+                      <>
+                        {header?.format === 'TEXT' && (
+                          <p className="text-[13px] font-extrabold text-[#111b21] dark:text-[#e9edef] mb-1">{header.text || 'Header'}</p>
+                        )}
+                        {header?.format === 'IMAGE' && (
+                          <div className="mb-2 rounded-lg overflow-hidden -mx-1 -mt-1 h-32 bg-muted flex items-center justify-center">
+                            {header.previewUrl || header.handle ? <img src={header.previewUrl || header.handle} className="w-full h-full object-cover" alt="WA" /> : <ImageIcon className="h-8 w-8 opacity-20" />}
+                          </div>
+                        )}
+                        <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap leading-relaxed">
+                          {body?.text || previewData.body || 'Message content...'}
+                        </p>
+                        {footer?.text && <p className="text-[10px] text-[#667781] dark:text-[#8696a0] mt-1 italic">{footer.text}</p>}
+                        {buttons.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-black/5 space-y-1">
+                            {buttons.map((btn: any, i: number) => (
+                              <div key={i} className="text-center py-1 text-[11px] font-bold text-[#00a884]">{btn.text || 'Button'}</div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                  <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 uppercase tracking-tighter">10:45 AM</span></div>
+                </div>
+             ) : (
+               <div className="p-3 rounded-2xl max-w-[90%] shadow-sm relative animate-in slide-in-from-left-2 duration-300 bg-zinc-100 dark:bg-zinc-800 rounded-tl-sm border border-zinc-200 dark:border-zinc-700">
+                <p className="text-[13px] leading-relaxed text-foreground">
+                  {previewData.body || previewData.template_text || 'SMS Message...'}
+                </p>
+                {previewData.temp_id && <p className="text-[8px] opacity-40 mt-2 font-mono tracking-tight">ID: {previewData.temp_id}</p>}
+                <div className="flex justify-end mt-1"><span className="text-[8px] opacity-40 font-bold uppercase tracking-widest">10:45 AM</span></div>
+              </div>
+             )}
+           </div>
+
+           {/* Buttons Support */}
+           {previewData.buttons?.length > 0 && !isWA && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {previewData.buttons.map((btn: any, i: number) => (
+                    <div key={i} className="bg-white dark:bg-zinc-800 border border-blue-500/30 text-blue-500 rounded-lg px-4 py-1.5 text-[11px] font-bold shadow-sm cursor-default">
+                      {btn.displayText || btn.label}
+                    </div>
+                  ))}
+                </div>
+           )}
+        </div>
+
+        {/* Bottom Indicator */}
+        <div className="h-6 pb-2 flex justify-center items-end bg-transparent"><div className="w-20 sm:w-24 h-1 bg-zinc-400/30 rounded-full" /></div>
       </div>
     );
   };
