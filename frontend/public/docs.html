@@ -172,6 +172,9 @@
                         <li><a href="#dynamic-campaign" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Campaign Engine</a></li>
                         <li><a href="#failover" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Intelligent Failover</a></li>
                         <li><a href="#reports" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600">Data & Analytics</a></li>
+                        <li><a href="#release-notes" class="sidebar-link block py-2.5 px-4 rounded-xl text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> Release Notes
+                        </a></li>
                     </ul>
                 </div>
             </div>
@@ -297,6 +300,32 @@
                     </div>
                 </section>
 
+                </section>
+
+                <!-- Release Notes Section -->
+                <section id="release-notes" class="section-reveal mb-24 scroll-mt-24">
+                    <div class="flex items-center justify-between mb-10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-1 bg-blue-500 rounded-full"></div>
+                            <h2 class="text-3xl font-black text-slate-900 tracking-tight">Release History</h2>
+                        </div>
+                        <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold uppercase tracking-widest">Live Updates</span>
+                    </div>
+
+                    <p class="text-slate-500 mb-10 font-medium leading-relaxed">
+                        Track daily development progress, feature releases, and system optimizations. This log is automatically synchronized with our production deployment pipeline.
+                    </p>
+
+                    <div id="changelog-container" class="space-y-8">
+                        <div class="flex items-center justify-center p-12 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
+                            <div class="flex flex-col items-center gap-4">
+                                <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading latest logs...</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <section id="reports" class="py-20 text-center border-t border-slate-100">
                     <div class="max-w-xl mx-auto">
                         <h2 class="text-3xl font-black text-slate-900 mb-6 tracking-tight leading-tight">Empower Your Decisions With Data</h2>
@@ -396,6 +425,54 @@
             section.style.opacity = "0";
             observer.observe(section);
         });
+
+        // Dynamic Changelog Loader
+        async function loadChangelog() {
+            const container = document.getElementById('changelog-container');
+            try {
+                const response = await fetch('/CHANGELOG.md');
+                const text = await response.text();
+                
+                // Extract only the history section (between <br> and </details>)
+                const historyMatch = text.match(/<br>([\s\S]*?)<\/details>/);
+                if (!historyMatch) throw new Error('History section not found');
+                
+                const history = historyMatch[1].trim();
+                const days = history.split('## [').filter(d => d.trim()).map(d => '## [' + d);
+                
+                let html = '';
+                days.forEach(day => {
+                    const dateMatch = day.match(/## \[(.*?)\]/);
+                    const date = dateMatch ? dateMatch[1] : 'Unknown Date';
+                    const lines = day.split('\n').filter(l => l.trim() && !l.startsWith('##'));
+                    
+                    html += `
+                        <div class="relative pl-8 pb-4 border-l-2 border-slate-100 last:border-0">
+                            <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-blue-500 shadow-sm"></div>
+                            <div class="mb-2">
+                                <span class="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md">${date}</span>
+                            </div>
+                            <div class="premium-card p-6 rounded-2xl bg-white space-y-3">
+                                ${lines.map(line => {
+                                    const cleanLine = line.replace(/^- /, '').replace(/\((.*?)\)$/, '<code class="ml-2 text-[10px] text-slate-400 font-mono">($1)</code>');
+                                    return `<div class="flex items-start gap-3 group">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-slate-200 mt-2 group-hover:bg-blue-400 transition-colors"></div>
+                                        <p class="text-[13px] text-slate-600 leading-relaxed font-medium flex-1">${cleanLine}</p>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<p class="text-center text-slate-400 py-10">No recent logs found.</p>';
+            } catch (error) {
+                console.error('Changelog error:', error);
+                container.innerHTML = `<div class="p-6 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 text-sm font-medium">Failed to load release history. Please try again later.</div>`;
+            }
+        }
+        
+        loadChangelog();
     </script>
 </body>
 </html>

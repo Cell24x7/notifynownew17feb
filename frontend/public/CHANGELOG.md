@@ -19,6 +19,9 @@ This document tracks major feature releases, business logic updates, and provide
 | **Apr 16** | DB Emoji Hardening | Full UTF8MB4 migration for emoji support in messages. | 10h | **1h** | 🔥 90% |
 | **Apr 16** | Turbo Indexing | Applied vital composite indexes for 1Cr+ scale performance. | 12h | **45m** | 🏎️ 94% |
 | **Apr 16** | UI Fallback Labels | Dynamic color-coded badges for WhatsApp vs RCS fallbacks. | 4h | **10m** | 🎨 96% |
+| **Apr 30** | Multi-Channel Preview | Unified Phone Mockup frame for WA/RCS/SMS with live state sync. | 16h | **1.5h** | 🚀 91% |
+| **Apr 30** | Meta Language Sync | Expanded to 15+ Indian/Global languages with scrollable UI. | 6h | **20m** | 🌍 94% |
+| **Apr 30** | Dynamic Doc Logs | Integrated Git-to-HTML pipeline for real-time dev transparency. | 8h | **30m** | 📊 93% |
 
 > [!IMPORTANT]
 > **Performance Note:** Total manual development time reduced by ~82% using Advanced Core Engineering & Rapid Architecture Deployment. System is enterprise-ready.
@@ -73,6 +76,13 @@ All API calls require an `api_key`. Include it in the header: `Authorization: Be
 <details>
 <summary>📂 <b>View All Technical Git Logs (Historical Archive)</b></summary>
 <br>
+
+## [2026-04-30]
+- feat: 📱 Premium Multi-Channel Live Preview with unified Phone Mockup frame (Templates.tsx)
+- fix: WhatsApp image scaling with object-contain and height constraints to prevent UI distortion
+- feat: 🌍 Expand WhatsApp Template languages to include all major Indian regions (Marathi, Tamil, Telugu, etc.)
+- feat: 📑 Dynamic Changelog integration in Documentation portal with real-time Git log parsing
+- fix: standardized renderPhonePreview logic to merge metadata and form state for all channels
 
 ## [2026-04-16]
 - feat: 🏎️ Turbo Speed Optimization with vital indexing for 1Cr+ scale speed (2576b8c)
