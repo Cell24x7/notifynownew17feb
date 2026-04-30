@@ -591,8 +591,14 @@ export default function Templates() {
       );
     };
 
-    const wrapInPhoneMockup = (content: React.ReactNode) => (
+    const wrapInPhoneMockup = (content: React.ReactNode, channelName?: string) => (
       <div className="flex flex-col items-center justify-center w-full py-4 scale-[0.85] sm:scale-100 origin-top sm:origin-center">
+        {channelName && (
+           <div className="mb-4 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">{channelName} Preview</span>
+           </div>
+        )}
         <div className="w-[280px] sm:w-[300px] aspect-[9/19] h-auto bg-[#1a1a1a] rounded-[2.5rem] sm:rounded-[3rem] p-2 sm:p-3 shadow-2xl relative border-[5px] sm:border-[7px] border-[#333] ring-1 ring-white/10 flex flex-col overflow-hidden">
           {/* Hardware Buttons */}
           <div className="absolute top-24 -left-[2px] w-[2px] h-10 bg-[#444] rounded-r-sm" />
@@ -615,7 +621,8 @@ export default function Templates() {
         return wrapInPhoneMockup(
             <div className="h-full w-full bg-white dark:bg-zinc-900 overflow-y-auto no-scrollbar rounded-[1.5rem] sm:rounded-[2rem]">
                 <EmailPreview data={{ ...previewData, subject: previewData.subject || previewData.metadata?.subject }} />
-            </div>
+            </div>,
+            'Email'
         );
     }
 
@@ -634,7 +641,7 @@ export default function Templates() {
             waData.components = previewData.components;
         }
         
-        return wrapInPhoneMockup(<WhatsAppPreview data={waData} />);
+        return wrapInPhoneMockup(<WhatsAppPreview data={waData} />, 'WhatsApp');
     }
 
     if (previewData.channel === 'voicebot') {
@@ -660,7 +667,8 @@ export default function Templates() {
                     <Phone className="h-7 w-7 sm:h-8 sm:w-8 text-white rotate-[135deg]" />
                 </div>
             </div>
-        </div>
+        </div>,
+        'Voice Bot'
       );
     }
 
@@ -781,7 +789,8 @@ export default function Templates() {
 
         {/* Bottom Indicator */}
         <div className="h-6 pb-2 flex justify-center items-end bg-transparent"><div className="w-20 sm:w-24 h-1 bg-zinc-400/30 rounded-full" /></div>
-      </div>
+      </div>,
+      previewData.channel?.toUpperCase()
     );
   };
 
