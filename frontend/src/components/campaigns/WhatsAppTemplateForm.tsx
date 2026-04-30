@@ -224,9 +224,21 @@ export const WhatsAppTemplateForm: React.FC<WhatsAppTemplateFormProps> = ({ data
                         <SelectTrigger className="bg-gray-50 border-none h-11 focus:ring-green-500 rounded-xl">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[300px]">
                             <SelectItem value="en_US">English (US)</SelectItem>
-                            <SelectItem value="hi">Hindi</SelectItem>
+                            <SelectItem value="en_GB">English (UK)</SelectItem>
+                            <SelectItem value="hi">Hindi (हिन्दी)</SelectItem>
+                            <SelectItem value="mr">Marathi (मराठी)</SelectItem>
+                            <SelectItem value="ta">Tamil (தமிழ்)</SelectItem>
+                            <SelectItem value="te">Telugu (తెలుగు)</SelectItem>
+                            <SelectItem value="gu">Gujarati (ગુજરાતી)</SelectItem>
+                            <SelectItem value="kn">Kannada (ಕನ್ನಡ)</SelectItem>
+                            <SelectItem value="bn">Bengali (বাংলা)</SelectItem>
+                            <SelectItem value="ml">Malayalam (മലയാളം)</SelectItem>
+                            <SelectItem value="pa">Punjabi (ਪੰਜਾਬੀ)</SelectItem>
+                            <SelectItem value="ur">Urdu (اردو)</SelectItem>
+                            <SelectItem value="or">Odia (ଓଡ଼ିଆ)</SelectItem>
+                            <SelectItem value="as">Assamese (অসমীয়া)</SelectItem>
                             <SelectItem value="es">Spanish</SelectItem>
                             <SelectItem value="fr">French</SelectItem>
                         </SelectContent>
