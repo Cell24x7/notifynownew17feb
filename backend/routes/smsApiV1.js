@@ -21,11 +21,25 @@ const authenticateApiKey = async (req, res, next) => {
             if (users.length > 0) userRecord = users[0];
         } else if (username && password) {
             const bcrypt = require('bcryptjs');
-            const [users] = await query('SELECT id, name, company, role, status, api_password FROM users WHERE email = ? OR contact_phone = ?', [username, username]);
+            // Support both API-specific password and regular login password as fallback
+            const [users] = await query('SELECT id, name, company, role, status, api_password, password FROM users WHERE email = ? OR contact_phone = ?', [username, username]);
             if (users.length > 0) {
-                const match = await bcrypt.compare(password, users[0].api_password || "");
+                const dbApiPassword = users[0].api_password;
+                const dbLoginPassword = users[0].password;
+                
+                // 1. Try API Password first
+                let match = false;
+                if (dbApiPassword) {
+                    match = await bcrypt.compare(password, dbApiPassword);
+                }
+                
+                // 2. Fallback to Login Password if API Password is not set
+                if (!match && !dbApiPassword && dbLoginPassword) {
+                    match = await bcrypt.compare(password, dbLoginPassword);
+                }
+
                 if (match) {
-                    const { api_password, ...safeUser } = users[0];
+                    const { api_password, password: _, ...safeUser } = users[0];
                     userRecord = safeUser;
                 }
             }
