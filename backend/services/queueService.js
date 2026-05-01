@@ -173,6 +173,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
              COALESCE(mt.name, c.template_name) as template_name,
              COALESCE(mt.body, c.template_body) as template_body,
              COALESCE(mt.metadata, c.template_metadata) as template_metadata,
+             COALESCE(mt.language, 'en') as language,
              COALESCE(mt.pe_id, c.pe_id, u.pe_id) as pe_id,
              COALESCE(mt.hash_id, c.hash_id, u.hash_id) as hash_id,
              COALESCE(mt.sender, c.sender) as sender,

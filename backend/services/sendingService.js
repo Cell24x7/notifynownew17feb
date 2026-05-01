@@ -330,8 +330,12 @@ const sendUniversalMessage = async (item) => {
                 ? `${PINBOT_BASE}/${waConfig.ph_no_id}/messages`
                 : `${GRAPH_BASE}/${waConfig.ph_no_id}/messages`;
 
-            // Extract language from metadata if available
-            let langCode = 'en_US';
+            // Extract language from metadata if available, fallback to template language
+            let langCode = item.language || 'en_US';
+            
+            // Normalize common codes (e.g. 'en' -> 'en_US') for Meta compatibility if needed
+            if (langCode === 'en') langCode = 'en_US';
+            
             let meta = {};
             try { 
                 meta = typeof item.template_metadata === 'string' ? JSON.parse(item.template_metadata) : (item.template_metadata || {}); 
