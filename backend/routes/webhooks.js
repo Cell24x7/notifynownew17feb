@@ -639,8 +639,8 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             [rows] = await query(selectSql, [...params, limit, offset]);
         }
 
-        // Apply Mobile Masking if permission is enabled for the current user
-        if (req.user.permissions && req.user.permissions.includes('Reports - Mask Mobile')) {
+        // Apply Mobile Masking if permission is enabled for the current user (Only for UI, not for exports)
+        if (!isExport && req.user.permissions && req.user.permissions.includes('Reports - Mask Mobile')) {
             rows = rows.map(row => {
                 if (row.recipient && row.recipient.length > 5) {
                     // Mask last 5 digits

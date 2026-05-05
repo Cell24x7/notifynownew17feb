@@ -563,18 +563,7 @@ router.post('/send-campaign-report', authenticate, async (req, res) => {
             if (logs.length > 0) {
                 const json2csvParser = new Parser();
                 
-                // Apply masking if permission is enabled
-                let processedLogs = logs;
-                if (req.user.permissions && req.user.permissions.includes('Reports - Mask Mobile')) {
-                    processedLogs = logs.map(l => ({
-                        ...l,
-                        Mobile: (l.Mobile && l.Mobile.length > 5) 
-                            ? l.Mobile.substring(0, l.Mobile.length - 5) + 'xxxxx' 
-                            : l.Mobile
-                    }));
-                }
-
-                const csv = json2csvParser.parse(processedLogs);
+                const csv = json2csvParser.parse(logs);
 
                 const zip = new AdmZip();
                 zip.addFile(`Report_${campaignId}.csv`, Buffer.from(csv, 'utf8'));
