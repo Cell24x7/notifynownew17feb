@@ -1001,38 +1001,18 @@ router.post('/api/send-bulk', async (req, res) => {
             });
         }
 
-        // Only insert into queue after successful deduction
-        const queueValues = [];
-        const baseUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace(/\/api$/, '');
-
-        for (const c of contacts) {
-            const vars = { ...(variables || {}), ...(c.variables || {}) };
+        // 2. Prepare Queue Values (Raw Data Ingestion - Fast)
+        const queueValues = contacts.map(c => {
             const mobile = c.to.replace(/\D/g, '');
-
-            // Auto-detect and replace URLs with Tracking Links
-            const varKeys = Object.keys(vars);
-            for (const key of varKeys) {
-                const val = vars[key];
-                if (typeof val === 'string' && val.match(/^https?:\/\/[^\s$.?#].[^\s]*$/i)) {
-                    const trackingId = `api_${Math.random().toString(36).substring(2, 10)}`;
-                    try {
-                        // Using synchronous-style loop but await is inside for safety in this context
-                        await query(
-                            'INSERT INTO link_clicks (user_id, campaign_id, mobile, original_url, tracking_id) VALUES (?, ?, ?, ?, ?)',
-                            [userId, campaignId, mobile, val, trackingId]
-                        );
-                        vars[key] = `${baseUrl}/api/l/${trackingId}`;
-                    } catch (err) {
-                        console.error('Error creating API tracking link:', err.message);
-                    }
-                }
-            }
-
+            const vars = { ...(variables || {}), ...(c.variables || {}) };
+            
+            // Add media header if provided
             if (c.mediaUrl || mediaUrl) vars['header_url'] = c.mediaUrl || mediaUrl;
-            queueValues.push([campaignId, userId, mobile, 'pending', JSON.stringify(vars)]);
-        }
-
-        const BATCH = 1000;
+            
+            return [campaignId, userId, mobile, 'pending', JSON.stringify(vars)];
+        });
+ 
+        const BATCH = 2000;
         for (let i = 0; i < queueValues.length; i += BATCH) {
             await query('INSERT INTO api_campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?', [queueValues.slice(i, i + BATCH)]);
         }
@@ -1183,74 +1163,31 @@ router.post('/api/send-single', async (req, res) => {
         const config = await getWhatsAppConfig(user.id);
         if (!config) return res.status(400).json({ success: false, message: 'WhatsApp not configured for this user' });
 
-        // Build Payload
-        const payload = {
-            messaging_product: 'whatsapp',
-            to: to.replace(/\D/g, ''),
-            type: 'template',
-            template: {
-                name: templateName,
-                language: { code: 'en_US' }
-            }
+        // Build payload for Universal Sender
+        const sendItem = {
+            user_id: user.id,
+            channel: 'whatsapp',
+            mobile: to,
+            template_name: templateName,
+            template_id: templateName,
+            variables: variables,
+            is_failover_enabled: failover_enabled ? 1 : 0,
+            failover_sms_template: failover_sms_template_id || null,
+            campaign_id: 'API_SINGLE_WA',
+            campaign_name: 'Direct WhatsApp API'
         };
 
-        // Add variables if any
-        if (variables || mediaUrl) {
-            const components = [];
-            if (mediaUrl) {
-                components.push({
-                    type: 'header',
-                    parameters: [{ type: 'image', image: { link: mediaUrl } }]
-                });
-            }
-            if (variables) {
-                // Fix for Error #131008: Ensure values are non-empty strings
-                const params = Object.keys(variables).sort((a,b) => a-b).map(key => ({ 
-                    type: 'text', 
-                    text: String(variables[key] || ' ') 
-                }));
-                components.push({ type: 'body', parameters: params });
-            }
-            payload.template.components = components;
-        }
+        const { sendUniversalMessage } = require('../services/sendingService');
+        const result = await sendUniversalMessage(sendItem);
 
-        const { deductSingleMessageCredit } = require('../services/walletService');
-        const deduction = await deductSingleMessageCredit(user.id, 'whatsapp', templateName);
-        
-        if (!deduction.success) {
-            return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
-        }
-
-        const failoverVariablesStr = failover_variables ? JSON.stringify(failover_variables) : JSON.stringify(variables || {});
-
-        try {
-            const response = await axios.post(getMessagesUrl(config), payload, { headers: getHeaders(config) });
-            const messageId = response.data.messages?.[0]?.id || response.data.message_id;
-
-            // Log to api_message_logs with failover settings
-            await query(
-                'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content, is_failover_enabled, failover_sms_template, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)',
-                [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, messageId, to, 'sent', 'whatsapp', `Template: ${templateName}`, failover_enabled ? 1 : 0, failover_sms_template_id || null, JSON.stringify({ variables: failover_variables || variables || {} })]
-            );
-
-            res.json({ success: true, messageId });
-        } catch (error) {
-            // IMMEDIATE FAILOVER Logic
-            if (failover_enabled && failover_sms_template_id) {
-                console.log(`[WhatsApp API] WA failed instantly. Triggering immediate SMS Failover for ${to}...`);
-                const { processAutomation } = require('../services/automationService');
-                const ioDummy = req.io || { to: () => ({ emit: () => {} }) };
-                
-                await processAutomation(user.id, 'message_failed', {
-                    recipient: to,
-                    failover_template_id: failover_sms_template_id,
-                    metadata: { variables: failover_variables || variables || {} }
-                }, ioDummy).catch(e => console.error('[AutomationService] Immediate WA->SMS failover trigger error:', e.message));
-
-                res.json({ success: true, messageId: `sms_failover_${Date.now()}`, isFallbacked: true });
-            } else {
-                res.status(500).json({ success: false, error: error.response?.data || error.message });
-            }
+        if (result.success) {
+            res.json({ 
+                success: true, 
+                messageId: result.messageId, 
+                isFallbacked: result.isFallbacked || false 
+            });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
         }
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

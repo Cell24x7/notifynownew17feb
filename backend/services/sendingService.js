@@ -639,6 +639,48 @@ const sendUniversalMessage = async (item) => {
         }
         const finalError = typeof errorDetail === 'object' ? JSON.stringify(errorDetail) : String(errorDetail);
         console.error(`[SendingService] Error:`, finalError);
+
+        // 🤖 UNIFIED INSTANT FAILOVER LOGIC
+        // If the primary channel (WhatsApp/RCS) fails instantly, trigger automation failover
+        if (item.is_failover_enabled && item.failover_sms_template) {
+            const isWaFail = channelParsed === 'whatsapp';
+            const isRcsFail = channelParsed === 'rcs';
+
+            if (isWaFail || isRcsFail) {
+                console.log(`[SendingService] ⚡ Instant Failover Triggered for ${item.mobile} (Channel: ${channelParsed})`);
+                
+                try {
+                    const { processAutomation } = require('./automationService');
+                    
+                    // Prepare payload for automation engine
+                    const automationPayload = {
+                        ...item,
+                        recipient: item.mobile,
+                        original_channel: channelParsed,
+                        failover_template_id: item.failover_sms_template,
+                        is_api: String(item.campaign_id).startsWith('CAMP_API_') || item.campaign_id === 'API_SINGLE_WA',
+                        metadata: { 
+                            variables: resolvedVars // Pass the already resolved variables
+                        }
+                    };
+
+                    // Trigger async - don't await to avoid blocking the worker/API
+                    processAutomation(item.user_id, 'message_failed', automationPayload, null)
+                        .catch(e => console.error('[SendingService] Instant failover trigger error:', e.message));
+
+                    return { 
+                        success: true, 
+                        messageId: `failover_${Date.now()}`, 
+                        processedMessage: item.template_body || 'Failover Initiated',
+                        isFallbacked: true,
+                        note: `Immediate fallback to SMS due to: ${finalError.substring(0, 50)}`
+                    };
+                } catch (failoverErr) {
+                    console.error('[SendingService] ❌ Failed to trigger automation failover:', failoverErr.message);
+                }
+            }
+        }
+
         return { success: false, error: finalError };
     }
 };
