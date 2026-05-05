@@ -65,6 +65,7 @@ const DEFAULT_CLIENT_PERMISSIONS = [
   { feature: 'DLT Templates - Edit', admin: 1 },
   { feature: 'DLT Templates - Delete', admin: 1 },
   { feature: 'Reports - View', admin: 1 },
+  { feature: 'Reports - Mask Mobile', admin: 0 },
   { feature: 'Wallet - View', admin: 1 },
   { feature: 'Settings - View', admin: 1 }
 ];
@@ -86,6 +87,7 @@ const DEFAULT_RESELLER_PERMISSIONS = [
     { feature: 'Reseller Branding - View', admin: 1, manager: 1, agent: 1 },
     { feature: 'Marketplace - View', admin: 1, manager: 1, agent: 1 },
     { feature: 'Wallet - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Reports - Mask Mobile', admin: 0, manager: 0, agent: 0 },
     { feature: 'Settings - View', admin: 1, manager: 1, agent: 1 }
 ];
 

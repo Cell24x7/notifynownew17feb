@@ -639,6 +639,17 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             [rows] = await query(selectSql, [...params, limit, offset]);
         }
 
+        // Apply Mobile Masking if permission is enabled for the current user
+        if (req.user.permissions && req.user.permissions.includes('Reports - Mask Mobile')) {
+            rows = rows.map(row => {
+                if (row.recipient && row.recipient.length > 5) {
+                    // Mask last 5 digits
+                    row.recipient = row.recipient.substring(0, row.recipient.length - 5) + 'xxxxx';
+                }
+                return row;
+            });
+        }
+
         res.json({
             success: true,
             data: rows,

@@ -63,6 +63,7 @@ export const USER_PERMISSIONS: Permission[] = [
 
     { feature: 'Reports - View', admin: true, manager: true, agent: true },
     { feature: 'Reports - Export', admin: true, manager: true, agent: true },
+    { feature: 'Reports - Mask Mobile', admin: false, manager: false, agent: false },
 
     { feature: 'Wallet - View', admin: true, manager: true, agent: true },
     { feature: 'Wallet - Manage', admin: true, manager: true, agent: false },
@@ -123,6 +124,7 @@ export const RESELLER_PERMISSIONS: Permission[] = [
 
     { feature: 'Reports - View', admin: true, manager: true, agent: true },
     { feature: 'Reports - Export', admin: true, manager: true, agent: true },
+    { feature: 'Reports - Mask Mobile', admin: false, manager: false, agent: false },
 
     { feature: 'Vendors - View', admin: true, manager: true, agent: true },
     { feature: 'Vendors - Manage', admin: true, manager: true, agent: false },

@@ -562,7 +562,19 @@ router.post('/send-campaign-report', authenticate, async (req, res) => {
         try {
             if (logs.length > 0) {
                 const json2csvParser = new Parser();
-                const csv = json2csvParser.parse(logs);
+                
+                // Apply masking if permission is enabled
+                let processedLogs = logs;
+                if (req.user.permissions && req.user.permissions.includes('Reports - Mask Mobile')) {
+                    processedLogs = logs.map(l => ({
+                        ...l,
+                        Mobile: (l.Mobile && l.Mobile.length > 5) 
+                            ? l.Mobile.substring(0, l.Mobile.length - 5) + 'xxxxx' 
+                            : l.Mobile
+                    }));
+                }
+
+                const csv = json2csvParser.parse(processedLogs);
 
                 const zip = new AdmZip();
                 zip.addFile(`Report_${campaignId}.csv`, Buffer.from(csv, 'utf8'));
@@ -708,10 +720,20 @@ router.get('/engagement', authenticate, async (req, res) => {
         }
         
         // Final cleaning of interaction text if needed
-        const reports = dataRows.map(r => ({
+        // Final cleaning of interaction text and apply masking if permission enabled
+        let reports = dataRows.map(r => ({
             ...r,
             interaction: r.interaction.split(' (Campaign:')[0]
         }));
+
+        if (req.user.permissions && req.user.permissions.includes('Reports - Mask Mobile')) {
+            reports = reports.map(r => ({
+                ...r,
+                msisdn: (r.msisdn && r.msisdn.length > 5) 
+                    ? r.msisdn.substring(0, r.msisdn.length - 5) + 'xxxxx' 
+                    : r.msisdn
+            }));
+        }
 
         res.json({ success: true, reports });
 
