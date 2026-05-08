@@ -1,16 +1,22 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Smart env loading: try .env.production first if it exists, then fallback to .env
+// Smart env loading: respect NODE_ENV
 const fs = require('fs');
 let envFile = '.env';
 const prodEnv = path.join(__dirname, '.env.production');
 const devEnv = path.join(__dirname, '.env');
 
-if (fs.existsSync(prodEnv)) {
-    envFile = '.env.production';
-} else if (fs.existsSync(devEnv)) {
+// If NODE_ENV is development, prioritize .env
+if (process.env.NODE_ENV === 'development') {
     envFile = '.env';
+} else {
+    // Standard priority: Production first
+    if (fs.existsSync(prodEnv)) {
+        envFile = '.env.production';
+    } else {
+        envFile = '.env';
+    }
 }
 
 dotenv.config({ path: path.join(__dirname, envFile) });
