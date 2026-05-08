@@ -143,7 +143,28 @@ async function updateSchema() {
             console.log('Skipping department migration: ' + e.message);
         }
 
-        // 1.4 Ensure tickets start from reasonable ID if newly created
+        // 1.4 Add missing DLT and Limit columns to users (CRITICAL FOR DEVELOPER SYNC)
+        try {
+            const missingCols = [
+                { name: 'pe_id', type: 'VARCHAR(50) DEFAULT NULL' },
+                { name: 'hash_id', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'rcs_limit', type: 'INT DEFAULT 0' },
+                { name: 'wa_limit', type: 'INT DEFAULT 0' },
+                { name: 'sms_limit', type: 'INT DEFAULT 0' },
+                { name: 'voice_limit', type: 'INT DEFAULT 0' }
+            ];
+
+            for (const col of missingCols) {
+                if (!userCols.some(c => c.Field === col.name)) {
+                    console.log(`Adding ${col.name} to users table...`);
+                    await connection.execute(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
+                }
+            }
+        } catch (e) {
+            console.log('Error adding limit columns to users:', e.message);
+        }
+
+        // 1.5 Ensure tickets start from reasonable ID if newly created
         try {
             await connection.execute('ALTER TABLE tickets AUTO_INCREMENT = 1');
         } catch (e) {}
