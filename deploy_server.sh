@@ -60,16 +60,20 @@ fi
 # Use perl for safe in-place replacement
 perl -i -pe "s|^PORT=.*|PORT=$APP_PORT|g" "$BACKEND_DIR/$ENV_FILE"
 perl -i -pe "s|^DB_NAME=.*|DB_NAME=$APP_DB|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^DB_USER=.*|DB_USER=root|g" "$BACKEND_DIR/$ENV_FILE"
+perl -i -pe "s|^DB_PASS=.*|DB_PASS=waQ4!r1241Kr|g" "$BACKEND_DIR/$ENV_FILE"
 perl -i -pe "s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g" "$BACKEND_DIR/$ENV_FILE"
 perl -i -pe "s|^APP_NAME=.*|APP_NAME=$APP_NAME|g" "$BACKEND_DIR/$ENV_FILE"
 
 # Add if they don't exist
 grep -q "^PORT=" "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT" >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^DB_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^DB_USER=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_USER=root" >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^DB_PASS=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_PASS=waQ4!r1241Kr" >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^API_BASE_URL=" "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL" >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^APP_NAME=" "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME" >> "$BACKEND_DIR/$ENV_FILE"
 
-ok "Environment variables synchronized for $ENV_DESC (Port: $APP_PORT)"
+ok "Environment variables synchronized for $ENV_DESC (Port: $APP_PORT, DB: $APP_DB)"
 
 # ── Step 4: Build Frontend (With Environment Sync) ──────────
 log "🏗️  [3/6] Building Frontend for $ENV_DESC..."
