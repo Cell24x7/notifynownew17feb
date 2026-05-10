@@ -367,6 +367,43 @@ async function sendWhatsAppReply(userId, to, text, config = {}) {
                     }))
                 }
             };
+        } else if (config.messageType === 'list_flow' && config.sections) {
+            // Support for List Messages (Max 10 rows)
+            payload.type = 'interactive';
+            payload.interactive = {
+                type: 'list',
+                header: { type: 'text', text: config.header || 'Menu' },
+                body: { text: text || 'Select an item' },
+                footer: { text: config.footer || '' },
+                action: {
+                    button: config.listButtonLabel || 'View Options',
+                    sections: config.sections.map(sec => ({
+                        title: sec.title,
+                        rows: sec.rows.map(row => ({
+                            id: row.id,
+                            title: row.title.slice(0, 24),
+                            description: (row.description || '').slice(0, 72)
+                        }))
+                    }))
+                }
+            };
+        } else if (config.messageType === 'catalog_flow' || config.messageType === 'product_list') {
+            // Support for Catalog/Product Messages
+            payload.type = 'interactive';
+            payload.interactive = {
+                type: 'product_list',
+                header: { type: 'text', text: config.header || 'Our Catalog' },
+                body: { text: text || 'Please browse our items' },
+                action: {
+                    catalog_id: config.catalogId,
+                    sections: config.sections.map(sec => ({
+                        title: sec.title,
+                        product_items: sec.products.map(p => ({
+                            product_retailer_id: p.id
+                        }))
+                    }))
+                }
+            };
         } else {
             payload.type = 'text';
             payload.text = { body: text };
