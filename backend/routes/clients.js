@@ -331,7 +331,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
              u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit,
              u.whatsapp_config_id, u.rcs_config_id, u.sms_gateway_id,
-             u.pe_id, u.hash_id, u.is_api_allowed,
+             u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled,
              p.permissions as plan_permissions, u.reseller_id
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
