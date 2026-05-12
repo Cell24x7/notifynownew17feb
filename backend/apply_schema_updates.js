@@ -714,6 +714,18 @@ async function updateSchema() {
                     console.log(`Adding failover_sms_template to ${table}...`);
                     await connection.execute(`ALTER TABLE ${table} ADD COLUMN failover_sms_template VARCHAR(255) DEFAULT NULL`);
                 }
+                
+                // Extra columns for Campaigns tables specifically
+                if (table === 'campaigns' || table === 'api_campaigns') {
+                    if (!cols.some(c => c.Field === 'ai_voice_config_id')) {
+                        console.log(`Adding ai_voice_config_id to ${table}...`);
+                        await connection.execute(`ALTER TABLE ${table} ADD COLUMN ai_voice_config_id INT DEFAULT NULL`);
+                    }
+                    if (!cols.some(c => c.Field === 'rcs_config_id')) {
+                        console.log(`Adding rcs_config_id to ${table}...`);
+                        await connection.execute(`ALTER TABLE ${table} ADD COLUMN rcs_config_id INT DEFAULT NULL`);
+                    }
+                }
             }
         } catch (e) {
             console.log('Failover migration skipped or table missing:', e.message);
