@@ -18,8 +18,10 @@ import {
   Info,
   ShieldCheck,
   History,
-  Terminal
+  Terminal,
+  FileText
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -209,92 +211,79 @@ export default function Channels() {
       </div>
 
       {/* Channels Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredChannels.map((channel) => (
-          <Card key={channel.id} className="group relative overflow-hidden border-border/50 hover:border-primary/50 transition-all hover:shadow-xl hover:-translate-y-1 duration-300">
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-muted">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Settings2 className="w-4 h-4 mr-2" /> Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer text-red-500 hover:text-red-600 hover:bg-red-50">
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <CardContent className="p-6 space-y-6">
-              {/* Channel Info */}
+          <Card key={channel.id} className="group relative overflow-hidden bg-white border-slate-200/60 hover:shadow-2xl transition-all duration-500 rounded-[24px]">
+            <CardContent className="p-6 space-y-5">
+              {/* Header */}
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
-                  {channel.icon}
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner",
+                  channel.provider === 'Proero' ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-blue-600"
+                )}>
+                  {channel.provider === 'Proero' ? <Zap className="w-6 h-6 fill-current" /> : <Smartphone className="w-6 h-6" />}
                 </div>
                 <div className="space-y-1 flex-1">
-                  <h3 className="font-bold text-lg leading-none truncate">{channel.name || 'Unnamed Channel'}</h3>
-                  <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-tighter">
-                    {channel.phone_number || 'No Number'}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black text-lg text-slate-800 leading-none truncate tracking-tight">{channel.name || 'Unnamed'}</h3>
+                    <Badge variant="secondary" className="bg-amber-100/50 text-amber-700 hover:bg-amber-100/50 border-none text-[9px] font-black tracking-widest px-2 py-0.5 uppercase">
+                       ● QR Code
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-400 font-bold tracking-tight">{channel.phone_number || '91xxxxxxxxxx'}</p>
                 </div>
               </div>
 
-              {/* Status & Provider Info */}
-              <div className="grid grid-cols-2 gap-4 py-3 border-y border-border/50">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Provider</p>
-                  <p className="text-sm font-semibold">{channel.provider || 'Proero'}</p>
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-50">
+                <div className="space-y-0.5">
+                  <p className="text-[9px] uppercase font-black text-slate-300 tracking-widest">Provider</p>
+                  <p className="text-sm font-black text-slate-700">{channel.provider || 'Proero'}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Status</p>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] uppercase font-black text-slate-300 tracking-widest">Status</p>
                   <div className="flex items-center gap-1.5">
-                    {channel.status === 'connected' ? (
-                      <>
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm font-semibold text-emerald-600 italic">Active</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="h-4 w-4 text-orange-500" />
-                        <span className="text-sm font-semibold text-orange-500">Warning</span>
-                      </>
-                    )}
+                    <div className={cn("h-2 w-2 rounded-full", channel.status === 'connected' ? "bg-emerald-500 animate-pulse" : "bg-orange-400")} />
+                    <span className={cn("text-sm font-black tracking-tight", channel.status === 'connected' ? "text-emerald-600" : "text-orange-500")}>
+                      {channel.status === 'connected' ? 'Connected' : 'Warning'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase text-muted-foreground font-bold">Created</span>
-                  <span className="text-xs font-medium">
-                    {channel.created ? new Date(channel.created).toLocaleDateString() : 'Just now'}
-                  </span>
-                </div>
+              {/* Action */}
+              <div className="space-y-4">
                 <Button 
-                  variant="ghost" 
-                  size="sm" 
+                  variant="outline" 
+                  className="w-full h-12 rounded-2xl border-slate-100 hover:bg-slate-50 text-slate-600 font-black text-sm shadow-sm transition-all flex items-center justify-center gap-2"
                   onClick={() => handleViewQR(channel)}
-                  className="text-primary hover:text-primary hover:bg-primary/5 font-semibold text-xs h-8"
                 >
-                  <QrCode className="w-4 h-4 mr-2" />
+                  <FileText className="w-4 h-4" />
                   View Logs
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleDeleteChannel(channel.id)}
-                  disabled={isDeleting}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/5 font-semibold text-xs h-8"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </Button>
+                
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 text-slate-300">
+                     <History className="w-4 h-4" />
+                     <span className="text-[10px] font-black uppercase tracking-wider">{channel.created ? new Date(channel.created).toLocaleDateString() : '5/13/2026'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-300 hover:text-amber-500 hover:bg-amber-50">
+                      <Zap className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-300 hover:text-blue-500 hover:bg-blue-50">
+                      <Settings2 className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50"
+                      onClick={() => handleDeleteChannel(channel.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -419,104 +408,101 @@ export default function Channels() {
 
       {/* QR Management Modal (Based on Screenshot) */}
       <Dialog open={isQRModalOpen} onOpenChange={setIsQRModalOpen}>
-        <DialogContent className="sm:max-w-[550px] w-[95vw] p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
-          <div className="bg-card">
+        <DialogContent className="sm:max-w-[620px] w-[95vw] p-0 overflow-hidden border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] rounded-[40px] bg-[#f8fafc]">
+          <div className="">
             {/* Modal Header */}
-            <div className="p-6 flex items-center justify-between border-b bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                  <Zap className="w-5 h-5" />
+            <div className="p-10 pb-6 flex items-center justify-between">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shadow-sm border border-rose-100/50">
+                  <Zap className="w-7 h-7 fill-current" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold leading-none">{activeChannel?.name}</h2>
-                  <p className="text-xs text-muted-foreground font-medium mt-1">
-                    Manage channel settings, view health, and access advanced features
+                  <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none">{activeChannel?.name || 'sandy'}</h2>
+                  <p className="text-sm text-slate-400 font-bold mt-2">
+                    Manage channel settings and view health
                   </p>
                 </div>
               </div>
-              <p className="text-xs font-mono font-bold text-muted-foreground">
-                {activeChannel?.number}
+              <p className="text-sm font-mono font-black text-slate-300">
+                {activeChannel?.phone_number || '91xxxxxxxxxx'}
               </p>
             </div>
 
             {/* Modal Tabs */}
             <Tabs defaultValue="advanced" className="w-full">
-              <div className="px-6 py-1 border-b overflow-x-auto">
-                <TabsList className="bg-transparent h-10 w-full justify-start gap-2">
-                  <TabsTrigger value="overview" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary rounded-lg gap-2 font-bold px-4">
-                    <Info className="w-4 h-4" /> Overview
+              <div className="px-10 py-2">
+                <TabsList className="bg-slate-200/40 p-1.5 rounded-[22px] h-16 w-full flex gap-1.5 backdrop-blur-md">
+                  <TabsTrigger value="overview" className="flex-1 rounded-[16px] gap-2 font-black text-[11px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-lg transition-all text-slate-400">
+                    <History className="w-4 h-4" /> Overview
                   </TabsTrigger>
-                  <TabsTrigger value="status" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary rounded-lg gap-2 font-bold px-4">
+                  <TabsTrigger value="status" className="flex-1 rounded-[16px] gap-2 font-black text-[11px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-lg transition-all text-slate-400">
                     <ShieldCheck className="w-4 h-4" /> Status
                   </TabsTrigger>
-                  <TabsTrigger value="advanced" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary rounded-lg gap-2 font-bold px-4 border-2 border-transparent data-[state=active]:border-primary/20">
+                  <TabsTrigger value="advanced" className="flex-1 rounded-[16px] gap-2 font-black text-[11px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-lg transition-all text-slate-400">
                     <Terminal className="w-4 h-4" /> Advanced
                   </TabsTrigger>
-                  <TabsTrigger value="tools" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary rounded-lg gap-2 font-bold px-4">
+                  <TabsTrigger value="tools" className="flex-1 rounded-[16px] gap-2 font-black text-[11px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-lg transition-all text-slate-400">
                     <Settings2 className="w-4 h-4" /> Tools
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              <div className="p-6 min-h-[350px]">
-                <TabsContent value="advanced" className="m-0 space-y-8 animate-in slide-in-from-right-4 duration-300">
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-bold">QR Code Management</h3>
-                    <p className="text-sm text-muted-foreground font-medium">View or download the QR code to scan with WhatsApp</p>
-                  </div>
+              <div className="p-10 pt-4 pb-12">
+                <TabsContent value="advanced" className="m-0 space-y-6 animate-in zoom-in-95 duration-500">
+                  <div className="bg-white rounded-[32px] p-10 shadow-sm border border-slate-100 relative overflow-hidden">
+                     <div className="space-y-1 mb-8 relative z-10">
+                        <h3 className="text-2xl font-black text-slate-800 tracking-tight">QR Code Management</h3>
+                        <p className="text-sm text-slate-400 font-bold">View or download the QR code to scan with WhatsApp</p>
+                     </div>
 
-                  <div className="flex flex-col items-center justify-center py-8 bg-muted/10 rounded-3xl border-2 border-dashed border-border/50">
-                    <div className="w-56 h-56 bg-white p-6 rounded-2xl shadow-xl border-border/20 mb-8 relative group">
-                       <img 
-                        src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PROERO_MANAGEMENT_MOCK" 
-                        alt="Channel QR"
-                        className="w-full h-full"
-                      />
-                      <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                         <Button variant="secondary" size="sm" className="font-bold">
-                           <RefreshCw className="w-4 h-4 mr-2" /> Refresh
-                         </Button>
-                      </div>
-                    </div>
+                     <div className="flex flex-col items-center justify-center py-12 bg-slate-50/50 rounded-[40px] border-2 border-dashed border-slate-200 relative z-10">
+                        <div className="w-72 h-72 bg-white p-8 rounded-[32px] shadow-2xl border-slate-50 mb-10 relative group transition-transform hover:scale-[1.02]">
+                           <img 
+                            src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=PROERO_MANAGEMENT_MOCK" 
+                            alt="Channel QR"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
 
-                    <div className="flex items-center gap-4">
-                       <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 shadow-lg shadow-emerald-600/20">
-                         <QrCode className="w-4 h-4 mr-2" /> View QR
-                       </Button>
-                       <Button variant="outline" className="font-bold px-8 border-2">
-                         <Download className="w-4 h-4 mr-2" /> Download
-                       </Button>
-                    </div>
+                        <div className="flex items-center gap-4 w-full px-12">
+                           <Button className="flex-1 h-16 bg-[#10b981] hover:bg-[#059669] text-white font-black rounded-2xl shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] text-lg transition-all active:scale-95">
+                             <QrCode className="w-6 h-6 mr-3" /> View QR
+                           </Button>
+                           <Button variant="outline" className="flex-1 h-16 font-black rounded-2xl border-2 border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300 text-lg transition-all active:scale-95 bg-transparent">
+                             <Download className="w-6 h-6 mr-3" /> Download
+                           </Button>
+                        </div>
+                     </div>
                   </div>
                 </TabsContent>
-
-                <TabsContent value="overview" className="m-0 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                       <Card className="bg-muted/20 border-none shadow-none">
-                          <CardContent className="p-4 space-y-2">
-                             <p className="text-xs font-bold text-muted-foreground uppercase">Messages Sent</p>
-                             <p className="text-2xl font-bold">12,458</p>
-                          </CardContent>
-                       </Card>
-                       <Card className="bg-muted/20 border-none shadow-none">
-                          <CardContent className="p-4 space-y-2">
-                             <p className="text-xs font-bold text-muted-foreground uppercase">Success Rate</p>
-                             <p className="text-2xl font-bold text-emerald-600">98.2%</p>
-                          </CardContent>
-                       </Card>
+                
+                <TabsContent value="overview" className="m-0 space-y-8 animate-in slide-in-from-bottom-10 duration-500">
+                    <div className="grid grid-cols-2 gap-6">
+                       <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Provider</p>
+                          <p className="text-2xl font-black text-slate-800">{activeChannel?.provider || 'WAConnect'}</p>
+                       </div>
+                       <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Status</p>
+                          <p className="text-2xl font-black text-emerald-500">Connected</p>
+                       </div>
                     </div>
-                    <div className="space-y-4">
-                       <h4 className="font-bold text-sm flex items-center gap-2">
-                         <History className="w-4 h-4 text-primary" /> Recent Activity
-                       </h4>
-                       <div className="space-y-3">
-                          {[1,2,3].map(i => (
-                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/10 border border-border/50 text-xs">
-                               <div className="flex items-center gap-3">
-                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                  <span className="font-medium">Session refreshed successfully</span>
+                    
+                    <div className="bg-white p-10 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                       <div className="flex items-center justify-between">
+                          <h4 className="font-black text-slate-800 flex items-center gap-2">
+                             <History className="w-5 h-5 text-rose-500" /> Recent Activity
+                          </h4>
+                          <Badge variant="outline" className="rounded-full font-black text-[9px] uppercase tracking-widest">Live Updates</Badge>
+                       </div>
+                       <div className="space-y-4">
+                          {[1,2].map(i => (
+                            <div key={i} className="flex items-center justify-between p-5 rounded-[20px] bg-slate-50/50 border border-slate-100 text-xs">
+                               <div className="flex items-center gap-4">
+                                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                                  <span className="font-black text-slate-600 uppercase tracking-tight">Session refreshed successfully</span>
                                </div>
-                               <span className="text-muted-foreground">2 hours ago</span>
+                               <span className="text-slate-400 font-bold">{i*2} hours ago</span>
                             </div>
                           ))}
                        </div>
@@ -524,11 +510,6 @@ export default function Channels() {
                 </TabsContent>
               </div>
             </Tabs>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t bg-muted/10 flex justify-end px-8">
-               <Button variant="ghost" onClick={() => setIsQRModalOpen(false)} className="font-bold">Close Window</Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
