@@ -237,21 +237,18 @@ export default function Channels() {
                   {channel.icon}
                 </div>
                 <div className="space-y-1 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-lg leading-none">{channel.name}</h3>
-                    <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0">
-                       ● QR Code
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-mono">{channel.number}</p>
+                  <h3 className="font-bold text-lg leading-none truncate">{channel.name || 'Unnamed Channel'}</h3>
+                  <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-tighter">
+                    {channel.phone_number || 'No Number'}
+                  </p>
                 </div>
               </div>
 
-              {/* Status & Provider */}
-              <div className="grid grid-cols-2 gap-4 py-4 border-y border-border/30">
+              {/* Status & Provider Info */}
+              <div className="grid grid-cols-2 gap-4 py-3 border-y border-border/50">
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Provider</p>
-                  <p className="text-sm font-semibold">{channel.provider}</p>
+                  <p className="text-sm font-semibold">{channel.provider || 'Proero'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Status</p>
@@ -275,7 +272,9 @@ export default function Channels() {
               <div className="flex items-center justify-between pt-2">
                 <div className="flex flex-col">
                   <span className="text-[10px] uppercase text-muted-foreground font-bold">Created</span>
-                  <span className="text-xs font-medium">{channel.created}</span>
+                  <span className="text-xs font-medium">
+                    {channel.created ? new Date(channel.created).toLocaleDateString() : 'Just now'}
+                  </span>
                 </div>
                 <Button 
                   variant="ghost" 
