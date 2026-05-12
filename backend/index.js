@@ -154,6 +154,7 @@ app.use('/api/l', require('./routes/links'));
 app.use('/api/shopify', require('./routes/shopify'));
 app.use('/api/support', require('./routes/support'));
 app.use('/api/knowledge', require('./routes/knowledge'));
+app.use('/api/proero', require('./routes/proero'));
 
 
 // Developer Webhook Endpoint (Must have /api/ prefix for Nginx proxy pass)

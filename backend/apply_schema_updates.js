@@ -731,6 +731,29 @@ async function updateSchema() {
             console.log('Failover migration skipped or table missing:', e.message);
         }
 
+        // 21. Proero Channels Infrastructure
+        try {
+            console.log('Ensuring whatsapp_proero_channels table exists...');
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS whatsapp_proero_channels (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    phone_number VARCHAR(20) DEFAULT NULL,
+                    provider VARCHAR(50) DEFAULT 'Proero',
+                    status ENUM('connected', 'disconnected', 'pairing') DEFAULT 'disconnected',
+                    session_data JSON DEFAULT NULL,
+                    instance_id VARCHAR(100) DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            `);
+            console.log('✅ Proero channels table ready.');
+        } catch (e) {
+            console.log('Error creating proero_channels table:', e.message);
+        }
+
         console.log('--- Schema updates finished ---');
 
 

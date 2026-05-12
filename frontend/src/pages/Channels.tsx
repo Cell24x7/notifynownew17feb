@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../config/axios';
 import { 
   Smartphone, 
   Plus, 
@@ -75,7 +76,8 @@ const initialChannels = [
 ];
 
 export default function Channels() {
-  const [channels, setChannels] = useState(initialChannels);
+  const [channels, setChannels] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [step, setStep] = useState(1); // 1: Select Provider, 2: Config, 3: QR
@@ -83,6 +85,62 @@ export default function Channels() {
   const [channelName, setChannelName] = useState('');
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [activeChannel, setActiveChannel] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    fetchChannels();
+  }, []);
+
+  const fetchChannels = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/api/proero/channels');
+      if (response.data.success) {
+        setChannels(response.data.channels);
+      }
+    } catch (err) {
+      console.error('Fetch channels error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateChannel = async () => {
+    if (!channelName) return;
+    try {
+      const response = await api.post('/api/proero/channels', { 
+        name: channelName,
+        provider: selectedProvider 
+      });
+      if (response.data.success) {
+        setIsConnectOpen(false);
+        setStep(1);
+        setChannelName('');
+        fetchChannels();
+        toast.success("Channel created successfully");
+      }
+    } catch (err) {
+      console.error('Create channel error:', err);
+      toast.error("Failed to create channel");
+    }
+  };
+
+  const handleDeleteChannel = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this channel?')) return;
+    try {
+      setIsDeleting(true);
+      const response = await api.delete(`/api/proero/channels/${id}`);
+      if (response.data.success) {
+        setChannels(channels.filter(c => c.id !== id));
+        toast.success("Channel deleted successfully");
+      }
+    } catch (err) {
+      console.error('Delete channel error:', err);
+      toast.error("Failed to delete channel");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const filteredChannels = channels.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -100,11 +158,7 @@ export default function Channels() {
   };
 
   const handleConfigSubmit = () => {
-    if (!channelName) {
-      toast.error("Please enter a channel name");
-      return;
-    }
-    setStep(3);
+    handleCreateChannel();
   };
 
   const handleViewQR = (channel: any) => {
@@ -231,6 +285,16 @@ export default function Channels() {
                 >
                   <QrCode className="w-4 h-4 mr-2" />
                   View Logs
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleDeleteChannel(channel.id)}
+                  disabled={isDeleting}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/5 font-semibold text-xs h-8"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
                 </Button>
               </div>
             </CardContent>
