@@ -143,8 +143,8 @@ export default function Channels() {
   };
 
   const filteredChannels = channels.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.number.includes(searchQuery)
+    (c.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+    (c.phone_number || c.number || '').includes(searchQuery)
   );
 
   const handleConnectChannel = () => {
