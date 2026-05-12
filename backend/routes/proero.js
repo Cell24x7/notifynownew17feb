@@ -10,11 +10,11 @@ const authenticateToken = require('../middleware/authMiddleware');
  */
 router.get('/channels', authenticateToken, async (req, res) => {
     try {
-        const channels = await query(
+        const [rows] = await query(
             'SELECT id, name, phone_number, provider, status, created_at as created FROM whatsapp_proero_channels WHERE user_id = ? ORDER BY id DESC',
             [req.user.id]
         );
-        res.json({ success: true, channels });
+        res.json({ success: true, channels: rows });
     } catch (err) {
         console.error('GET PROERO CHANNELS ERROR:', err.message);
         res.status(500).json({ success: false, message: 'Failed to fetch channels' });
