@@ -1130,6 +1130,43 @@ export default function SuperAdminClients() {
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Globe className="w-4 h-4" /> SMS Gateway & DLT Settings
               </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>SMS Gateway</Label>
+                  <Select
+                    value={currentClient.sms_gateway_id || 'default'}
+                    onValueChange={v => setCurrentClient(p => ({ ...p, sms_gateway_id: v === 'default' ? '' : v }))}
+                    disabled={modalMode === 'view'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select SMS Gateway" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">None (Use Global Default)</SelectItem>
+                      {smsGateways.map(gw => (
+                        <SelectItem key={gw.id} value={String(gw.id)}>{gw.name} ({gw.sender_id})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Default PE ID</Label>
+                  <Input
+                    placeholder="Principal Entity ID"
+                    value={currentClient.pe_id || ''}
+                    onChange={e => setCurrentClient(p => ({ ...p, pe_id: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Default Hash ID</Label>
+                  <Input
+                    placeholder="DLT Hash ID"
+                    value={currentClient.hash_id || ''}
+                    onChange={e => setCurrentClient(p => ({ ...p, hash_id: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
               </div>
             </div>
 
