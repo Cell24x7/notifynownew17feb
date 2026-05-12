@@ -24,10 +24,8 @@ import {
   FileText,
   Globe,
   Bot,
-  ListFilter,
-  Mail,
-  Terminal,
-  LifeBuoy
+  LifeBuoy,
+  Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -130,6 +128,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       ]
     },
     { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
+    { icon: Smartphone, label: 'Channels', path: '/channels', show: Boolean(Number(user?.is_proero_enabled)) || user?.role === 'superadmin' || user?.role === 'admin' },
     { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
     { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: hasPermission('DLT Templates - View') },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },

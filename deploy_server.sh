@@ -37,6 +37,7 @@ echo ""
 echo -e "${BOLD}=========================================="
 echo -e "  🚀 NotifyNow $ENV_DESC Deployment       "
 echo -e "  URL: $APP_URL | DB: $APP_DB             "
+echo -e "  Feature: Proero Unofficial WhatsApp Integration "
 echo -e "==========================================${NC}"
 
 # ── Step 2: Git Sync ──────────────────────────────────
@@ -103,6 +104,10 @@ cd "$BACKEND_DIR"
 # Run the 1Cr Speed-Boost Indexer
 log "   📊 Running optimize_db.js..."
 NODE_ENV=production node optimize_db.js || warn "Optimization skipped or already done."
+
+# Core Schema Migrations (Includes Proero & Voicebot)
+log "   💎 Running apply_schema_updates.js..."
+NODE_ENV=production node apply_schema_updates.js || err "Schema update failed!"
 
 # Final Schema Fixes
 log "   🔧 Running fix_logs_schema.js..."

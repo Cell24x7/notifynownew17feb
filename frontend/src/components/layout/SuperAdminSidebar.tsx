@@ -21,10 +21,9 @@ import {
   Send,
   ChevronDown,
   Rocket,
-  Zap,
-  LifeBuoy,
   Globe,
-  Settings
+  Settings,
+  Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -59,6 +58,7 @@ const menuItems = [
   { icon: FileText, label: 'Templates', path: '/templates', permission: 'Template - View' },
   { icon: Send, label: 'Campaigns', path: '/campaigns', permission: 'Campaigns - View' },
   { icon: MessageCircle, label: 'Chats', path: '/chats', permission: 'Chat - View' },
+  { icon: Smartphone, label: 'Channels', path: '/channels', permission: 'Chat - View' },
   { icon: Users, label: 'Contacts', path: '/contacts', permission: 'Contacts - View' },
   { icon: Rocket, label: 'Automations', path: '/automations', permission: 'Automations - View' },
 

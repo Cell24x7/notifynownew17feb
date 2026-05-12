@@ -251,7 +251,7 @@ router.post('/login', async (req, res) => {
     // Check email or phone with Plan Permissions and User Permissions
     const [rows] = await query(`
       SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
-             COALESCE(r.id, u.reseller_id) as actual_reseller_id
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id, u.is_proero_enabled
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
       LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
@@ -338,7 +338,8 @@ router.post('/login', async (req, res) => {
         sms_promotional_price: user.sms_promotional_price,
         sms_transactional_price: user.sms_transactional_price,
         sms_service_price: user.sms_service_price,
-        is_api_allowed: user.is_api_allowed
+        is_api_allowed: user.is_api_allowed,
+        is_proero_enabled: user.is_proero_enabled
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -389,7 +390,8 @@ router.post('/login', async (req, res) => {
         sms_promotional_price: user.sms_promotional_price,
         sms_transactional_price: user.sms_transactional_price,
         sms_service_price: user.sms_service_price,
-        is_api_allowed: user.is_api_allowed
+        is_api_allowed: user.is_api_allowed,
+        is_proero_enabled: user.is_proero_enabled
       }
     });
 
@@ -490,7 +492,7 @@ router.post('/google', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressPermissions(finalPermissions), plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled
       }
     });
 
@@ -640,11 +642,8 @@ router.post('/facebook', async (req, res) => {
 
     let [rows] = await query(`
       SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
-             COALESCE(r.id, u.reseller_id) as actual_reseller_id
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id, u.is_proero_enabled
       FROM users u
-      LEFT JOIN plans p ON u.plan_id = p.id
-      LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
-      WHERE u.email = ?
     `, [payload.email]);
 
     let user;

@@ -157,7 +157,8 @@ async function updateSchema() {
                 { name: 'rcs_limit', type: 'INT DEFAULT 0' },
                 { name: 'wa_limit', type: 'INT DEFAULT 0' },
                 { name: 'sms_limit', type: 'INT DEFAULT 0' },
-                { name: 'voice_limit', type: 'INT DEFAULT 0' }
+                { name: 'voice_limit', type: 'INT DEFAULT 0' },
+                { name: 'is_proero_enabled', type: 'TINYINT(1) DEFAULT 0' }
             ];
 
             for (const col of missingCols) {

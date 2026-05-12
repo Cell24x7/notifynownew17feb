@@ -72,6 +72,7 @@ export default function SuperAdminClients() {
     pe_id: '',
     hash_id: '',
     is_api_allowed: false,
+    is_proero_enabled: false,
   });
 
   // Fetch real plans
@@ -350,6 +351,7 @@ export default function SuperAdminClients() {
       pe_id: '',
       hash_id: '',
       is_api_allowed: false,
+      is_proero_enabled: false,
     });
   }
 
@@ -408,6 +410,7 @@ export default function SuperAdminClients() {
       pe_id: client.pe_id || '',
       hash_id: client.hash_id || '',
       is_api_allowed: !!client.is_api_allowed,
+      is_proero_enabled: !!client.is_proero_enabled,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -447,6 +450,7 @@ export default function SuperAdminClients() {
       pe_id: client.pe_id || '',
       hash_id: client.hash_id || '',
       is_api_allowed: !!client.is_api_allowed,
+      is_proero_enabled: !!client.is_proero_enabled,
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -1126,40 +1130,36 @@ export default function SuperAdminClients() {
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Globe className="w-4 h-4" /> SMS Gateway & DLT Settings
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>SMS Gateway</Label>
-                  <Select
-                    value={currentClient.sms_gateway_id || 'default'}
-                    onValueChange={v => setCurrentClient(p => ({ ...p, sms_gateway_id: v === 'default' ? '' : v }))}
-                    disabled={modalMode === 'view'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select SMS Gateway" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="default">None (Use Global Default)</SelectItem>
-                      {smsGateways.map(gw => (
-                        <SelectItem key={gw.id} value={String(gw.id)}>{gw.name} ({gw.sender_id})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Default PE ID</Label>
-                  <Input
-                    placeholder="Principal Entity ID"
-                    value={currentClient.pe_id || ''}
-                    onChange={e => setCurrentClient(p => ({ ...p, pe_id: e.target.value }))}
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Section: Feature Permissions */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Zap className="w-4 h-4" /> Feature Permissions
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/20 p-4 rounded-xl border border-dashed border-border">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Allow Bulk API Access</Label>
+                    <p className="text-xs text-muted-foreground">Enable developer API and secret keys</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentClient.is_api_allowed}
+                    onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_api_allowed: !!checked }))}
                     disabled={modalMode === 'view'}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Default Hash ID</Label>
-                  <Input
-                    placeholder="DLT Hash ID"
-                    value={currentClient.hash_id || ''}
-                    onChange={e => setCurrentClient(p => ({ ...p, hash_id: e.target.value }))}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-primary font-bold">Enable Proero (Unofficial WA)</Label>
+                    <p className="text-xs text-muted-foreground">Show "Channels" tab and enable QR scan flow</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentClient.is_proero_enabled}
+                    onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_proero_enabled: !!checked }))}
                     disabled={modalMode === 'view'}
                   />
                 </div>
