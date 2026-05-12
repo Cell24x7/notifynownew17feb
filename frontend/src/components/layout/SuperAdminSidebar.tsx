@@ -24,7 +24,8 @@ import {
   Globe,
   Settings,
   Smartphone,
-  Zap
+  Zap,
+  LifeBuoy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
