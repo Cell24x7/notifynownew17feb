@@ -209,7 +209,7 @@ export default function Channels() {
       </div>
 
       {/* Channels Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredChannels.map((channel) => (
           <Card key={channel.id} className="group relative overflow-hidden border-border/50 hover:border-primary/50 transition-all hover:shadow-xl hover:-translate-y-1 duration-300">
             <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -420,7 +420,7 @@ export default function Channels() {
 
       {/* QR Management Modal (Based on Screenshot) */}
       <Dialog open={isQRModalOpen} onOpenChange={setIsQRModalOpen}>
-        <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+        <DialogContent className="sm:max-w-[550px] w-[95vw] p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
           <div className="bg-card">
             {/* Modal Header */}
             <div className="p-6 flex items-center justify-between border-b bg-muted/30">
@@ -442,8 +442,8 @@ export default function Channels() {
 
             {/* Modal Tabs */}
             <Tabs defaultValue="advanced" className="w-full">
-              <div className="px-6 py-2 border-b">
-                <TabsList className="bg-transparent h-12 w-full justify-start gap-4">
+              <div className="px-6 py-1 border-b overflow-x-auto">
+                <TabsList className="bg-transparent h-10 w-full justify-start gap-2">
                   <TabsTrigger value="overview" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary rounded-lg gap-2 font-bold px-4">
                     <Info className="w-4 h-4" /> Overview
                   </TabsTrigger>
@@ -459,7 +459,7 @@ export default function Channels() {
                 </TabsList>
               </div>
 
-              <div className="p-8 min-h-[400px]">
+              <div className="p-6 min-h-[350px]">
                 <TabsContent value="advanced" className="m-0 space-y-8 animate-in slide-in-from-right-4 duration-300">
                   <div className="space-y-2">
                     <h3 className="text-lg font-bold">QR Code Management</h3>
