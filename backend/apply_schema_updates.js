@@ -701,6 +701,24 @@ async function updateSchema() {
             console.log('KB Schema Update Error:', e.message);
         }
 
+        // 20. Failover Infrastructure (Crucial for Worker Stability)
+        try {
+            const failoverTables = ['campaigns', 'api_campaigns', 'message_logs', 'api_message_logs'];
+            for (const table of failoverTables) {
+                const [cols] = await connection.execute(`SHOW COLUMNS FROM ${table}`);
+                if (!cols.some(c => c.Field === 'is_failover_enabled')) {
+                    console.log(`Adding is_failover_enabled to ${table}...`);
+                    await connection.execute(`ALTER TABLE ${table} ADD COLUMN is_failover_enabled TINYINT(1) DEFAULT 0`);
+                }
+                if (!cols.some(c => c.Field === 'failover_sms_template')) {
+                    console.log(`Adding failover_sms_template to ${table}...`);
+                    await connection.execute(`ALTER TABLE ${table} ADD COLUMN failover_sms_template VARCHAR(255) DEFAULT NULL`);
+                }
+            }
+        } catch (e) {
+            console.log('Failover migration skipped or table missing:', e.message);
+        }
+
         console.log('--- Schema updates finished ---');
 
 
