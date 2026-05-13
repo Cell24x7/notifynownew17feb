@@ -1,5 +1,14 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const fs = require('fs');
+
+// Try to load .env.production first (standard for this server's production), then .env
+const envPath = fs.existsSync(path.join(__dirname, '.env.production')) 
+  ? path.join(__dirname, '.env.production') 
+  : path.join(__dirname, '.env');
+
+require('dotenv').config({ path: envPath });
+console.log(`📡 Using environment file: ${path.basename(envPath)}`);
+
 const { query } = require('./config/db');
 
 async function updateSchema() {
