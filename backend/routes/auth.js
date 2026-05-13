@@ -339,7 +339,8 @@ router.post('/login', async (req, res) => {
         sms_transactional_price: user.sms_transactional_price,
         sms_service_price: user.sms_service_price,
         is_api_allowed: user.is_api_allowed,
-        is_proero_enabled: user.is_proero_enabled
+        is_proero_enabled: user.is_proero_enabled,
+        is_smm_enabled: user.is_smm_enabled
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -391,7 +392,8 @@ router.post('/login', async (req, res) => {
         sms_transactional_price: user.sms_transactional_price,
         sms_service_price: user.sms_service_price,
         is_api_allowed: user.is_api_allowed,
-        is_proero_enabled: user.is_proero_enabled
+        is_proero_enabled: user.is_proero_enabled,
+        is_smm_enabled: user.is_smm_enabled
       }
     });
 
@@ -476,6 +478,8 @@ router.post('/google', async (req, res) => {
         permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         is_api_allowed: user.is_api_allowed,
+        is_proero_enabled: user.is_proero_enabled,
+        is_smm_enabled: user.is_smm_enabled,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -492,7 +496,7 @@ router.post('/google', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressPermissions(finalPermissions), plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled
       }
     });
 
@@ -599,6 +603,8 @@ router.post('/linkedin', async (req, res) => {
         permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         is_api_allowed: user.is_api_allowed,
+        is_proero_enabled: user.is_proero_enabled,
+        is_smm_enabled: user.is_smm_enabled,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -615,7 +621,7 @@ router.post('/linkedin', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled
       }
     });
 
