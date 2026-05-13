@@ -73,6 +73,7 @@ export default function SuperAdminClients() {
     hash_id: '',
     is_api_allowed: false,
     is_proero_enabled: false,
+    is_smm_enabled: false,
   });
 
   // Fetch real plans
@@ -352,6 +353,7 @@ export default function SuperAdminClients() {
       hash_id: '',
       is_api_allowed: false,
       is_proero_enabled: false,
+      is_smm_enabled: false,
     });
   }
 
@@ -411,6 +413,7 @@ export default function SuperAdminClients() {
       hash_id: client.hash_id || '',
       is_api_allowed: !!client.is_api_allowed,
       is_proero_enabled: !!client.is_proero_enabled,
+      is_smm_enabled: !!client.is_smm_enabled,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -451,6 +454,7 @@ export default function SuperAdminClients() {
       hash_id: client.hash_id || '',
       is_api_allowed: !!client.is_api_allowed,
       is_proero_enabled: !!client.is_proero_enabled,
+      is_smm_enabled: !!client.is_smm_enabled,
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -1197,6 +1201,17 @@ export default function SuperAdminClients() {
                   <Checkbox 
                     checked={currentClient.is_proero_enabled}
                     onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_proero_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-indigo-600 font-bold">Enable SMM Hub (Social Media)</Label>
+                    <p className="text-xs text-muted-foreground">Show "Social Media" tab for FB/Insta/LinkedIn</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentClient.is_smm_enabled}
+                    onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_smm_enabled: !!checked }))}
                     disabled={modalMode === 'view'}
                   />
                 </div>
