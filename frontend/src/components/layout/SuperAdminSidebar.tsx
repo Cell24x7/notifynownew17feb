@@ -60,7 +60,7 @@ const menuItems = [
   { icon: FileText, label: 'Templates', path: '/templates', permission: 'Template - View' },
   { icon: Send, label: 'Campaigns', path: '/campaigns', permission: 'Campaigns - View' },
   { icon: MessageCircle, label: 'Chats', path: '/chats', permission: 'Chat - View' },
-  { icon: Smartphone, label: 'Channels', path: '/channels' },
+  { icon: Smartphone, label: 'Channels', path: '/channels', permission: 'Channels - View' },
   { icon: Users, label: 'Contacts', path: '/contacts', permission: 'Contacts - View' },
   { icon: Rocket, label: 'Automations', path: '/automations', permission: 'Automations - View' },
 
@@ -99,6 +99,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
     // Safety check: ensure permissions is an array
     if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
+    if (!feature) return true; // Default to true if no specific permission required
     const target = feature.toLowerCase().trim();
 
     return user.permissions.some((p: any) => {
