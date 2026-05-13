@@ -225,29 +225,29 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
                 <button
                   onClick={() => setReportsOpen(!reportsOpen)}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+                    'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all duration-200 group',
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      ? 'bg-primary text-primary-foreground shadow-md font-bold'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    {item.icon && <item.icon className="h-5 w-5 flex-shrink-0" />}
-                    <span>{item.label}</span>
+                    {item.icon && <item.icon className={cn("h-5 w-5 flex-shrink-0 transition-transform group-hover:scale-110", isActive ? "text-primary-foreground" : "text-slate-400")} />}
+                    <span className="tracking-tight">{item.label}</span>
                   </div>
                   <ChevronDown className={cn("h-4 w-4 transition-transform", reportsOpen && "rotate-180")} />
                 </button>
                 {reportsOpen && (
-                  <div className="pl-11 space-y-1 mt-1">
+                  <div className="pl-11 space-y-1 mt-1 animate-in slide-in-from-top-2 duration-300">
                     {item.subItems.map((sub: any) => (
                       <NavLink
                         key={sub.path}
                         to={sub.path}
                         className={({ isActive: subIsActive }) => cn(
-                          'block py-2 text-[13px] font-medium rounded-md transition-all',
+                          'block py-2 text-[13px] rounded-md transition-all',
                           (location.pathname + location.search === sub.path)
-                            ? 'text-primary font-bold'
-                            : 'text-muted-foreground hover:text-foreground'
+                            ? 'text-primary font-extrabold translate-x-1'
+                            : 'text-slate-400 hover:text-slate-900 font-medium hover:translate-x-1'
                         )}
                       >
                         {sub.label}
@@ -264,14 +264,14 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 group',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-md font-bold'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
               )}
             >
-              {item.icon && <item.icon className="h-5 w-5 flex-shrink-0" />}
-              <span className="flex-1">{item.label}</span>
+              {item.icon && <item.icon className={cn("h-5 w-5 flex-shrink-0 transition-transform group-hover:scale-110", isActive ? "text-primary-foreground" : "text-slate-400")} />}
+              <span className="flex-1 tracking-tight">{item.label}</span>
               {item.label === 'Support' && openTicketsCount > 0 && (
                 <span className="flex items-center justify-center bg-red-500 text-white text-[10px] font-bold h-5 w-5 rounded-full animate-bounce shadow-lg">
                   {openTicketsCount}
