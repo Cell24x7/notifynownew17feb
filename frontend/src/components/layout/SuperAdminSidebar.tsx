@@ -61,6 +61,7 @@ const menuItems = [
   { icon: Send, label: 'Campaigns', path: '/campaigns', permission: 'Campaigns - View' },
   { icon: MessageCircle, label: 'Chats', path: '/chats', permission: 'Chat - View' },
   { icon: Smartphone, label: 'Channels', path: '/channels', permission: 'Channels - View' },
+  { icon: Globe, label: 'Social Media', path: '/social-media', permission: 'Channels - View' },
   { icon: Users, label: 'Contacts', path: '/contacts', permission: 'Contacts - View' },
   { icon: Rocket, label: 'Automations', path: '/automations', permission: 'Automations - View' },
 

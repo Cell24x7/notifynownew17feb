@@ -26,7 +26,7 @@ router.get('/', authenticate, async (req, res) => {
               u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
               u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, 
               u.rcs_config_id, u.whatsapp_config_id, u.pe_id, u.hash_id,
-              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit, u.is_proero_enabled,
+              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit, u.is_proero_enabled, u.is_smm_enabled,
               p.permissions as plan_permissions,
               COALESCE(r.id, u.reseller_id) as actual_reseller_id,
               r.brand_name as reseller_brand_name, r.logo_url as reseller_logo_url
@@ -170,7 +170,7 @@ router.put('/', authenticate, async (req, res) => {
 
     // Return updated user
     const [updated] = await query(
-      `SELECT id, name, email, company, contact_phone, plan_id, credits_available, wallet_balance, channels_enabled, sms_transactional_price, sms_promotional_price, sms_service_price, pe_id, hash_id, is_proero_enabled
+      `SELECT id, name, email, company, contact_phone, plan_id, credits_available, wallet_balance, channels_enabled, sms_transactional_price, sms_promotional_price, sms_service_price, pe_id, hash_id, is_proero_enabled, is_smm_enabled
        FROM users WHERE id = ?`,
       [req.user.id]
     );

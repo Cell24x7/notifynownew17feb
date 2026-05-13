@@ -41,6 +41,7 @@ interface User {
   voice_limit?: number | null;
   is_api_allowed?: number | boolean;
   is_proero_enabled?: number | boolean;
+  is_smm_enabled?: number | boolean;
 }
 
 interface AuthContextType {
@@ -105,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           voice_limit: decoded.voice_limit,
           is_api_allowed: decoded.is_api_allowed,
           is_proero_enabled: decoded.is_proero_enabled,
+          is_smm_enabled: decoded.is_smm_enabled,
         });
 
         // Hydrate from DB to get the live wallet_balance immediately to prevent flashing
@@ -171,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           voice_limit: userData.voice_limit,
           is_api_allowed: userData.is_api_allowed,
           is_proero_enabled: userData.is_proero_enabled,
+          is_smm_enabled: userData.is_smm_enabled,
         });
         return true;
       }
@@ -282,6 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           voice_limit: userData.voice_limit,
           is_api_allowed: userData.is_api_allowed,
           is_proero_enabled: userData.is_proero_enabled,
+          is_smm_enabled: userData.is_smm_enabled,
         });
       }
     } catch (err) {
@@ -331,6 +335,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       voice_limit: userData.voice_limit,
       is_api_allowed: userData.is_api_allowed,
       is_proero_enabled: userData.is_proero_enabled,
+      is_smm_enabled: userData.is_smm_enabled,
     });
   };
 

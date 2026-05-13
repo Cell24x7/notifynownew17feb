@@ -27,6 +27,7 @@ import LinkedInCallback from "./pages/LinkedInCallback";
 import ApiDocs from "./pages/ApiDocs";
 import Support from "./pages/Support";
 import Channels from "./pages/Channels";
+import SocialMedia from "./pages/SocialMedia";
 
 
 
@@ -95,6 +96,7 @@ const App = () => (
                     <Route element={<AppLayout />}>
                       <Route path="/dashboard" element={<Dashboard />} />
                       <Route path="/channels" element={<Channels />} />
+                      <Route path="/social-media" element={<SocialMedia />} />
                       <Route path="/chats" element={<Chats />} />
                       <Route path="/contacts" element={<Contacts />} />
                       <Route path="/campaigns" element={<Campaigns />} />
