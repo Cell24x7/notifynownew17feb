@@ -55,12 +55,24 @@ const getRcsToken = async (config) => {
     // Create a new fetch promise
     const fetchPromise = (async () => {
       try {
-        console.log(`🔑 Fetching Dotgo RCS token for [${config.name || cacheKey}]...`);
+        console.log(`🔑 Fetching ${config.provider || 'RCS'} token for [${config.name || cacheKey}]...`);
         const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
+        // Vi requires grant_type in query, Dotgo in body. 
+        // We handle both by checking if it's already in the URL or if provider is Vi.
+        let finalAuthUrl = authUrl;
+        let postData = "grant_type=client_credentials";
+
+        if (config.provider === 'vi' || authUrl.includes('grant_type=')) {
+          postData = null; // Send empty body if params are in URL
+          if (!authUrl.includes('grant_type=')) {
+            finalAuthUrl += (authUrl.includes('?') ? '&' : '?') + "grant_type=client_credentials";
+          }
+        }
+
         const response = await axios.post(
-          authUrl,
-          "grant_type=client_credentials",
+          finalAuthUrl,
+          postData,
           {
             headers: {
               'Authorization': `Basic ${auth}`,
@@ -83,7 +95,7 @@ const getRcsToken = async (config) => {
           expiresAt: Date.now() + (expiresIn * 1000) - 300000 // 5 mins buffer
         });
 
-        console.log(`✅ Dotgo Token obtained successfully for [${config.name || cacheKey}]`);
+        console.log(`✅ ${config.provider || 'RCS'} Token obtained successfully for [${config.name || cacheKey}]`);
         tokenFetchingPromises.delete(cacheKey);
         return token;
       } catch (error) {
@@ -129,11 +141,19 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
     const token = await getRcsToken(config);
     if (!token) return { success: false, error: "Authentication failed" };
 
-    const { api_base_url: apiBaseUrl, bot_id: botId } = config;
+    const { api_base_url: apiBaseUrl, bot_id: botId, provider } = config;
     const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
     const templateCode = templateName;
 
-    const url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
+    // Route based on provider
+    let url;
+    if (provider === 'vi') {
+      // Vi Google Style: {serverRoot}/v1/phones/{phone_number}/agentMessages/async?botId={bot_id}
+      url = `${apiBaseUrl}/v1/phones/${formattedMobile}/agentMessages/async?botId=${botId}`;
+    } else {
+      // Dotgo/Google Standard: {serverRoot}/phones/{phone_number}/agentMessages?botId={bot_id}
+      url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
+    }
 
     const payload = {
       contentMessage: {
@@ -169,7 +189,7 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
         // We might want to clear cache here, but for now just fail so next attempt refreshes
     }
 
-    console.error("❌ Dotgo Send Error:", error.message);
+    console.error(`❌ ${config.provider || 'RCS'} Send Error:`, error.message);
     return { success: false, error: error.response?.data?.message || error.message };
   }
 };
@@ -188,10 +208,17 @@ const sendRcsMessage = async (mobile, message, config) => {
     const token = await getRcsToken(config);
     if (!token) return { success: false, error: "Authentication failed" };
 
-    const { api_base_url: apiBaseUrl, bot_id: botId } = config;
+    const { api_base_url: apiBaseUrl, bot_id: botId, provider } = config;
 
     const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
-    const url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
+    
+    // Route based on provider
+    let url;
+    if (provider === 'vi') {
+      url = `${apiBaseUrl}/v1/phones/${formattedMobile}/agentMessages/async?botId=${botId}`;
+    } else {
+      url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
+    }
 
     const payload = {
       contentMessage: {
@@ -206,7 +233,7 @@ const sendRcsMessage = async (mobile, message, config) => {
       }
     });
 
-    console.log(`📥 Dotgo Text Response [${response.status}]:`, JSON.stringify(response.data));
+    console.log(`📥 ${config.provider || 'RCS'} Text Response [${response.status}]:`, JSON.stringify(response.data));
 
     if (response.status === 200 || response.status === 201) {
       let messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
@@ -218,7 +245,7 @@ const sendRcsMessage = async (mobile, message, config) => {
 
     return { success: false, error: `API status ${response.status}` };
   } catch (error) {
-    console.error("❌ Dotgo Text Send Error:", error.message);
+    console.error(`❌ ${config.provider || 'RCS'} Text Send Error:`, error.message);
     return { success: false, error: error.message };
   }
 };
@@ -231,13 +258,23 @@ const sendRcsMessage = async (mobile, message, config) => {
  * @param {string} [existingName] - If provided, performs an UPDATE instead of CREATE
  * @returns {Promise<object>}
  */
-const submitDotgoTemplate = async (config, templateData, files = [], existingName = null) => {
+const submitRcsTemplate = async (config, templateData, files = [], existingName = null) => {
   try {
     const token = await getDotgoAdminToken();
     if (!token) return { success: false, error: "Platform Admin Authentication failed" };
 
     const botId = config.bot_id;
-    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    const provider = config.provider || 'dotgo';
+    
+    let baseUrl;
+    let authHeaderToken = token;
+
+    if (provider === 'vi') {
+      baseUrl = 'https://virbm.in/directory/secure/api/v1/bots';
+      // For Vi, we use the client's own token for management
+    } else {
+      baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    }
 
     // Pattern: {serverRoot}/directory/secure/api/v1/bots/{botId}/templates[/{name}]
     let url = `${baseUrl}/${botId}/templates`;
@@ -346,7 +383,7 @@ const submitDotgoTemplate = async (config, templateData, files = [], existingNam
 
     const response = await axios.post(url, form, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authHeaderToken}`,
         ...form.getHeaders()
       },
       timeout: 60000
@@ -378,13 +415,23 @@ const submitDotgoTemplate = async (config, templateData, files = [], existingNam
 /**
  * Get Dotgo Template Status using ADMIN credentials
  */
-const getDotgoTemplateStatus = async (config, templateName) => {
+const getRcsTemplateStatus = async (config, templateName) => {
   try {
-    const token = await getDotgoAdminToken();
-    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
+    const provider = config.provider || 'dotgo';
+    let token;
+    let baseUrl;
+
+    if (provider === 'vi') {
+      token = await getRcsToken(config);
+      baseUrl = 'https://virbm.in/directory/secure/api/v1/bots';
+    } else {
+      token = await getDotgoAdminToken();
+      baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    }
+
+    if (!token) return { success: false, error: "Authentication failed" };
 
     const botId = config.bot_id;
-    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const base64Name = base64UrlEncode(templateName);
     const url = `${baseUrl}/${botId}/templates/${base64Name}/templateStatus`;
 
@@ -482,13 +529,23 @@ const getExternalTemplates = async (config) => {
       return cached.data;
     }
 
-    const token = await getDotgoAdminToken();
+    const provider = config.provider || 'dotgo';
+    let token;
+    let baseUrl;
+
+    if (provider === 'vi') {
+      token = await getRcsToken(config);
+      baseUrl = 'https://virbm.in/directory/secure/api/v1/bots';
+    } else {
+      token = await getDotgoAdminToken();
+      baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    }
+
     if (!token) {
-      console.error("❌ Dotgo Admin Token failure for template listing");
+      console.error(`❌ ${provider} Token failure for template listing`);
       return [];
     }
 
-    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const url = `${baseUrl}/${botId}/templates`;
 
     console.log(`📡 Fetching LIVE Dotgo Templates for Bot: ${botId} (Admin Token)`);
@@ -647,8 +704,8 @@ module.exports = {
   sendRcsTemplate,
   sendRcsMessage,
   getExternalTemplates,
-  submitDotgoTemplate,
-  getDotgoTemplateStatus,
+  submitRcsTemplate,
+  getRcsTemplateStatus,
   getDotgoTemplateDetails,
   deleteDotgoTemplate,
   submitBotToDotgo,

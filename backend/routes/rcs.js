@@ -84,11 +84,11 @@ router.post('/templates', authenticate, upload.array('multimedia_files'), async 
     }
 
     const config = configs[0];
-    const { submitDotgoTemplate } = require('../services/rcsService');
+    const { submitRcsTemplate } = require('../services/rcsService');
     const originalName = req.query.originalName;
 
     // Pass config, data, uploaded files, and originalName
-    const result = await submitDotgoTemplate(config, templateData, req.files || [], originalName);
+    const result = await submitRcsTemplate(config, templateData, req.files || [], originalName);
 
     if (result.success) {
       res.json({ success: true, data: result.data });
@@ -123,8 +123,8 @@ router.get('/templates/:name/status', authenticate, async (req, res) => {
     }
 
     const config = configs[0];
-    const { getDotgoTemplateStatus } = require('../services/rcsService');
-    const result = await getDotgoTemplateStatus(config, templateName);
+    const { getRcsTemplateStatus } = require('../services/rcsService');
+    const result = await getRcsTemplateStatus(config, templateName);
 
     if (result.success) {
       res.json({ success: true, status: result.status });
@@ -768,9 +768,9 @@ const handleRcsTemplateCreate = async (req, res) => {
             return res.status(400).json({ success: false, message: 'RCS not configured for this user' });
         }
 
-        const { submitDotgoTemplate } = require('../services/rcsService');
+        const { submitRcsTemplate } = require('../services/rcsService');
         
-        // Prepare template data for submitDotgoTemplate
+        // Prepare template data for submitRcsTemplate
         const templateData = {
             ...req.body, // Spread everything to capture carouselList, orientation, etc.
             name,
@@ -793,7 +793,7 @@ const handleRcsTemplateCreate = async (req, res) => {
             }
         };
 
-        const result = await submitDotgoTemplate(configs[0], templateData, req.files || []);
+        const result = await submitRcsTemplate(configs[0], templateData, req.files || []);
 
         if (result.success) {
             // Also insert into local message_templates for visibility in UI

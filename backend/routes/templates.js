@@ -3,7 +3,7 @@ const router = express.Router();
 const { query } = require('../config/db');
 const { v1: uuidv4 } = require('uuid'); // Added uuid for consistency if needed, though project uses Date.now()
 const jwt = require('jsonwebtoken');
-const { submitDotgoTemplate, getDotgoTemplateStatus } = require('../services/rcsService');
+const { submitRcsTemplate, getRcsTemplateStatus } = require('../services/rcsService');
 
 const authenticate = require('../middleware/authMiddleware');
 
@@ -414,7 +414,7 @@ router.post('/dotgo/submit', authenticate, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid template data' });
         }
 
-        const result = await submitDotgoTemplate(templateData);
+        const result = await submitRcsTemplate(templateData);
         if (result.success) {
             // Optionally update local DB status to 'submitted'
             await query('UPDATE message_templates SET status = "pending" WHERE name = ?', [templateData.name]);
@@ -434,7 +434,10 @@ router.post('/dotgo/submit', authenticate, async (req, res) => {
 router.get('/dotgo/status/:name', authenticate, async (req, res) => {
     try {
         const { name } = req.params;
-        const result = await getDotgoTemplateStatus(name);
+        // Note: For Vi, we need the config. For Dotgo admin, we might not but getRcsTemplateStatus expects it.
+        // We should fetch the config for the bot_id here if possible.
+        // For now, if config is missing, it will use Dotgo Admin defaults as per service logic.
+        const result = await getRcsTemplateStatus({ bot_id: req.user.rcs_bot_id }, name);
 
         if (result.success && result.status) {
             // Update local DB if approved
