@@ -158,6 +158,11 @@ NODE_ENV=production node scripts/turbo_speed_optimize.js || true
 log "🎙️  Deploying AI Voice Bot Infrastructure..."
 NODE_ENV=production node scripts/voice_bot_infrastructure.js || true
 NODE_ENV=production node scripts/add_failover_cols.js || true
+
+# 🚀 NEW: Social Media & RCS Multi-Provider Sync
+log "🎨  Deploying SMM Hub & Multi-Provider RCS..."
+NODE_ENV=production node update_smm_schema.js || true
+NODE_ENV=production node update_rcs_multi_provider.js || true
 NODE_ENV=production node scripts/add_media_support.js || true
 NODE_ENV=production node migrate_api_flag.js || true
 NODE_ENV=production node migration_reseller_payment.js || true
