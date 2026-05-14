@@ -24,6 +24,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 import { cn } from '@/lib/utils';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { API_BASE_URL } from '@/config/api';
 
 const API_URL = `${API_BASE_URL}/api/rcs-configs`;
@@ -39,6 +46,7 @@ export default function RcsConfigs() {
 
   const [formData, setFormData] = useState({
     name: '',
+    provider: 'dotgo',
     auth_url: 'https://auth.dotgo.com/auth/oauth/token',
     api_base_url: 'https://api.dotgo.com/rcs/v1',
     client_id: '',
@@ -76,14 +84,16 @@ export default function RcsConfigs() {
     setSelectedConfig(config);
     setFormData(config ? {
       name: config.name || '',
-      auth_url: config.auth_url || 'https://auth.dotgo.com/auth/oauth/token',
-      api_base_url: config.api_base_url || 'https://api.dotgo.com/rcs/v1',
+      provider: config.provider || 'dotgo',
+      auth_url: config.auth_url || (config.provider === 'vi' ? 'https://api.vodafone.com/auth/token' : 'https://auth.dotgo.com/auth/oauth/token'),
+      api_base_url: config.api_base_url || (config.provider === 'vi' ? 'https://api.vodafone.com/rcs/v1' : 'https://api.dotgo.com/rcs/v1'),
       client_id: config.client_id || '',
       client_secret: config.client_secret || '',
       bot_id: config.bot_id || '',
       is_active: config.is_active !== undefined ? config.is_active : true
     } : {
       name: '',
+      provider: 'dotgo',
       auth_url: 'https://auth.dotgo.com/auth/oauth/token',
       api_base_url: 'https://api.dotgo.com/rcs/v1',
       client_id: '',
@@ -214,6 +224,7 @@ export default function RcsConfigs() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Config Name</TableHead>
+                    <TableHead>Provider</TableHead>
                     <TableHead>Bot ID</TableHead>
                     <TableHead>Client ID</TableHead>
                     <TableHead>Status</TableHead>
@@ -229,6 +240,11 @@ export default function RcsConfigs() {
                           <ShieldCheck className="w-4 h-4 text-primary" />
                           {config.name}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize font-bold border-indigo-100 text-indigo-600 bg-indigo-50/50">
+                           {config.provider || 'dotgo'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="font-mono">{config.bot_id}</Badge>
@@ -279,11 +295,37 @@ export default function RcsConfigs() {
           <DialogHeader>
             <DialogTitle>{selectedConfig ? 'Edit Configuration' : 'Add New Configuration'}</DialogTitle>
             <DialogDescription>
-              Enter the Dotgo RCS credentials below. These will be used for users assigned to this config.
+              Enter the RCS credentials below. Select the provider (Dotgo or Vi) to configure correctly.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">RCS Provider</Label>
+              <div className="col-span-3">
+                <Select 
+                  value={formData.provider} 
+                  onValueChange={(v) => {
+                    const isVi = v === 'vi';
+                    setFormData({ 
+                      ...formData, 
+                      provider: v,
+                      auth_url: isVi ? 'https://api.vodafone.com/auth/token' : 'https://auth.dotgo.com/auth/oauth/token',
+                      api_base_url: isVi ? 'https://api.vodafone.com/rcs/v1' : 'https://api.dotgo.com/rcs/v1'
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dotgo">Dotgo RCS</SelectItem>
+                    <SelectItem value="vi">Vodafone (Vi) RCS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">Config Name</Label>
               <Input

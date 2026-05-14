@@ -54,15 +54,15 @@ router.get('/', authenticate, isAdmin, async (req, res) => {
  */
 router.post('/', authenticate, isAdmin, async (req, res) => {
     try {
-        const { name, auth_url, api_base_url, client_id, client_secret, bot_id } = req.body;
+        const { name, provider = 'dotgo', auth_url, api_base_url, client_id, client_secret, bot_id } = req.body;
 
         if (!name || !auth_url || !api_base_url || !client_id || !client_secret || !bot_id) {
             return res.status(400).json({ success: false, message: 'All fields are required' });
         }
 
         const [result] = await query(
-            'INSERT INTO rcs_configs (name, auth_url, api_base_url, client_id, client_secret, bot_id) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, auth_url, api_base_url, client_id, client_secret, bot_id]
+            'INSERT INTO rcs_configs (name, provider, auth_url, api_base_url, client_id, client_secret, bot_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, provider, auth_url, api_base_url, client_id, client_secret, bot_id]
         );
 
         res.status(201).json({
@@ -83,7 +83,7 @@ router.post('/', authenticate, isAdmin, async (req, res) => {
 router.put('/:id', authenticate, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, auth_url, api_base_url, client_id, client_secret, bot_id, is_active } = req.body;
+        const { name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, is_active } = req.body;
 
         const [existing] = await query('SELECT id FROM rcs_configs WHERE id = ?', [id]);
         if (existing.length === 0) {
@@ -92,11 +92,11 @@ router.put('/:id', authenticate, isAdmin, async (req, res) => {
 
         await query(
             `UPDATE rcs_configs SET 
-                name = ?, auth_url = ?, api_base_url = ?, 
+                name = ?, provider = ?, auth_url = ?, api_base_url = ?, 
                 client_id = ?, client_secret = ?, bot_id = ?, 
                 is_active = ? 
              WHERE id = ?`,
-            [name, auth_url, api_base_url, client_id, client_secret, bot_id, is_active === undefined ? true : is_active, id]
+            [name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, is_active === undefined ? true : is_active, id]
         );
 
         res.json({ success: true, message: 'RCS Configuration updated successfully' });
