@@ -36,51 +36,7 @@ import { useBranding } from '@/contexts/BrandingContext';
 // ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
 import logo from '@/assets/logo-full.png';
 
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard', permission: 'Dashboard - View' },
-  { icon: CreditCard, label: 'Plans', path: '/super-admin/plans', permission: 'Plans - View' },
-  { icon: Building2, label: 'Clients', path: '/super-admin/clients', permission: 'Clients - View' },
-  { 
-    icon: ScrollText, 
-    label: 'Reports Hub', 
-    path: '/super-admin/reports', 
-    permission: 'Reports - View',
-    subItems: [
-      { label: 'Today Report', path: '/super-admin/reports/today' },
-      { label: 'Queue Status', path: '/super-admin/reports/queue' },
-      { label: 'SMS Summary', path: '/super-admin/reports/sms' },
-      { label: 'WhatsApp Summary', path: '/super-admin/reports/whatsapp' },
-      { label: 'RCS Summary', path: '/super-admin/reports/rcs' },
-      { label: 'Detailed Report', path: '/super-admin/reports?tab=detailed' },
-      { label: 'API Report', path: '/super-admin/reports?tab=api' }
-    ]
-  },
-  
-  // User Features added for Resellers / Business Owners
-  { icon: FileText, label: 'Templates', path: '/templates', permission: 'Template - View' },
-  { icon: Send, label: 'Campaigns', path: '/campaigns', permission: 'Campaigns - View' },
-  { icon: MessageCircle, label: 'Chats', path: '/chats', permission: 'Chat - View' },
-  { icon: Smartphone, label: 'Channels', path: '/channels', permission: 'Channels - View' },
-  { icon: Globe, label: 'Social Media', path: '/social-media', permission: 'Channels - View' },
-  { icon: Users, label: 'Contacts', path: '/contacts', permission: 'Contacts - View' },
-  { icon: Rocket, label: 'Automations', path: '/automations', permission: 'Automations - View' },
-
-  { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
-  { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
-  { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
-  { icon: FileText, label: 'Usage Ledger', path: '/super-admin/ledger', permission: 'Usage Ledger - View' },
-  { icon: Rocket, label: 'System Engine', path: '/super-admin/engine', permission: 'System Engine - View' },
-  { icon: Zap, label: 'Development Efficiency', path: '/super-admin/dev-progress', permission: 'System Engine - View' },
-  { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
-  { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
-  { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'RCS Configs - View' },
-  { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'WhatsApp Configs - View' },
-  { icon: Send, label: 'SMS Gateways', path: '/super-admin/sms-gateways', permission: 'SMS Gateways - View' },
-  { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
-  { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
-  { icon: LifeBuoy, label: 'Support Tickets', path: '/super-admin/support', permission: 'Dashboard - View' },
-  { icon: Settings, label: 'Settings', path: '/settings', permission: 'Settings - View' },
-];
+// Removed static menuItems to move inside component for dynamic access to user state
 
 interface SuperAdminSidebarProps {
   onClose?: () => void;
@@ -92,6 +48,52 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
   const [reportsOpen, setReportsOpen] = useState(location.pathname.startsWith('/super-admin/reports'));
   const { logout, user } = useAuth();
   const { settings } = useBranding();
+
+  const menuItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard', permission: 'Dashboard - View' },
+    { icon: CreditCard, label: 'Plans', path: '/super-admin/plans', permission: 'Plans - View' },
+    { icon: Building2, label: 'Clients', path: '/super-admin/clients', permission: 'Clients - View' },
+    { 
+      icon: ScrollText, 
+      label: 'Reports Hub', 
+      path: '/super-admin/reports', 
+      permission: 'Reports - View',
+      subItems: [
+        { label: 'Today Report', path: '/super-admin/reports/today' },
+        { label: 'Queue Status', path: '/super-admin/reports/queue' },
+        { label: 'SMS Summary', path: '/super-admin/reports/sms' },
+        { label: 'WhatsApp Summary', path: '/super-admin/reports/whatsapp' },
+        { label: 'RCS Summary', path: '/super-admin/reports/rcs' },
+        { label: 'Detailed Report', path: '/super-admin/reports?tab=detailed' },
+        { label: 'API Report', path: '/super-admin/reports?tab=api' }
+      ]
+    },
+    
+    // User Features added for Resellers / Business Owners
+    { icon: FileText, label: 'Templates', path: '/templates', permission: 'Template - View' },
+    { icon: Send, label: 'Campaigns', path: '/campaigns', permission: 'Campaigns - View' },
+    { icon: MessageCircle, label: 'Chats', path: '/chats', permission: 'Chat - View' },
+    { icon: Smartphone, label: 'Channels', path: '/channels', permission: 'Channels - View', show: Boolean(Number(user?.is_proero_enabled)) },
+    { icon: Globe, label: 'Social Media', path: '/social-media', permission: 'Channels - View', show: Boolean(Number(user?.is_smm_enabled)) },
+    { icon: Users, label: 'Contacts', path: '/contacts', permission: 'Contacts - View' },
+    { icon: Rocket, label: 'Automations', path: '/automations', permission: 'Automations - View' },
+  
+    { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
+    { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
+    { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
+    { icon: FileText, label: 'Usage Ledger', path: '/super-admin/ledger', permission: 'Usage Ledger - View' },
+    { icon: Rocket, label: 'System Engine', path: '/super-admin/engine', permission: 'System Engine - View' },
+    { icon: Zap, label: 'Development Efficiency', path: '/super-admin/dev-progress', permission: 'System Engine - View' },
+    { icon: Shield, label: 'Roles & Permissions', path: '/super-admin/roles', permission: 'Roles - View' },
+    { icon: Building2, label: 'Vendors', path: '/super-admin/vendors', permission: 'Vendors - View' },
+    { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'RCS Configs - View' },
+    { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'WhatsApp Configs - View' },
+    { icon: Send, label: 'SMS Gateways', path: '/super-admin/sms-gateways', permission: 'SMS Gateways - View' },
+    { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
+    { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
+    { icon: LifeBuoy, label: 'Support Tickets', path: '/super-admin/support', permission: 'Dashboard - View' },
+    { icon: Settings, label: 'Settings', path: '/settings', permission: 'Settings - View' },
+  ];
 
   const hasPermission = (feature: string) => {
     // Platform admins always have full access
@@ -152,6 +154,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       <nav className="flex-1 py-4 overflow-y-auto" onClick={onClose}>
         <ul className="space-y-1 px-2">
           {menuItems.map((item: any) => {
+            if (item.show === false) return null;
             if (!hasPermission(item.permission)) return null;
 
             const isActive = location.pathname === item.path || (item.subItems && item.subItems.some((si: any) => location.pathname + location.search === si.path));
