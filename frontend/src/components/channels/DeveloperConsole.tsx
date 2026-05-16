@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
+import api from '../../config/axios';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -32,13 +33,13 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     setLogs(prev => [{ type, text: stringText, time }, ...prev].slice(0, 50));
   };
 
-  const BASE_URL = 'https://wa.notifynow.in';
+  const PROXY_BASE = '/api/proero/proxy';
 
   const handleConnect = async () => {
     try {
       setIsLoading(true);
       addLog('req', `POST /api/whatsapp/connect - ${JSON.stringify({ sessionName })}`);
-      const response = await axios.post(`${BASE_URL}/api/whatsapp/connect`, { sessionName });
+      const response = await api.post(`${PROXY_BASE}/api/whatsapp/connect`, { sessionName });
       addLog('res', response.data);
       
       // Look for QR data in various possible fields
@@ -63,7 +64,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     try {
       setIsLoading(true);
       addLog('req', `GET /api/whatsapp/sessions`);
-      const response = await axios.get(`${BASE_URL}/api/whatsapp/sessions`);
+      const response = await api.get(`${PROXY_BASE}/api/whatsapp/sessions`);
       addLog('res', response.data);
     } catch (err: any) {
       addLog('err', err.response?.data || err.message);
@@ -82,7 +83,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
         contacts: contactList
       };
       addLog('req', `POST /api/campaign/add-contacts - ${JSON.stringify(payload)}`);
-      const response = await axios.post(`${BASE_URL}/api/campaign/add-contacts`, payload);
+      const response = await api.post(`${PROXY_BASE}/api/campaign/add-contacts`, payload);
       addLog('res', response.data);
       toast.success("Contacts added successfully");
     } catch (err: any) {
@@ -98,7 +99,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       setIsLoading(true);
       const payload = { messageTemplate };
       addLog('req', `POST /api/campaign/start/${campaignId} - ${JSON.stringify(payload)}`);
-      const response = await axios.post(`${BASE_URL}/api/campaign/start/${campaignId}`, payload);
+      const response = await api.post(`${PROXY_BASE}/api/campaign/start/${campaignId}`, payload);
       addLog('res', response.data);
       toast.success("Campaign started");
     } catch (err: any) {
@@ -113,7 +114,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     try {
       setIsLoading(true);
       addLog('req', `GET /api/campaign/${statusCampaignId}/status`);
-      const response = await axios.get(`${BASE_URL}/api/campaign/${statusCampaignId}/status`);
+      const response = await api.get(`${PROXY_BASE}/api/campaign/${statusCampaignId}/status`);
       addLog('res', response.data);
     } catch (err: any) {
       addLog('err', err.response?.data || err.message);

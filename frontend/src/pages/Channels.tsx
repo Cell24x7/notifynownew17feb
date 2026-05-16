@@ -187,7 +187,8 @@ export default function Channels() {
     try {
       setIsFetchingQR(true);
       const sessionName = targetChannel.name?.replace(/\s+/g, '_').toLowerCase() || `session_${targetChannel.id}`;
-      const response = await axios.post('https://wa.notifynow.in/api/whatsapp/connect', { sessionName });
+      // Use Backend Proxy to bypass CORS
+      const response = await api.post('/api/proero/proxy/api/whatsapp/connect', { sessionName });
       
       const qrData = response.data.qr || response.data.data?.qr;
       if (qrData) {

@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
+const axios = require('axios');
+
+const EXTERNAL_BASE_URL = 'https://wa.notifynow.in';
 
 /**
  * @route   GET /api/proero/channels
@@ -75,6 +78,34 @@ router.delete('/channels/:id', authenticateToken, async (req, res) => {
     } catch (err) {
         console.error('DELETE PROERO CHANNEL ERROR:', err.message);
         res.status(500).json({ success: false, message: 'Failed to delete channel' });
+    }
+});
+
+/**
+ * @route   ANY /api/proero/proxy/*
+ * @desc    Proxy requests to Unofficial WhatsApp API to bypass CORS
+ * @access  Private
+ */
+router.all('/proxy/*', authenticateToken, async (req, res) => {
+    const path = req.params[0] || req.path.replace('/proxy/', '');
+    const method = req.method;
+    const url = `${EXTERNAL_BASE_URL}/${path}`;
+    
+    try {
+        const response = await axios({
+            method,
+            url,
+            data: req.body,
+            params: req.query,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        res.json(response.data);
+    } catch (err) {
+        console.error(`PROXY ERROR (${method} ${url}):`, err.response?.data || err.message);
+        res.status(err.response?.status || 500).json(err.response?.data || { success: false, message: 'Proxy request failed' });
     }
 });
 
