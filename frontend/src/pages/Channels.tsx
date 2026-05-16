@@ -19,8 +19,11 @@ import {
   ShieldCheck,
   History,
   Terminal,
-  FileText
+  FileText,
+  Activity,
+  Code
 } from 'lucide-react';
+import DeveloperConsole from '../components/channels/DeveloperConsole';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -407,6 +410,9 @@ export default function Channels() {
                 <TabsList className="bg-muted h-10">
                   <TabsTrigger value="qr" className="font-bold">QR Code</TabsTrigger>
                   <TabsTrigger value="overview" className="font-bold">Overview</TabsTrigger>
+                  {activeChannel?.provider === 'Proero' && (
+                    <TabsTrigger value="developer" className="font-bold">Developer</TabsTrigger>
+                  )}
                   <TabsTrigger value="settings" className="font-bold">Settings</TabsTrigger>
                 </TabsList>
               </div>
@@ -441,6 +447,10 @@ export default function Channels() {
                       <p className="text-lg font-bold">{activeChannel?.provider}</p>
                     </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="developer" className="m-0">
+                  <DeveloperConsole channel={activeChannel} />
                 </TabsContent>
               </div>
             </Tabs>
