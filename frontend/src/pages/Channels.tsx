@@ -410,7 +410,7 @@ export default function Channels() {
                 <TabsList className="bg-muted h-10">
                   <TabsTrigger value="qr" className="font-bold">QR Code</TabsTrigger>
                   <TabsTrigger value="overview" className="font-bold">Overview</TabsTrigger>
-                  {activeChannel?.provider === 'Proero' && (
+                  {(activeChannel?.provider === 'Proero' || activeChannel?.provider === 'WAConnect') && (
                     <TabsTrigger value="developer" className="font-bold">Developer</TabsTrigger>
                   )}
                   <TabsTrigger value="settings" className="font-bold">Settings</TabsTrigger>
