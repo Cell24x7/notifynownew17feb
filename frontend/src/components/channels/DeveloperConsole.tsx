@@ -16,7 +16,7 @@ interface DeveloperConsoleProps {
 }
 
 export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
-  const [sessionName, setSessionName] = useState('session1');
+  const [sessionName, setSessionName] = useState(`session${channel.id || 1}`);
   const [campaignId, setCampaignId] = useState('1');
   const [userId, setUserId] = useState('1');
   const [contacts, setContacts] = useState('9876543210, 9876543211');

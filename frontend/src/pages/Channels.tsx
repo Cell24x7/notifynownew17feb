@@ -186,7 +186,8 @@ export default function Channels() {
     if (!targetChannel) return;
     try {
       setIsFetchingQR(true);
-      const sessionName = targetChannel.name?.replace(/\s+/g, '_').toLowerCase() || `session_${targetChannel.id}`;
+      // API requires format like 'session1', 'session2'
+      const sessionName = `session${targetChannel.id}`;
       // Use Backend Proxy to bypass CORS
       const response = await api.post('/api/proero/proxy/api/whatsapp/connect', { sessionName });
       
