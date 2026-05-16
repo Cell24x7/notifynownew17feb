@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Play, Send, Users, Activity, RefreshCw, Trash2, Globe } from 'lucide-react';
+import { Terminal, Play, Send, Users, Activity, RefreshCw, Trash2, Globe, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   
   const [logs, setLogs] = useState<{ type: 'req' | 'res' | 'err', text: string, time: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
 
   const addLog = (type: 'req' | 'res' | 'err', text: any) => {
     const time = new Date().toLocaleTimeString();
@@ -39,7 +40,17 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       addLog('req', `POST /api/whatsapp/connect - ${JSON.stringify({ sessionName })}`);
       const response = await axios.post(`${BASE_URL}/api/whatsapp/connect`, { sessionName });
       addLog('res', response.data);
-      toast.success("Connection request sent");
+      
+      // Look for QR data in various possible fields
+      if (response.data.qr) {
+        setQrCode(response.data.qr);
+        toast.success("QR Code received! Scan now.");
+      } else if (response.data.data?.qr) {
+        setQrCode(response.data.data.qr);
+        toast.success("QR Code received! Scan now.");
+      } else {
+        toast.success("Connection request sent");
+      }
     } catch (err: any) {
       addLog('err', err.response?.data || err.message);
       toast.error("Failed to connect");
@@ -144,6 +155,34 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
             </CardContent>
           </Card>
         </div>
+
+        {/* QR Code Display Section */}
+        {qrCode && (
+          <div className="space-y-4 animate-in zoom-in-95 duration-500">
+             <div className="flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-wider text-xs">
+              <QrCode className="w-4 h-4" />
+              Scan QR to Connect
+            </div>
+            <Card className="bg-white border-2 border-emerald-500/20 shadow-xl overflow-hidden">
+              <CardContent className="p-6 flex flex-col items-center gap-4">
+                <div className="bg-white p-2 rounded-lg shadow-inner border">
+                  <img 
+                    src={qrCode.startsWith('http') || qrCode.startsWith('data:') ? qrCode : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCode)}`} 
+                    alt="WhatsApp QR Code"
+                    className="w-48 h-48 object-contain"
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-emerald-700">Scan this code with WhatsApp</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Session: {sessionName}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setQrCode(null)} className="h-8 text-[10px] font-bold">
+                  Clear QR
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-wider text-xs">
