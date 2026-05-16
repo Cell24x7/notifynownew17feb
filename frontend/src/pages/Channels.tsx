@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../config/axios';
+import axios from 'axios';
 import { 
   Smartphone, 
   Plus, 
@@ -91,6 +92,8 @@ export default function Channels() {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [activeChannel, setActiveChannel] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [realQRCode, setRealQRCode] = useState<string | null>(null);
+  const [isFetchingQR, setIsFetchingQR] = useState(false);
 
   useEffect(() => {
     fetchChannels();
@@ -169,6 +172,36 @@ export default function Channels() {
   const handleViewQR = (channel: any) => {
     setActiveChannel(channel);
     setIsQRModalOpen(true);
+    setRealQRCode(null); // Reset when opening
+    // Trigger auto-fetch after state update
+    setTimeout(() => {
+      if (channel.provider === 'Proero' || channel.provider === 'WAConnect') {
+         fetchRealQR(channel);
+      }
+    }, 100);
+  };
+
+  const fetchRealQR = async (channelOverride?: any) => {
+    const targetChannel = channelOverride || activeChannel;
+    if (!targetChannel) return;
+    try {
+      setIsFetchingQR(true);
+      const sessionName = targetChannel.name?.replace(/\s+/g, '_').toLowerCase() || `session_${targetChannel.id}`;
+      const response = await axios.post('https://wa.notifynow.in/api/whatsapp/connect', { sessionName });
+      
+      const qrData = response.data.qr || response.data.data?.qr;
+      if (qrData) {
+        setRealQRCode(qrData);
+        toast.success("Real QR Code loaded!");
+      } else {
+        toast.error("Failed to get QR from API");
+      }
+    } catch (err) {
+      console.error('Fetch Real QR error:', err);
+      toast.error("Failed to connect to WhatsApp API");
+    } finally {
+      setIsFetchingQR(false);
+    }
   };
 
   return (
@@ -419,21 +452,36 @@ export default function Channels() {
 
               <div className="p-8">
                 <TabsContent value="qr" className="m-0 flex flex-col items-center space-y-6">
-                  <div className="p-4 bg-white border rounded-xl shadow-inner">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=PROERO_${activeChannel?.id}`} 
-                      alt="QR Code" 
-                      className="w-60 h-60 object-contain"
-                    />
+                  <div className="p-4 bg-white border-2 border-primary/20 rounded-2xl shadow-xl transition-all hover:scale-[1.02]">
+                    {realQRCode ? (
+                      <img 
+                        src={realQRCode.startsWith('data:') ? realQRCode : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(realQRCode)}`} 
+                        alt="Real QR Code" 
+                        className="w-64 h-64 object-contain"
+                      />
+                    ) : (
+                      <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted/50 rounded-xl gap-4">
+                        <QrCode className="w-16 h-16 text-muted-foreground/30" />
+                        <p className="text-xs text-muted-foreground font-bold px-4 text-center">Click below to fetch the real WhatsApp scanner</p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-4 w-full">
-                    <Button className="flex-1 font-bold h-11">
-                      <QrCode className="w-4 h-4 mr-2" /> View QR
+                    <Button 
+                      className="flex-1 font-bold h-11 gradient-primary" 
+                      onClick={fetchRealQR}
+                      disabled={isFetchingQR}
+                    >
+                      {isFetchingQR ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <QrCode className="w-4 h-4 mr-2" />}
+                      {realQRCode ? 'Refresh QR' : 'Fetch Real QR'}
                     </Button>
-                    <Button variant="outline" className="flex-1 font-bold h-11">
+                    <Button variant="outline" className="flex-1 font-bold h-11" disabled={!realQRCode}>
                       <Download className="w-4 h-4 mr-2" /> Download
                     </Button>
                   </div>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest italic">
+                    * This scanner connects your device to the unofficial route
+                  </p>
                 </TabsContent>
 
                 <TabsContent value="overview" className="m-0 space-y-4">
