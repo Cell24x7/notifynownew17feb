@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
-import { Terminal, Play, Send, Users, Activity, RefreshCw, Trash2, Globe, QrCode } from 'lucide-react';
+import { 
+  Terminal, 
+  Play, 
+  Send, 
+  Users, 
+  Activity, 
+  RefreshCw, 
+  Trash2, 
+  Globe, 
+  QrCode,
+  Code2,
+  Database,
+  Cpu,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import axios from 'axios';
 import api from '../../config/axios';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -42,12 +56,9 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       const response = await api.post(`${PROXY_BASE}/api/whatsapp/connect`, { sessionName });
       addLog('res', response.data);
       
-      // Look for QR data in various possible fields
-      if (response.data.qr) {
-        setQrCode(response.data.qr);
-        toast.success("QR Code received! Scan now.");
-      } else if (response.data.data?.qr) {
-        setQrCode(response.data.data.qr);
+      const qrData = response.data.qr || response.data.data?.qr;
+      if (qrData) {
+        setQrCode(qrData);
         toast.success("QR Code received! Scan now.");
       } else {
         toast.success("Connection request sent");
@@ -126,178 +137,235 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const clearLogs = () => setLogs([]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[600px] overflow-y-auto pr-2 no-scrollbar">
-      {/* Left Side: Controls */}
-      <div className="space-y-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-wider text-xs">
-            <Globe className="w-4 h-4" />
-            Session Management
-          </div>
-          <Card className="bg-muted/30 border-none">
-            <CardContent className="p-4 space-y-4">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 p-1 max-h-[75vh] overflow-y-auto no-scrollbar">
+      {/* Left Column: API Controls */}
+      <div className="xl:col-span-7 space-y-6">
+        
+        {/* Connection Management Card */}
+        <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm overflow-hidden border border-border/50">
+          <CardHeader className="pb-3 space-y-1">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                  <Globe className="w-5 h-5" />
+                </div>
+                Session Control
+              </CardTitle>
+              <Badge variant="secondary" className="font-mono text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                WHATSAPP-API-V2
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase">Session Name</Label>
-                <div className="flex gap-2">
+                <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Session Identifier</Label>
+                <div className="relative group">
+                  <Cpu className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-emerald-500" />
                   <Input 
                     value={sessionName} 
                     onChange={e => setSessionName(e.target.value)} 
+                    className="pl-10 h-11 bg-background/50 focus:border-emerald-500/50"
                     placeholder="session1"
-                    className="h-10 bg-background"
                   />
-                  <Button onClick={handleConnect} disabled={isLoading} className="bg-emerald-600 hover:bg-emerald-700">
-                    <Send className="w-4 h-4 mr-2" /> Connect
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <Button 
+                  onClick={handleConnect} 
+                  disabled={isLoading} 
+                  className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
+                >
+                  <Send className="w-4 h-4 mr-2" /> Connect
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleGetSessions} 
+                  disabled={isLoading} 
+                  className="h-11 border-2 font-bold px-4 hover:bg-emerald-50"
+                >
+                  <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+                </Button>
+              </div>
+            </div>
+
+            {/* QR Result Box */}
+            {qrCode && (
+              <div className="mt-4 p-4 rounded-xl border-2 border-dashed border-emerald-500/30 bg-emerald-500/5 flex flex-col md:flex-row items-center gap-6 animate-in slide-in-from-top-4 duration-500">
+                <div className="p-3 bg-white rounded-2xl shadow-xl border border-emerald-100 relative group">
+                  <img 
+                    src={qrCode.startsWith('data:') ? qrCode : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCode)}`} 
+                    className="w-32 h-32 object-contain"
+                    alt="WhatsApp QR"
+                  />
+                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+                    <Badge className="bg-emerald-600 text-white border-none shadow-lg">LIVE QR</Badge>
+                  </div>
+                </div>
+                <div className="flex-1 text-center md:text-left space-y-2">
+                  <h4 className="font-bold text-emerald-800 flex items-center gap-2 justify-center md:justify-start">
+                    <CheckCircle2 className="w-4 h-4" /> Ready to Scan
+                  </h4>
+                  <p className="text-xs text-emerald-700/70 leading-relaxed font-medium">
+                    Open WhatsApp on your phone → Linked Devices → Link a Device. Scan this code to establish connection.
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={() => setQrCode(null)} className="h-7 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100">
+                    <Trash2 className="w-3 h-3 mr-1" /> DISCARD QR
                   </Button>
                 </div>
               </div>
-              <Button variant="outline" onClick={handleGetSessions} disabled={isLoading} className="w-full h-10 border-2">
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> List Sessions
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* QR Code Display Section */}
-        {qrCode && (
-          <div className="space-y-4 animate-in zoom-in-95 duration-500">
-             <div className="flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-wider text-xs">
-              <QrCode className="w-4 h-4" />
-              Scan QR to Connect
+        {/* Campaign Automation Card */}
+        <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600">
+                <Activity className="w-5 h-5" />
+              </div>
+              Automation Suite
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-bold uppercase text-muted-foreground">Campaign Index</Label>
+                <div className="relative">
+                  <Code2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input value={campaignId} onChange={e => setCampaignId(e.target.value)} className="pl-10 h-10" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[11px] font-bold uppercase text-muted-foreground">User Context</Label>
+                <div className="relative">
+                  <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input value={userId} onChange={e => setUserId(e.target.value)} className="pl-10 h-10" />
+                </div>
+              </div>
             </div>
-            <Card className="bg-white border-2 border-emerald-500/20 shadow-xl overflow-hidden">
-              <CardContent className="p-6 flex flex-col items-center gap-4">
-                <div className="bg-white p-2 rounded-lg shadow-inner border">
-                  <img 
-                    src={qrCode.startsWith('http') || qrCode.startsWith('data:') ? qrCode : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCode)}`} 
-                    alt="WhatsApp QR Code"
-                    className="w-48 h-48 object-contain"
-                  />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-emerald-700">Scan this code with WhatsApp</p>
-                  <p className="text-[10px] text-muted-foreground uppercase">Session: {sessionName}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setQrCode(null)} className="h-8 text-[10px] font-bold">
-                  Clear QR
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-wider text-xs">
-            <Activity className="w-4 h-4" />
-            Campaign Automation
-          </div>
-          <Card className="bg-muted/30 border-none">
-            <CardContent className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase">Campaign ID</Label>
-                  <Input value={campaignId} onChange={e => setCampaignId(e.target.value)} className="h-9" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase">User ID</Label>
-                  <Input value={userId} onChange={e => setUserId(e.target.value)} className="h-9" />
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase">Contacts (CSV)</Label>
-                <Textarea 
-                  value={contacts} 
-                  onChange={e => setContacts(e.target.value)} 
-                  className="min-h-[60px] text-xs font-mono"
-                  placeholder="9876543210, 9876543211"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-bold uppercase text-muted-foreground flex items-center justify-between">
+                Recipients (Comma Separated)
+                <Badge variant="outline" className="text-[9px] font-bold">{contacts.split(',').filter(c => c.trim()).length} CONTACTS</Badge>
+              </Label>
+              <Textarea 
+                value={contacts} 
+                onChange={e => setContacts(e.target.value)} 
+                className="min-h-[80px] font-mono text-xs bg-background/30 resize-none"
+                placeholder="91xxxxxxxxxx, 91xxxxxxxxxx"
+              />
+            </div>
 
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase">Message Template</Label>
-                <Input value={messageTemplate} onChange={e => setMessageTemplate(e.target.value)} className="h-10" />
-              </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-bold uppercase text-muted-foreground">Message Template</Label>
+              <Input 
+                value={messageTemplate} 
+                onChange={e => setMessageTemplate(e.target.value)} 
+                className="h-10 bg-background/30"
+                placeholder="Type your test message here..."
+              />
+            </div>
 
-              <div className="flex gap-3">
-                <Button onClick={handleAddContacts} disabled={isLoading} variant="secondary" className="flex-1 font-bold">
-                  <Users className="w-4 h-4 mr-2" /> Add Contacts
-                </Button>
-                <Button onClick={handleStartCampaign} disabled={isLoading} className="flex-1 font-bold gradient-primary">
-                  <Play className="w-4 h-4 mr-2" /> Start Campaign
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Button onClick={handleAddContacts} disabled={isLoading} variant="secondary" className="h-11 font-bold">
+                <Users className="w-4 h-4 mr-2" /> Stage Contacts
+              </Button>
+              <Button onClick={handleStartCampaign} disabled={isLoading} className="h-11 font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+                <Play className="w-4 h-4 mr-2" /> Launch Test
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-wider text-xs">
-            <Terminal className="w-4 h-4" />
-            Status Check
-          </div>
-          <Card className="bg-muted/30 border-none">
-            <CardContent className="p-4 flex gap-2">
+        {/* Status Monitoring Card */}
+        <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm border border-border/50">
+          <CardContent className="p-4 flex flex-col md:flex-row items-center gap-4">
+            <div className="flex-1 w-full">
+              <Label className="text-[11px] font-bold uppercase text-muted-foreground mb-1 block">Live Status Check</Label>
               <Input 
                 value={statusCampaignId} 
                 onChange={e => setStatusCampaignId(e.target.value)} 
-                placeholder="CAMP123456"
-                className="h-10 bg-background"
+                placeholder="CAMP-xxxxxx"
+                className="h-10"
               />
-              <Button variant="outline" onClick={handleGetStatus} disabled={isLoading} className="border-2 font-bold whitespace-nowrap">
-                Check Status
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <Button variant="outline" onClick={handleGetStatus} disabled={isLoading} className="h-10 mt-5 w-full md:w-auto font-bold px-6 border-2">
+              Verify Processing
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Right Side: Log Console */}
-      <div className="flex flex-col h-full min-h-[400px]">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2 text-muted-foreground font-bold uppercase tracking-wider text-xs">
-            <Terminal className="w-4 h-4" />
-            Real-time Console Output
+      {/* Right Column: Console Output */}
+      <div className="xl:col-span-5 flex flex-col h-full min-h-[500px]">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+             <div className="p-1.5 rounded bg-zinc-800 text-zinc-400">
+               <Terminal className="w-4 h-4" />
+             </div>
+             <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Live Traffic Logs</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={clearLogs} className="h-7 text-xs hover:bg-red-50 hover:text-red-600 font-bold">
-            <Trash2 className="w-3 h-3 mr-1" /> Clear
+          <Button variant="ghost" size="sm" onClick={clearLogs} className="h-8 text-[10px] font-bold hover:bg-red-50 hover:text-red-600 transition-colors">
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" /> PURGE LOGS
           </Button>
         </div>
-        <div className="flex-1 bg-[#1e1e1e] rounded-xl p-4 font-mono text-[11px] overflow-y-auto border-2 border-primary/20 shadow-inner no-scrollbar">
+
+        <div className="flex-1 bg-[#0d0d0d] rounded-2xl border border-white/5 p-4 font-mono text-[12px] overflow-y-auto shadow-2xl relative group">
+          {/* Subtle Scanline Overlay */}
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-white/[0.02] to-transparent bg-[length:100%_4px]" />
+          
           {logs.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-2">
-              <Terminal className="w-8 h-8 opacity-20" />
-              <p>Execute an action to see logs...</p>
+            <div className="h-full flex flex-col items-center justify-center text-zinc-700 gap-4 opacity-50">
+              <Code2 className="w-12 h-12 stroke-[1px]" />
+              <div className="text-center">
+                <p className="font-bold text-xs uppercase tracking-widest mb-1">Waiting for Signal...</p>
+                <p className="text-[10px]">Execute any API command to begin monitoring</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4 relative z-10">
               {logs.map((log, i) => (
                 <div key={i} className="animate-in slide-in-from-left-2 duration-300">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-zinc-500">[{log.time}]</span>
-                    <Badge 
-                      className={cn(
-                        "text-[9px] px-1 py-0 border-none h-4",
-                        log.type === 'req' ? "bg-blue-500/20 text-blue-400" : 
-                        log.type === 'res' ? "bg-emerald-500/20 text-emerald-400" : 
-                        "bg-red-500/20 text-red-400"
-                      )}
-                    >
-                      {log.type.toUpperCase()}
-                    </Badge>
+                  <div className="flex items-center gap-3 mb-2 opacity-80">
+                    <span className="text-[10px] text-zinc-600 tabular-nums">[{log.time}]</span>
+                    <div className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      log.type === 'req' ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" : 
+                      log.type === 'res' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 
+                      "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                    )} />
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-tighter",
+                      log.type === 'req' ? "text-blue-400" : log.type === 'res' ? "text-emerald-400" : "text-red-400"
+                    )}>
+                      {log.type === 'req' ? 'Outbound' : log.type === 'res' ? 'Inbound' : 'Exception'}
+                    </span>
                   </div>
-                  <pre className={cn(
-                    "whitespace-pre-wrap break-all p-2 rounded bg-black/20",
-                    log.type === 'err' ? "text-red-300" : log.type === 'res' ? "text-emerald-300" : "text-blue-200"
+                  <div className={cn(
+                    "p-3 rounded-lg border-l-2 font-mono text-[11px] leading-relaxed",
+                    log.type === 'req' ? "bg-blue-500/5 border-blue-500/50 text-blue-100/90" : 
+                    log.type === 'res' ? "bg-emerald-500/5 border-emerald-500/50 text-emerald-100/90" : 
+                    "bg-red-500/5 border-red-500/50 text-red-100/90"
                   )}>
-                    {log.text}
-                  </pre>
+                    <pre className="whitespace-pre-wrap break-all">{log.text}</pre>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+        
+        <div className="mt-3 flex items-center justify-between px-2 opacity-50">
+          <div className="flex gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[9px] font-bold uppercase tracking-widest">System Operational</span>
+          </div>
+          <span className="text-[9px] font-mono">V1.0.4-STABLE</span>
+        </div>
       </div>
     </div>
   );
 }
-

@@ -433,7 +433,7 @@ export default function Channels() {
 
       {/* QR Management Modal (Simple) */}
       <Dialog open={isQRModalOpen} onOpenChange={setIsQRModalOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border shadow-2xl rounded-xl">
+        <DialogContent className="sm:max-w-[1000px] p-0 overflow-hidden border shadow-2xl rounded-xl">
           <div className="bg-background">
             <div className="p-6 border-b flex items-center justify-between">
               <h2 className="text-xl font-bold">{activeChannel?.name || 'Channel Settings'}</h2>
