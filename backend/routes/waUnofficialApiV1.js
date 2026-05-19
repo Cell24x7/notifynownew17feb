@@ -419,7 +419,15 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
         }
 
         // 3. Generate campaign ID and trigger Baileys campaign flow
-        const finalCampaignId = customCampaignId || `api_wa_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        // The Baileys server requires campaign_id to be a number.
+        let finalCampaignId;
+        if (customCampaignId && !isNaN(customCampaignId)) {
+            finalCampaignId = Number(customCampaignId);
+        } else {
+            // Generate a numeric campaign ID using timestamp plus a random digit
+            finalCampaignId = Date.now() * 10 + Math.floor(Math.random() * 10);
+        }
+        
         const campaignName = customCampaignId ? `API Bulk Campaign: ${customCampaignId}` : `API Direct Dispatch ${finalCampaignId}`;
 
         // Step A: Stage Contacts
