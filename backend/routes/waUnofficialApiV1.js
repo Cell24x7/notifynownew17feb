@@ -419,13 +419,18 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
         }
 
         // 3. Generate campaign ID and trigger Baileys campaign flow
-        // The Baileys server requires campaign_id to be a number.
+        // The Baileys server requires campaign_id to be a number within 32-bit INT range (max 2147483647).
         let finalCampaignId;
         if (customCampaignId && !isNaN(customCampaignId)) {
-            finalCampaignId = Number(customCampaignId);
+            const parsed = Number(customCampaignId);
+            if (parsed > 0 && parsed <= 2147483647) {
+                finalCampaignId = parsed;
+            } else {
+                finalCampaignId = Math.floor(Math.random() * 2000000000) + 1;
+            }
         } else {
-            // Generate a numeric campaign ID using timestamp plus a random digit
-            finalCampaignId = Date.now() * 10 + Math.floor(Math.random() * 10);
+            // Generate a random integer within standard 32-bit INT limits (1 to 2,000,000,000)
+            finalCampaignId = Math.floor(Math.random() * 2000000000) + 1;
         }
         
         const campaignName = customCampaignId ? `API Bulk Campaign: ${customCampaignId}` : `API Direct Dispatch ${finalCampaignId}`;
