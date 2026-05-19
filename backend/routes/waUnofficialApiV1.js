@@ -515,4 +515,32 @@ router.get('/campaigns/:campaignId/status', authenticateDeveloper, async (req, r
     }
 });
 
+/**
+ * @route   GET /api/wa-unofficial-v1/campaigns/:campaignId/logs
+ * @desc    Get detailed recipient logs for an API initiated WhatsApp campaign
+ * @access  Private (Developer)
+ */
+router.get('/campaigns/:campaignId/logs', authenticateDeveloper, async (req, res) => {
+    const campaignId = req.params.campaignId;
+
+    try {
+        const [logs] = await query(
+            'SELECT id, recipient, status, message_content, send_time, delivery_time FROM api_message_logs WHERE user_id = ? AND campaign_id = ? ORDER BY id DESC',
+            [req.user.id, campaignId]
+        );
+        res.json({
+            success: true,
+            campaignId,
+            total: logs.length,
+            logs
+        });
+    } catch (err) {
+        console.error('Get Campaign Logs API Error:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch campaign logs: ' + err.message 
+        });
+    }
+});
+
 module.exports = router;
