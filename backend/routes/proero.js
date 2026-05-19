@@ -82,6 +82,107 @@ router.delete('/channels/:id', authenticateToken, async (req, res) => {
 });
 
 /**
+ * @route   POST /api/proero/channels/:id/sync
+ * @desc    Sync status of a Proero channel by querying the WhatsApp sessions API
+ * @access  Private
+ */
+router.post('/channels/:id/sync', authenticateToken, async (req, res) => {
+    const channelId = req.params.id;
+    const sessionName = `session${channelId}`;
+    
+    try {
+        // Get channel from DB
+        const [channels] = await query(
+            'SELECT id, phone_number, status FROM whatsapp_proero_channels WHERE id = ? AND user_id = ?',
+            [channelId, req.user.id]
+        );
+        
+        if (channels.length === 0) {
+            return res.status(404).json({ success: false, message: 'Channel not found or unauthorized' });
+        }
+        
+        // Query sessions from wa.notifynow.in
+        const response = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`);
+        const sessions = response.data.sessions || response.data.data?.sessions || response.data || [];
+        
+        let isConnected = false;
+        let phoneNumber = channels[0].phone_number;
+        
+        if (Array.isArray(sessions)) {
+            const session = sessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
+            if (session) {
+                isConnected = session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
+                phoneNumber = session.phone || session.number || session.wid || phoneNumber;
+            }
+        } else if (typeof sessions === 'object') {
+            const session = sessions[sessionName];
+            if (session) {
+                isConnected = session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
+                phoneNumber = session.phone || session.number || session.wid || phoneNumber;
+            }
+        }
+        
+        const newStatus = isConnected ? 'connected' : 'disconnected';
+        
+        // Update DB
+        await query(
+            'UPDATE whatsapp_proero_channels SET status = ?, phone_number = ? WHERE id = ?',
+            [newStatus, phoneNumber, channelId]
+        );
+        
+        res.json({
+            success: true,
+            status: newStatus,
+            phone_number: phoneNumber,
+            message: `Channel synced. Status: ${newStatus}`
+        });
+    } catch (err) {
+        console.error('SYNC PROERO CHANNEL ERROR:', err.message);
+        res.status(500).json({ success: false, message: 'Failed to sync channel status' });
+    }
+});
+
+/**
+ * @route   POST /api/proero/channels/:id/disconnect
+ * @desc    Disconnect/Logout a Proero channel session
+ * @access  Private
+ */
+router.post('/channels/:id/disconnect', authenticateToken, async (req, res) => {
+    const channelId = req.params.id;
+    const sessionName = `session${channelId}`;
+    
+    try {
+        // Verify channel ownership
+        const [channels] = await query(
+            'SELECT id FROM whatsapp_proero_channels WHERE id = ? AND user_id = ?',
+            [channelId, req.user.id]
+        );
+        
+        if (channels.length === 0) {
+            return res.status(404).json({ success: false, message: 'Channel not found or unauthorized' });
+        }
+        
+        // Call logout API
+        try {
+            await axios.post(`${EXTERNAL_BASE_URL}/api/whatsapp/logout`, { sessionName });
+        } catch (logoutErr) {
+            console.warn('Logout API call failed, proceeding with DB update:', logoutErr.message);
+        }
+        
+        // Update DB
+        await query(
+            'UPDATE whatsapp_proero_channels SET status = ? WHERE id = ?',
+            ['disconnected', channelId]
+        );
+        
+        res.json({ success: true, message: 'Channel disconnected successfully' });
+    } catch (err) {
+        console.error('DISCONNECT PROERO CHANNEL ERROR:', err.message);
+        res.status(500).json({ success: false, message: 'Failed to disconnect channel' });
+    }
+});
+
+/**
  * @route   ANY /api/proero/proxy/*
  * @desc    Proxy requests to Unofficial WhatsApp API to bypass CORS
  * @access  Private

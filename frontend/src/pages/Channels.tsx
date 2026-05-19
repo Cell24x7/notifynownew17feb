@@ -133,6 +133,23 @@ export default function Channels() {
     }
   };
 
+  const handleSyncChannelStatus = async (id: number) => {
+    try {
+      toast.loading("Syncing status...", { id: `sync-${id}` });
+      const response = await api.post(`/api/proero/channels/${id}/sync`);
+      if (response.data.success) {
+        toast.success(`Channel synced: ${response.data.status}`, { id: `sync-${id}` });
+        fetchChannels();
+      } else {
+        toast.error("Failed to sync channel status", { id: `sync-${id}` });
+      }
+    } catch (err) {
+      console.error('Sync channel error:', err);
+      toast.error("Failed to sync channel status", { id: `sync-${id}` });
+    }
+  };
+
+
   const handleDeleteChannel = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this channel?')) return;
     try {
@@ -287,18 +304,23 @@ export default function Channels() {
               {/* Actions */}
               <div className="flex flex-col gap-2">
                 <Button 
-                  variant="secondary" 
-                  className="w-full font-bold h-10 rounded-lg"
+                  className="w-full font-bold h-10 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                   onClick={() => handleViewQR(channel)}
                 >
-                  <FileText className="w-4 h-4 mr-2" />
-                  View Logs
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Manage & Scan
                 </Button>
                 
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                    {channel.created ? new Date(channel.created).toLocaleDateString() : 'New'}
-                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs font-bold border border-border/50 text-muted-foreground hover:text-primary h-8 px-2"
+                    onClick={() => handleSyncChannelStatus(channel.id)}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    Sync
+                  </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
