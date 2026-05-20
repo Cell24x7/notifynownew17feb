@@ -182,6 +182,199 @@ router.post('/channels/:id/disconnect', authenticateToken, async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// CAMPAIGN CONTACT MANAGEMENT  (intercepted before wildcard proxy)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * @route   POST /api/proero/proxy/api/campaign/add-contacts
+ * @desc    Forward add-contacts to Baileys AND mirror into local api_campaign_queue
+ * @access  Private
+ */
+router.post('/proxy/api/campaign/add-contacts', authenticateToken, async (req, res) => {
+    const { campaign_id, user_id, contacts } = req.body;
+
+    // 1. Forward to Baileys
+    let proeroResponse = null;
+    try {
+        const r = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, req.body, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        proeroResponse = r.data;
+    } catch (err) {
+        console.error('add-contacts proxy error:', err.response?.data || err.message);
+        return res.status(err.response?.status || 500).json(
+            err.response?.data || { success: false, message: 'Proero add-contacts failed' }
+        );
+    }
+
+    // 2. Mirror into local DB
+    if (campaign_id && Array.isArray(contacts) && contacts.length > 0) {
+        try {
+            const uid = user_id || req.user?.id;
+            const values = contacts.map(c => [campaign_id, uid, String(c).replace(/\D/g, ''), 'staged']);
+            await query(
+                'INSERT IGNORE INTO api_campaign_queue (campaign_id, user_id, mobile, status) VALUES ?',
+                [values]
+            );
+        } catch (dbErr) {
+            console.warn('Local DB mirror for add-contacts failed:', dbErr.message);
+        }
+    }
+
+    res.json(proeroResponse);
+});
+
+/**
+ * @route   POST /api/proero/proxy/api/campaign/delete-contacts
+ * @desc    Forward delete-contacts to Baileys AND remove from local api_campaign_queue
+ * @access  Private
+ */
+router.post('/proxy/api/campaign/delete-contacts', authenticateToken, async (req, res) => {
+    const { campaign_id, contacts, numbers } = req.body;
+    const toDelete = contacts || numbers || [];
+
+    // 1. Forward to Baileys (best-effort, don't fail if remote rejects)
+    let proeroResponse = { success: true, message: 'Removed locally' };
+    try {
+        const r = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/delete-contacts`, req.body, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        proeroResponse = r.data;
+    } catch (err) {
+        console.warn('delete-contacts proxy error (continuing with local delete):', err.message);
+    }
+
+    // 2. Remove from local DB
+    if (campaign_id) {
+        try {
+            if (!toDelete || toDelete.length === 0) {
+                // Clear all contacts for this campaign
+                await query('DELETE FROM api_campaign_queue WHERE campaign_id = ?', [campaign_id]);
+            } else {
+                const cleaned = toDelete.map(c => String(c).replace(/\D/g, ''));
+                if (cleaned.length > 0) {
+                    await query(
+                        `DELETE FROM api_campaign_queue WHERE campaign_id = ? AND mobile IN (${cleaned.map(() => '?').join(',')})`,
+                        [campaign_id, ...cleaned]
+                    );
+                }
+            }
+        } catch (dbErr) {
+            console.warn('Local DB delete for delete-contacts failed:', dbErr.message);
+        }
+    }
+
+    res.json(proeroResponse);
+});
+
+/**
+ * @route   GET /api/proero/proxy/api/campaign/:campaignId/contacts
+ * @desc    Return staged contacts from local DB, enriched with names from webhook_logs
+ * @access  Private
+ */
+router.get('/proxy/api/campaign/:campaignId/contacts', authenticateToken, async (req, res) => {
+    const { campaignId } = req.params;
+    const uid = req.user?.id;
+
+    try {
+        const [contacts] = await query(
+            'SELECT mobile, status, created_at FROM api_campaign_queue WHERE campaign_id = ? AND user_id = ? ORDER BY created_at DESC',
+            [campaignId, uid]
+        );
+
+        // Enrich with names from webhook_logs
+        let nameMap = {};
+        if (contacts.length > 0) {
+            const mobiles = contacts.map(c => c.mobile);
+            try {
+                const placeholders = mobiles.map(() => '?').join(',');
+                const [logs] = await query(
+                    `SELECT sender, recipient, sender_name, contact_name 
+                     FROM webhook_logs 
+                     WHERE user_id = ? AND (sender IN (${placeholders}) OR recipient IN (${placeholders}))
+                     ORDER BY id DESC LIMIT 1000`,
+                    [uid, ...mobiles, ...mobiles]
+                );
+                logs.forEach(l => {
+                    const name = l.sender_name || l.contact_name || null;
+                    if (name) {
+                        [l.sender, l.recipient].forEach(num => {
+                            if (num) {
+                                const cleaned = String(num).replace(/\D/g, '');
+                                if (mobiles.includes(cleaned) && !nameMap[cleaned]) {
+                                    nameMap[cleaned] = name;
+                                }
+                            }
+                        });
+                    }
+                });
+            } catch (e) {
+                // Name enrichment is optional, silently skip
+            }
+        }
+
+        const enriched = contacts.map(c => ({
+            number: c.mobile,
+            status: c.status,
+            created_at: c.created_at,
+            name: nameMap[c.mobile] || null
+        }));
+
+        res.json({ success: true, campaignId, total: enriched.length, contacts: enriched });
+    } catch (err) {
+        console.error('Get staged contacts error:', err.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch staged contacts' });
+    }
+});
+
+/**
+ * @route   GET /api/proero/proxy/api/campaign/:campaignId/status
+ * @desc    Return campaign delivery status: remote Baileys + local DB counters
+ * @access  Private
+ */
+router.get('/proxy/api/campaign/:campaignId/status', authenticateToken, async (req, res) => {
+    const { campaignId } = req.params;
+    const uid = req.user?.id;
+
+    try {
+        // 1. Try remote Baileys status
+        let remoteStatus = null;
+        try {
+            const r = await axios.get(`${EXTERNAL_BASE_URL}/api/campaign/${campaignId}/status`, { timeout: 4000 });
+            remoteStatus = r.data;
+        } catch (e) {
+            // Fallback to local counters
+        }
+
+        // 2. Local counters from api_campaign_queue
+        const [rows] = await query(
+            `SELECT status, COUNT(*) as count FROM api_campaign_queue 
+             WHERE campaign_id = ? AND user_id = ? GROUP BY status`,
+            [campaignId, uid]
+        );
+        const localCounts = { staged: 0, pending: 0, sent: 0, failed: 0, in_progress: 0 };
+        rows.forEach(r => { if (localCounts.hasOwnProperty(r.status)) localCounts[r.status] = Number(r.count); });
+        const localTotal = Object.values(localCounts).reduce((a, b) => a + b, 0);
+        const localSent = localCounts.sent || 0;
+        const completionPct = localTotal > 0 ? Math.round((localSent / localTotal) * 100) : 0;
+
+        res.json({
+            success: true,
+            campaignId,
+            local: localCounts,
+            remote: remoteStatus?.data || null,
+            total: localTotal,
+            completionPercentage: remoteStatus?.completionPercentage ?? completionPct
+        });
+    } catch (err) {
+        console.error('Campaign status error:', err.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch campaign status' });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+
 /**
  * @route   ANY /api/proero/proxy/*
  * @desc    Proxy requests to Unofficial WhatsApp API to bypass CORS

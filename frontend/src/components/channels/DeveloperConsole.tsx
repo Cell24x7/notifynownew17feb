@@ -31,7 +31,13 @@ import {
   Smile,
   Camera,
   Upload,
-  Info
+  Info,
+  Search,
+  BarChart3,
+  Eye,
+  AlertTriangle,
+  Clock,
+  UserCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +90,16 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const [bulkText, setBulkText] = useState('');
   const [showViewAllModal, setShowViewAllModal] = useState(false);
   const [editNumbersText, setEditNumbersText] = useState('');
+
+  // Staged contacts management
+  const [stagedContacts, setStagedContacts] = useState<{number: string; status: string; name: string | null; created_at: string}[]>([]);
+  const [isLoadingStaged, setIsLoadingStaged] = useState(false);
+  const [showStagedModal, setShowStagedModal] = useState(false);
+  const [stagedSearchTerm, setStagedSearchTerm] = useState('');
+
+  // Campaign status
+  const [campaignStatus, setCampaignStatus] = useState<any>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -114,8 +130,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     : (messageContent || 'Type a message to preview...');
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    if (showStagedModal) {
+      fetchStagedContacts();
+    }
+  }, [showStagedModal]);
 
   const fetchTemplates = async () => {
     try {
@@ -402,6 +420,74 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       fetchTemplates();
     } catch (err: any) {
       toast.error("Failed to delete");
+    }
+  };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  // Fetch staged contacts whenever the Staged Contacts modal is opened
+  useEffect(() => {
+    if (showStagedModal) {
+      fetchStagedContacts();
+    }
+  }, [showStagedModal]);
+
+  // --- Staged contacts management ---
+  const fetchStagedContacts = async () => {
+    try {
+      setIsLoadingStaged(true);
+      const response = await api.get(`${PROXY_BASE}/api/campaign/${campaignId}/contacts`);
+      if (response.data?.success) {
+        setStagedContacts(response.data.contacts || []);
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch staged contacts:', err.message);
+    } finally {
+      setIsLoadingStaged(false);
+    }
+  };
+
+  const handleDeleteStagedContact = async (number: string) => {
+    try {
+      await api.post(`${PROXY_BASE}/api/campaign/delete-contacts`, {
+        campaign_id: campaignId,
+        contacts: [number]
+      });
+      setStagedContacts(prev => prev.filter(c => c.number !== number));
+      toast.success(`Removed ${number}`);
+    } catch (err: any) {
+      toast.error('Failed to remove contact');
+    }
+  };
+
+  const handleClearAllStaged = async () => {
+    if (!window.confirm(`Delete ALL ${stagedContacts.length} staged contacts for campaign ${campaignId}?`)) return;
+    try {
+      await api.post(`${PROXY_BASE}/api/campaign/delete-contacts`, {
+        campaign_id: campaignId,
+        contacts: []
+      });
+      setStagedContacts([]);
+      toast.success('All staged contacts cleared');
+    } catch (err: any) {
+      toast.error('Failed to clear contacts');
+    }
+  };
+
+  // --- Campaign status ---
+  const fetchCampaignStatus = async () => {
+    try {
+      setIsLoadingStatus(true);
+      const response = await api.get(`${PROXY_BASE}/api/campaign/${campaignId}/status`);
+      if (response.data?.success) {
+        setCampaignStatus(response.data);
+      }
+    } catch (err: any) {
+      toast.error('Failed to fetch campaign status');
+    } finally {
+      setIsLoadingStatus(false);
     }
   };
 
@@ -754,6 +840,71 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
           </Card>
         </div>
 
+        {/* ─── STAGED CONTACTS OVERVIEW ─── */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center text-[10px] font-black shadow-md">📋</div>
+            <span className="text-sm font-bold">Staged Contacts</span>
+          </div>
+
+          <Card className="border border-border/60">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold">Campaign: <span className="font-mono text-primary">{campaignId}</span></span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] font-bold text-primary gap-1" onClick={() => { fetchStagedContacts(); setShowStagedModal(true); }}>
+                    <Eye className="w-3 h-3" /> View List
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] font-bold text-muted-foreground gap-1" onClick={fetchStagedContacts} disabled={isLoadingStaged}>
+                    <RefreshCw className={cn("w-3 h-3", isLoadingStaged && "animate-spin")} /> Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {stagedContacts.length > 0 ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs font-bold text-amber-800 dark:text-amber-300">{stagedContacts.length} contact{stagedContacts.length !== 1 ? 's' : ''} staged</span>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-5 text-[9px] font-bold text-red-500 hover:text-red-700 px-1.5" onClick={handleClearAllStaged}>
+                      <Trash2 className="w-3 h-3 mr-0.5" /> Clear All
+                    </Button>
+                  </div>
+                  <div className="max-h-[100px] overflow-y-auto no-scrollbar space-y-0.5">
+                    {stagedContacts.slice(0, 5).map((c, i) => (
+                      <div key={i} className="flex items-center justify-between px-2 py-1 rounded-md hover:bg-muted/50 group text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-mono text-muted-foreground">+{c.number}</span>
+                          {c.name && <Badge variant="secondary" className="text-[8px] h-3.5 truncate max-w-[100px]">{c.name}</Badge>}
+                        </div>
+                        <button className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600" onClick={() => handleDeleteStagedContact(c.number)}>
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {stagedContacts.length > 5 && (
+                      <button className="w-full text-center text-[10px] text-primary font-bold py-1 hover:bg-primary/5 rounded" onClick={() => { setShowStagedModal(true); }}>
+                        +{stagedContacts.length - 5} more — View All
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-3 text-muted-foreground">
+                  <Users className="w-6 h-6 mx-auto mb-1 opacity-20" />
+                  <p className="text-[10px] font-bold">No staged contacts loaded yet</p>
+                  <p className="text-[9px]">Stage contacts above, then click Refresh</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* ─── STEP 3: MESSAGE ─── */}
         <div className="space-y-2">
           <div className="flex items-center gap-2.5">
@@ -873,6 +1024,69 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
             <button className="text-lg leading-none opacity-50 hover:opacity-100" onClick={() => setLastResult(null)}>×</button>
           </div>
         )}
+
+        {/* ─── CAMPAIGN STATUS ─── */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white flex items-center justify-center text-[10px] font-black shadow-md">📊</div>
+            <span className="text-sm font-bold">Campaign Status</span>
+          </div>
+          <Card className="border border-border/60">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground">Campaign <span className="font-mono text-foreground">{campaignId}</span></span>
+                <Button variant="outline" size="sm" className="h-6 text-[10px] font-bold gap-1" onClick={fetchCampaignStatus} disabled={isLoadingStatus}>
+                  {isLoadingStatus ? <Loader2 className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
+                  Check Status
+                </Button>
+              </div>
+
+              {campaignStatus && (
+                <div className="space-y-2 animate-in fade-in-50 duration-300">
+                  {/* Progress bar */}
+                  <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
+                      style={{ width: `${campaignStatus.completionPercentage || 0}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground font-bold">
+                    <span>{campaignStatus.completionPercentage || 0}% Complete</span>
+                    <span>{campaignStatus.total || 0} total</span>
+                  </div>
+
+                  {/* Status counters */}
+                  <div className="grid grid-cols-5 gap-1">
+                    {[
+                      { label: 'Staged', value: campaignStatus.local?.staged || 0, color: 'bg-amber-100 text-amber-700 border-amber-200' },
+                      { label: 'Pending', value: campaignStatus.local?.pending || 0, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+                      { label: 'In Progress', value: campaignStatus.local?.in_progress || 0, color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                      { label: 'Sent', value: campaignStatus.local?.sent || 0, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+                      { label: 'Failed', value: campaignStatus.local?.failed || 0, color: 'bg-red-100 text-red-700 border-red-200' },
+                    ].map((s, i) => (
+                      <div key={i} className={cn("flex flex-col items-center p-1.5 rounded-md border text-center", s.color)}>
+                        <span className="text-sm font-black">{s.value}</span>
+                        <span className="text-[8px] font-bold uppercase">{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Remote data */}
+                  {campaignStatus.remote && (
+                    <div className="p-2 bg-muted/30 rounded-md border border-border/50">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Remote Server Status</p>
+                      <div className="flex gap-3 text-[10px]">
+                        <span>Pending: <strong>{campaignStatus.remote.pending || 0}</strong></span>
+                        <span>Sent: <strong>{campaignStatus.remote.sent || 0}</strong></span>
+                        <span>Failed: <strong>{campaignStatus.remote.failed || 0}</strong></span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* ══════════════ RIGHT: Live Phone Preview ══════════════ */}
@@ -1064,6 +1278,111 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
             >
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══════════════ MODAL: Staged Contacts Manager ══════════════ */}
+      <Dialog open={showStagedModal} onOpenChange={setShowStagedModal}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-amber-500" />
+              Staged Campaign Contacts
+              <Badge variant="secondary" className="ml-1 text-[10px]">{stagedContacts.length}</Badge>
+            </DialogTitle>
+            <DialogDescription>
+              Contacts staged for campaign <strong className="font-mono">{campaignId}</strong>. Delete individual contacts or clear all.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={stagedSearchTerm}
+              onChange={e => setStagedSearchTerm(e.target.value)}
+              placeholder="Search by number or name..."
+              className="pl-8 h-8 text-xs"
+            />
+          </div>
+
+          {/* Contact List */}
+          <div className="flex-1 overflow-y-auto max-h-[400px] no-scrollbar border rounded-lg">
+            {isLoadingStaged ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : stagedContacts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                <p className="text-sm font-bold">No staged contacts</p>
+                <p className="text-xs">Stage contacts from the main panel first</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {stagedContacts
+                  .filter(c => {
+                    if (!stagedSearchTerm.trim()) return true;
+                    const term = stagedSearchTerm.toLowerCase();
+                    return c.number.includes(term) || (c.name && c.name.toLowerCase().includes(term));
+                  })
+                  .map((contact, idx) => (
+                    <div key={idx} className="flex items-center justify-between px-3 py-2 hover:bg-muted/50 group transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                          {contact.name ? contact.name[0].toUpperCase() : <Phone className="w-3 h-3" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold font-mono">+{contact.number}</span>
+                            <Badge variant={contact.status === 'sent' ? 'default' : contact.status === 'failed' ? 'destructive' : 'secondary'} className="text-[8px] h-3.5">
+                              {contact.status}
+                            </Badge>
+                          </div>
+                          {contact.name && (
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              💬 {contact.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        className="p-1.5 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                        onClick={() => handleDeleteStagedContact(contact.number)}
+                        title="Remove this contact"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 border-t pt-3">
+            <div className="flex-1 text-[10px] text-muted-foreground">
+              {stagedContacts.filter(c => c.name).length} of {stagedContacts.length} have saved names
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleClearAllStaged}
+              disabled={stagedContacts.length === 0}
+              className="text-xs font-bold gap-1"
+            >
+              <Trash2 className="w-3 h-3" /> Delete All
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStagedModal(false)}
+              className="text-xs"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
