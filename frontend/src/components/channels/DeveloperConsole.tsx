@@ -61,7 +61,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const [userId] = useState('1');
   
   // Campaign state
-  const [campaignId, setCampaignId] = useState(`camp_${Date.now().toString().slice(-6)}`);
+  const [campaignId, setCampaignId] = useState(String(Math.floor(Math.random() * 900000) + 100000));
   const [numberInput, setNumberInput] = useState('');
   const [recipients, setRecipients] = useState<string[]>([]);
   const [messageContent, setMessageContent] = useState('');
@@ -382,7 +382,12 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 <Hash className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="text-[10px] font-bold uppercase text-muted-foreground">Campaign:</span>
                 <Input 
-                  value={campaignId} onChange={e => setCampaignId(e.target.value)}
+                  value={campaignId}
+                  onChange={e => setCampaignId(e.target.value.replace(/\D/g, ''))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="123456"
                   className="h-6 border-0 bg-transparent p-0 text-xs font-mono font-bold shadow-none focus-visible:ring-0 flex-1"
                 />
                 <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => copyToClipboard(campaignId)}>
