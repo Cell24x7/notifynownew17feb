@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   Send, 
   Users, 
@@ -28,7 +29,9 @@ import {
   Paperclip,
   Mic,
   Smile,
-  Camera
+  Camera,
+  Upload,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +39,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import api from '../../config/axios';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -67,6 +78,12 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const [messageContent, setMessageContent] = useState('');
   const [sendMode, setSendMode] = useState<'text' | 'template'>('text');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+
+  // New bulk states
+  const [recipientInputMode, setRecipientInputMode] = useState<'chips' | 'textarea' | 'upload'>('chips');
+  const [bulkText, setBulkText] = useState('');
+  const [showViewAllModal, setShowViewAllModal] = useState(false);
+  const [editNumbersText, setEditNumbersText] = useState('');
   
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -145,6 +162,105 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text');
     addNumber(pasted);
+  };
+
+  // --- Bulk & File parsing logic ---
+  const bulkNumbersFound = useMemo(() => {
+    if (!bulkText.trim()) return [];
+    return bulkText
+      .split(/[\n,\s;]+/)
+      .map(n => n.trim().replace(/\D/g, ''))
+      .filter(n => n.length >= 10);
+  }, [bulkText]);
+
+  const handleAddBulkTextNumbers = () => {
+    const uniqueFound = Array.from(new Set(bulkNumbersFound));
+    const newNums = uniqueFound.filter(n => !recipients.includes(n));
+    if (newNums.length > 0) {
+      setRecipients(prev => [...prev, ...newNums]);
+      toast.success(`Successfully added ${newNums.length} numbers (skipped ${uniqueFound.length - newNums.length} duplicates)`);
+      setBulkText('');
+    } else {
+      toast.info("No new unique numbers were found in the text");
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    const nameLower = file.name.toLowerCase();
+    const isExcel = nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls');
+    const isCsv = nameLower.endsWith('.csv');
+    const isTxt = nameLower.endsWith('.txt');
+
+    if (isExcel) {
+      reader.onload = (evt) => {
+        try {
+          const data = evt.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const json: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          
+          const foundNumbers: string[] = [];
+          json.forEach((row: any) => {
+            if (Array.isArray(row)) {
+              row.forEach(cell => {
+                const cleaned = String(cell).trim().replace(/\D/g, '');
+                if (cleaned.length >= 10) {
+                  foundNumbers.push(cleaned);
+                }
+              });
+            }
+          });
+          
+          const uniqueNums = Array.from(new Set(foundNumbers));
+          const newNums = uniqueNums.filter(n => !recipients.includes(n));
+          
+          if (newNums.length > 0) {
+            setRecipients(prev => [...prev, ...newNums]);
+            toast.success(`Loaded ${newNums.length} unique numbers from Excel (skipped ${uniqueNums.length - newNums.length} duplicates)`);
+          } else {
+            toast.info("No new phone numbers found in the Excel file");
+          }
+        } catch (err) {
+          toast.error("Failed to parse Excel file");
+        }
+      };
+      reader.readAsBinaryString(file);
+    } else if (isCsv || isTxt) {
+      reader.onload = (evt) => {
+        try {
+          const text = evt.target?.result as string;
+          const rawNums = text.split(/[\n\r,;\t\s]+/);
+          const foundNumbers: string[] = [];
+          rawNums.forEach(n => {
+            const cleaned = n.trim().replace(/\D/g, '');
+            if (cleaned.length >= 10) {
+              foundNumbers.push(cleaned);
+            }
+          });
+
+          const uniqueNums = Array.from(new Set(foundNumbers));
+          const newNums = uniqueNums.filter(n => !recipients.includes(n));
+
+          if (newNums.length > 0) {
+            setRecipients(prev => [...prev, ...newNums]);
+            toast.success(`Loaded ${newNums.length} unique numbers (skipped ${uniqueNums.length - newNums.length} duplicates)`);
+          } else {
+            toast.info("No new phone numbers found in the file");
+          }
+        } catch (err) {
+          toast.error("Failed to parse file");
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      toast.error("Unsupported file format. Please upload CSV, Excel or TXT");
+    }
+    e.target.value = '';
   };
 
   // --- API actions ---
@@ -395,48 +511,236 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 </Button>
               </div>
 
-              {/* Number Input with chips */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5" /> Phone Numbers
-                </Label>
-                
-                <div 
-                  className="min-h-[90px] max-h-[180px] overflow-y-auto border rounded-lg p-2 bg-background cursor-text focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 transition-all"
-                  onClick={() => numberInputRef.current?.focus()}
+              {/* Input Mode Tabs */}
+              <div className="grid grid-cols-3 gap-1 p-1 bg-muted/50 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setRecipientInputMode('chips')}
+                  className={cn(
+                    "py-1.5 rounded-md transition-all flex items-center justify-center gap-1",
+                    recipientInputMode === 'chips' ? "bg-white text-foreground shadow-md" : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  <div className="flex flex-wrap gap-1.5">
-                    {recipients.map((num, i) => (
-                      <div 
-                        key={i} 
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-xs font-mono font-bold text-blue-800 group hover:border-red-300 hover:bg-red-50 transition-all animate-in fade-in zoom-in-95 duration-200"
-                      >
-                        <Phone className="w-3 h-3 text-blue-400 group-hover:text-red-400" />
-                        {num.length > 10 ? `+${num.slice(0, 2)} ${num.slice(2, 7)} ${num.slice(7)}` : num}
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); removeRecipient(num); }}
-                          className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center hover:bg-red-200 text-blue-400 group-hover:text-red-500 transition-colors"
+                  <Phone className="w-3.5 h-3.5" /> Chips
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientInputMode('textarea')}
+                  className={cn(
+                    "py-1.5 rounded-md transition-all flex items-center justify-center gap-1",
+                    recipientInputMode === 'textarea' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <FileText className="w-3.5 h-3.5" /> Bulk Paste
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientInputMode('upload')}
+                  className={cn(
+                    "py-1.5 rounded-md transition-all flex items-center justify-center gap-1",
+                    recipientInputMode === 'upload' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Upload className="w-3.5 h-3.5" /> Upload File
+                </button>
+              </div>
+
+              {/* Chips Input Mode */}
+              {recipientInputMode === 'chips' && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" /> Phone Numbers
+                  </Label>
+                  
+                  <div 
+                    className="min-h-[90px] max-h-[180px] overflow-y-auto border rounded-lg p-2 bg-background cursor-text focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 transition-all"
+                    onClick={() => {
+                      if (recipients.length <= 30) numberInputRef.current?.focus();
+                    }}
+                  >
+                    <div className="flex flex-wrap gap-1.5">
+                      {recipients.length <= 30 ? (
+                        <>
+                          {recipients.map((num, i) => (
+                            <div 
+                              key={i} 
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-xs font-mono font-bold text-blue-800 group hover:border-red-300 hover:bg-red-50 transition-all animate-in fade-in zoom-in-95 duration-200"
+                            >
+                              <Phone className="w-3 h-3 text-blue-400 group-hover:text-red-400" />
+                              {num.length > 10 ? `+${num.slice(0, 2)} ${num.slice(2, 7)} ${num.slice(7)}` : num}
+                              <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); removeRecipient(num); }}
+                                className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center hover:bg-red-200 text-blue-400 group-hover:text-red-500 transition-colors"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          ))}
+                          <input
+                            ref={numberInputRef}
+                            value={numberInput}
+                            onChange={e => setNumberInput(e.target.value)}
+                            onKeyDown={handleNumberKeyDown}
+                            onPaste={handlePaste}
+                            onBlur={() => { if (numberInput.trim()) addNumber(numberInput); }}
+                            placeholder={recipients.length === 0 ? "Type number & press Enter..." : "Add more..."}
+                            className="flex-1 min-w-[120px] border-0 bg-transparent text-sm font-mono outline-none p-1 placeholder:text-muted-foreground/50"
+                          />
+                        </>
+                      ) : (
+                        <div className="w-full flex flex-col gap-2 p-1">
+                          <div className="flex items-center justify-between bg-blue-50/50 border border-blue-100 p-2 rounded-md">
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4 text-blue-500" />
+                              <div>
+                                <p className="text-[11px] font-bold text-blue-900">{recipients.length} Numbers Loaded</p>
+                                <p className="text-[9px] text-muted-foreground">Showing preview of first 5 numbers below</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5">
+                              <Button 
+                                type="button"
+                                variant="outline" 
+                                size="sm" 
+                                className="h-6 text-[10px] font-bold border-blue-200 hover:bg-blue-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditNumbersText(recipients.join('\n'));
+                                  setShowViewAllModal(true);
+                                }}
+                              >
+                                Manage
+                              </Button>
+                              <Button 
+                                type="button"
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 text-[10px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={(e) => { e.stopPropagation(); setRecipients([]); }}
+                              >
+                                Clear All
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1 max-h-[60px] overflow-y-auto">
+                            {recipients.slice(0, 5).map((num, i) => (
+                              <div key={i} className="inline-flex items-center px-2 py-0.5 rounded bg-muted border text-[10px] font-mono font-bold text-muted-foreground">
+                                {num}
+                              </div>
+                            ))}
+                            <div className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 border border-blue-100 text-[10px] font-bold text-blue-600">
+                              +{recipients.length - 5} more
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {recipients.length <= 30 && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Press <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-bold">Enter</kbd> or <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-bold">,</kbd> after each number. Paste multiple numbers at once.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Bulk Paste Input Mode */}
+              {recipientInputMode === 'textarea' && (
+                <div className="space-y-2 animate-in fade-in-50 duration-200">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold flex items-center gap-1.5 text-muted-foreground">
+                      <FileText className="w-3.5 h-3.5" /> Paste Numbers
+                    </Label>
+                    {recipients.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-muted-foreground">{recipients.length} staged</span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-5 text-[9px] font-bold text-red-500 hover:text-red-700 p-0 px-1"
+                          onClick={() => setRecipients([])}
                         >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
+                          Clear
+                        </Button>
                       </div>
-                    ))}
-                    <input
-                      ref={numberInputRef}
-                      value={numberInput}
-                      onChange={e => setNumberInput(e.target.value)}
-                      onKeyDown={handleNumberKeyDown}
-                      onPaste={handlePaste}
-                      onBlur={() => { if (numberInput.trim()) addNumber(numberInput); }}
-                      placeholder={recipients.length === 0 ? "Type number & press Enter..." : "Add more..."}
-                      className="flex-1 min-w-[120px] border-0 bg-transparent text-sm font-mono outline-none p-1 placeholder:text-muted-foreground/50"
-                    />
+                    )}
+                  </div>
+                  <Textarea
+                    value={bulkText}
+                    onChange={e => setBulkText(e.target.value)}
+                    className="min-h-[100px] text-xs font-mono resize-none focus-visible:ring-blue-500"
+                    placeholder="Enter or paste numbers (one per line, comma or space separated)..."
+                  />
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-muted-foreground">
+                      Found {bulkNumbersFound.length} valid numbers in input
+                    </span>
+                    <Button
+                      type="button"
+                      onClick={handleAddBulkTextNumbers}
+                      disabled={bulkNumbersFound.length === 0}
+                      size="sm"
+                      className="h-7 text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Add to Campaign List
+                    </Button>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Press <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-bold">Enter</kbd> or <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-bold">,</kbd> after each number. Paste multiple numbers at once.
-                </p>
-              </div>
+              )}
+
+              {/* Upload File Input Mode */}
+              {recipientInputMode === 'upload' && (
+                <div className="space-y-3 animate-in fade-in-50 duration-200">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold flex items-center gap-1.5 text-muted-foreground">
+                      <Upload className="w-3.5 h-3.5" /> Upload File
+                    </Label>
+                    {recipients.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-muted-foreground">{recipients.length} staged</span>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-5 text-[9px] font-bold border-blue-200 hover:bg-blue-50 px-1.5"
+                          onClick={() => {
+                            setEditNumbersText(recipients.join('\n'));
+                            setShowViewAllModal(true);
+                          }}
+                        >
+                          Manage
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-5 text-[9px] font-bold text-red-500 hover:text-red-700 p-0 px-1"
+                          onClick={() => setRecipients([])}
+                        >
+                          Clear All
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-4 bg-muted/10 text-center hover:bg-muted/20 hover:border-blue-500/40 transition-all relative group">
+                    <input 
+                      type="file"
+                      accept=".csv,.xlsx,.xls,.txt"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Upload className="w-7 h-7 mx-auto mb-1 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+                    <p className="text-[11px] font-bold text-foreground">Click to upload or drag & drop</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Supports CSV, Excel (.xlsx, .xls) and TXT</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-2 bg-blue-50/50 border border-blue-100 rounded-md text-[9px] text-blue-800 font-medium">
+                    <Info className="w-3.5 h-3.5 shrink-0 text-blue-500" />
+                    <span>We scan the file and extract 10+ digit numbers automatically.</span>
+                  </div>
+                </div>
+              )}
 
               <Button 
                 onClick={handleAddContacts} 
@@ -707,6 +1011,63 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
           </div>
         </div>
       </div>
+
+      {/* ══════════════ MODAL: Manage Staged Recipients ══════════════ */}
+      <Dialog open={showViewAllModal} onOpenChange={setShowViewAllModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-blue-500" />
+              Manage Staged Recipients
+            </DialogTitle>
+            <DialogDescription>
+              View and edit your staged phone numbers below. Separate numbers with newlines, commas, or spaces.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Textarea
+              value={editNumbersText}
+              onChange={e => setEditNumbersText(e.target.value)}
+              className="min-h-[200px] text-xs font-mono focus-visible:ring-blue-500"
+              placeholder="List of phone numbers..."
+            />
+            <p className="text-[10px] text-muted-foreground mt-1.5 flex justify-between">
+              <span>Original staged: <strong>{recipients.length}</strong></span>
+              <span>Currently entered: <strong>{
+                editNumbersText.trim()
+                  ? editNumbersText.split(/[\n,\s;]+/).map(n => n.trim().replace(/\D/g, '')).filter(n => n.length >= 10).length
+                  : 0
+              }</strong></span>
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowViewAllModal(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const parsed = editNumbersText
+                  .split(/[\n,\s;]+/)
+                  .map(n => n.trim().replace(/\D/g, ''))
+                  .filter(n => n.length >= 10);
+                const uniqueParsed = Array.from(new Set(parsed));
+                setRecipients(uniqueParsed);
+                setShowViewAllModal(false);
+                toast.success(`Updated campaign recipients to ${uniqueParsed.length} unique numbers.`);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
