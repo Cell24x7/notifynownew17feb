@@ -129,11 +129,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     ? (selectedTemplate?.template_content || selectedTemplate?.preview_text || 'Select a template to preview...') 
     : (messageContent || 'Type a message to preview...');
 
-  useEffect(() => {
-    if (showStagedModal) {
-      fetchStagedContacts();
-    }
-  }, [showStagedModal]);
+
 
   const fetchTemplates = async () => {
     try {
@@ -351,6 +347,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       });
       toast.success(`${recipients.length} contacts staged ✓`);
       setLastResult({ type: 'success', message: `${recipients.length} contacts added to campaign` });
+      // Auto-refresh staged contacts list and campaign status
+      setTimeout(() => { fetchStagedContacts(); fetchCampaignStatus(); }, 500);
     } catch (err: any) {
       toast.error("Failed to stage contacts");
       setLastResult({ type: 'error', message: err.response?.data?.message || 'Failed' });
@@ -379,6 +377,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       const response = await api.post(`${PROXY_BASE}/api/campaign/start/${campaignId}`, payload);
       toast.success("🚀 Campaign triggered!");
       setLastResult({ type: 'success', message: response.data?.message || 'Campaign started' });
+      // Auto-refresh status after campaign starts
+      setTimeout(() => { fetchCampaignStatus(); fetchStagedContacts(); }, 2000);
     } catch (err: any) {
       toast.error("Failed to trigger campaign");
       setLastResult({ type: 'error', message: err.response?.data?.message || 'Campaign failed' });
@@ -425,6 +425,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
 
   useEffect(() => {
     fetchTemplates();
+    fetchStagedContacts();
+    fetchCampaignStatus();
   }, []);
 
   // Fetch staged contacts whenever the Staged Contacts modal is opened
@@ -490,6 +492,21 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       setIsLoadingStatus(false);
     }
   };
+
+  // Auto-poll campaign status every 5s when contacts are being processed
+  useEffect(() => {
+    if (!campaignStatus) return;
+    const active = (campaignStatus.local?.pending || 0) + (campaignStatus.local?.in_progress || 0) + (campaignStatus.local?.staged || 0);
+    const remotePending = campaignStatus.remote?.pending || 0;
+    if (active === 0 && remotePending === 0) return;
+
+    const interval = setInterval(() => {
+      fetchCampaignStatus();
+      fetchStagedContacts();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [campaignStatus]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -875,21 +892,30 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                       <Trash2 className="w-3 h-3 mr-0.5" /> Clear All
                     </Button>
                   </div>
-                  <div className="max-h-[100px] overflow-y-auto no-scrollbar space-y-0.5">
-                    {stagedContacts.slice(0, 5).map((c, i) => (
+                  <div className="max-h-[120px] overflow-y-auto no-scrollbar space-y-0.5">
+                    {stagedContacts.slice(0, 8).map((c, i) => (
                       <div key={i} className="flex items-center justify-between px-2 py-1 rounded-md hover:bg-muted/50 group text-xs">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="font-mono text-muted-foreground">+{c.number}</span>
-                          {c.name && <Badge variant="secondary" className="text-[8px] h-3.5 truncate max-w-[100px]">{c.name}</Badge>}
+                          {c.name && <Badge variant="secondary" className="text-[8px] h-3.5 truncate max-w-[80px]">{c.name}</Badge>}
                         </div>
-                        <button className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600" onClick={() => handleDeleteStagedContact(c.number)}>
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className={cn("text-[7px] h-3.5 px-1 font-bold uppercase",
+                            c.status === 'sent' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            c.status === 'failed' ? 'bg-red-50 text-red-700 border-red-200' :
+                            c.status === 'pending' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            c.status === 'in_progress' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                            'bg-amber-50 text-amber-700 border-amber-200'
+                          )}>{c.status}</Badge>
+                          <button className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600" onClick={() => handleDeleteStagedContact(c.number)}>
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     ))}
-                    {stagedContacts.length > 5 && (
+                    {stagedContacts.length > 8 && (
                       <button className="w-full text-center text-[10px] text-primary font-bold py-1 hover:bg-primary/5 rounded" onClick={() => { setShowStagedModal(true); }}>
-                        +{stagedContacts.length - 5} more — View All
+                        +{stagedContacts.length - 8} more — View All
                       </button>
                     )}
                   </div>
@@ -1055,14 +1081,14 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     <span>{campaignStatus.total || 0} total</span>
                   </div>
 
-                  {/* Status counters */}
+                  {/* Status counters — merge remote + local for accurate display */}
                   <div className="grid grid-cols-5 gap-1">
                     {[
                       { label: 'Staged', value: campaignStatus.local?.staged || 0, color: 'bg-amber-100 text-amber-700 border-amber-200' },
-                      { label: 'Pending', value: campaignStatus.local?.pending || 0, color: 'bg-blue-100 text-blue-700 border-blue-200' },
-                      { label: 'In Progress', value: campaignStatus.local?.in_progress || 0, color: 'bg-purple-100 text-purple-700 border-purple-200' },
-                      { label: 'Sent', value: campaignStatus.local?.sent || 0, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-                      { label: 'Failed', value: campaignStatus.local?.failed || 0, color: 'bg-red-100 text-red-700 border-red-200' },
+                      { label: 'Pending', value: Math.max(campaignStatus.local?.pending || 0, campaignStatus.remote?.pending || 0), color: 'bg-blue-100 text-blue-700 border-blue-200' },
+                      { label: 'In Progress', value: Math.max(campaignStatus.local?.in_progress || 0, campaignStatus.remote?.in_progress || 0), color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                      { label: 'Sent', value: Math.max(campaignStatus.local?.sent || 0, campaignStatus.remote?.sent || 0), color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+                      { label: 'Failed', value: Math.max(campaignStatus.local?.failed || 0, campaignStatus.remote?.failed || 0), color: 'bg-red-100 text-red-700 border-red-200' },
                     ].map((s, i) => (
                       <div key={i} className={cn("flex flex-col items-center p-1.5 rounded-md border text-center", s.color)}>
                         <span className="text-sm font-black">{s.value}</span>
