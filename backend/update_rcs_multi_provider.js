@@ -17,17 +17,17 @@ async function updateRcsSchema() {
   try {
     // 1. Add provider column
     await query(`
-      ALTER TABLE rcs_configurations 
+      ALTER TABLE rcs_configs 
       ADD COLUMN IF NOT EXISTS provider VARCHAR(50) DEFAULT 'dotgo' AFTER name
     `);
-    console.log('✅ Added "provider" column to rcs_configurations');
+    console.log('✅ Added "provider" column to rcs_configs');
 
     // 2. Add extra_config for future-proofing
     await query(`
-      ALTER TABLE rcs_configurations 
+      ALTER TABLE rcs_configs 
       ADD COLUMN IF NOT EXISTS extra_config JSON DEFAULT NULL AFTER bot_id
     `);
-    console.log('✅ Added "extra_config" column to rcs_configurations');
+    console.log('✅ Added "extra_config" column to rcs_configs');
 
     console.log('\n✨ RCS Multi-Provider Schema Update Completed Successfully!');
     process.exit(0);

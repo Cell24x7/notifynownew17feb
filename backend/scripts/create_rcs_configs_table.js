@@ -16,6 +16,7 @@ const migrate = async () => {
                 client_id VARCHAR(255) NOT NULL,
                 client_secret VARCHAR(255) NOT NULL,
                 bot_id VARCHAR(255) NOT NULL,
+                extra_config JSON DEFAULT NULL,
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
