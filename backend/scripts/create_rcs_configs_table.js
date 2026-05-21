@@ -10,6 +10,7 @@ const migrate = async () => {
             CREATE TABLE IF NOT EXISTS rcs_configs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
+                provider VARCHAR(50) DEFAULT 'dotgo',
                 auth_url VARCHAR(255) NOT NULL,
                 api_base_url VARCHAR(255) NOT NULL,
                 client_id VARCHAR(255) NOT NULL,

@@ -754,6 +754,21 @@ async function updateSchema() {
             console.log('Error creating proero_channels table:', e.message);
         }
 
+        // 22. RCS Configs Provider Column
+        try {
+            console.log('Ensuring rcs_configs table has provider column...');
+            const [rcsCols] = await connection.execute('DESCRIBE rcs_configs');
+            if (!rcsCols.some(col => col.Field === 'provider')) {
+                console.log('Adding provider to rcs_configs...');
+                await connection.execute("ALTER TABLE rcs_configs ADD COLUMN provider VARCHAR(50) DEFAULT 'dotgo' AFTER name");
+                console.log('✅ Added provider column to rcs_configs.');
+            } else {
+                console.log('ℹ️ provider column already exists in rcs_configs.');
+            }
+        } catch (e) {
+            console.log('Error adding provider to rcs_configs table:', e.message);
+        }
+
         console.log('--- Schema updates finished ---');
 
 
