@@ -263,8 +263,9 @@ echo "   ⏱️  Total time: ${ELAPSED}s             "
 echo "=========================================="
 echo -e "${NC}\n"
 
-echo "   pm2 status           — App health"
-echo "   pm2 logs $APP_NAME   — Live logs"
-echo "   pm2 monit            — Monitoring dashboard"
-echo "   tail -f /tmp/deploy_recalculate.log  — Background job progress"
-echo ""
+# ── PM2 App Status Overview ────────────────────────────────
+log "PM2 Application Status:"
+pm2 status
+
+echo -e "\n${BOLD}${GREEN}✅ DEPLOYMENT STATUS: OK — App is fully active!${NC}\n"
+
