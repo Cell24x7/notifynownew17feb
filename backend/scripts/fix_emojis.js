@@ -23,6 +23,21 @@ async function fixEmojis() {
         
         for (const table of tables) {
             try {
+                const [collationRows] = await query(`
+                    SELECT TABLE_COLLATION 
+                    FROM INFORMATION_SCHEMA.TABLES 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                      AND TABLE_NAME = ?
+                    LIMIT 1
+                `, [table]);
+                if (collationRows && collationRows.length > 0) {
+                    const collation = collationRows[0].TABLE_COLLATION || '';
+                    if (collation.startsWith('utf8mb4')) {
+                        console.log(`⚡ ${table} is already utf8mb4 (${collation}). Skipping.`);
+                        continue;
+                    }
+                }
+
                 process.stdout.write(`Converting ${table} to utf8mb4... `);
                 await query(`ALTER TABLE ${table} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
                 console.log('✅ Done');

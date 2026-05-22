@@ -36,8 +36,18 @@ async function updatePricingPrecision() {
             'wallet_balance', 'credits_available', 'credits_used'
         ];
 
+        const [userCols] = await connection.execute('DESCRIBE users');
+        const userColMap = {};
+        for (const c of userCols) {
+            userColMap[c.Field] = c.Type.toLowerCase();
+        }
+
         for (const col of userPriceCols) {
-            console.log(`Updating users.${col} to DECIMAL(15,4)...`);
+            const currentType = userColMap[col];
+            if (currentType === 'decimal(15,4)') {
+                continue;
+            }
+            console.log(`Updating users.${col} to DECIMAL(15,4) (currently ${currentType})...`);
             try {
                 await connection.execute(`ALTER TABLE users MODIFY COLUMN ${col} DECIMAL(15,4) DEFAULT 0.0000`);
             } catch (err) {
@@ -47,17 +57,30 @@ async function updatePricingPrecision() {
 
         // Columns to update in 'plans' table
         try {
-            console.log('Updating plans.price to DECIMAL(15,4)...');
-            await connection.execute(`ALTER TABLE plans MODIFY COLUMN price DECIMAL(15,4) DEFAULT 0.0000`);
+            const [planCols] = await connection.execute('DESCRIBE plans');
+            const priceCol = planCols.find(c => c.Field === 'price');
+            if (priceCol && priceCol.Type.toLowerCase() !== 'decimal(15,4)') {
+                console.log(`Updating plans.price to DECIMAL(15,4) (currently ${priceCol.Type})...`);
+                await connection.execute(`ALTER TABLE plans MODIFY COLUMN price DECIMAL(15,4) DEFAULT 0.0000`);
+            }
         } catch (err) {
             console.warn('  ⚠️ Could not update plans.price:', err.message);
         }
 
         // Columns to update in 'transactions' table
         try {
-            console.log('Updating transactions amount/credits to DECIMAL(15,4)...');
-            await connection.execute(`ALTER TABLE transactions MODIFY COLUMN amount DECIMAL(15,4) DEFAULT 0.0000`);
-            await connection.execute(`ALTER TABLE transactions MODIFY COLUMN credits DECIMAL(15,4) DEFAULT 0.0000`);
+            const [transCols] = await connection.execute('DESCRIBE transactions');
+            const amountCol = transCols.find(c => c.Field === 'amount');
+            const creditsCol = transCols.find(c => c.Field === 'credits');
+            
+            if (amountCol && amountCol.Type.toLowerCase() !== 'decimal(15,4)') {
+                console.log(`Updating transactions.amount to DECIMAL(15,4) (currently ${amountCol.Type})...`);
+                await connection.execute(`ALTER TABLE transactions MODIFY COLUMN amount DECIMAL(15,4) DEFAULT 0.0000`);
+            }
+            if (creditsCol && creditsCol.Type.toLowerCase() !== 'decimal(15,4)') {
+                console.log(`Updating transactions.credits to DECIMAL(15,4) (currently ${creditsCol.Type})...`);
+                await connection.execute(`ALTER TABLE transactions MODIFY COLUMN credits DECIMAL(15,4) DEFAULT 0.0000`);
+            }
         } catch (err) {
             console.warn('  ⚠️ Could not update transactions columns:', err.message);
         }

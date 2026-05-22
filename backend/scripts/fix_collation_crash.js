@@ -5,9 +5,31 @@ dotenv.config({ path: path.join(__dirname, '..', envFile) });
 
 const { query } = require('../config/db');
 
+async function getCollation(tableName) {
+    try {
+        const [rows] = await query(`
+            SELECT TABLE_COLLATION 
+            FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = DATABASE() 
+              AND TABLE_NAME = ?
+            LIMIT 1
+        `, [tableName]);
+        return rows && rows.length > 0 ? (rows[0].TABLE_COLLATION || '') : '';
+    } catch (e) {
+        return '';
+    }
+}
+
 async function fixCollationJoinCrash() {
     console.log('--- Starting Urgent Collation/Emoji Join Fix ---');
     try {
+        const collTemplates = await getCollation('message_templates');
+        const collButtons = await getCollation('template_buttons');
+        if (collTemplates.startsWith('utf8mb4') && collButtons.startsWith('utf8mb4')) {
+            console.log('✅ Tables message_templates and template_buttons are already utf8mb4. Skipping join fix.');
+            process.exit(0);
+        }
+
         // Find existing foreign keys on template_buttons
         process.stdout.write('Checking foreign keys... ');
         const [fks] = await query(`

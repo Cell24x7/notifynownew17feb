@@ -27,7 +27,11 @@ async function fixTruncationAggressive() {
                 
                 // 3. Target any column that might cause the "type" truncation error
                 if (colName === 'type' || colName === 'template_type' || colName === 'channel' || colName === 'status') {
-                    console.log(`🔨 Forcing ${tableName}.${colName} to larger capacity...`);
+                    if (colType === 'varchar(255)') {
+                        // Already varchar(255), skip to avoid rebuilding table
+                        continue;
+                    }
+                    console.log(`🔨 Forcing ${tableName}.${colName} to larger capacity (currently ${colType})...`);
                     try {
                         // Use VARCHAR(255) to be safe but keep indexing if possible, or TEXT for zero limit
                         await query(`ALTER TABLE ${tableName} MODIFY COLUMN ${colName} VARCHAR(255)`);

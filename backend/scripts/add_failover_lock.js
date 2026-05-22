@@ -10,9 +10,15 @@ async function migrate() {
         
         for (const table of tables) {
             try {
+                const [existingCols] = await query(`DESCRIBE ${table}`);
+                const hasCol = existingCols.some(c => c.Field === 'failover_triggered');
+                if (hasCol) {
+                    console.log(`⚡ ${table}.failover_triggered already exists. Skipping.`);
+                    continue;
+                }
                 process.stdout.write(`Updating ${table}... `);
                 await query(`ALTER TABLE ${table} 
-                    ADD COLUMN IF NOT EXISTS failover_triggered TINYINT(1) DEFAULT 0`);
+                    ADD COLUMN failover_triggered TINYINT(1) DEFAULT 0`);
                 console.log('✅ Done');
             } catch (err) {
                 console.log(`❌ Failed: ${err.message}`);

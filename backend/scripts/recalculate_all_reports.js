@@ -15,6 +15,12 @@ if (campaignIndex !== -1 && args[campaignIndex + 1]) {
     singleCampaignId = args[campaignIndex + 1];
 }
 
+let days = 3;
+const daysIndex = args.indexOf('--days');
+if (daysIndex !== -1 && args[daysIndex + 1]) {
+    days = parseInt(args[daysIndex + 1], 10) || 3;
+}
+
 async function recalculateManualCampaign(camp) {
     const start = Date.now();
     try {
@@ -119,15 +125,15 @@ async function recalculateReports() {
             }
         }
     } else {
-        console.log('🔍 Starting Batch Recalculation (Last 14 days or active campaigns)...');
+        console.log(`🔍 Starting Batch Recalculation (Last ${days} days or active campaigns)...`);
         
         console.log('--- Processing manual campaigns ---');
         const [manualCamps] = await query(`
             SELECT id, name, recipient_count, audience_count 
             FROM campaigns 
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) OR status = 'running'
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) OR status = 'running'
             ORDER BY created_at DESC
-        `);
+        `, [days]);
         console.log(`Found ${manualCamps.length} recent/running manual campaigns.`);
         for (const camp of manualCamps) {
             await recalculateManualCampaign(camp);
@@ -137,9 +143,9 @@ async function recalculateReports() {
         const [apiCamps] = await query(`
             SELECT id, name, recipient_count, audience_count 
             FROM api_campaigns 
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) OR status = 'running'
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) OR status = 'running'
             ORDER BY created_at DESC
-        `);
+        `, [days]);
         console.log(`Found ${apiCamps.length} recent/running API campaigns.`);
         for (const camp of apiCamps) {
             await recalculateApiCampaign(camp);

@@ -8,6 +8,9 @@ const { query } = require('../config/db');
 async function fixApiCampaignCols() {
     console.log('--- Starting API Campaigns Schema Fix ---');
     try {
+        const [existingCols] = await query('DESCRIBE api_campaigns');
+        const existingNames = new Set(existingCols.map(c => c.Field));
+
         const columns = [
             'rcs_config_id VARCHAR(50)',
             'whatsapp_config_id VARCHAR(50)',
@@ -18,9 +21,14 @@ async function fixApiCampaignCols() {
         ];
         
         for (const col of columns) {
+            const colName = col.split(' ')[0];
+            if (existingNames.has(colName)) {
+                console.log(`⚡ Column ${colName} already exists in api_campaigns. Skipping.`);
+                continue;
+            }
             try {
                 process.stdout.write(`Adding ${col} to api_campaigns... `);
-                await query(`ALTER TABLE api_campaigns ADD COLUMN IF NOT EXISTS ${col} DEFAULT NULL`);
+                await query(`ALTER TABLE api_campaigns ADD COLUMN ${col} DEFAULT NULL`);
                 console.log('✅ Done');
             } catch (err) {
                 console.log(`⚠️ Failed or existing: ${err.message}`);
