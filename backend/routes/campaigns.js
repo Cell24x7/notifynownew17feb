@@ -211,10 +211,9 @@ router.post('/', authenticate, async (req, res) => {
         // Use provided template_name or fallback to template_id (if it looks like a name)
         const templateName = req.body.template_name || (isNaN(template_id) ? template_id : null);
 
-        // Calculate next_run_at
         let nextRunAt = null;
         if (schedule_type === 'scheduled') {
-            nextRunAt = scheduled_at;
+            nextRunAt = new Date(scheduled_at).toISOString().slice(0, 19).replace('T', ' ');
         } else if (schedule_type === 'now') {
             nextRunAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
         }
