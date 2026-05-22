@@ -4,33 +4,90 @@ const { query } = require('../config/db');
 async function recalculateReports() {
     console.log('🔍 Starting Recalculation of All Campaign Reports (Removing Duplicates)...');
     
-    // Get all campaigns
-    const [campaigns] = await query('SELECT id, name, recipient_count FROM campaigns ORDER BY created_at DESC LIMIT 500');
-    
+    // 1. Recalculate campaigns (Normal)
+    console.log('--- Processing normal campaigns ---');
+    const [campaigns] = await query('SELECT id, name, recipient_count, audience_count FROM campaigns ORDER BY created_at DESC LIMIT 500');
     for (const camp of campaigns) {
-        // Count distinct recipients for each status
-        const [sentRes] = await query('SELECT COUNT(DISTINCT recipient) as count FROM message_logs WHERE campaign_id = ?', [camp.id]);
-        const [delivRes] = await query('SELECT COUNT(DISTINCT recipient) as count FROM message_logs WHERE campaign_id = ? AND status IN ("delivered", "read", "displayed")', [camp.id]);
-        const [readRes] = await query('SELECT COUNT(DISTINCT recipient) as count FROM message_logs WHERE campaign_id = ? AND status IN ("read", "displayed")', [camp.id]);
-        const [failedRes] = await query('SELECT COUNT(DISTINCT recipient) as count FROM message_logs WHERE campaign_id = ? AND status = "failed"', [camp.id]);
+        const [statsResult] = await query(`
+            SELECT 
+                COALESCE(SUM(CASE WHEN best_weight >= 1 THEN 1 ELSE 0 END), 0) as sent_count,
+                COALESCE(SUM(CASE WHEN best_weight >= 2 THEN 1 ELSE 0 END), 0) as delivered_count,
+                COALESCE(SUM(CASE WHEN best_weight = 3 THEN 1 ELSE 0 END), 0) as read_count,
+                COALESCE(SUM(CASE WHEN best_weight = 0 THEN 1 ELSE 0 END), 0) as failed_count
+            FROM (
+                SELECT recipient,
+                       MAX(CASE 
+                           WHEN status IN ('read', 'displayed', 'read_receipt') THEN 3
+                           WHEN status = 'delivered' THEN 2
+                           WHEN status IN ('sent', 'submitted', 'success') THEN 1
+                           ELSE 0
+                       END) as best_weight
+                FROM message_logs
+                WHERE campaign_id = ?
+                GROUP BY recipient
+            ) as t
+        `, [camp.id]);
+
+        const stats = statsResult[0];
+        const total = camp.recipient_count || camp.audience_count || 0;
         
-        let sent = sentRes[0].count;
-        let delivered = delivRes[0].count;
-        let read = readRes[0].count;
-        let failed = failedRes[0].count;
-        
-        // Safety cap: Sent count cannot exceed recipient count in reports
-        if (sent > camp.recipient_count) {
-            sent = camp.recipient_count;
+        let sent = stats.sent_count;
+        let failed = stats.failed_count;
+        if (total > 0) {
+            sent = Math.min(sent, total);
+            failed = Math.min(failed, total - sent);
         }
-        
-        // Update campaigns table
+        let delivered = Math.min(stats.delivered_count, sent);
+        let read = Math.min(stats.read_count, delivered);
+
         await query(
             'UPDATE campaigns SET sent_count = ?, delivered_count = ?, read_count = ?, failed_count = ? WHERE id = ?', 
             [sent, delivered, read, failed, camp.id]
         );
+        console.log(`✅ Updated Campaign ${camp.name} (${camp.id}) -> Sent: ${sent}, Delivered: ${delivered}, Read: ${read}, Failed: ${failed}`);
+    }
+
+    // 2. Recalculate api_campaigns
+    console.log('\n--- Processing API campaigns ---');
+    const [apiCampaigns] = await query('SELECT id, name, recipient_count, audience_count FROM api_campaigns ORDER BY created_at DESC LIMIT 500');
+    for (const camp of apiCampaigns) {
+        const [statsResult] = await query(`
+            SELECT 
+                COALESCE(SUM(CASE WHEN best_weight >= 1 THEN 1 ELSE 0 END), 0) as sent_count,
+                COALESCE(SUM(CASE WHEN best_weight >= 2 THEN 1 ELSE 0 END), 0) as delivered_count,
+                COALESCE(SUM(CASE WHEN best_weight = 3 THEN 1 ELSE 0 END), 0) as read_count,
+                COALESCE(SUM(CASE WHEN best_weight = 0 THEN 1 ELSE 0 END), 0) as failed_count
+            FROM (
+                SELECT recipient,
+                       MAX(CASE 
+                           WHEN status IN ('read', 'displayed', 'read_receipt') THEN 3
+                           WHEN status = 'delivered' THEN 2
+                           WHEN status IN ('sent', 'submitted', 'success') THEN 1
+                           ELSE 0
+                       END) as best_weight
+                FROM api_message_logs
+                WHERE campaign_id = ?
+                GROUP BY recipient
+            ) as t
+        `, [camp.id]);
+
+        const stats = statsResult[0];
+        const total = camp.recipient_count || camp.audience_count || 0;
         
-        console.log(`✅ Updated ${camp.name} -> Sent: ${sent}, Delivered: ${delivered}, Failed: ${failed}`);
+        let sent = stats.sent_count;
+        let failed = stats.failed_count;
+        if (total > 0) {
+            sent = Math.min(sent, total);
+            failed = Math.min(failed, total - sent);
+        }
+        let delivered = Math.min(stats.delivered_count, sent);
+        let read = Math.min(stats.read_count, delivered);
+
+        await query(
+            'UPDATE api_campaigns SET sent_count = ?, delivered_count = ?, read_count = ?, failed_count = ? WHERE id = ?', 
+            [sent, delivered, read, failed, camp.id]
+        );
+        console.log(`✅ Updated API Campaign ${camp.name} (${camp.id}) -> Sent: ${sent}, Delivered: ${delivered}, Read: ${read}, Failed: ${failed}`);
     }
     
     console.log('\n🎉 Recalculation Complete!');
