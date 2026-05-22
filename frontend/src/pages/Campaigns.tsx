@@ -518,9 +518,15 @@ export default function Campaigns() {
     { label: 'Total Delivered', value: campaigns.reduce((acc, c) => acc + (c.delivered_count || 0), 0).toLocaleString(), icon: TrendingUp, color: 'text-primary' },
   ];
 
-  const openAnalytics = (campaign: Campaign) => {
+  const openAnalytics = async (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     setAnalyticsOpen(true);
+    try {
+      const fullCampaign = await campaignService.getCampaign(campaign.id);
+      setSelectedCampaign(fullCampaign);
+    } catch (err) {
+      console.error('Error loading detailed campaign analytics:', err);
+    }
   };
 
   return (
@@ -925,6 +931,37 @@ export default function Campaigns() {
                 <Progress value={getDeliveryRate(selectedCampaign)} className="h-3" />
               </div>
 
+              {/* Channel Performance Breakdown */}
+              {selectedCampaign.channel_stats && selectedCampaign.channel_stats.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold tracking-tight text-foreground">Channel Performance Breakdown</h4>
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow>
+                          <TableHead className="font-medium">Channel</TableHead>
+                          <TableHead className="text-center font-medium">Sent</TableHead>
+                          <TableHead className="text-center font-medium">Delivered</TableHead>
+                          <TableHead className="text-center font-medium">Read</TableHead>
+                          <TableHead className="text-center font-medium">Failed</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getChannelBreakdown(selectedCampaign.channel_stats).map((row) => (
+                          <TableRow key={row.channel}>
+                            <TableCell className="font-medium capitalize">{row.channel}</TableCell>
+                            <TableCell className="text-center">{row.sent.toLocaleString()}</TableCell>
+                            <TableCell className="text-center text-success">{row.delivered.toLocaleString()}</TableCell>
+                            <TableCell className="text-center text-purple-600">{row.channel === 'sms' ? '-' : row.read.toLocaleString()}</TableCell>
+                            <TableCell className="text-center text-destructive">{row.failed.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4 text-sm mt-4">
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-muted-foreground">Channel</p>
@@ -966,4 +1003,46 @@ export default function Campaigns() {
 const getDeliveryRate = (campaign: Campaign) => {
   if (!campaign.sent_count) return 0;
   return Math.round((campaign.delivered_count / campaign.sent_count) * 100);
+};
+
+interface ChannelBreakdown {
+  channel: string;
+  sent: number;
+  delivered: number;
+  read: number;
+  failed: number;
+}
+
+const getChannelBreakdown = (stats?: Array<{ channel: string; status: string; count: number }>): ChannelBreakdown[] => {
+  if (!stats || !Array.isArray(stats)) return [];
+  
+  const breakdownMap: Record<string, ChannelBreakdown> = {};
+  
+  for (const stat of stats) {
+    const channel = (stat.channel || '').toLowerCase();
+    const status = (stat.status || '').toLowerCase();
+    const count = Number(stat.count || 0);
+    
+    if (!breakdownMap[channel]) {
+      breakdownMap[channel] = { channel, sent: 0, delivered: 0, read: 0, failed: 0 };
+    }
+    
+    const item = breakdownMap[channel];
+    
+    if (status === 'read' || status === 'displayed' || status === 'read_receipt') {
+      item.read += count;
+      item.delivered += count;
+      item.sent += count;
+    } else if (status === 'delivered') {
+      item.delivered += count;
+      item.sent += count;
+    } else if (status === 'failed') {
+      item.failed += count;
+      item.sent += count;
+    } else if (status === 'sent' || status === 'submitted' || status === 'success') {
+      item.sent += count;
+    }
+  }
+  
+  return Object.values(breakdownMap);
 };

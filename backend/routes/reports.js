@@ -546,6 +546,72 @@ router.post('/send-campaign-report', authenticate, async (req, res) => {
             return res.status(400).json({ success: false, message: 'User email not found' });
         }
 
+        // Fetch channel stats for breakdown
+        const logsTableForStats = campaignId.startsWith('CAMP_API_') ? 'api_message_logs' : 'message_logs';
+        const [channelStats] = await query(`
+            SELECT channel, status, COUNT(*) as count 
+            FROM ${logsTableForStats} 
+            WHERE campaign_id = ? 
+            GROUP BY channel, status
+        `, [campaignId]);
+
+        // Parse channel stats
+        const breakdown = {};
+        for (const stat of channelStats) {
+            const chan = (stat.channel || '').toLowerCase();
+            const status = (stat.status || '').toLowerCase();
+            const count = parseInt(stat.count || 0, 10);
+            
+            if (!breakdown[chan]) {
+                breakdown[chan] = { sent: 0, delivered: 0, read: 0, failed: 0 };
+            }
+            
+            if (status === 'read' || status === 'displayed' || status === 'read_receipt') {
+                breakdown[chan].read += count;
+                breakdown[chan].delivered += count;
+                breakdown[chan].sent += count;
+            } else if (status === 'delivered') {
+                breakdown[chan].delivered += count;
+                breakdown[chan].sent += count;
+            } else if (status === 'failed') {
+                breakdown[chan].failed += count;
+                breakdown[chan].sent += count;
+            } else if (status === 'sent' || status === 'submitted' || status === 'success') {
+                breakdown[chan].sent += count;
+            }
+        }
+
+        let breakdownHtml = '';
+        if (Object.keys(breakdown).length > 0) {
+            breakdownHtml = `
+                <h3 style="color: #2563eb; margin-top: 30px;">Channel Performance Breakdown</h3>
+                <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <tr style="background-color: #f2f2f2;">
+                        <th>Channel</th>
+                        <th>Sent</th>
+                        <th>Delivered</th>
+                        <th>Read</th>
+                        <th>Failed</th>
+                    </tr>
+            `;
+            
+            for (const [chan, stats] of Object.entries(breakdown)) {
+                const channelName = chan.toUpperCase();
+                const readDisplay = chan === 'sms' ? '-' : stats.read;
+                breakdownHtml += `
+                    <tr>
+                        <td><b>${channelName}</b></td>
+                        <td>${stats.sent}</td>
+                        <td>${stats.delivered}</td>
+                        <td>${readDisplay}</td>
+                        <td>${stats.failed}</td>
+                    </tr>
+                `;
+            }
+            
+            breakdownHtml += `</table>`;
+        }
+
         // 2. Fetch detailed logs for CSV
         // Check both message_logs and api_message_logs since it could be from either
         const [logs] = await query(`
@@ -624,6 +690,8 @@ router.post('/send-campaign-report', authenticate, async (req, res) => {
                         <td>${((c.failed_count / c.recipient_count) * 100).toFixed(1)}%</td>
                     </tr>
                 </table>
+
+                ${breakdownHtml}
 
                 ${zipLink ? `
                 <div style="margin-top: 20px; padding: 15px; border: 2px dashed #2563eb; text-align: center; background-color: #f8fafc;">

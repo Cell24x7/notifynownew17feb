@@ -29,6 +29,7 @@ export interface Campaign {
     failover_sms_template?: string;
     created_at: string;
     updated_at: string;
+    channel_stats?: Array<{ channel: string; status: string; count: number }>;
 }
 
 export interface PaginatedCampaigns {

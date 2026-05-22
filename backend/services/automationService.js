@@ -617,7 +617,8 @@ async function handleSmsAction(userId, mobile, config, payload, io) {
                         );
 
                         // 3. Update Campaign Sent Count
-                        if (campaignId) {
+                        const isInstantFail = !payload.messageId || payload.messageId === 'N/A' || String(payload.messageId).startsWith('failover_');
+                        if (campaignId && isInstantFail) {
                             await query(`UPDATE ${campaignsTable} SET sent_count = sent_count + 1 WHERE id = ?`, [campaignId]);
                         }
                     } catch (logErr) {

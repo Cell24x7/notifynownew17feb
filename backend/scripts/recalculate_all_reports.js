@@ -29,7 +29,7 @@ async function recalculateManualCampaign(camp) {
                 COALESCE(SUM(is_sent), 0) as sent_count,
                 COALESCE(SUM(is_delivered), 0) as delivered_count,
                 COALESCE(SUM(is_read), 0) as read_count,
-                COALESCE(SUM(CASE WHEN is_sent = 0 AND is_failed = 1 THEN 1 ELSE 0 END), 0) as failed_count
+                COALESCE(SUM(CASE WHEN is_delivered = 0 AND is_failed = 1 THEN 1 ELSE 0 END), 0) as failed_count
             FROM (
                 SELECT recipient,
                        MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt', 'delivered', 'sent', 'submitted', 'success') OR (status = 'failed' AND message_id IS NOT NULL AND message_id != '' AND message_id != 'N/A') THEN 1 ELSE 0 END) as is_sent,
@@ -73,7 +73,7 @@ async function recalculateApiCampaign(camp) {
                 COALESCE(SUM(is_sent), 0) as sent_count,
                 COALESCE(SUM(is_delivered), 0) as delivered_count,
                 COALESCE(SUM(is_read), 0) as read_count,
-                COALESCE(SUM(CASE WHEN is_sent = 0 AND is_failed = 1 THEN 1 ELSE 0 END), 0) as failed_count
+                COALESCE(SUM(CASE WHEN is_delivered = 0 AND is_failed = 1 THEN 1 ELSE 0 END), 0) as failed_count
             FROM (
                 SELECT recipient,
                        MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt', 'delivered', 'sent', 'submitted', 'success') OR (status = 'failed' AND message_id IS NOT NULL AND message_id != '' AND message_id != 'N/A') THEN 1 ELSE 0 END) as is_sent,

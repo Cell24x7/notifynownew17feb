@@ -142,7 +142,19 @@ router.get('/:id', authenticate, async (req, res) => {
         const table = id.startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
         const [campaign] = await query(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
         if (campaign.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
-        res.json({ success: true, campaign: campaign[0] });
+        
+        const c = campaign[0];
+        const logsTable = id.startsWith('CAMP_API_') ? 'api_message_logs' : 'message_logs';
+        const [channelStats] = await query(`
+            SELECT channel, status, COUNT(*) as count 
+            FROM ${logsTable} 
+            WHERE campaign_id = ? 
+            GROUP BY channel, status
+        `, [id]);
+
+        c.channel_stats = channelStats;
+
+        res.json({ success: true, campaign: c });
     } catch (error) {
         console.error('Get campaign error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch campaign' });

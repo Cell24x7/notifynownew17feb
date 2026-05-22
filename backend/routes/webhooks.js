@@ -1314,7 +1314,12 @@ const handleSmsCallback = async (req, res) => {
                         if (finalStatus === 'delivered') {
                             await query(`UPDATE ${currentTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
                             if (log.campaign_id) {
-                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                const isFailover = log.channel === 'sms' && log.failure_reason && log.failure_reason.includes('Failover from');
+                                if (isFailover) {
+                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, failed_count = GREATEST(0, CAST(failed_count AS SIGNED) - 1) WHERE id = ?`, [log.campaign_id]);
+                                } else {
+                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                }
                             }
                         } else if (finalStatus === 'failed') {
                             // Smart Extraction: Extract actual error details instead of generic message
@@ -1337,7 +1342,10 @@ const handleSmsCallback = async (req, res) => {
 
                             await query(`UPDATE ${currentTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
                             if (log.campaign_id) {
-                                await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                const isFailover = log.channel === 'sms' && log.failure_reason && log.failure_reason.includes('Failover from');
+                                if (!isFailover) {
+                                    await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                }
                             }
                         }
 
