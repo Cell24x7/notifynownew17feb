@@ -142,7 +142,12 @@ async function run() {
         output += `  - Total Delivered: ${grandDelivered.toLocaleString()} (${grandTotalBase > 0 ? ((grandDelivered / grandTotalBase) * 100).toFixed(1) : 0}% of Total Base)\n`;
         output += `========================================================================\n`;
 
+        const fs = require('fs');
+        const reportPath = path.join(__dirname, '..', 'summary_report_22_may.txt');
+        fs.writeFileSync(reportPath, output, 'utf8');
+
         console.log(output);
+        console.log(`\n💾 Report saved to file: ${reportPath}\n`);
         process.exit(0);
     } catch (err) {
         console.error(err);
