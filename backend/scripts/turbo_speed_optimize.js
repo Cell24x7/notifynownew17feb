@@ -21,8 +21,10 @@ async function turboOptimize() {
         // 2. Message Logs (Detailed Reports SPEED)
         { table: 'message_logs', sql: 'ADD INDEX IF NOT EXISTS idx_camp_user (campaign_id, user_id)' },
         { table: 'message_logs', sql: 'ADD INDEX IF NOT EXISTS idx_created_at (created_at)' },
+        { table: 'message_logs', sql: 'ADD INDEX IF NOT EXISTS idx_camp_rec_status (campaign_id, recipient, status)' },
         { table: 'api_message_logs', sql: 'ADD INDEX IF NOT EXISTS idx_camp_user (campaign_id, user_id)' },
         { table: 'api_message_logs', sql: 'ADD INDEX IF NOT EXISTS idx_created_at (created_at)' },
+        { table: 'api_message_logs', sql: 'ADD INDEX IF NOT EXISTS idx_camp_rec_status (campaign_id, recipient, status)' },
 
         // 3. Transactions (Finance & Ledger SPEED)
         { table: 'transactions', sql: 'ADD INDEX IF NOT EXISTS idx_user_created (user_id, created_at)' },
