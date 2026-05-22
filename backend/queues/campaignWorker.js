@@ -64,6 +64,15 @@ const campaignWorker = new Worker(queueName, async (job) => {
             return;
         }
 
+        // REDIS STRICT IDEMPOTENCY LOCK: Prevent double-sends if DB update fails and BullMQ retries
+        const lockKey = `${envSuffix}:strict_lock:${queueTable}:${item.id}`;
+        const acquired = await redis.setnx(lockKey, "1");
+        if (acquired === 0) {
+            console.warn(`[Worker] Skipping duplicate send attempt for ${item.mobile} (Job ${job.id}) due to active Redis lock.`);
+            return; // Assume previous attempt succeeded or is still in flight
+        }
+        await redis.expire(lockKey, 3600); // Lock for 1 hour
+
         // Pre-calculate status independent variables
         const now = new Date();
         const campId = item.campaign_id;
