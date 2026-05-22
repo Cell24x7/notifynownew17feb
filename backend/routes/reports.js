@@ -549,11 +549,11 @@ router.post('/send-campaign-report', authenticate, async (req, res) => {
         // 2. Fetch detailed logs for CSV
         // Check both message_logs and api_message_logs since it could be from either
         const [logs] = await query(`
-            SELECT mobile as Mobile, status as Status, send_time as Sent_Time, delivery_time as Delivery_Time, read_time as Read_Time, failure_reason as Failure_Note
+            SELECT mobile as Mobile, channel as Channel, status as Status, send_time as Sent_Time, delivery_time as Delivery_Time, read_time as Read_Time, failure_reason as Failure_Note
             FROM (
-                SELECT recipient as mobile, status, send_time, delivery_time, read_time, failure_reason FROM message_logs WHERE campaign_id = ?
+                SELECT recipient as mobile, channel, status, send_time, delivery_time, read_time, failure_reason FROM message_logs WHERE campaign_id = ?
                 UNION ALL
-                SELECT recipient as mobile, status, send_time, delivery_time, read_time, failure_reason FROM api_message_logs WHERE campaign_id = ?
+                SELECT recipient as mobile, channel, status, send_time, delivery_time, read_time, failure_reason FROM api_message_logs WHERE campaign_id = ?
             ) as combined_logs
         `, [campaignId, campaignId]);
 
