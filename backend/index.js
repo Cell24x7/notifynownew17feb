@@ -244,11 +244,25 @@ ensureAutomationsTable().catch(err => console.error('Automations table init erro
 ensureEnquiryColumns().catch(err => console.error('Enquiry columns init error:', err));
 ensureFeedbacksTable().catch(err => console.error('Feedbacks table init error:', err));
 
+// API 404 handler — any unmatched /api/* route returns JSON not HTML
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: `API endpoint not found: ${req.method} ${req.originalUrl}` });
+});
+
+// Global JSON error handler — prevents Express from sending HTML error pages
+app.use((err, req, res, next) => {
+  console.error('❌ Global Error:', err.stack || err.message);
+  const status = err.status || err.statusCode || 500;
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(status).json({ success: false, message: err.message || 'Internal Server Error' });
+  }
+  next(err);
+});
+
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendPath));
-app.get('*', (req, res, next) => {
-  if (req.originalUrl.startsWith('/api')) return next();
+app.get('*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
     if (err) res.status(200).send("API Running. Frontend not built.");
   });

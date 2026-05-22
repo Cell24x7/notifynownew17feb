@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
+const countCache = {};
+const COUNT_CACHE_TTL = 60000; // 60 seconds
 const { triggerChatflow } = require('../services/chatflowService');
 const { processAutomation } = require('../services/automationService');
 const { downloadWAMedia } = require('../utils/whatsappMedia');
@@ -603,7 +605,7 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         }
 
         if (req.query.channel && req.query.channel !== 'all') {
-            conditions.push("COALESCE(ml.channel, c.channel) = ?");
+            conditions.push("ml.channel = ?");
             params.push(req.query.channel);
         }
 
@@ -618,15 +620,25 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
 
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
-        // Get total count for pagination (Admin/Small views only)
-        const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id ${whereClause}`, params);
-        const total = countResult[0].total;
+        // Get total count for pagination with 60-second caching
+        const cacheKey = `count:${req.user.role}:${req.user.id}:${source}:${userIdQuery}:${req.query.campaignId || ''}:${req.query.channel || ''}:${req.query.search || ''}`;
+        let total;
+        const cachedEntry = countCache[cacheKey];
+        if (cachedEntry && (Date.now() - cachedEntry.timestamp < COUNT_CACHE_TTL)) {
+            total = cachedEntry.total;
+        } else {
+            const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml ${whereClause}`, params);
+            total = countResult[0].total;
+            countCache[cacheKey] = {
+                total,
+                timestamp: Date.now()
+            };
+        }
 
         const isExport = req.query.export === 'true';
         let selectSql = `
-            SELECT ml.id, ml.user_id, ml.campaign_id, ml.campaign_name, ml.message_id, ml.recipient, ml.status, ml.message_content, ml.send_time, ml.delivery_time, ml.read_time, ml.template_name, ml.failure_reason, ml.created_at, ml.updated_at, ml.channel, c.channel as campaign_channel 
+            SELECT ml.id, ml.user_id, ml.campaign_id, ml.campaign_name, ml.message_id, ml.recipient, ml.status, ml.message_content, ml.send_time, ml.delivery_time, ml.read_time, ml.template_name, ml.failure_reason, ml.created_at, ml.updated_at, ml.channel, ml.channel as campaign_channel 
             FROM ${logsTable} ml 
-            LEFT JOIN ${campaignsTable} c ON ml.campaign_id = c.id 
             ${whereClause} 
             ORDER BY ml.id DESC 
         `;

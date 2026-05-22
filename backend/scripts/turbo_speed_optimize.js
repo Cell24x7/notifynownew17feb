@@ -22,9 +22,14 @@ async function turboOptimize() {
         { table: 'message_logs', index: 'idx_camp_user', cols: '(campaign_id, user_id)' },
         { table: 'message_logs', index: 'idx_created_at', cols: '(created_at)' },
         { table: 'message_logs', index: 'idx_camp_rec_status', cols: '(campaign_id, recipient, status)' },
+        { table: 'message_logs', index: 'idx_user_id', cols: '(user_id)' },
+        { table: 'message_logs', index: 'idx_user_recipient_created', cols: '(user_id, recipient, created_at)' },
+        
         { table: 'api_message_logs', index: 'idx_camp_user', cols: '(campaign_id, user_id)' },
         { table: 'api_message_logs', index: 'idx_created_at', cols: '(created_at)' },
         { table: 'api_message_logs', index: 'idx_camp_rec_status', cols: '(campaign_id, recipient, status)' },
+        { table: 'api_message_logs', index: 'idx_user_id', cols: '(user_id)' },
+        { table: 'api_message_logs', index: 'idx_user_rec_sendtime', cols: '(user_id, recipient, send_time)' },
 
         // 3. Transactions (Finance & Ledger SPEED)
         { table: 'transactions', index: 'idx_user_created', cols: '(user_id, created_at)' },
@@ -36,7 +41,13 @@ async function turboOptimize() {
         
         // 5. Contacts & Chats (Contacts & Chat SPEED)
         { table: 'contacts', index: 'idx_user_phone', cols: '(user_id, phone)' },
-        { table: 'webhook_logs', index: 'idx_user_recipient', cols: '(user_id, recipient)' }
+        { table: 'webhook_logs', index: 'idx_user_recipient', cols: '(user_id, recipient)' },
+        { table: 'webhook_logs', index: 'idx_type_status', cols: '(type, status)' },
+        { table: 'webhook_logs', index: 'idx_user_type_status', cols: '(user_id, type, status)' },
+        { table: 'webhook_logs', index: 'idx_created_at', cols: '(created_at)' },
+        { table: 'webhook_logs', index: 'idx_status', cols: '(status)' },
+        { table: 'webhook_logs', index: 'idx_status_type', cols: '(status, type)' },
+        { table: 'webhook_logs', index: 'idx_user_status_type', cols: '(user_id, status, type)' }
     ];
 
     async function indexExists(tableName, indexName) {

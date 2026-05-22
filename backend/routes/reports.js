@@ -723,13 +723,55 @@ router.post('/send-campaign-report', authenticate, async (req, res) => {
 router.get('/engagement', authenticate, async (req, res) => {
     try {
         const { from, to, userId } = req.query;
+        const isResellerRole = req.user.role === 'reseller';
         const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
-        const targetUserId = (isAdminRole && userId) ? userId : req.user.id;
+        let targetUserId = req.user.id;
 
-        let params = [];
-        let dateFilter = '';
-        if (from) { dateFilter += ' AND created_at >= ?'; params.push(from + ' 00:00:00'); }
-        if (to) { dateFilter += ' AND created_at <= ?'; params.push(to + ' 23:59:59'); }
+        if ((isAdminRole || isResellerRole) && userId) {
+            targetUserId = userId;
+        }
+
+        let lcUserCondition = '';
+        let wlUserCondition = '';
+        let lcParams = [];
+        let wlParams = [];
+
+        if (targetUserId !== 'all') {
+            if (isResellerRole && targetUserId != req.user.id) {
+                // Safety: Can only see if they are a client of this reseller
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                lcUserCondition = 'AND lc.user_id = ? AND lc.user_id IN (SELECT id FROM users WHERE reseller_id = ?)';
+                wlUserCondition = 'AND wl.user_id = ? AND wl.user_id IN (SELECT id FROM users WHERE reseller_id = ?)';
+                lcParams.push(targetUserId, actualResellerId);
+                wlParams.push(targetUserId, actualResellerId);
+            } else {
+                lcUserCondition = 'AND lc.user_id = ?';
+                wlUserCondition = 'AND wl.user_id = ?';
+                lcParams.push(targetUserId);
+                wlParams.push(targetUserId);
+            }
+        } else if (isResellerRole) {
+            // Reseller wants all: include themselves and ALL their clients
+            const actualResellerId = req.user.actual_reseller_id || req.user.id;
+            lcUserCondition = 'AND (lc.user_id = ? OR lc.user_id IN (SELECT id FROM users WHERE reseller_id = ?))';
+            wlUserCondition = 'AND (wl.user_id = ? OR wl.user_id IN (SELECT id FROM users WHERE reseller_id = ?))';
+            lcParams.push(req.user.id, actualResellerId);
+            wlParams.push(req.user.id, actualResellerId);
+        }
+
+        let lcDateFilter = '';
+        let wlDateFilter = '';
+        let dateParams = [];
+        if (from) {
+            lcDateFilter += ' AND lc.created_at >= ?';
+            wlDateFilter += ' AND wl.created_at >= ?';
+            dateParams.push(from + ' 00:00:00');
+        }
+        if (to) {
+            lcDateFilter += ' AND lc.created_at <= ?';
+            wlDateFilter += ' AND wl.created_at <= ?';
+            dateParams.push(to + ' 23:59:59');
+        }
 
         const queryStr = `
             SELECT * FROM (
@@ -738,12 +780,12 @@ router.get('/engagement', authenticate, async (req, res) => {
                     'URL CLICKED' as type,
                     lc.mobile as msisdn,
                     lc.original_url as interaction,
-                    COALESCE(c.name, aml.campaign_name, 'Unknown') as campaign_name,
+                    COALESCE(c.name, ac.name, 'Unknown') as campaign_name,
                     lc.created_at as timestamp
                 FROM link_clicks lc
                 LEFT JOIN campaigns c ON lc.campaign_id = c.id
-                LEFT JOIN (SELECT DISTINCT campaign_id, campaign_name FROM api_message_logs) aml ON lc.campaign_id = aml.campaign_id
-                WHERE lc.user_id = ? ${dateFilter}
+                LEFT JOIN api_campaigns ac ON lc.campaign_id = ac.id
+                WHERE 1=1 ${lcUserCondition} ${lcDateFilter}
 
                 UNION ALL
 
@@ -753,23 +795,26 @@ router.get('/engagement', authenticate, async (req, res) => {
                     wl.sender as msisdn,
                     wl.message_content as interaction,
                     COALESCE(
+                        wl.campaign_name,
                         (SELECT campaign_name FROM message_logs WHERE recipient = wl.sender AND user_id = wl.user_id ORDER BY created_at DESC LIMIT 1),
                         (SELECT campaign_name FROM api_message_logs WHERE recipient = wl.sender AND user_id = wl.user_id ORDER BY send_time DESC LIMIT 1),
                         'API Campaign'
                     ) as campaign_name,
                     wl.created_at as timestamp
                 FROM webhook_logs wl
-                WHERE wl.user_id = ? 
+                WHERE 1=1 ${wlUserCondition} 
                 AND (wl.message_content LIKE 'User is Interested%' OR wl.message_content LIKE 'User Selected%')
-                ${dateFilter.replace('created_at', 'wl.created_at')}
+                ${wlDateFilter}
             ) as engagement_data
             ORDER BY timestamp DESC
             LIMIT 500
         `;
 
+        const queryParams = [...lcParams, ...dateParams, ...wlParams, ...dateParams];
+
         let dataRows = [];
         try {
-            const [rows] = await query(queryStr, [targetUserId, ...params, targetUserId, ...params]);
+            const [rows] = await query(queryStr, queryParams);
             dataRows = rows || [];
         } catch (dbErr) {
             console.error('Engagement DB Error:', dbErr.message);
