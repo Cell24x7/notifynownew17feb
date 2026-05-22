@@ -213,9 +213,16 @@ router.post('/', authenticate, async (req, res) => {
 
         let nextRunAt = null;
         if (schedule_type === 'scheduled') {
-            nextRunAt = new Date(scheduled_at).toISOString().slice(0, 19).replace('T', ' ');
+            // CRITICAL: Do NOT use toISOString() as it converts to UTC.
+            // MySQL NOW() returns server local time, so next_run_at must also be in local time.
+            // Frontend sends scheduled_at as local time string like "2026-05-22T15:20"
+            const d = new Date(scheduled_at);
+            const pad = (n) => String(n).padStart(2, '0');
+            nextRunAt = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
         } else if (schedule_type === 'now') {
-            nextRunAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const d = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            nextRunAt = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
         }
 
         let finalMetadata = template_metadata || {};
@@ -434,7 +441,7 @@ router.post('/:id/resend', authenticate, async (req, res) => {
                 typeof c.variable_mapping === 'object' ? JSON.stringify(c.variable_mapping) : (c.variable_mapping || '{}'),
                 typeof c.template_metadata === 'object' ? JSON.stringify(c.template_metadata) : (c.template_metadata || '{}'),
                 c.template_body, c.template_type,
-                'now', 'one-time', new Date().toISOString().slice(0, 19).replace('T', ' ')
+                'now', 'one-time', (() => { const d = new Date(); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; })()
             ]
         );
 

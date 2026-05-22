@@ -146,13 +146,20 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         }
 
         // --- 1. Auto-start scheduled campaigns ---
-        await query(`
-            UPDATE ${campaignTable} 
-            SET status = 'running', last_run_at = NOW()
-            WHERE status IN ('scheduled', 'draft') 
-            AND next_run_at <= NOW()
-            AND status != 'running'
-        `).catch(() => {});
+        try {
+            const [autoStartResult] = await query(`
+                UPDATE ${campaignTable} 
+                SET status = 'running', last_run_at = NOW()
+                WHERE status IN ('scheduled', 'draft') 
+                AND next_run_at <= NOW()
+                AND status != 'running'
+            `);
+            if (autoStartResult.affectedRows > 0) {
+                console.log(`⏰ [Scheduler] Auto-started ${autoStartResult.affectedRows} scheduled campaign(s) whose time has come.`);
+            }
+        } catch (schedErr) {
+            console.error('[Scheduler] Error auto-starting campaigns:', schedErr.message);
+        }
 
         // --- 2. SQL FETCH JOINED DATA (Optimized to ignore junk/orphaned items) ---
         const [stats] = await query(`
