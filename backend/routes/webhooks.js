@@ -47,7 +47,7 @@ router.post('/rcs/callback', async (req, res) => {
                     const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
                     const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
-                    const weights = { sent: 1, delivered: 2, read: 3, failed: 0 };
+                    const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
                     const oldStatus = (log.status || 'sent').toLowerCase();
 
                     if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {

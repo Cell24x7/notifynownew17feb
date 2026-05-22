@@ -623,7 +623,7 @@ export default function Dashboard() {
               ) : (
                 stats.recentCampaigns.map((camp: any, idx: number) => {
                   const progress = camp.recipient_count > 0 
-                    ? Math.round(((camp.sent_count + camp.failed_count) / camp.recipient_count) * 100) 
+                    ? Math.min(100, Math.round(((camp.sent_count + camp.failed_count) / camp.recipient_count) * 100)) 
                     : 0;
                   
                   return (

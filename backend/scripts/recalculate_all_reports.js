@@ -20,18 +20,16 @@ async function recalculateManualCampaign(camp) {
     try {
         const [statsResult] = await query(`
             SELECT 
-                COALESCE(SUM(CASE WHEN best_weight >= 1 THEN 1 ELSE 0 END), 0) as sent_count,
-                COALESCE(SUM(CASE WHEN best_weight >= 2 THEN 1 ELSE 0 END), 0) as delivered_count,
-                COALESCE(SUM(CASE WHEN best_weight = 3 THEN 1 ELSE 0 END), 0) as read_count,
-                COALESCE(SUM(CASE WHEN best_weight = 0 THEN 1 ELSE 0 END), 0) as failed_count
+                COALESCE(SUM(is_sent), 0) as sent_count,
+                COALESCE(SUM(is_delivered), 0) as delivered_count,
+                COALESCE(SUM(is_read), 0) as read_count,
+                COALESCE(SUM(is_failed), 0) as failed_count
             FROM (
                 SELECT recipient,
-                       MAX(CASE 
-                           WHEN status IN ('read', 'displayed', 'read_receipt') THEN 3
-                           WHEN status = 'delivered' THEN 2
-                           WHEN status IN ('sent', 'submitted', 'success') THEN 1
-                           ELSE 0
-                       END) as best_weight
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt', 'delivered', 'sent', 'submitted', 'success') OR (status = 'failed' AND message_id IS NOT NULL AND message_id != '' AND message_id != 'N/A') THEN 1 ELSE 0 END) as is_sent,
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt', 'delivered') THEN 1 ELSE 0 END) as is_delivered,
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt') THEN 1 ELSE 0 END) as is_read,
+                       MAX(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as is_failed
                 FROM message_logs
                 WHERE campaign_id = ?
                 GROUP BY recipient
@@ -45,7 +43,7 @@ async function recalculateManualCampaign(camp) {
         let failed = stats.failed_count;
         if (total > 0) {
             sent = Math.min(sent, total);
-            failed = Math.min(failed, total - sent);
+            failed = Math.min(failed, total);
         }
         let delivered = Math.min(stats.delivered_count, sent);
         let read = Math.min(stats.read_count, delivered);
@@ -66,18 +64,16 @@ async function recalculateApiCampaign(camp) {
     try {
         const [statsResult] = await query(`
             SELECT 
-                COALESCE(SUM(CASE WHEN best_weight >= 1 THEN 1 ELSE 0 END), 0) as sent_count,
-                COALESCE(SUM(CASE WHEN best_weight >= 2 THEN 1 ELSE 0 END), 0) as delivered_count,
-                COALESCE(SUM(CASE WHEN best_weight = 3 THEN 1 ELSE 0 END), 0) as read_count,
-                COALESCE(SUM(CASE WHEN best_weight = 0 THEN 1 ELSE 0 END), 0) as failed_count
+                COALESCE(SUM(is_sent), 0) as sent_count,
+                COALESCE(SUM(is_delivered), 0) as delivered_count,
+                COALESCE(SUM(is_read), 0) as read_count,
+                COALESCE(SUM(is_failed), 0) as failed_count
             FROM (
                 SELECT recipient,
-                       MAX(CASE 
-                           WHEN status IN ('read', 'displayed', 'read_receipt') THEN 3
-                           WHEN status = 'delivered' THEN 2
-                           WHEN status IN ('sent', 'submitted', 'success') THEN 1
-                           ELSE 0
-                       END) as best_weight
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt', 'delivered', 'sent', 'submitted', 'success') OR (status = 'failed' AND message_id IS NOT NULL AND message_id != '' AND message_id != 'N/A') THEN 1 ELSE 0 END) as is_sent,
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt', 'delivered') THEN 1 ELSE 0 END) as is_delivered,
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt') THEN 1 ELSE 0 END) as is_read,
+                       MAX(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as is_failed
                 FROM api_message_logs
                 WHERE campaign_id = ?
                 GROUP BY recipient
@@ -91,7 +87,7 @@ async function recalculateApiCampaign(camp) {
         let failed = stats.failed_count;
         if (total > 0) {
             sent = Math.min(sent, total);
-            failed = Math.min(failed, total - sent);
+            failed = Math.min(failed, total);
         }
         let delivered = Math.min(stats.delivered_count, sent);
         let read = Math.min(stats.read_count, delivered);

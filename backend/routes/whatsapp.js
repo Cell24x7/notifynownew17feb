@@ -1079,8 +1079,8 @@ router.post('/api/campaign-status', async (req, res) => {
         const [statsRows] = await query(`
             SELECT 
                 COUNT(*) as log_total,
-                CAST(SUM(CASE WHEN LOWER(status) = 'sent' THEN 1 ELSE 0 END) AS UNSIGNED) as sent_total,
-                CAST(SUM(CASE WHEN LOWER(status) = 'delivered' THEN 1 ELSE 0 END) AS UNSIGNED) as delivered_total,
+                CAST(SUM(CASE WHEN LOWER(status) IN ('sent', 'submitted', 'success', 'delivered', 'read', 'displayed', 'read_receipt') OR (LOWER(status) = 'failed' AND message_id IS NOT NULL AND message_id != '' AND message_id != 'N/A') THEN 1 ELSE 0 END) AS UNSIGNED) as sent_total,
+                CAST(SUM(CASE WHEN LOWER(status) IN ('read', 'displayed', 'read_receipt', 'delivered') THEN 1 ELSE 0 END) AS UNSIGNED) as delivered_total,
                 CAST(SUM(CASE WHEN LOWER(status) IN ('read', 'displayed', 'read_receipt') THEN 1 ELSE 0 END) AS UNSIGNED) as read_total,
                 CAST(SUM(CASE WHEN LOWER(status) = 'failed' THEN 1 ELSE 0 END) AS UNSIGNED) as failed_total
             FROM ${logsTable}
@@ -1092,18 +1092,13 @@ router.post('/api/campaign-status', async (req, res) => {
         
         // Convert to Numbers to avoid string outputs from SQL
         const log_total = Number(stats.log_total || 0);
-        const sent_only = Number(stats.sent_total || 0);
-        const delivered_only = Number(stats.delivered_total || 0);
-        const read = Number(stats.read_total || 0);
-        const failed = Number(stats.failed_total || 0);
-
-        // Standard 'delivered' count includes those already 'read'
-        const delivered = delivered_only + read;
-        // Standard 'sent' count includes all that progressed beyond raw sending
-        const sent = Math.min(totalRecipients, sent_only + delivered);
+        const sent = Math.min(totalRecipients, Number(stats.sent_total || 0));
+        const delivered = Math.min(Number(stats.delivered_total || 0), sent);
+        const read = Math.min(Number(stats.read_total || 0), delivered);
+        const failed = Math.min(Number(stats.failed_total || 0), totalRecipients);
 
         // Items still in entry or processing
-        const pending = Math.max(0, totalRecipients - sent - failed);
+        const pending = Math.max(0, totalRecipients - log_total);
 
         const response = {
             success: true,
