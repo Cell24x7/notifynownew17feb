@@ -161,6 +161,21 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             console.error('[Scheduler] Error auto-starting campaigns:', schedErr.message);
         }
 
+        // --- Auto-recover stuck 'processing' items (PM2 crash protection) ---
+        try {
+            const [recovered] = await query(`
+                UPDATE ${queueTable} 
+                SET status = 'pending', worker_id = NULL, updated_at = NOW()
+                WHERE status = 'processing' 
+                AND updated_at < NOW() - INTERVAL 30 MINUTE
+            `);
+            if (recovered && recovered.affectedRows > 0) {
+                console.log(`[Worker:${processorName}] 🔄 Auto-recovered ${recovered.affectedRows} stuck processing items → pending`);
+            }
+        } catch (recoverErr) {
+            console.error(`[Worker:${processorName}] Recovery error:`, recoverErr.message);
+        }
+
         // --- 2. SQL FETCH JOINED DATA (Optimized to ignore junk/orphaned items) ---
         const [stats] = await query(`
             SELECT COUNT(q.id) as pendingCount 

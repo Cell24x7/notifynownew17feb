@@ -15,6 +15,10 @@ export interface SuperAdminStats {
     channelUsage: { channel: string; messages: number; percentage: number }[];
     planDistribution: { name: string; value: number }[];
     topClients: { name: string; balance: number }[];
+    queuePending?: number;
+    queueStuck?: number;
+    queueProcessing?: number;
+    activeCampaignsInQueue?: number;
 }
 
 export const superAdminApi = {

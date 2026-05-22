@@ -233,9 +233,50 @@ async function fetchSuperAdminStatsData(isReseller, resellerId) {
         };
     });
 
+    // Queue Health Metrics (PM2 and general health visibility)
+    let queuePending = 0;
+    let queueStuck = 0;
+    let queueProcessing = 0;
+    let activeCampaignsInQueue = 0;
+
+    try {
+        const [manualQueue] = await query(`
+            SELECT 
+                COALESCE(SUM(CASE WHEN q.status = 'pending' THEN 1 ELSE 0 END), 0) as pending,
+                COALESCE(SUM(CASE WHEN q.status = 'processing' AND q.updated_at < NOW() - INTERVAL 30 MINUTE THEN 1 ELSE 0 END), 0) as stuck,
+                COALESCE(SUM(CASE WHEN q.status = 'processing' THEN 1 ELSE 0 END), 0) as processing,
+                COUNT(DISTINCT q.campaign_id) as active_campaigns
+            FROM campaign_queue q
+            JOIN campaigns c ON c.id = q.campaign_id
+            WHERE c.status = 'running'
+        `);
+        
+        const [apiQueue] = await query(`
+            SELECT 
+                COALESCE(SUM(CASE WHEN q.status = 'pending' THEN 1 ELSE 0 END), 0) as pending,
+                COALESCE(SUM(CASE WHEN q.status = 'processing' AND q.updated_at < NOW() - INTERVAL 30 MINUTE THEN 1 ELSE 0 END), 0) as stuck,
+                COALESCE(SUM(CASE WHEN q.status = 'processing' THEN 1 ELSE 0 END), 0) as processing,
+                COUNT(DISTINCT q.campaign_id) as active_campaigns
+            FROM api_campaign_queue q
+            JOIN api_campaigns c ON c.id = q.campaign_id
+            WHERE c.status = 'running'
+        `);
+
+        queuePending = Number(manualQueue[0]?.pending || 0) + Number(apiQueue[0]?.pending || 0);
+        queueStuck = Number(manualQueue[0]?.stuck || 0) + Number(apiQueue[0]?.stuck || 0);
+        queueProcessing = Number(manualQueue[0]?.processing || 0) + Number(apiQueue[0]?.processing || 0);
+        activeCampaignsInQueue = Number(manualQueue[0]?.active_campaigns || 0) + Number(apiQueue[0]?.active_campaigns || 0);
+    } catch (e) {
+        console.error('Queue health query error:', e.message);
+    }
+
     const responseData = {
         success: true,
         stats: {
+            queuePending,
+            queueStuck,
+            queueProcessing,
+            activeCampaignsInQueue,
             totalClients: userCounts[0]?.total || 0,
             activeClients: activeClientCounts[0]?.total || 0,
             activePlans: planCounts[0]?.total || 0,

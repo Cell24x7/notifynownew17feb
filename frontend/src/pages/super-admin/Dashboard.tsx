@@ -121,6 +121,54 @@ export default function SuperAdminDashboard() {
           <span className="font-medium">{stats.activeClients} Active Clients</span>
         </div>
       </div>
+      
+      {/* Queue Health Overview */}
+      {user?.role !== 'reseller' && stats.queuePending !== undefined && (
+        <Card className="border-primary/20 bg-gradient-to-r from-background via-primary/5 to-background">
+          <CardContent className="p-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-primary animate-pulse" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold">Queue Processing Engine</CardTitle>
+                  <CardDescription className="text-xs">
+                    Real-time status of message queues across {stats.activeCampaignsInQueue || 0} active campaigns
+                  </CardDescription>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 md:gap-4 flex-1 max-w-lg">
+                <div className="bg-background/80 backdrop-blur-sm border rounded-lg p-3 text-center">
+                  <span className="block text-xs text-muted-foreground font-medium">Pending</span>
+                  <span className="text-lg md:text-xl font-bold text-primary">
+                    {stats.queuePending.toLocaleString()}
+                  </span>
+                </div>
+                
+                <div className="bg-background/80 backdrop-blur-sm border rounded-lg p-3 text-center">
+                  <span className="block text-xs text-muted-foreground font-medium">Processing</span>
+                  <span className="text-lg md:text-xl font-bold text-blue-500">
+                    {stats.queueProcessing.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className={`border rounded-lg p-3 text-center transition-all ${
+                  stats.queueStuck && stats.queueStuck > 0 
+                    ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse font-bold" 
+                    : "bg-background/80 backdrop-blur-sm"
+                }`}>
+                  <span className="block text-xs text-muted-foreground font-medium text-red-500">Stuck</span>
+                  <span className={`text-lg md:text-xl font-bold ${stats.queueStuck && stats.queueStuck > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                    {(stats.queueStuck || 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
