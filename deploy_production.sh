@@ -194,7 +194,7 @@ cd "$BACKEND_DIR"
 
 # Fix scheduled campaigns stored in wrong timezone (UTC vs local)
 log "   🕐 Fixing scheduled campaign timezones..."
-NODE_ENV=production node scripts/fix_scheduled_timezone.js || true
+NODE_ENV=production node scripts/fix_scheduled_final.js || true
 
 # Recalculate all campaign report counts (remove duplicate inflation)
 log "   📊 Recalculating campaign reports..."
