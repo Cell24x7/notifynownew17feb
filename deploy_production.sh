@@ -188,6 +188,20 @@ fi
 pm2 save --force
 ok "PM2 Process management complete."
 
+# ── Step 7.5: Auto-Fix Data Issues ─────────────────────────
+log "[7.5/8] Running Data Fix Scripts..."
+cd "$BACKEND_DIR"
+
+# Fix scheduled campaigns stored in wrong timezone (UTC vs local)
+log "   🕐 Fixing scheduled campaign timezones..."
+NODE_ENV=production node scripts/fix_scheduled_timezone.js || true
+
+# Recalculate all campaign report counts (remove duplicate inflation)
+log "   📊 Recalculating campaign reports..."
+NODE_ENV=production node scripts/recalculate_all_reports.js || true
+
+ok "All data fixes applied."
+
 # ── Step 8: Health Check ───────────────────────────────────
 log "[8/8] Running Final Health Check..."
 sleep 3
