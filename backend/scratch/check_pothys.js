@@ -104,25 +104,54 @@ async function main() {
         console.log('└────────────────────────────────────────────────────────────');
     });
 
-    console.log('║  SMS Delivered : ' + totSMSDeliv.toLocaleString().padEnd(35) + '║');
-    console.log('║  Queue Pending : ' + totQueue.toLocaleString().padEnd(35) + '║');
+    // ─── Grand Total ─────────────────────────────────────────────
+    const totTotal    = rows.reduce((s,r) => s + Math.max(Number(r.audience_count||0), Number(r.recipient_count||0)), 0);
+    const totSent     = rows.reduce((s,r) => s + Number(r.sent_count||0), 0);
+    const totDeliv    = rows.reduce((s,r) => s + Number(r.delivered_count||0), 0);
+    const totRead     = rows.reduce((s,r) => s + Number(r.read_count||0), 0);
+    const totFail     = rows.reduce((s,r) => s + Number(r.failed_count||0), 0);
+    const totQueue    = Object.values(queueMap).reduce((s,v) => s + Number(v), 0);
+    const totSMSFB    = Object.values(fallbackMap).reduce((s,f) => s + Number(f.sms_fallback||0), 0);
+    const totSMSDlv   = Object.values(fallbackMap).reduce((s,f) => s + Number(f.sms_delivered||0), 0);
+    const totSMSFail  = Object.values(fallbackMap).reduce((s,f) => s + Number(f.sms_failed||0), 0);
+    const totEffReach = totDeliv + totSMSDlv;
+    const totDelivPct = totTotal > 0 ? ((totDeliv/totTotal)*100).toFixed(1) : '0';
+    const totEffPct   = totTotal > 0 ? ((totEffReach/totTotal)*100).toFixed(1) : '0';
+
+    const W = 35;
+    console.log('\n╔══════════════════════════════════════════════════════╗');
+    console.log('║        GRAND TOTAL — ' + rows.length + ' Campaigns Combined          ║');
+    console.log('╠══════════════════════════════════════════════════════╣');
+    console.log('║  Total Numbers    : ' + col(n(totTotal), W) + '║');
+    console.log('║  Total Sent       : ' + col(n(totSent), W) + '║');
+    console.log('╠══════════════════════════════════════════════════════╣');
+    console.log('║  RCS Delivered    : ' + col(n(totDeliv) + ' (' + totDelivPct + '%)', W) + '║');
+    console.log('║  RCS Read         : ' + col(n(totRead), W) + '║');
+    console.log('║  RCS Failed       : ' + col(n(totFail), W) + '║');
+    console.log('╠══════════════════════════════════════════════════════╣');
+    console.log('║  SMS Fallback Sent: ' + col(n(totSMSFB), W) + '║');
+    console.log('║  SMS Fallback Dlvd: ' + col(n(totSMSDlv), W) + '║');
+    console.log('║  SMS Fallback Fail: ' + col(n(totSMSFail), W) + '║');
+    console.log('╠══════════════════════════════════════════════════════╣');
+    console.log('║  ✨ EFFECTIVE REACH: ' + col(n(totEffReach) + ' (' + totEffPct + '%)', W) + '║');
+    console.log('║  ⏳ Queue Pending  : ' + col(n(totQueue), W) + '║');
     console.log('╚══════════════════════════════════════════════════════╝');
 
     if (totQueue === 0) {
-        const allDone = rows.every(r => r.status === 'completed');
+        const allDone = rows.every(r => r.status === 'completed' || r.status === 'sent');
         if (allDone) {
             console.log('\n🎉 SARE CAMPAIGNS COMPLETE! Queue empty. Koi bhi pending nahi.');
         } else {
-            const notDone = rows.filter(r => r.status !== 'completed').map(r => r.name.split(' - ').pop());
-            console.log('\n⚠️  Queue empty but ye campaigns completed nahi hain: ' + notDone.join(', '));
-            console.log('   PM2 restart karo ya check karo: pm2 logs notifynow-live-prod');
+            const notDone = rows.filter(r => r.status === 'running').map(r => r.name.split(' - ').pop());
+            console.log('\n⚠️  Queue empty but still running: ' + notDone.join(', '));
         }
     } else {
-        console.log('\n⏳ ABHI BHI CHAL RAHA HAI — ' + totQueue.toLocaleString() + ' messages queue mein hain.');
-        console.log('   Thodi der baad dobara run karo ye script.');
+        console.log('\n⏳ ALMOST DONE — sirf ' + n(totQueue) + ' messages queue mein hain.');
+        console.log('   5-10 min mein automatically complete ho jayega.');
     }
 
     await conn.end();
+
 }
 main().catch(e => {
     console.error('❌ Error:', e.message);
