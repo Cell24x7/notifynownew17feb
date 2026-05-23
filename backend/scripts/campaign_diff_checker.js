@@ -17,32 +17,70 @@ if (!fs.existsSync(reportsDir)) {
 
 async function run() {
     const args = process.argv.slice(2);
-    const campaignId = args[0];
+    const input = args.join(' ').trim();
 
-    if (!campaignId) {
-        console.error('\n❌ Error: Please provide a Campaign ID.');
-        console.error('Usage: node backend/scripts/campaign_diff_checker.js <campaign_id>\n');
+    if (!input) {
+        console.error('\n❌ Error: Please provide a Campaign ID or Campaign Name.');
+        console.error('Usage: node backend/scripts/campaign_diff_checker.js <campaign_id_or_name>\n');
         process.exit(1);
     }
 
-    console.log(`\n🔎 Investigating Campaign ID: ${campaignId} in database...`);
+    let campaignId = null;
+    let isApiCampaign = false;
+    let c = null;
 
     try {
-        // 1. Fetch Campaign details
-        let isApiCampaign = false;
-        let [camp] = await query('SELECT id, name, recipient_count, sent_count, delivered_count, read_count, failed_count, status, channel FROM campaigns WHERE id = ?', [campaignId]);
-        
-        if (camp.length === 0) {
-            // Check api_campaigns
-            [camp] = await query('SELECT id, name, recipient_count, sent_count, delivered_count, read_count, failed_count, status, channel FROM api_campaigns WHERE id = ?', [campaignId]);
-            if (camp.length === 0) {
-                console.error(`❌ Error: Campaign with ID ${campaignId} not found in campaigns or api_campaigns tables.`);
-                process.exit(1);
+        // A. Try parsing input as numerical campaign ID first
+        if (/^\d+$/.test(input)) {
+            campaignId = parseInt(input, 10);
+            let [camp] = await query('SELECT id, name, recipient_count, sent_count, delivered_count, read_count, failed_count, status, channel FROM campaigns WHERE id = ?', [campaignId]);
+            if (camp.length > 0) {
+                c = camp[0];
+                isApiCampaign = false;
+            } else {
+                [camp] = await query('SELECT id, name, recipient_count, sent_count, delivered_count, read_count, failed_count, status, channel FROM api_campaigns WHERE id = ?', [campaignId]);
+                if (camp.length > 0) {
+                    c = camp[0];
+                    isApiCampaign = true;
+                }
             }
-            isApiCampaign = true;
         }
 
-        const c = camp[0];
+        // B. If not found by ID, try searching as a campaign name pattern
+        if (!c) {
+            console.log(`🔍 Searching campaigns matching name pattern: "%${input}%"...`);
+            const [campMatches] = await query(
+                'SELECT id, name, recipient_count, sent_count, delivered_count, read_count, failed_count, status, channel, created_at, "manual" as type FROM campaigns WHERE name LIKE ?',
+                [`%${input}%`]
+            );
+            const [apiMatches] = await query(
+                'SELECT id, name, recipient_count, sent_count, delivered_count, read_count, failed_count, status, channel, created_at, "api" as type FROM api_campaigns WHERE name LIKE ?',
+                [`%${input}%`]
+            );
+
+            const allMatches = [...campMatches, ...apiMatches].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            if (allMatches.length === 0) {
+                console.error(`❌ Error: No campaign found matching ID or name "${input}".`);
+                process.exit(1);
+            } else if (allMatches.length === 1) {
+                c = allMatches[0];
+                campaignId = c.id;
+                isApiCampaign = c.type === 'api';
+                console.log(`🎯 Found unique match: "${c.name}" (ID: ${c.id})`);
+            } else {
+                console.log(`\n⚠️  Multiple campaigns matched your query:`);
+                allMatches.forEach((m, idx) => {
+                    console.log(`  [${idx + 1}] ID: ${m.id} | Name: ${m.name} | Created: ${new Date(m.created_at).toLocaleString()} (${m.type})`);
+                });
+                console.log(`\n👉 Picking the most recent one automatically: "${allMatches[0].name}" (ID: ${allMatches[0].id})`);
+                c = allMatches[0];
+                campaignId = c.id;
+                isApiCampaign = c.type === 'api';
+            }
+        }
+
+        console.log(`\n🔎 Investigating Campaign ID: ${campaignId} in database...`);
         console.log(`\n========================================================================`);
         console.log(`📋 Campaign: "${c.name}" (ID: ${c.id}) [Type: ${isApiCampaign ? 'API' : 'Manual'}]`);
         console.log(`========================================================================`);
