@@ -206,7 +206,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   // Refresh data when campaignId changes
   const handleCampaignIdChange = (id: string) => {
     setCampaignId(id);
-    setIsCampaignCreated(campaigns.some(c => String(c.campaign_id) === id));
+    setIsCampaignCreated(campaigns.some(c => String(c.campaign_id || c.id || c.campaignId) === id));
     
     // Trigger updates
     setTimeout(() => {
@@ -906,11 +906,12 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
               className="text-xs font-mono font-bold bg-background border rounded-lg h-9 px-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
             >
               <option value={campaignId}>{campaignId} (Current)</option>
-              {campaigns.map((c, i) => (
-                String(c.campaign_id) !== campaignId && (
-                  <option key={i} value={c.campaign_id}>{c.campaign_id} - {c.campaign_name}</option>
-                )
-              ))}
+              {campaigns.map((c, i) => {
+                const idVal = String(c.campaign_id || c.id || c.campaignId);
+                return idVal !== campaignId && (
+                  <option key={i} value={idVal}>{idVal} - {c.campaign_name}</option>
+                );
+              })}
             </select>
             <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg" onClick={() => copyToClipboard(campaignId)}>
               {copiedId ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
@@ -1450,8 +1451,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     <tbody className="divide-y text-xs">
                       {campaigns.length > 0 ? (
                         campaigns.map((c, i) => (
-                          <tr key={i} className={cn("hover:bg-muted/10", String(c.campaign_id) === campaignId && "bg-indigo-50/20")}>
-                            <td className="p-3 font-mono font-bold">#{c.campaign_id}</td>
+                          <tr key={i} className={cn("hover:bg-muted/10", String(c.campaign_id || c.id || c.campaignId) === campaignId && "bg-indigo-50/20")}>
+                            <td className="p-3 font-mono font-bold">#{c.campaign_id || c.id || c.campaignId}</td>
                             <td className="p-3 font-semibold">{c.campaign_name}</td>
                             <td className="p-3 text-muted-foreground max-w-[200px] truncate">{c.campaign_description || 'No description'}</td>
                             <td className="p-3">
@@ -1467,11 +1468,11 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                             <td className="p-3">
                               <Button
                                 size="sm"
-                                variant={String(c.campaign_id) === campaignId ? "default" : "outline"}
+                                variant={String(c.campaign_id || c.id || c.campaignId) === campaignId ? "default" : "outline"}
                                 className="h-6 text-[10px] font-bold"
-                                onClick={() => handleCampaignIdChange(String(c.campaign_id))}
+                                onClick={() => handleCampaignIdChange(String(c.campaign_id || c.id || c.campaignId))}
                               >
-                                {String(c.campaign_id) === campaignId ? 'Active' : 'Activate'}
+                                {String(c.campaign_id || c.id || c.campaignId) === campaignId ? 'Active' : 'Activate'}
                               </Button>
                             </td>
                           </tr>
