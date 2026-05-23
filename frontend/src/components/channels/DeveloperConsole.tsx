@@ -1412,9 +1412,53 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                       </div>
                     </div>
 
+                    <div className="p-3 bg-muted/40 border border-dashed rounded-lg space-y-2 text-[11px] animate-in fade-in duration-300">
+                      <p className="font-bold text-muted-foreground uppercase tracking-wider text-[9px] mb-1">Dispatch Summary Details</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-muted-foreground">Target Campaign:</span>
+                          <p className="font-bold text-primary truncate">
+                            {campaigns.find(c => String(c.campaign_id || c.id || c.campaignId) === campaignId)?.campaign_name || `Campaign #${campaignId}`}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Recipients:</span>
+                          <p className="font-mono font-bold text-amber-700">{stagedContacts.length} numbers staged</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Message Mode:</span>
+                          <p className="font-bold text-indigo-600">{sendMode === 'template' ? 'Saved Template' : 'Direct Plain Text'}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Template Selected:</span>
+                          <p className="font-bold text-emerald-600 truncate">
+                            {sendMode === 'template' ? (selectedTemplate?.template_name || 'None selected') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {stagedContacts.length > 0 && (
+                        <div className="pt-2 border-t border-dashed">
+                          <span className="text-muted-foreground">Recipients list preview:</span>
+                          <div className="flex flex-wrap gap-1 mt-1 max-h-[38px] overflow-y-auto no-scrollbar">
+                            {stagedContacts.slice(0, 6).map((sc, idx) => (
+                              <Badge key={idx} variant="outline" className="text-[9px] font-mono py-0 px-1 bg-background text-muted-foreground h-4">
+                                +{sc.number}
+                              </Badge>
+                            ))}
+                            {stagedContacts.length > 6 && (
+                              <Badge variant="outline" className="text-[9px] font-bold py-0 px-1 bg-indigo-50/50 text-indigo-600 border-indigo-200 h-4">
+                                +{stagedContacts.length - 6} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <Button
                       onClick={handleStartCampaign}
-                      disabled={isLoading || (sendMode === 'text' && !messageContent.trim()) || (sendMode === 'template' && !selectedTemplateId)}
+                      disabled={isLoading || (sendMode === 'text' && !messageContent.trim()) || (sendMode === 'template' && !selectedTemplateId) || stagedContacts.length === 0}
                       className="w-full h-11 text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg"
                     >
                       {activeAction === 'send' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
