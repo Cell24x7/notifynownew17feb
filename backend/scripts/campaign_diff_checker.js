@@ -94,8 +94,9 @@ async function run() {
         console.log(`------------------------------------------------------------------------`);
 
         // 2. Fetch all message logs for this campaign
+        const logsTable = isApiCampaign ? 'api_message_logs' : 'message_logs';
         const [logs] = await query(
-            'SELECT recipient, channel, status, error_code, error_message FROM message_logs WHERE campaign_id = ?',
+            `SELECT recipient, status FROM ${logsTable} WHERE campaign_id = ?`,
             [campaignId]
         );
 
