@@ -770,7 +770,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const bulkNumbersFound = useMemo(() => {
     if (!bulkText.trim()) return [];
     return bulkText
-      .split(/[\n,\s;]+/5)
+      .split(/[\n,\s;]+/)
       .map(n => n.trim().replace(/\D/g, ''))
       .filter(n => n.length >= 10);
   }, [bulkText]);
