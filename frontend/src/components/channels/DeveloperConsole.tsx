@@ -1107,17 +1107,19 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   </div>
 
                   {/* Status counters — merge remote + local for accurate display */}
-                  <div className="grid grid-cols-5 gap-1">
+                  <div className="grid grid-cols-7 gap-1">
                     {[
                       { label: 'Staged', value: campaignStatus.local?.staged || 0, color: 'bg-amber-100 text-amber-700 border-amber-200' },
                       { label: 'Pending', value: Math.max(campaignStatus.local?.pending || 0, campaignStatus.remote?.pending || 0), color: 'bg-blue-100 text-blue-700 border-blue-200' },
                       { label: 'In Progress', value: Math.max(campaignStatus.local?.in_progress || 0, campaignStatus.remote?.in_progress || 0), color: 'bg-purple-100 text-purple-700 border-purple-200' },
-                      { label: 'Sent', value: Math.max(campaignStatus.local?.sent || 0, campaignStatus.remote?.sent || 0), color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+                      { label: 'Sent', value: Math.max(campaignStatus.local?.sent || 0, campaignStatus.remote?.sent || 0), color: 'bg-sky-100 text-sky-700 border-sky-200' },
+                      { label: 'Delivered', value: campaignStatus.remote?.delivered || 0, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+                      { label: 'Read', value: campaignStatus.remote?.read || 0, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
                       { label: 'Failed', value: Math.max(campaignStatus.local?.failed || 0, campaignStatus.remote?.failed || 0), color: 'bg-red-100 text-red-700 border-red-200' },
                     ].map((s, i) => (
-                      <div key={i} className={cn("flex flex-col items-center p-1.5 rounded-md border text-center", s.color)}>
-                        <span className="text-sm font-black">{s.value}</span>
-                        <span className="text-[8px] font-bold uppercase">{s.label}</span>
+                      <div key={i} className={cn("flex flex-col items-center p-1 rounded-md border text-center", s.color)}>
+                        <span className="text-xs font-black">{s.value}</span>
+                        <span className="text-[7px] font-bold uppercase">{s.label}</span>
                       </div>
                     ))}
                   </div>
@@ -1126,9 +1128,11 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   {campaignStatus.remote && (
                     <div className="p-2 bg-muted/30 rounded-md border border-border/50">
                       <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Remote Server Status</p>
-                      <div className="flex gap-3 text-[10px]">
+                      <div className="flex gap-2.5 text-[10px] flex-wrap">
                         <span>Pending: <strong>{campaignStatus.remote.pending || 0}</strong></span>
                         <span>Sent: <strong>{campaignStatus.remote.sent || 0}</strong></span>
+                        <span>Delivered: <strong>{campaignStatus.remote.delivered || 0}</strong></span>
+                        <span>Read: <strong>{campaignStatus.remote.read || 0}</strong></span>
                         <span>Failed: <strong>{campaignStatus.remote.failed || 0}</strong></span>
                       </div>
                     </div>

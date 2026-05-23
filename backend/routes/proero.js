@@ -359,13 +359,28 @@ router.get('/proxy/api/campaign/:campaignId/status', authenticateToken, async (r
         const localSent = localCounts.sent || 0;
         const completionPct = localTotal > 0 ? Math.round((localSent / localTotal) * 100) : 0;
 
+        let mappedRemote = null;
+        if (remoteStatus?.success && remoteStatus?.data) {
+            const remoteData = remoteStatus.data;
+            const breakdown = remoteData.message_breakdown || {};
+            mappedRemote = {
+                staged: breakdown.staged || 0,
+                pending: breakdown.pending || 0,
+                in_progress: breakdown.in_progress || 0,
+                sent: breakdown.sent || 0,
+                delivered: breakdown.delivered || 0,
+                read: breakdown.read || 0,
+                failed: breakdown.failed || 0
+            };
+        }
+
         res.json({
             success: true,
             campaignId,
             local: localCounts,
-            remote: remoteStatus?.data || null,
+            remote: mappedRemote,
             total: localTotal,
-            completionPercentage: remoteStatus?.completionPercentage ?? completionPct
+            completionPercentage: remoteStatus?.data?.metrics?.progress_percentage ?? remoteStatus?.completionPercentage ?? completionPct
         });
     } catch (err) {
         console.error('Campaign status error:', err.message);
