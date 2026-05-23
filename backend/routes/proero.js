@@ -4,7 +4,7 @@ const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
 const axios = require('axios');
 
-const EXTERNAL_BASE_URL = 'https://wa.notifynow.in';
+const EXTERNAL_BASE_URL = 'https://wa.notifynow.in/compact';
 
 /**
  * @route   GET /api/proero/channels
@@ -370,6 +370,42 @@ router.get('/proxy/api/campaign/:campaignId/status', authenticateToken, async (r
     } catch (err) {
         console.error('Campaign status error:', err.message);
         res.status(500).json({ success: false, message: 'Failed to fetch campaign status' });
+    }
+});
+// ═══════════════════════════════════════════════════════════════
+
+// Intercept old template GET path to map to new Postman collection template path
+router.get('/proxy/api/campaign/templates/user/:userId', authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.get(`${EXTERNAL_BASE_URL}/api/template/templates/user/${req.params.userId}`);
+        res.json(response.data);
+    } catch (err) {
+        console.error('Mapped template get error:', err.response?.data || err.message);
+        res.status(err.response?.status || 500).json(err.response?.data || { success: false, message: 'Failed to fetch templates' });
+    }
+});
+
+// Intercept old template POST path to map to new Postman collection template path
+router.post('/proxy/api/campaign/templates/save', authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.post(`${EXTERNAL_BASE_URL}/api/template/save`, req.body);
+        res.json(response.data);
+    } catch (err) {
+        console.error('Mapped template save error:', err.response?.data || err.message);
+        res.status(err.response?.status || 500).json(err.response?.data || { success: false, message: 'Failed to save template' });
+    }
+});
+
+// Intercept old template DELETE path to map to new Postman collection template path
+router.delete('/proxy/api/campaign/templates/:templateId', authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.delete(`${EXTERNAL_BASE_URL}/api/template/templates/${req.params.templateId}`, {
+            data: req.body
+        });
+        res.json(response.data);
+    } catch (err) {
+        console.error('Mapped template delete error:', err.response?.data || err.message);
+        res.status(err.response?.status || 500).json(err.response?.data || { success: false, message: 'Failed to delete template' });
     }
 });
 

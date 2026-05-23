@@ -41,11 +41,18 @@ echo -e "  Feature: Proero Unofficial WhatsApp Integration "
 echo -e "==========================================${NC}"
 
 # ── Step 2: Git Sync ──────────────────────────────────
-log "📥 [1/6] Pulling Latest Changes..."
-git fetch origin main
-git reset --hard origin/main
-COMMIT=$(git log -1 --pretty=format:'%h — %s (%ar)')
-ok "Pulled latest: $COMMIT"
+log "📥 [1/6] Syncing Git..."
+if [ "$1" == "--force-pull" ]; then
+    warn "Force pulling from origin/main (all local edits will be discarded)..."
+    git fetch origin main
+    git reset --hard origin/main
+    COMMIT=$(git log -1 --pretty=format:'%h — %s (%ar)')
+    ok "Force pulled latest: $COMMIT"
+else
+    warn "Skipping hard reset to protect local changes. Use './deploy_server.sh --force-pull' if you want a clean override."
+    COMMIT=$(git log -1 --pretty=format:'%h — %s (%ar)')
+    ok "Current local commit: $COMMIT"
+fi
 
 # ── Step 3: Dependencies & Environment ────────────────
 log "📦 [2/6] Installing Dependencies & Setting Env..."
