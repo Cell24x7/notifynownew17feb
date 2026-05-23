@@ -79,6 +79,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   
   // Campaign state
   const [campaignId, setCampaignId] = useState(String(Math.floor(Math.random() * 900000) + 100000));
+  const [isCampaignCreated, setIsCampaignCreated] = useState(false);
   const [numberInput, setNumberInput] = useState('');
   const [recipients, setRecipients] = useState<string[]>([]);
   const [messageContent, setMessageContent] = useState('');
@@ -340,8 +341,29 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     try {
       setIsLoading(true);
       setActiveAction('stage');
+
+      let finalCampaignId = campaignId;
+
+      if (!isCampaignCreated) {
+        try {
+          const createResponse = await api.post(`${PROXY_BASE}/api/campaign/create`, {
+            user_id: parseInt(userId),
+            campaign_name: `Console Campaign ${campaignId}`,
+            campaign_description: `Console Campaign initiated via Developer Console`
+          });
+          if (createResponse.data?.success && createResponse.data?.data?.id) {
+            finalCampaignId = String(createResponse.data.data.id);
+            setCampaignId(finalCampaignId);
+            setIsCampaignCreated(true);
+            console.log("Successfully created campaign on backend with ID:", finalCampaignId);
+          }
+        } catch (createErr: any) {
+          console.warn("Failed to create campaign dynamically:", createErr.message);
+        }
+      }
+
       await api.post(`${PROXY_BASE}/api/campaign/add-contacts`, {
-        campaign_id: campaignId,
+        campaign_id: parseInt(finalCampaignId),
         user_id: parseInt(userId),
         contacts: recipients
       });
@@ -602,7 +624,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 <span className="text-[10px] font-bold uppercase text-muted-foreground">Campaign:</span>
                 <Input 
                   value={campaignId}
-                  onChange={e => setCampaignId(e.target.value.replace(/\D/g, ''))}
+                  onChange={e => {
+                    setCampaignId(e.target.value.replace(/\D/g, ''));
+                    setIsCampaignCreated(false);
+                  }}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
