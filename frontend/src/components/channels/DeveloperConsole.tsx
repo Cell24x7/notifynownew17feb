@@ -664,11 +664,13 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     }
   };
 
-  const handleMarkMessageAsRead = async (messageId: string) => {
+  const handleMarkMessageAsRead = async (messageId: string, phoneNumber?: string) => {
     try {
-      const response = await api.post(`${PROXY_BASE}/api/message/${messageId}/mark-read`, {
-        manual_override: true
-      });
+      const payload: any = { manual_override: true };
+      if (phoneNumber) {
+        payload.phone_number = phoneNumber;
+      }
+      const response = await api.post(`${PROXY_BASE}/api/message/${messageId}/mark-read`, payload);
       if (response.data?.success) {
         toast.success("Message manually marked as read ✓");
         // Re-inspect message and refresh campaign tables
@@ -1895,7 +1897,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                                   size="sm" 
                                   variant="ghost" 
                                   className="h-6 text-[10px] text-primary hover:bg-primary/5 gap-0.5"
-                                  onClick={() => handleInspectMessage(m.message_id)}
+                                  onClick={() => handleInspectMessage(m.message_id || m.messageId || m.id)}
                                 >
                                   <Eye className="w-3 h-3" /> Inspect
                                 </Button>
@@ -1904,7 +1906,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                                     size="sm"
                                     variant="ghost"
                                     className="h-6 text-[10px] text-emerald-600 hover:bg-emerald-50"
-                                    onClick={() => handleMarkMessageAsRead(m.message_id)}
+                                    onClick={() => handleMarkMessageAsRead(m.message_id || m.messageId || m.id, m.recipient_phone || m.phone_number)}
                                     title="Manually override as Read"
                                   >
                                     Mark Read
@@ -2199,7 +2201,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 variant="outline" 
                 size="sm" 
                 className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold"
-                onClick={() => handleMarkMessageAsRead(selectedMessage.message_id)}
+                onClick={() => handleMarkMessageAsRead(selectedMessage.message_id || selectedMessage.messageId || selectedMessage.id, selectedMessage.recipient_phone || selectedMessage.phone_number)}
               >
                 Manual Override Read Status ✓
               </Button>
