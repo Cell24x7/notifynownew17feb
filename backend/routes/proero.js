@@ -211,7 +211,7 @@ router.post('/proxy/api/campaign/add-contacts', authenticateToken, async (req, r
     // 2. Mirror into local DB
     if (campaign_id && Array.isArray(contacts) && contacts.length > 0) {
         try {
-            const uid = user_id || req.user?.id;
+            const uid = req.user?.id || user_id;
             const values = contacts.map(c => [campaign_id, uid, String(c).replace(/\D/g, ''), 'staged']);
             await query(
                 'INSERT IGNORE INTO api_campaign_queue (campaign_id, user_id, mobile, status) VALUES ?',
