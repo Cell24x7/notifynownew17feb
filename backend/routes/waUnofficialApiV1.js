@@ -4,7 +4,7 @@ const { query } = require('../config/db');
 const axios = require('axios');
 const bcrypt = require('bcryptjs');
 
-const EXTERNAL_BASE_URL = 'https://wa.notifynow.in/compact';
+const EXTERNAL_BASE_URL = 'https://wa.notifynow.in';
 
 /**
  * Enhanced Developer Authentication Middleware

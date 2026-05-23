@@ -4,7 +4,7 @@ const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
 const axios = require('axios');
 
-const EXTERNAL_BASE_URL = 'https://wa.notifynow.in/compact';
+const EXTERNAL_BASE_URL = 'https://wa.notifynow.in';
 
 /**
  * @route   GET /api/proero/channels
