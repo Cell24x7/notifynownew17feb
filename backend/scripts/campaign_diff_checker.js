@@ -100,33 +100,6 @@ async function run() {
             [campaignId]
         );
 
-        // Map status counts from logs
-        const logMap = {};
-        const logsSentNumbers = new Set();
-        const logsDeliveredNumbers = new Set();
-        const logsFailedNumbers = new Set();
-        const logsReadNumbers = new Set();
-
-        logs.forEach(l => {
-            const rawNum = String(l.recipient).replace(/\D/g, '');
-            const stat = (l.status || '').toLowerCase();
-            logMap[rawNum] = stat;
-
-            if (stat === 'read' || stat === 'displayed' || stat === 'read_receipt') {
-                logsReadNumbers.add(rawNum);
-                logsDeliveredNumbers.add(rawNum);
-                logsSentNumbers.add(rawNum);
-            } else if (stat === 'delivered') {
-                logsDeliveredNumbers.add(rawNum);
-                logsSentNumbers.add(rawNum);
-            } else if (stat === 'failed') {
-                logsFailedNumbers.add(rawNum);
-            } else {
-                // Sent / Submitted
-                logsSentNumbers.add(rawNum);
-            }
-        });
-
         // 3. Fetch all numbers in the campaign queue
         const queueTable = isApiCampaign ? 'api_campaign_queue' : 'campaign_queue';
         const [queue] = await query(
@@ -134,15 +107,40 @@ async function run() {
             [campaignId]
         );
 
-        const queueNumbers = queue.map(q => String(q.mobile).replace(/\D/g, ''));
+        // Map status priorities per phone number to resolve fallback duplicate rows
+        const numberStatusMap = {}; // mobile -> { category, status }
+        
+        logs.forEach(l => {
+            const rawNum = String(l.recipient).replace(/\D/g, '');
+            const stat = (l.status || '').toLowerCase();
+            
+            let category = 'failed';
+            let prio = 1;
+
+            if (stat === 'read' || stat === 'displayed' || stat === 'read_receipt') {
+                category = 'read';
+                prio = 4;
+            } else if (stat === 'delivered') {
+                category = 'delivered';
+                prio = 3;
+            } else if (stat === 'sent' || stat === 'submitted' || stat === 'success') {
+                category = 'sent';
+                prio = 2; // still pending handset status
+            }
+
+            const current = numberStatusMap[rawNum];
+            if (!current || prio > current.prio) {
+                numberStatusMap[rawNum] = { category, prio, status: stat };
+            }
+        });
 
         // 4. Analysis
-
+        
         // A. Skipped Numbers: Uploaded in queue but never got recorded in message_logs
         const skippedNumbers = [];
         queue.forEach(q => {
             const rawNum = String(q.mobile).replace(/\D/g, '');
-            if (!logMap[rawNum]) {
+            if (!numberStatusMap[rawNum]) {
                 skippedNumbers.push({
                     number: rawNum,
                     queueStatus: q.status
@@ -150,26 +148,38 @@ async function run() {
             }
         });
 
-        // B. Pending DLR Numbers: in message_logs with status 'sent' (not delivered/read/failed)
-        const pendingDlrNumbers = [];
-        logs.forEach(l => {
-            const rawNum = String(l.recipient).replace(/\D/g, '');
-            const stat = (l.status || '').toLowerCase();
-            if (stat === 'sent' || stat === 'submitted' || stat === 'success') {
-                pendingDlrNumbers.push(rawNum);
+        // B. Pending DLR Numbers: combined status is 'sent' (submitted but no delivery success/fail feedback)
+        const uniquePending = [];
+        // C. Group unique numbers by category
+        const uniqueRead = new Set();
+        const uniqueDelivered = new Set();
+        const uniqueFailed = new Set();
+        const uniqueSentOnly = new Set();
+
+        Object.keys(numberStatusMap).forEach(mobile => {
+            const entry = numberStatusMap[mobile];
+            if (entry.category === 'read') {
+                uniqueRead.add(mobile);
+                uniqueDelivered.add(mobile); // Read implies delivered
+            } else if (entry.category === 'delivered') {
+                uniqueDelivered.add(mobile);
+            } else if (entry.category === 'sent') {
+                uniqueSentOnly.add(mobile);
+                uniquePending.push(mobile);
+            } else if (entry.category === 'failed') {
+                uniqueFailed.add(mobile);
             }
         });
 
-        // Dedup pending
-        const uniquePending = [...new Set(pendingDlrNumbers)];
+        const totalAttemptedUnique = Object.keys(numberStatusMap).length;
 
         console.log(`\n🔍 CAMPAIGN LOGS & QUEUE COMPARISON ANALYSIS:`);
         console.log(`------------------------------------------------------------------------`);
         console.log(`1. Total Numbers in Queue Table:   ${queue.length.toLocaleString()}`);
-        console.log(`2. Total Sent Records in Logs:     ${logsSentNumbers.size.toLocaleString()}`);
-        console.log(`3. Total Delivered in Logs (DLR):  ${logsDeliveredNumbers.size.toLocaleString()} (Includes Read)`);
-        console.log(`4. Total Read in Logs:             ${logsReadNumbers.size.toLocaleString()}`);
-        console.log(`5. Total Failed in Logs:           ${logsFailedNumbers.size.toLocaleString()}`);
+        console.log(`2. Unique Attempted in Logs:       ${totalAttemptedUnique.toLocaleString()}`);
+        console.log(`3. Unique Delivered in Logs (DLR):  ${uniqueDelivered.size.toLocaleString()} (Includes Read)`);
+        console.log(`4. Unique Read in Logs:             ${uniqueRead.size.toLocaleString()}`);
+        console.log(`5. Unique Failed in Logs:           ${uniqueFailed.size.toLocaleString()}`);
         console.log(`------------------------------------------------------------------------`);
         console.log(`📈 DIFFERENCE BREAKDOWN:`);
         console.log(`------------------------------------------------------------------------`);
@@ -177,7 +187,7 @@ async function run() {
         console.log(`   (Uploaded in excel/list but never attempted or got filtered out due to duplicates/invalid format)`);
         console.log(`🟡 DLR PENDING (Sent Only):  ${uniquePending.length.toLocaleString()} numbers`);
         console.log(`   (Submitted to gateway but waiting for delivery receipt from carrier/handset offline)`);
-        console.log(`🟢 ATTEMPTED & COMPLETED:   ${(logsDeliveredNumbers.size + logsFailedNumbers.size).toLocaleString()} numbers`);
+        console.log(`🟢 ATTEMPTED & COMPLETED:   ${(uniqueDelivered.size + uniqueFailed.size).toLocaleString()} numbers`);
         console.log(`   (Either delivered, read, or permanently failed)`);
         console.log(`========================================================================`);
 
