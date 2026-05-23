@@ -1877,44 +1877,58 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                         </tr>
                       ) : campaignMessages.length > 0 ? (
                         campaignMessages
-                          .filter(m => !messageSearchTerm || m.recipient_phone.includes(messageSearchTerm))
-                          .map((m, i) => (
-                            <tr key={i} className="hover:bg-muted/10">
-                              <td className="p-3 font-mono font-bold">+{m.recipient_phone}</td>
-                              <td className="p-3">
-                                <Badge className={cn("text-[9px] font-bold uppercase", 
-                                  m.status === 'read' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                                  m.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                  m.status === 'failed' ? 'bg-red-50 text-red-700 border-red-200' :
-                                  'bg-blue-50 text-blue-700 border-blue-200'
-                                )}>{m.status}</Badge>
-                              </td>
-                              <td className="p-3 text-muted-foreground font-mono">{m.sent_at ? new Date(m.sent_at).toLocaleTimeString() : '-'}</td>
-                              <td className="p-3 text-muted-foreground font-mono">{m.delivered_at ? new Date(m.delivered_at).toLocaleTimeString() : '-'}</td>
-                              <td className="p-3 text-muted-foreground font-mono">{m.read_at ? new Date(m.read_at).toLocaleTimeString() : '-'}</td>
-                              <td className="p-3 flex items-center gap-1">
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="h-6 text-[10px] text-primary hover:bg-primary/5 gap-0.5"
-                                  onClick={() => handleInspectMessage(m.message_id || m.messageId || m.id)}
-                                >
-                                  <Eye className="w-3 h-3" /> Inspect
-                                </Button>
-                                {m.status !== 'read' && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 text-[10px] text-emerald-600 hover:bg-emerald-50"
-                                    onClick={() => handleMarkMessageAsRead(m.message_id || m.messageId || m.id, m.recipient_phone || m.phone_number)}
-                                    title="Manually override as Read"
-                                  >
-                                    Mark Read
-                                  </Button>
-                                )}
-                              </td>
-                            </tr>
-                          ))
+                          .filter(m => !messageSearchTerm || (m.recipient_phone && m.recipient_phone.includes(messageSearchTerm)) || (m.recipient_name && m.recipient_name.toLowerCase().includes(messageSearchTerm.toLowerCase())))
+                          .map((m, i) => {
+                            const msgId = m.message_id || m.messageId || m.id;
+                            const hasId = !!msgId;
+                            const phone = m.recipient_phone || m.phone_number;
+                            const isRead = m.status === 'read' || m.is_read === true;
+                            return (
+                              <tr key={i} className="hover:bg-muted/10">
+                                <td className="p-3 font-mono font-bold">{phone ? `+${phone}` : (m.recipient_name || 'Queued Recipient')}</td>
+                                <td className="p-3">
+                                  <Badge className={cn("text-[9px] font-bold uppercase", 
+                                    isRead ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                    m.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                    m.status === 'failed' ? 'bg-red-50 text-red-700 border-red-200' :
+                                    'bg-blue-50 text-blue-700 border-blue-200'
+                                  )}>{m.status || (isRead ? 'read' : 'sent/pending')}</Badge>
+                                </td>
+                                <td className="p-3 text-muted-foreground font-mono">{m.sent_at ? new Date(m.sent_at).toLocaleTimeString() : '-'}</td>
+                                <td className="p-3 text-muted-foreground font-mono">{m.delivered_at ? new Date(m.delivered_at).toLocaleTimeString() : '-'}</td>
+                                <td className="p-3 text-muted-foreground font-mono">{m.read_at ? new Date(m.read_at).toLocaleTimeString() : '-'}</td>
+                                <td className="p-3">
+                                  {hasId ? (
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-6 text-[10px] text-primary hover:bg-primary/5 gap-0.5"
+                                        onClick={() => handleInspectMessage(msgId)}
+                                      >
+                                        <Eye className="w-3 h-3" /> Inspect
+                                      </Button>
+                                      {!isRead && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 text-[10px] text-emerald-600 hover:bg-emerald-50"
+                                          onClick={() => handleMarkMessageAsRead(msgId, phone)}
+                                          title="Manually override as Read"
+                                        >
+                                          Mark Read
+                                        </Button>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                                      <Clock className="w-3 h-3 animate-pulse" /> Queueing...
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
                       ) : (
                         <tr>
                           <td colSpan={6} className="p-10 text-center text-muted-foreground italic">No message status records found. Trigger campaign first.</td>
