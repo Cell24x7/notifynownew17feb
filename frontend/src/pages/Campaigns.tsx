@@ -672,22 +672,28 @@ export default function Campaigns() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="p-2 rounded-lg bg-muted">
-                      <p className="text-lg font-bold">{campaign.sent_count?.toLocaleString() || 0}</p>
-                      <p className="text-xs text-muted-foreground">Sent</p>
+                  <div className="grid grid-cols-5 gap-1 text-center">
+                    <div className="p-1 rounded-lg bg-muted">
+                      <p className="text-sm font-bold">{campaign.sent_count?.toLocaleString() || 0}</p>
+                      <p className="text-[10px] text-muted-foreground">Sent</p>
                     </div>
-                    <div className="p-2 rounded-lg bg-success/10">
-                      <p className="text-lg font-bold text-success">{campaign.delivered_count?.toLocaleString() || 0}</p>
-                      <p className="text-xs text-muted-foreground">Delivered</p>
+                    <div className="p-1 rounded-lg bg-success/10">
+                      <p className="text-sm font-bold text-success">{campaign.delivered_count?.toLocaleString() || 0}</p>
+                      <p className="text-[10px] text-muted-foreground">Deliv.</p>
                     </div>
-                    <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
-                      <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{campaign.read_count?.toLocaleString() || 0}</p>
-                      <p className="text-xs text-muted-foreground">Read</p>
+                    <div className="p-1 rounded-lg bg-purple-100 dark:bg-purple-900/20">
+                      <p className="text-sm font-bold text-purple-600 dark:text-purple-400">{campaign.read_count?.toLocaleString() || 0}</p>
+                      <p className="text-[10px] text-muted-foreground">Read</p>
                     </div>
-                    <div className="p-2 rounded-lg bg-destructive/10">
-                      <p className="text-lg font-bold text-destructive">{campaign.failed_count?.toLocaleString() || 0}</p>
-                      <p className="text-xs text-muted-foreground">Failed</p>
+                    <div className="p-1 rounded-lg bg-destructive/10">
+                      <p className="text-sm font-bold text-destructive">{campaign.failed_count?.toLocaleString() || 0}</p>
+                      <p className="text-[10px] text-muted-foreground">Failed</p>
+                    </div>
+                    <div className="p-1 rounded-lg bg-amber-500/10">
+                      <p className="text-sm font-bold text-amber-500">
+                        {Math.max(0, (campaign.sent_count || 0) - ((campaign.delivered_count || 0) + (campaign.failed_count || 0))).toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Pending</p>
                     </div>
                   </div>
 
@@ -751,6 +757,7 @@ export default function Campaigns() {
                   <TableHead className="text-center text-muted-foreground font-bold">Delivered</TableHead>
                   <TableHead className="text-center text-muted-foreground font-bold">Read</TableHead>
                   <TableHead className="text-center text-muted-foreground font-bold">Failed</TableHead>
+                  <TableHead className="text-center text-muted-foreground font-bold">Pending</TableHead>
                   <TableHead className="text-center text-muted-foreground font-bold">Delivery Rate</TableHead>
                   <TableHead className="text-right text-muted-foreground font-bold">Cost</TableHead>
                   <TableHead className="text-muted-foreground font-bold">Created</TableHead>
@@ -767,6 +774,9 @@ export default function Campaigns() {
                     <TableCell className="text-center text-success">{campaign.delivered_count?.toLocaleString() || 0}</TableCell>
                     <TableCell className="text-center text-purple-600">{campaign.read_count?.toLocaleString() || 0}</TableCell>
                     <TableCell className="text-center text-destructive">{campaign.failed_count?.toLocaleString() || 0}</TableCell>
+                    <TableCell className="text-center text-amber-500">
+                      {Math.max(0, (campaign.sent_count || 0) - ((campaign.delivered_count || 0) + (campaign.failed_count || 0))).toLocaleString()}
+                    </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center gap-2">
                         <Progress value={getDeliveryRate(campaign)} className="h-2 flex-1" />
@@ -904,7 +914,7 @@ export default function Campaigns() {
 
           {selectedCampaign && (
             <div className="space-y-6 py-4">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card className="p-4 bg-muted/30">
                   <p className="text-sm text-muted-foreground mb-1">Total Sent</p>
                   <p className="text-2xl font-bold">{selectedCampaign.sent_count?.toLocaleString() || 0}</p>
@@ -920,6 +930,12 @@ export default function Campaigns() {
                 <Card className="p-4 bg-destructive/5 border-destructive/20">
                   <p className="text-sm text-destructive font-medium mb-1">Failed</p>
                   <p className="text-2xl font-bold text-destructive">{selectedCampaign.failed_count?.toLocaleString() || 0}</p>
+                </Card>
+                <Card className="p-4 bg-amber-50 border-amber-200">
+                  <p className="text-sm text-amber-500 font-medium mb-1">Pending</p>
+                  <p className="text-2xl font-bold text-amber-500">
+                    {Math.max(0, (selectedCampaign.sent_count || 0) - ((selectedCampaign.delivered_count || 0) + (selectedCampaign.failed_count || 0))).toLocaleString()}
+                  </p>
                 </Card>
               </div>
 

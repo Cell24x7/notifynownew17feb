@@ -643,6 +643,7 @@ export default function Reports() {
                                             <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-emerald-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Deliv.</TableHead>
                                             <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-purple-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Read</TableHead>
                                             <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-rose-400 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Failed</TableHead>
+                                            <TableHead className="sticky top-0 bg-white z-[100] py-4 px-3 text-center text-[11px] uppercase tracking-wider text-amber-500 font-semibold border-b border-border shadow-[0_1px_0_0_rgba(0,0,0,0.1)]">Pending</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -677,6 +678,9 @@ export default function Reports() {
                                                     <td className="py-4 px-3 text-center font-semibold text-emerald-400 text-xs">{camp.delivered_count?.toLocaleString()}</td>
                                                     <td className="py-4 px-3 text-center font-semibold text-purple-400 text-xs">{camp.read_count?.toLocaleString()}</td>
                                                     <td className="py-4 px-3 text-center font-semibold text-rose-400 text-xs">{camp.failed_count?.toLocaleString()}</td>
+                                                    <td className="py-4 px-3 text-center font-semibold text-amber-500 text-xs">
+                                                        {Math.max(0, (camp.sent_count || 0) - ((camp.delivered_count || 0) + (camp.failed_count || 0))).toLocaleString()}
+                                                    </td>
                                             </TableRow>
                                         ))
                                     )}

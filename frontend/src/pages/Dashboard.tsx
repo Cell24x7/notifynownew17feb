@@ -610,6 +610,7 @@ export default function Dashboard() {
                 <th className="py-4 px-4 text-center">Delivered</th>
                 <th className="py-4 px-4 text-center">Read</th>
                 <th className="py-4 px-4 text-center">Failed</th>
+                <th className="py-4 px-4 text-center">Pending</th>
                 <th className="py-4 px-6 text-center">Progress</th>
               </tr>
             </thead>
@@ -645,6 +646,9 @@ export default function Dashboard() {
                       <td className="py-4 px-4 text-center font-semibold text-emerald-400 text-xs">{camp.delivered_count?.toLocaleString()}</td>
                       <td className="py-4 px-4 text-center font-semibold text-purple-400 text-xs">{camp.read_count?.toLocaleString()}</td>
                       <td className="py-4 px-4 text-center font-semibold text-rose-400 text-xs">{camp.failed_count?.toLocaleString()}</td>
+                      <td className="py-4 px-4 text-center font-semibold text-amber-500 text-xs">
+                        {Math.max(0, (camp.sent_count || 0) - ((camp.delivered_count || 0) + (camp.failed_count || 0))).toLocaleString()}
+                      </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden min-w-[80px] shadow-inner">
