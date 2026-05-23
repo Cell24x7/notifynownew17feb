@@ -94,6 +94,17 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     return res.status(400).json({ success: false, message: 'Email & password required' });
   }
 
+  const sumLimits = (rcs_limit ? parseFloat(rcs_limit) : 0) + 
+                    (wa_limit ? parseFloat(wa_limit) : 0) + 
+                    (sms_limit ? parseFloat(sms_limit) : 0) + 
+                    (voice_limit ? parseFloat(voice_limit) : 0);
+  if (sumLimits > parseFloat(credits_available || 0)) {
+    return res.status(400).json({
+      success: false,
+      message: `Total channel allocation (₹${sumLimits.toFixed(2)}) cannot exceed the wallet balance (₹${parseFloat(credits_available || 0).toFixed(2)})`
+    });
+  }
+
   try {
     // --- Reseller Credit Check (Multi-tier Security) ---
     if (req.user.role === 'reseller' && credits_available > 0) {
@@ -172,6 +183,26 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
     rcs_limit, wa_limit, sms_limit, voice_limit,
     pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled
   } = req.body;
+
+  if (credits_available !== undefined || rcs_limit !== undefined || wa_limit !== undefined || sms_limit !== undefined || voice_limit !== undefined) {
+    const [existing] = await query('SELECT wallet_balance, rcs_limit, wa_limit, sms_limit, voice_limit FROM users WHERE id = ?', [clientId]);
+    if (existing && existing.length > 0) {
+      const current = existing[0];
+      const finalCredits = credits_available !== undefined ? parseFloat(credits_available) : parseFloat(current.wallet_balance || 0);
+      const finalRcs = rcs_limit !== undefined ? (rcs_limit === null ? 0 : parseFloat(rcs_limit)) : parseFloat(current.rcs_limit || 0);
+      const finalWa = wa_limit !== undefined ? (wa_limit === null ? 0 : parseFloat(wa_limit)) : parseFloat(current.wa_limit || 0);
+      const finalSms = sms_limit !== undefined ? (sms_limit === null ? 0 : parseFloat(sms_limit)) : parseFloat(current.sms_limit || 0);
+      const finalVoice = voice_limit !== undefined ? (voice_limit === null ? 0 : parseFloat(voice_limit)) : parseFloat(current.voice_limit || 0);
+      
+      const totalLimits = finalRcs + finalWa + finalSms + finalVoice;
+      if (totalLimits > finalCredits) {
+        return res.status(400).json({
+          success: false,
+          message: `Total channel allocation (₹${totalLimits.toFixed(2)}) cannot exceed the wallet balance (₹${finalCredits.toFixed(2)})`
+        });
+      }
+    }
+  }
 
   const fields = [];
   const values = [];
