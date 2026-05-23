@@ -68,6 +68,13 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     // Parse permissions if they are strings
     const clients = rows.map(client => ({
       ...client,
+      credits_available: Number(client.credits_available || 0),
+      wallet_balance: Number(client.wallet_balance || 0),
+      credits_used: Number(client.credits_used || 0),
+      rcs_limit: client.rcs_limit !== null ? Number(client.rcs_limit) : null,
+      wa_limit: client.wa_limit !== null ? Number(client.wa_limit) : null,
+      sms_limit: client.sms_limit !== null ? Number(client.sms_limit) : null,
+      voice_limit: client.voice_limit !== null ? Number(client.voice_limit) : null,
       permissions: typeof client.permissions === 'string' ? JSON.parse(client.permissions) : client.permissions
     }));
 

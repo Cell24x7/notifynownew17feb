@@ -248,10 +248,11 @@ export default function SuperAdminClients() {
                       (currentClient.wa_limit || 0) + 
                       (currentClient.sms_limit || 0) + 
                       (currentClient.voice_limit || 0);
-    if (sumLimits > currentClient.credits_available) {
+    const creditsAvailable = parseFloat(currentClient.credits_available as any || 0);
+    if (sumLimits > creditsAvailable) {
       toast({
         title: 'Allocation Error',
-        description: `Total channel allocation (₹${sumLimits.toFixed(2)}) cannot exceed the wallet balance (₹${currentClient.credits_available.toFixed(2)})`,
+        description: `Total channel allocation (₹${sumLimits.toFixed(2)}) cannot exceed the wallet balance (₹${creditsAvailable.toFixed(2)})`,
         variant: 'destructive',
       });
       return;
@@ -303,10 +304,11 @@ export default function SuperAdminClients() {
                       (currentClient.wa_limit || 0) + 
                       (currentClient.sms_limit || 0) + 
                       (currentClient.voice_limit || 0);
-    if (sumLimits > currentClient.credits_available) {
+    const creditsAvailable = parseFloat(currentClient.credits_available as any || 0);
+    if (sumLimits > creditsAvailable) {
       toast({
         title: 'Allocation Error',
-        description: `Total channel allocation (₹${sumLimits.toFixed(2)}) cannot exceed the wallet balance (₹${currentClient.credits_available.toFixed(2)})`,
+        description: `Total channel allocation (₹${sumLimits.toFixed(2)}) cannot exceed the wallet balance (₹${creditsAvailable.toFixed(2)})`,
         variant: 'destructive',
       });
       return;
@@ -1101,9 +1103,9 @@ export default function SuperAdminClients() {
                   />
                 </div>
               </div>
-              {((currentClient.rcs_limit || 0) + (currentClient.wa_limit || 0) + (currentClient.sms_limit || 0) + (currentClient.voice_limit || 0)) > currentClient.credits_available && (
+              {((currentClient.rcs_limit || 0) + (currentClient.wa_limit || 0) + (currentClient.sms_limit || 0) + (currentClient.voice_limit || 0)) > parseFloat(currentClient.credits_available as any || 0) && (
                 <p className="text-xs text-red-500 font-semibold mt-2 animate-pulse">
-                  ⚠️ Warning: Total channel allocation (₹{((currentClient.rcs_limit || 0) + (currentClient.wa_limit || 0) + (currentClient.sms_limit || 0) + (currentClient.voice_limit || 0)).toFixed(2)}) exceeds wallet balance (₹{currentClient.credits_available.toFixed(2)}).
+                  ⚠️ Warning: Total channel allocation (₹{((currentClient.rcs_limit || 0) + (currentClient.wa_limit || 0) + (currentClient.sms_limit || 0) + (currentClient.voice_limit || 0)).toFixed(2)}) exceeds wallet balance (₹{parseFloat(currentClient.credits_available as any || 0).toFixed(2)}).
                 </p>
               )}
             </div>
