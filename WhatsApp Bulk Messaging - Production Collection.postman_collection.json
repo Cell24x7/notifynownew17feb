@@ -1,0 +1,912 @@
+{
+  "info": {
+    "_postman_id": "5dc88bae-d391-4362-a2bc-9d88dc6ed92d",
+    "name": "WhatsApp Bulk Messaging - Production Collection",
+    "description": "Complete sequential API collection for https://wa.notifynow.in/compact. All 34 APIs organized in proper workflow order from Phase 0 to Phase 9. Ready for frontend developers.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "29605548"
+  },
+  "item": [
+    {
+      "name": "PHASE 0 - Health Check & Readiness",
+      "item": [
+        {
+          "name": "0.1 - Server Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "health"
+              ]
+            },
+            "description": "Verify server is running and healthy"
+          },
+          "response": []
+        },
+        {
+          "name": "0.2 - Server Readiness Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health/ready",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ]
+            },
+            "description": "Verify server is ready (database connected)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Start here - Verify server is running and healthy"
+    },
+    {
+      "name": "PHASE 1 - WhatsApp Connection",
+      "item": [
+        {
+          "name": "1.1 - Connect WhatsApp Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"sessionName\": \"session1\"\r\n  }"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/whatsapp/connect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "whatsapp",
+                "connect"
+              ]
+            },
+            "description": "Initialize WhatsApp session and get QR code. Scan QR with WhatsApp mobile."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 - Get All Connected Sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/whatsapp/sessions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "whatsapp",
+                "sessions"
+              ]
+            },
+            "description": "Get list of all active WhatsApp sessions"
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 - Logout WhatsApp Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"sessionName\\\": \\\"session1\\\"\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/whatsapp/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "whatsapp",
+                "logout"
+              ]
+            },
+            "description": "Disconnect and logout a WhatsApp session"
+          },
+          "response": []
+        }
+      ],
+      "description": "Connect WhatsApp before sending messages"
+    },
+    {
+      "name": "PHASE 2 - User Management",
+      "item": [
+        {
+          "name": "2.1 - Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"username\": \"john_doe\",\r\n    \"email\": \"john@example.com\"\r\n  }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "create"
+              ]
+            },
+            "description": "Create a new user account. Store the user_id returned."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 - Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/user/list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "list"
+              ]
+            },
+            "description": "Get list of all users"
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 - Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/user/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "1"
+              ]
+            },
+            "description": "Get specific user details. Replace 1 with actual user_id"
+          },
+          "response": []
+        }
+      ],
+      "description": "Create and manage user accounts"
+    },
+    {
+      "name": "PHASE 3 - Message Templates",
+      "item": [
+        {
+          "name": "3.1 - Save Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"user_id\\\": 1,\\n  \\\"template_name\\\": \\\"Welcome Template\\\",\\n  \\\"template_type\\\": \\\"plainText\\\",\\n  \\\"template_content\\\": \\\"Hello {{customer_name}}, Welcome to {{company_name}}!\\\",\\n  \\\"variables\\\": [\\\"customer_name\\\", \\\"company_name\\\"],\\n  \\\"preview_text\\\": \\\"Welcome to our service\\\"\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/template/save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "template",
+                "save"
+              ]
+            },
+            "description": "Create a new message template with variables. Store template_id."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 - Get User Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/template/templates/user/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "template",
+                "templates",
+                "user",
+                "1"
+              ]
+            },
+            "description": "Get all templates for a user. Replace 1 with actual user_id"
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 - Get Template by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/template/templates/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "template",
+                "templates",
+                "1"
+              ]
+            },
+            "description": "Get specific template details. Replace 1 with actual template_id"
+          },
+          "response": []
+        },
+        {
+          "name": "3.4 - Update Template",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"user_id\\\": 1,\\n  \\\"template_name\\\": \\\"Updated Welcome\\\",\\n  \\\"template_type\\\": \\\"plainText\\\",\\n  \\\"template_content\\\": \\\"Hi {{customer_name}}, Welcome back!\\\",\\n  \\\"variables\\\": [\\\"customer_name\\\"]\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/template/templates/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "template",
+                "templates",
+                "1"
+              ]
+            },
+            "description": "Update an existing template. Replace 1 with actual template_id"
+          },
+          "response": []
+        },
+        {
+          "name": "3.5 - Delete Template",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"user_id\\\": 1\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/template/templates/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "template",
+                "templates",
+                "1"
+              ]
+            },
+            "description": "Delete a template. Replace 1 with actual template_id"
+          },
+          "response": []
+        }
+      ],
+      "description": "Create and manage message templates"
+    },
+    {
+      "name": "PHASE 4 - Campaign Setup",
+      "item": [
+        {
+          "name": "4.1 - Create Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"user_id\\\": 1,\\n  \\\"campaign_name\\\": \\\"Spring Sale 2026\\\",\\n  \\\"campaign_description\\\": \\\"30% discount on all items\\\"\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/campaign/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "create"
+              ]
+            },
+            "description": "Create a new campaign. Store campaign_id returned."
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 - Get All Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/campaign/list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "list"
+              ]
+            },
+            "description": "Get list of all campaigns"
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 - Get Campaign by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/campaign/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "1"
+              ]
+            },
+            "description": "Get specific campaign details. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        }
+      ],
+      "description": "Create and manage campaigns"
+    },
+    {
+      "name": "PHASE 5 - Add Campaign Contacts",
+      "item": [
+        {
+          "name": "5.1 - Add Contacts to Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"campaign_id\": 2,\r\n    \"user_id\": 1,\r\n    \"contacts\": [\r\n      \"919876543212\",\r\n      \"919324479120\",\r\n      \"918169501732\"\r\n    ]\r\n  }"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/campaign/add-contacts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "add-contacts"
+              ]
+            },
+            "description": "Add phone numbers to campaign. Max 2000 per request. Replace IDs with actual values."
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 - Get Campaign Contacts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/campaign/1/contacts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "1",
+                "contacts"
+              ]
+            },
+            "description": "Get all contacts in a campaign. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 - Delete Contacts from Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"campaign_id\\\": 1,\\n  \\\"user_id\\\": 1,\\n  \\\"contacts\\\": [\\n    \\\"919876543212\\\"\\n  ]\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/campaign/delete-contacts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "delete-contacts"
+              ]
+            },
+            "description": "Delete specific contacts from campaign. Replace IDs with actual values."
+          },
+          "response": []
+        }
+      ],
+      "description": "Add phone numbers to campaigns"
+    },
+    {
+      "name": "PHASE 6 - Start Campaign",
+      "item": [
+        {
+          "name": "6.1 - Start Campaign with Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"user_id\\\": 1,\\n  \\\"templateId\\\": 1\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/campaign/start/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "start",
+                "1"
+              ]
+            },
+            "description": "Start campaign using a template. Response is 202 (async). Replace IDs with actual values."
+          },
+          "response": []
+        },
+        {
+          "name": "6.1b - Start Campaign with Direct Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"user_id\\\": 1,\\n  \\\"messageTemplate\\\": \\\"Check out our Spring Sale! Get 30% off now!\\\"\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/campaign/start/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "start",
+                "1"
+              ]
+            },
+            "description": "Start campaign using direct message text. Alternative to template. Replace campaign_id with actual value."
+          },
+          "response": []
+        }
+      ],
+      "description": "Start sending campaign messages"
+    },
+    {
+      "name": "PHASE 7 - Monitor Campaign Status",
+      "item": [
+        {
+          "name": "7.1 - Get Campaign Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/campaign/1/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "1",
+                "status"
+              ]
+            },
+            "description": "Get real-time campaign status and message breakdown. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 - Get Campaign Read Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/campaign/1/read-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "1",
+                "read-status"
+              ]
+            },
+            "description": "Get detailed read status information. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        }
+      ],
+      "description": "Check campaign progress and delivery status"
+    },
+    {
+      "name": "PHASE 8 - Message Details & Read Status",
+      "item": [
+        {
+          "name": "8.1 - Get Message Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/3EB09280C0F3C5945F2514/read-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "3EB09280C0F3C5945F2514",
+                "read-status"
+              ]
+            },
+            "description": "Get status of a single message. Replace message_id with actual value"
+          },
+          "response": []
+        },
+        {
+          "name": "8.2 - Get Message Read Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/3EB09280C0F3C5945F2514/read-count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "3EB09280C0F3C5945F2514",
+                "read-count"
+              ]
+            },
+            "description": "Get count of users who read the message. Replace message_id with actual value"
+          },
+          "response": []
+        },
+        {
+          "name": "8.3 - Get Users Who Read Message",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/3EB09280C0F3C5945F2514/read-users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "3EB09280C0F3C5945F2514",
+                "read-users"
+              ]
+            },
+            "description": "List users who opened the message. Replace message_id with actual value"
+          },
+          "response": []
+        },
+        {
+          "name": "8.4 - Get Pending Read Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/3EB09280C0F3C5945F2514/pending-read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "3EB09280C0F3C5945F2514",
+                "pending-read"
+              ]
+            },
+            "description": "Get contacts who received but haven't read. Replace message_id with actual value"
+          },
+          "response": []
+        },
+        {
+          "name": "8.5 - Get Message Read History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/3EB09280C0F3C5945F2514/read-history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "3EB09280C0F3C5945F2514",
+                "read-history"
+              ]
+            },
+            "description": "Get complete timeline of message status changes. Replace message_id with actual value"
+          },
+          "response": []
+        },
+        {
+          "name": "8.6 - Get Complete Message Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/3EB09280C0F3C5945F2514/complete-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "3EB09280C0F3C5945F2514",
+                "complete-status"
+              ]
+            },
+            "description": "Get all information about a message. Replace message_id with actual value"
+          },
+          "response": []
+        },
+        {
+          "name": "8.7 - Mark Message as Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"manual_override\\\": true\\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/message/3EB09280C0F3C5945F2514/mark-read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "3EB09280C0F3C5945F2514",
+                "mark-read"
+              ]
+            },
+            "description": "Manually mark a message as read. Replace message_id with actual value"
+          },
+          "response": []
+        }
+      ],
+      "description": "Track individual messages and read status"
+    },
+    {
+      "name": "PHASE 9 - Campaign Analytics",
+      "item": [
+        {
+          "name": "9.1 - Get Campaign Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/campaign/1/analytics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "1",
+                "analytics"
+              ]
+            },
+            "description": "Get comprehensive campaign analytics. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        },
+        {
+          "name": "9.2 - Get Messages Read Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/campaign/1/messages-read-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "campaign",
+                "1",
+                "messages-read-status"
+              ]
+            },
+            "description": "Get all messages with their read status. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        },
+        {
+          "name": "9.3 - Get Read Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/campaign/1/read-analytics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "campaign",
+                "1",
+                "read-analytics"
+              ]
+            },
+            "description": "Get detailed read analytics for campaign. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        },
+        {
+          "name": "9.4 - Get Read Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/message/campaign/1/read-summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "campaign",
+                "1",
+                "read-summary"
+              ]
+            },
+            "description": "Get quick summary of read status. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        },
+        {
+          "name": "9.5 - Delete Campaign",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/campaign/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "campaign",
+                "1"
+              ]
+            },
+            "description": "Delete a campaign and all its data. Replace 1 with actual campaign_id"
+          },
+          "response": []
+        }
+      ],
+      "description": "Get detailed analytics and reports"
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://wa.notifynow.in/compact"
+    }
+  ]
+}
