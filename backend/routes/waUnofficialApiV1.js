@@ -480,6 +480,9 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
         } else {
             payload = { messageTemplate: messageContent };
         }
+        
+        // Pass sessionName so that the campaign is dispatched ONLY via this channel
+        payload.sessionName = `session${channel.id}`;
 
         console.log(`[WA-API] Firing campaign execution for ${finalCampaignId}...`);
         const campaignResponse = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/start/${finalCampaignId}`, payload);
