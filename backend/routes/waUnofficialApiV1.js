@@ -359,7 +359,8 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
         msg, 
         isTemplate = false, 
         templateId,
-        campaignId: customCampaignId
+        campaignId: customCampaignId,
+        imageUrl     // ✅ NEW: optional image URL
     } = req.body;
 
     const messageContent = message || text || msg;
@@ -368,8 +369,8 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Recipient "to" number(s) is required.' });
     }
 
-    if (!isTemplate && !messageContent) {
-        return res.status(400).json({ success: false, message: 'Message content is required for text messages.' });
+    if (!isTemplate && !messageContent && !imageUrl) {
+        return res.status(400).json({ success: false, message: 'Message content or imageUrl is required.' });
     }
 
     if (isTemplate && !templateId) {
@@ -483,6 +484,11 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
         
         // Pass sessionName so that the campaign is dispatched ONLY via this channel
         payload.sessionName = `session${channel.id}`;
+
+        // Pass imageUrl if provided
+        if (imageUrl) {
+            payload.imageUrl = imageUrl;
+        }
 
         console.log(`[WA-API] Firing campaign execution for ${finalCampaignId}...`);
         const campaignResponse = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/start/${finalCampaignId}`, payload);
