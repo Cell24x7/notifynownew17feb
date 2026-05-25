@@ -19,3 +19,5 @@ For detailed information on the project architecture, modules, APIs, and configu
 1. `cd frontend`
 2. `npm install`
 3. `npm run dev`
+ 
+
