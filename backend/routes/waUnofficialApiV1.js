@@ -547,6 +547,26 @@ router.get('/campaigns/:campaignId/status', authenticateDeveloper, async (req, r
 });
 
 /**
+ * @route   GET /api/wa-unofficial-v1/campaigns/:campaignId/analytics
+ * @desc    Get performance analytics of an API initiated WhatsApp campaign
+ * @access  Private (Developer)
+ */
+router.get('/campaigns/:campaignId/analytics', authenticateDeveloper, async (req, res) => {
+    const campaignId = req.params.campaignId;
+
+    try {
+        const response = await axios.get(`${EXTERNAL_BASE_URL}/api/campaign/${campaignId}/analytics`);
+        res.json(response.data);
+    } catch (err) {
+        console.error('Get Campaign Analytics API Error:', err.response?.data || err.message);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch analytics: ' + (err.response?.data?.message || err.message) 
+        });
+    }
+});
+
+/**
  * @route   GET /api/wa-unofficial-v1/campaigns/:campaignId/logs
  * @desc    Get detailed recipient logs for an API initiated WhatsApp campaign
  * @access  Private (Developer)
