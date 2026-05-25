@@ -83,6 +83,17 @@ interface Template {
   template_data?: any;
 }
 
+interface Recipient {
+  phone: string;
+  variables?: Record<string, string>;
+}
+
+interface UploadedFileState {
+  fileName: string;
+  headers: string[];
+  rows: any[][];
+}
+
 export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const sessionName = `session${channel.id || 1}`;
   const [userId] = useState('1');
@@ -91,7 +102,9 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   // State: Core campaign config
   const [campaignId, setCampaignId] = useState(String(Math.floor(Math.random() * 900000) + 100000));
   const [isCampaignCreated, setIsCampaignCreated] = useState(false);
-  const [recipients, setRecipients] = useState<string[]>([]);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [uploadedFile, setUploadedFile] = useState<UploadedFileState | null>(null);
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [messageContent, setMessageContent] = useState('');
   const [sendMode, setSendMode] = useState<'text' | 'template'>('text');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -170,6 +183,22 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const previewMessage = sendMode === 'template' 
     ? (selectedTemplate?.template_content || selectedTemplate?.preview_text || 'Select a template to preview...') 
     : (messageContent || 'Type a message to preview...');
+
+  // Required Campaign Variables Detector
+  const requiredVariables = useMemo(() => {
+    if (sendMode === 'template') {
+      if (!selectedTemplate) return [];
+      const vars = Array.isArray(selectedTemplate.variables)
+        ? selectedTemplate.variables
+        : (typeof selectedTemplate.variables === 'string'
+            ? (selectedTemplate.variables as string).split(',').map((s: string) => s.trim()).filter(Boolean)
+            : []);
+      const contentVars = [...(selectedTemplate.template_content || '').matchAll(/{{([^{}]+)}}/g)].map(m => m[1].trim());
+      return Array.from(new Set([...vars, ...contentVars]));
+    } else {
+      return Array.from(new Set([...messageContent.matchAll(/{{([^{}]+)}}/g)].map(m => m[1].trim())));
+    }
+  }, [sendMode, selectedTemplate, messageContent]);
 
   // --- Initial Data Load ---
   useEffect(() => {
@@ -743,12 +772,13 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
 
   // --- Number chip management (Staging UI helpers) ---
   const addNumber = (raw: string) => {
+    const currentPhones = recipients.map(r => r.phone);
     const nums = raw
       .split(/[\n,\s;]+/)
       .map(n => n.trim().replace(/\D/g, ''))
-      .filter(n => n.length >= 10 && !recipients.includes(n));
+      .filter(n => n.length >= 10 && !currentPhones.includes(n));
     if (nums.length > 0) {
-      setRecipients(prev => [...prev, ...nums]);
+      setRecipients(prev => [...prev, ...nums.map(n => ({ phone: n }))]);
     }
     setNumberInput('');
   };
@@ -779,13 +809,86 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
 
   const handleAddBulkTextNumbers = () => {
     const uniqueFound = Array.from(new Set(bulkNumbersFound));
-    const newNums = uniqueFound.filter(n => !recipients.includes(n));
+    const currentPhones = recipients.map(r => r.phone);
+    const newNums = uniqueFound.filter(n => !currentPhones.includes(n));
     if (newNums.length > 0) {
-      setRecipients(prev => [...prev, ...newNums]);
+      setRecipients(prev => [...prev, ...newNums.map(n => ({ phone: n }))]);
       toast.success(`Successfully added ${newNums.length} numbers (skipped ${uniqueFound.length - newNums.length} duplicates)`);
       setBulkText('');
     } else {
       toast.info("No new unique numbers were found in input");
+    }
+  };
+
+  const handleApplyColumnMapping = () => {
+    if (!uploadedFile) return;
+
+    if (requiredVariables.length > 0) {
+      if (!columnMapping.phone) {
+        toast.error("Please select the Phone Number column");
+        return;
+      }
+
+      const phoneColIdx = uploadedFile.headers.indexOf(columnMapping.phone);
+      if (phoneColIdx === -1) {
+        toast.error("Invalid Phone Number column mapping");
+        return;
+      }
+
+      const mappedRecipients: Recipient[] = [];
+      uploadedFile.rows.forEach(row => {
+        const rawPhone = String(row[phoneColIdx] || '').trim();
+        const phone = rawPhone.replace(/\D/g, '');
+        if (phone.length >= 10) {
+          const vars: Record<string, string> = {};
+          requiredVariables.forEach(v => {
+            const mappedHeader = columnMapping[v];
+            if (mappedHeader) {
+              const colIdx = uploadedFile.headers.indexOf(mappedHeader);
+              if (colIdx !== -1) {
+                vars[v] = row[colIdx] !== undefined && row[colIdx] !== null ? String(row[colIdx]).trim() : '';
+              }
+            }
+          });
+          mappedRecipients.push({ phone, variables: vars });
+        }
+      });
+
+      const uniqueMobiles = Array.from(new Set(mappedRecipients.map(r => r.phone)));
+      const filteredRecipients = uniqueMobiles.map(m => mappedRecipients.find(r => r.phone === m) as Recipient);
+
+      setRecipients(prev => {
+        const existingPhones = prev.map(r => r.phone);
+        const newItems = filteredRecipients.filter(r => !existingPhones.includes(r.phone));
+        return [...prev, ...newItems];
+      });
+
+      toast.success(`Processed and loaded ${filteredRecipients.length} staged contacts with mapped variables.`);
+      setUploadedFile(null);
+    } else {
+      const foundNumbers: string[] = [];
+      uploadedFile.rows.forEach(row => {
+        if (Array.isArray(row)) {
+          row.forEach(cell => {
+            const cleaned = String(cell).trim().replace(/\D/g, '');
+            if (cleaned.length >= 10) {
+              foundNumbers.push(cleaned);
+            }
+          });
+        }
+      });
+
+      const uniqueNums = Array.from(new Set(foundNumbers));
+      const currentPhones = recipients.map(r => r.phone);
+      const newNums = uniqueNums.filter(n => !currentPhones.includes(n));
+
+      if (newNums.length > 0) {
+        setRecipients(prev => [...prev, ...newNums.map(n => ({ phone: n }))]);
+        toast.success(`Loaded ${newNums.length} unique numbers from file.`);
+      } else {
+        toast.info("No new phone numbers found.");
+      }
+      setUploadedFile(null);
     }
   };
 
@@ -808,33 +911,100 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
           const sheet = workbook.Sheets[sheetName];
           const json: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
           
-          const foundNumbers: string[] = [];
-          json.forEach((row: any) => {
-            if (Array.isArray(row)) {
-              row.forEach(cell => {
-                const cleaned = String(cell).trim().replace(/\D/g, '');
-                if (cleaned.length >= 10) {
-                  foundNumbers.push(cleaned);
-                }
-              });
-            }
-          });
-          
-          const uniqueNums = Array.from(new Set(foundNumbers));
-          const newNums = uniqueNums.filter(n => !recipients.includes(n));
-          
-          if (newNums.length > 0) {
-            setRecipients(prev => [...prev, ...newNums]);
-            toast.success(`Loaded ${newNums.length} unique numbers from Excel (skipped ${uniqueNums.length - newNums.length} duplicates)`);
+          if (requiredVariables.length > 0) {
+            const rawHeaders = (json[0] || []) as any[];
+            const headers = rawHeaders.map((h, idx) => h ? String(h).trim() : `Column ${idx + 1}`);
+            const rows = json.slice(1).filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+            
+            const phoneHeader = headers.find(h => /phone|mobile|number|contact|recipient/i.test(h)) || headers[0] || '';
+            const initialMapping: Record<string, string> = { phone: phoneHeader };
+            requiredVariables.forEach(v => {
+              const matchedHeader = headers.find(h => h.toLowerCase() === v.toLowerCase()) || '';
+              initialMapping[v] = matchedHeader;
+            });
+            
+            setUploadedFile({ fileName: file.name, headers, rows });
+            setColumnMapping(initialMapping);
+            toast.info("Excel loaded. Please map the columns below.");
           } else {
-            toast.info("No new phone numbers found in Excel");
+            const foundNumbers: string[] = [];
+            json.forEach((row: any) => {
+              if (Array.isArray(row)) {
+                row.forEach(cell => {
+                  const cleaned = String(cell).trim().replace(/\D/g, '');
+                  if (cleaned.length >= 10) {
+                    foundNumbers.push(cleaned);
+                  }
+                });
+              }
+            });
+            const uniqueNums = Array.from(new Set(foundNumbers));
+            const currentPhones = recipients.map(r => r.phone);
+            const newNums = uniqueNums.filter(n => !currentPhones.includes(n));
+            if (newNums.length > 0) {
+              setRecipients(prev => [...prev, ...newNums.map(n => ({ phone: n }))]);
+              toast.success(`Loaded ${newNums.length} unique numbers from Excel.`);
+            } else {
+              toast.info("No new phone numbers found.");
+            }
           }
         } catch (err) {
           toast.error("Failed to parse Excel file");
         }
       };
       reader.readAsBinaryString(file);
-    } else if (isCsv || isTxt) {
+    } else if (isCsv) {
+      reader.onload = (evt) => {
+        try {
+          const text = evt.target?.result as string;
+          const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+          const json = lines.map(line => {
+            return line.split(',').map(cell => cell.replace(/^["']|["']$/g, '').trim());
+          });
+
+          if (requiredVariables.length > 0) {
+            const rawHeaders = (json[0] || []) as any[];
+            const headers = rawHeaders.map((h, idx) => h ? String(h).trim() : `Column ${idx + 1}`);
+            const rows = json.slice(1).filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+            
+            const phoneHeader = headers.find(h => /phone|mobile|number|contact|recipient/i.test(h)) || headers[0] || '';
+            const initialMapping: Record<string, string> = { phone: phoneHeader };
+            requiredVariables.forEach(v => {
+              const matchedHeader = headers.find(h => h.toLowerCase() === v.toLowerCase()) || '';
+              initialMapping[v] = matchedHeader;
+            });
+            
+            setUploadedFile({ fileName: file.name, headers, rows });
+            setColumnMapping(initialMapping);
+            toast.info("CSV loaded. Please map the columns below.");
+          } else {
+            const foundNumbers: string[] = [];
+            json.forEach((row: any) => {
+              if (Array.isArray(row)) {
+                row.forEach(cell => {
+                  const cleaned = String(cell).trim().replace(/\D/g, '');
+                  if (cleaned.length >= 10) {
+                    foundNumbers.push(cleaned);
+                  }
+                });
+              }
+            });
+            const uniqueNums = Array.from(new Set(foundNumbers));
+            const currentPhones = recipients.map(r => r.phone);
+            const newNums = uniqueNums.filter(n => !currentPhones.includes(n));
+            if (newNums.length > 0) {
+              setRecipients(prev => [...prev, ...newNums.map(n => ({ phone: n }))]);
+              toast.success(`Loaded ${newNums.length} unique numbers from CSV.`);
+            } else {
+              toast.info("No new phone numbers found.");
+            }
+          }
+        } catch (err) {
+          toast.error("Failed to parse CSV file");
+        }
+      };
+      reader.readAsText(file);
+    } else if (isTxt) {
       reader.onload = (evt) => {
         try {
           const text = evt.target?.result as string;
@@ -848,16 +1018,17 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
           });
 
           const uniqueNums = Array.from(new Set(foundNumbers));
-          const newNums = uniqueNums.filter(n => !recipients.includes(n));
+          const currentPhones = recipients.map(r => r.phone);
+          const newNums = uniqueNums.filter(n => !currentPhones.includes(n));
 
           if (newNums.length > 0) {
-            setRecipients(prev => [...prev, ...newNums]);
-            toast.success(`Loaded ${newNums.length} unique numbers (skipped ${uniqueNums.length - newNums.length} duplicates)`);
+            setRecipients(prev => [...prev, ...newNums.map(n => ({ phone: n }))]);
+            toast.success(`Loaded ${newNums.length} unique numbers from TXT.`);
           } else {
-            toast.info("No new phone numbers found in file");
+            toast.info("No new phone numbers found.");
           }
         } catch (err) {
-          toast.error("Failed to parse file");
+          toast.error("Failed to parse TXT file");
         }
       };
       reader.readAsText(file);
@@ -1592,16 +1763,21 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                       onClick={() => numberInputRef.current?.focus()}
                     >
                       <div className="flex flex-wrap gap-1.5">
-                        {recipients.map((num, i) => (
+                        {recipients.map((rec, i) => (
                           <div 
                             key={i} 
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-mono font-bold text-blue-800"
                           >
                             <Phone className="w-3 h-3 text-blue-400" />
-                            {num}
+                            {rec.phone}
+                            {rec.variables && Object.keys(rec.variables).length > 0 && (
+                              <span className="text-[9px] text-indigo-500 font-semibold ml-1">
+                                ({Object.entries(rec.variables).map(([k, v]) => `${k}:${v}`).join(', ')})
+                              </span>
+                            )}
                             <button 
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setRecipients(prev => prev.filter(r => r !== num)); }}
+                              onClick={(e) => { e.stopPropagation(); setRecipients(prev => prev.filter(r => r.phone !== rec.phone)); }}
                               className="ml-1 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-red-100 text-blue-400 hover:text-red-500"
                             >
                               <X className="w-2.5 h-2.5" />
@@ -1666,6 +1842,67 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   </div>
                 )}
 
+                {recipientInputMode === 'upload' && uploadedFile && (
+                  <div className="p-4 border border-border bg-muted/25 rounded-xl space-y-3 mt-2 animate-in fade-in duration-300">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold flex items-center gap-1.5 text-primary">
+                        <FileText className="w-4 h-4" /> {uploadedFile.fileName}
+                      </span>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => setUploadedFile(null)}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+
+                    {requiredVariables.length > 0 ? (
+                      <div className="space-y-2.5 pt-2 border-t border-dashed">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Map Columns to Variables</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] font-bold text-muted-foreground">Phone Number Column (Required)</Label>
+                            <select
+                              value={columnMapping.phone || ''}
+                              onChange={e => setColumnMapping(prev => ({ ...prev, phone: e.target.value }))}
+                              className="w-full text-xs bg-background border rounded-lg h-9 px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <option value="">-- Select Column --</option>
+                              {uploadedFile.headers.map((h, i) => (
+                                <option key={i} value={h}>{h}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {requiredVariables.map((v, idx) => (
+                            <div key={idx} className="space-y-1">
+                              <Label className="text-[10px] font-bold text-muted-foreground">{`Variable {{${v}}}`}</Label>
+                              <select
+                                value={columnMapping[v] || ''}
+                                onChange={e => setColumnMapping(prev => ({ ...prev, [v]: e.target.value }))}
+                                className="w-full text-xs bg-background border rounded-lg h-9 px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                <option value="">-- Select Column --</option>
+                                {uploadedFile.headers.map((h, i) => (
+                                  <option key={i} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground italic">No placeholders like {"{{var}}"} detected. The first column containing numbers will be staged.</p>
+                    )}
+
+                    <Button
+                      type="button"
+                      onClick={handleApplyColumnMapping}
+                      className="w-full h-9 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white mt-2"
+                    >
+                      Process & Load Staged Contacts
+                    </Button>
+                  </div>
+                )}
+
                 <Button 
                   onClick={handleAddContacts} 
                   disabled={isLoading || recipients.length === 0} 
@@ -1727,7 +1964,14 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                           .map((c, i) => (
                             <tr key={i} className="hover:bg-muted/10">
                               <td className="p-3 font-mono font-bold">+{c.number}</td>
-                              <td className="p-3 text-muted-foreground font-semibold">{c.name || 'N/A'}</td>
+                               <td className="p-3 text-muted-foreground font-semibold">
+                                {c.name || 'N/A'}
+                                {c.variables && Object.keys(c.variables).length > 0 && (
+                                  <div className="text-[9px] text-indigo-500 font-mono mt-0.5 max-w-[200px] truncate" title={Object.entries(c.variables).map(([k, v]) => `${k}:${v}`).join(', ')}>
+                                    {Object.entries(c.variables).map(([k, v]) => `${k}:${v}`).join(', ')}
+                                  </div>
+                                )}
+                              </td>
                               <td className="p-3 text-muted-foreground">{c.created_at ? new Date(c.created_at).toLocaleString() : 'N/A'}</td>
                               <td className="p-3">
                                 <Badge className={cn("text-[9px] font-bold uppercase", 
@@ -2044,12 +2288,17 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 </div>
 
                 {/* Recipient list bubbles preview */}
-                {recipients.length > 0 && recipients.slice(0, 2).map((num, i) => (
+                {recipients.length > 0 && recipients.slice(0, 2).map((rec, i) => (
                   <div key={i} className="flex justify-start mb-1.5 animate-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
                     <div className="max-w-[70%] rounded-xl rounded-tl-sm px-3 py-1.5 bg-[#1f2c34] shadow-sm">
                       <p className="text-[10px] text-[#8696a0] font-mono">
-                        📱 +{num}
+                        📱 +{rec.phone}
                       </p>
+                      {rec.variables && Object.keys(rec.variables).length > 0 && (
+                        <p className="text-[8.5px] text-[#ffd279] font-mono truncate mt-0.5">
+                          {Object.entries(rec.variables).map(([k, v]) => `${k}:${v}`).join(', ')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}

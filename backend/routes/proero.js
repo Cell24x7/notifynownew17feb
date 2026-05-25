@@ -212,9 +212,20 @@ router.post('/proxy/api/campaign/add-contacts', authenticateToken, async (req, r
     if (campaign_id && Array.isArray(contacts) && contacts.length > 0) {
         try {
             const uid = req.user?.id || user_id;
-            const values = contacts.map(c => [campaign_id, uid, String(c).replace(/\D/g, ''), 'staged']);
+            const values = contacts.map(c => {
+                let mobile = '';
+                let variables = null;
+                if (c && typeof c === 'object') {
+                    const phoneVal = c.phone || c.number || c.mobile || '';
+                    mobile = String(phoneVal).replace(/\D/g, '');
+                    variables = c.variables ? JSON.stringify(c.variables) : null;
+                } else {
+                    mobile = String(c).replace(/\D/g, '');
+                }
+                return [campaign_id, uid, mobile, 'staged', variables];
+            });
             await query(
-                'INSERT IGNORE INTO api_campaign_queue (campaign_id, user_id, mobile, status) VALUES ?',
+                'INSERT IGNORE INTO api_campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?',
                 [values]
             );
         } catch (dbErr) {
@@ -279,7 +290,7 @@ router.get('/proxy/api/campaign/:campaignId/contacts', authenticateToken, async 
 
     try {
         const [contacts] = await query(
-            'SELECT mobile, status, created_at FROM api_campaign_queue WHERE campaign_id = ? AND user_id = ? ORDER BY created_at DESC',
+            'SELECT mobile, status, variables, created_at FROM api_campaign_queue WHERE campaign_id = ? AND user_id = ? ORDER BY created_at DESC',
             [campaignId, uid]
         );
 
@@ -314,12 +325,23 @@ router.get('/proxy/api/campaign/:campaignId/contacts', authenticateToken, async 
             }
         }
 
-        const enriched = contacts.map(c => ({
-            number: c.mobile,
-            status: c.status,
-            created_at: c.created_at,
-            name: nameMap[c.mobile] || null
-        }));
+        const enriched = contacts.map(c => {
+            let parsedVars = null;
+            if (c.variables) {
+                try {
+                    parsedVars = typeof c.variables === 'string' ? JSON.parse(c.variables) : c.variables;
+                } catch (e) {
+                    console.warn('Failed to parse contact variables JSON:', e.message);
+                }
+            }
+            return {
+                number: c.mobile,
+                status: c.status,
+                created_at: c.created_at,
+                name: nameMap[c.mobile] || null,
+                variables: parsedVars
+            };
+        });
 
         res.json({ success: true, campaignId, total: enriched.length, contacts: enriched });
     } catch (err) {
