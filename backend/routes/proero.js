@@ -194,28 +194,20 @@ router.post('/channels/:id/disconnect', authenticateToken, async (req, res) => {
 router.post('/proxy/api/campaign/add-contacts', authenticateToken, async (req, res) => {
     const { campaign_id, user_id, contacts } = req.body;
 
-    // 1. Forward to Baileys (keep variables since Baileys schema now supports them)
+    // 1. Forward to Baileys (strip out variables, send only flat phone numbers to pass validation)
     let proeroResponse = null;
     try {
-        const formattedContacts = Array.isArray(contacts) ? contacts.map(c => {
+        const flatContacts = Array.isArray(contacts) ? contacts.map(c => {
             if (c && typeof c === 'object') {
                 const phoneVal = c.phone || c.number || c.mobile || '';
-                const phone = String(phoneVal).replace(/\D/g, '');
-                return {
-                    phone,
-                    variables: c.variables || {}
-                };
+                return String(phoneVal).replace(/\D/g, '');
             }
-            const phone = String(c).replace(/\D/g, '');
-            return {
-                phone,
-                variables: {}
-            };
-        }).filter(c => c.phone.length >= 10) : [];
+            return String(c).replace(/\D/g, '');
+        }).filter(phone => phone.length >= 10) : [];
 
         const r = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, {
             ...req.body,
-            contacts: formattedContacts
+            contacts: flatContacts
         }, {
             headers: { 'Content-Type': 'application/json' }
         });
