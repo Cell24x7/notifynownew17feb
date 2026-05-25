@@ -180,9 +180,21 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
 
   // Display Message Preview configuration
   const selectedTemplate = templates.find(t => String(t.id || t.template_id) === selectedTemplateId);
-  const previewMessage = sendMode === 'template' 
-    ? (selectedTemplate?.template_content || selectedTemplate?.preview_text || 'Select a template to preview...') 
-    : (messageContent || 'Type a message to preview...');
+  const previewMessage = useMemo(() => {
+    let msg = sendMode === 'template' 
+      ? (selectedTemplate?.template_content || selectedTemplate?.preview_text || 'Select a template to preview...') 
+      : (messageContent || 'Type a message to preview...');
+    
+    // Substitute variables from the first preview recipient if available
+    const firstRec = activePreviewRecipients[0];
+    if (firstRec && firstRec.variables) {
+      Object.entries(firstRec.variables).forEach(([key, val]) => {
+        const regex = new RegExp(`{{\\s*${key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*}}`, 'g');
+        msg = msg.replace(regex, val !== undefined && val !== null ? val : `[${key}]`);
+      });
+    }
+    return msg;
+  }, [sendMode, selectedTemplate, messageContent, activePreviewRecipients]);
 
   // Required Campaign Variables Detector
   const requiredVariables = useMemo(() => {
@@ -2294,8 +2306,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-bold text-white truncate">{channel.name || 'Proero WhatsApp'}</p>
                   <p className="text-[10px] text-[#8696a0]">
-                    {recipients.length > 0 
-                      ? `${recipients.length} number${recipients.length > 1 ? 's' : ''} staging`
+                    {activeStagingCount > 0 
+                      ? `${activeStagingCount} number${activeStagingCount > 1 ? 's' : ''} staging`
                       : 'Active Connection'
                     }
                   </p>
@@ -2316,10 +2328,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   </span>
                 </div>
 
-                {recipients.length > 0 && (
+                {activeStagingCount > 0 && (
                   <div className="flex justify-center mb-3">
                     <div className="px-3 py-1.5 rounded-lg bg-[#182229]/90 text-[9.5px] text-[#ffd279] font-medium max-w-[200px] text-center border border-[#ffd279]/20 shadow-lg">
-                      📤 staging {recipients.length} number{recipients.length > 1 ? 's' : ''} to Campaign
+                      📤 staging {activeStagingCount} number{activeStagingCount > 1 ? 's' : ''} to Campaign
                     </div>
                   </div>
                 )}
@@ -2346,7 +2358,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 </div>
 
                 {/* Recipient list bubbles preview */}
-                {recipients.length > 0 && recipients.slice(0, 2).map((rec, i) => (
+                {activePreviewRecipients.length > 0 && activePreviewRecipients.map((rec, i) => (
                   <div key={i} className="flex justify-start mb-1.5 animate-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
                     <div className="max-w-[70%] rounded-xl rounded-tl-sm px-3 py-1.5 bg-[#1f2c34] shadow-sm">
                       <p className="text-[10px] text-[#8696a0] font-mono">
@@ -2360,10 +2372,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 ))}
-                {recipients.length > 2 && (
+                {activeStagingCount > 2 && (
                   <div className="flex justify-start mb-2">
                     <div className="px-3 py-1 rounded-xl bg-[#1f2c34] shadow-sm">
-                      <p className="text-[10px] text-[#8696a0]">+{recipients.length - 2} more recipients staged...</p>
+                      <p className="text-[10px] text-[#8696a0]">+{activeStagingCount - 2} more recipients staged...</p>
                     </div>
                   </div>
                 )}
@@ -2380,7 +2392,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   <Camera className="w-4 h-4 text-[#8696a0] shrink-0" />
                 </div>
                 <div className="w-9 h-9 rounded-full bg-[#00a884] flex items-center justify-center shadow-md shrink-0">
-                  {recipients.length > 0 && (messageContent || selectedTemplate) 
+                  {activeStagingCount > 0 && (messageContent || selectedTemplate) 
                     ? <Send className="w-4 h-4 text-white" />
                     : <Mic className="w-4 h-4 text-white" />
                   }
