@@ -92,7 +92,7 @@ const authenticateDeveloper = async (req, res, next) => {
  * @desc    List user's unofficial WhatsApp channels and sync status
  * @access  Private (Developer)
  */
-router.get('/channels', authenticateDeveloper, async (req, res) => {
+router.all('/channels', authenticateDeveloper, async (req, res) => {
     try {
         const [channels] = await query(
             'SELECT id, name, phone_number, provider, status, created_at as created FROM whatsapp_proero_channels WHERE user_id = ? ORDER BY id DESC',
@@ -531,7 +531,7 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
  * @desc    Get status of an API initiated WhatsApp campaign/sendout
  * @access  Private (Developer)
  */
-router.get('/campaigns/:campaignId/status', authenticateDeveloper, async (req, res) => {
+router.all('/campaigns/:campaignId/status', authenticateDeveloper, async (req, res) => {
     const campaignId = req.params.campaignId;
 
     try {
@@ -551,7 +551,7 @@ router.get('/campaigns/:campaignId/status', authenticateDeveloper, async (req, r
  * @desc    Get performance analytics of an API initiated WhatsApp campaign
  * @access  Private (Developer)
  */
-router.get('/campaigns/:campaignId/analytics', authenticateDeveloper, async (req, res) => {
+router.all('/campaigns/:campaignId/analytics', authenticateDeveloper, async (req, res) => {
     const campaignId = req.params.campaignId;
 
     try {
@@ -571,7 +571,7 @@ router.get('/campaigns/:campaignId/analytics', authenticateDeveloper, async (req
  * @desc    Get detailed recipient logs for an API initiated WhatsApp campaign
  * @access  Private (Developer)
  */
-router.get('/campaigns/:campaignId/logs', authenticateDeveloper, async (req, res) => {
+router.all('/campaigns/:campaignId/logs', authenticateDeveloper, async (req, res) => {
     const campaignId = req.params.campaignId;
 
     try {
