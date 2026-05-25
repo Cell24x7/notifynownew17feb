@@ -178,25 +178,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const [copiedId, setCopiedId] = useState(false);
   const numberInputRef = useRef<HTMLInputElement>(null);
 
-  // Display Message Preview configuration
-  const selectedTemplate = templates.find(t => String(t.id || t.template_id) === selectedTemplateId);
-  const previewMessage = useMemo(() => {
-    let msg = sendMode === 'template' 
-      ? (selectedTemplate?.template_content || selectedTemplate?.preview_text || 'Select a template to preview...') 
-      : (messageContent || 'Type a message to preview...');
-    
-    // Substitute variables from the first preview recipient if available
-    const firstRec = activePreviewRecipients[0];
-    if (firstRec && firstRec.variables) {
-      Object.entries(firstRec.variables).forEach(([key, val]) => {
-        const regex = new RegExp(`{{\\s*${key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*}}`, 'g');
-        msg = msg.replace(regex, val !== undefined && val !== null ? val : `[${key}]`);
-      });
-    }
-    return msg;
-  }, [sendMode, selectedTemplate, messageContent, activePreviewRecipients]);
-
   // Required Campaign Variables Detector
+  const selectedTemplate = templates.find(t => String(t.id || t.template_id) === selectedTemplateId);
   const requiredVariables = useMemo(() => {
     if (sendMode === 'template') {
       if (!selectedTemplate) return [];
@@ -211,21 +194,6 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       return Array.from(new Set([...messageContent.matchAll(/{{([^{}]+)}}/g)].map(m => m[1].trim())));
     }
   }, [sendMode, selectedTemplate, messageContent]);
-
-  // Active count of contacts to stage (manual chips or file upload rows)
-  const activeStagingCount = useMemo(() => {
-    if (recipientInputMode === 'upload' && uploadedFile) {
-      return uploadedFile.rows.length;
-    }
-    return recipients.length;
-  }, [recipientInputMode, uploadedFile, recipients]);
-
-  // Safe helper to get number of variables in a template
-  const getTemplateVarsCount = (tpl: Template) => {
-    if (Array.isArray(tpl.variables)) return tpl.variables.length;
-    if (typeof tpl.variables === 'string') return (tpl.variables as string).split(',').filter(Boolean).length;
-    return 0;
-  };
 
   // Mapped recipients preview for the interactive phone mockup
   const activePreviewRecipients = useMemo(() => {
@@ -252,6 +220,38 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     }
     return recipients.slice(0, 2);
   }, [recipientInputMode, uploadedFile, columnMapping, requiredVariables, recipients]);
+
+  // Display Message Preview configuration
+  const previewMessage = useMemo(() => {
+    let msg = sendMode === 'template' 
+      ? (selectedTemplate?.template_content || selectedTemplate?.preview_text || 'Select a template to preview...') 
+      : (messageContent || 'Type a message to preview...');
+    
+    // Substitute variables from the first preview recipient if available
+    const firstRec = activePreviewRecipients[0];
+    if (firstRec && firstRec.variables) {
+      Object.entries(firstRec.variables).forEach(([key, val]) => {
+        const regex = new RegExp(`{{\\s*${key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*}}`, 'g');
+        msg = msg.replace(regex, val !== undefined && val !== null ? val : `[${key}]`);
+      });
+    }
+    return msg;
+  }, [sendMode, selectedTemplate, messageContent, activePreviewRecipients]);
+
+  // Active count of contacts to stage (manual chips or file upload rows)
+  const activeStagingCount = useMemo(() => {
+    if (recipientInputMode === 'upload' && uploadedFile) {
+      return uploadedFile.rows.length;
+    }
+    return recipients.length;
+  }, [recipientInputMode, uploadedFile, recipients]);
+
+  // Safe helper to get number of variables in a template
+  const getTemplateVarsCount = (tpl: Template) => {
+    if (Array.isArray(tpl.variables)) return tpl.variables.length;
+    if (typeof tpl.variables === 'string') return (tpl.variables as string).split(',').filter(Boolean).length;
+    return 0;
+  };
 
   // --- Initial Data Load ---
   useEffect(() => {
