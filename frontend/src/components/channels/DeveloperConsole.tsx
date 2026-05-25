@@ -200,6 +200,47 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     }
   }, [sendMode, selectedTemplate, messageContent]);
 
+  // Active count of contacts to stage (manual chips or file upload rows)
+  const activeStagingCount = useMemo(() => {
+    if (recipientInputMode === 'upload' && uploadedFile) {
+      return uploadedFile.rows.length;
+    }
+    return recipients.length;
+  }, [recipientInputMode, uploadedFile, recipients]);
+
+  // Safe helper to get number of variables in a template
+  const getTemplateVarsCount = (tpl: Template) => {
+    if (Array.isArray(tpl.variables)) return tpl.variables.length;
+    if (typeof tpl.variables === 'string') return (tpl.variables as string).split(',').filter(Boolean).length;
+    return 0;
+  };
+
+  // Mapped recipients preview for the interactive phone mockup
+  const activePreviewRecipients = useMemo(() => {
+    if (recipientInputMode === 'upload' && uploadedFile) {
+      if (!columnMapping.phone) return [];
+      const phoneColIdx = uploadedFile.headers.indexOf(columnMapping.phone);
+      if (phoneColIdx === -1) return [];
+
+      return uploadedFile.rows.slice(0, 2).map(row => {
+        const rawPhone = String(row[phoneColIdx] || '').trim();
+        const phone = rawPhone.replace(/\D/g, '');
+        const vars: Record<string, string> = {};
+        requiredVariables.forEach(v => {
+          const mappedHeader = columnMapping[v];
+          if (mappedHeader) {
+            const colIdx = uploadedFile.headers.indexOf(mappedHeader);
+            if (colIdx !== -1) {
+              vars[v] = row[colIdx] !== undefined && row[colIdx] !== null ? String(row[colIdx]).trim() : '';
+            }
+          }
+        });
+        return { phone, variables: vars };
+      });
+    }
+    return recipients.slice(0, 2);
+  }, [recipientInputMode, uploadedFile, columnMapping, requiredVariables, recipients]);
+
   // --- Initial Data Load ---
   useEffect(() => {
     fetchHealthChecks();
@@ -519,10 +560,57 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   };
 
   const handleAddContacts = async () => {
-    if (recipients.length === 0) {
-      toast.error("Add at least one recipient phone number");
-      return;
+    let contactsToStage: Recipient[] = [];
+
+    if (recipientInputMode === 'upload') {
+      if (!uploadedFile) {
+        toast.error("Please upload a file first");
+        return;
+      }
+      if (!columnMapping.phone) {
+        toast.error("Please select the Phone Number column");
+        return;
+      }
+      const phoneColIdx = uploadedFile.headers.indexOf(columnMapping.phone);
+      if (phoneColIdx === -1) {
+        toast.error("Invalid Phone Number column mapping");
+        return;
+      }
+
+      uploadedFile.rows.forEach(row => {
+        const rawPhone = String(row[phoneColIdx] || '').trim();
+        const phone = rawPhone.replace(/\D/g, '');
+        if (phone.length >= 10) {
+          const vars: Record<string, string> = {};
+          requiredVariables.forEach(v => {
+            const mappedHeader = columnMapping[v];
+            if (mappedHeader) {
+              const colIdx = uploadedFile.headers.indexOf(mappedHeader);
+              if (colIdx !== -1) {
+                vars[v] = row[colIdx] !== undefined && row[colIdx] !== null ? String(row[colIdx]).trim() : '';
+              }
+            }
+          });
+          contactsToStage.push({ phone, variables: vars });
+        }
+      });
+
+      // Filter duplicates by phone
+      const uniqueMobiles = Array.from(new Set(contactsToStage.map(r => r.phone)));
+      contactsToStage = uniqueMobiles.map(m => contactsToStage.find(r => r.phone === m) as Recipient);
+
+      if (contactsToStage.length === 0) {
+        toast.error("No valid phone numbers found in file");
+        return;
+      }
+    } else {
+      if (recipients.length === 0) {
+        toast.error("Add at least one recipient phone number");
+        return;
+      }
+      contactsToStage = recipients;
     }
+
     try {
       setIsLoading(true);
       setActiveAction('stage');
@@ -550,12 +638,16 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       const response = await api.post(`${PROXY_BASE}/api/campaign/add-contacts`, {
         campaign_id: parseInt(activeId),
         user_id: parseInt(userId),
-        contacts: recipients
+        contacts: contactsToStage
       });
       
-      toast.success(`${recipients.length} contacts staged successfully!`);
-      setRecipients([]);
-      setLastResult({ type: 'success', message: `${recipients.length} contacts uploaded to Campaign ${activeId}` });
+      toast.success(`${contactsToStage.length} contacts staged successfully!`);
+      if (recipientInputMode === 'upload') {
+        setUploadedFile(null);
+      } else {
+        setRecipients([]);
+      }
+      setLastResult({ type: 'success', message: `${contactsToStage.length} contacts uploaded to Campaign ${activeId}` });
       
       setTimeout(() => {
         fetchStagedContacts();
@@ -833,80 +925,6 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       setBulkText('');
     } else {
       toast.info("No new unique numbers were found in input");
-    }
-  };
-
-  const handleApplyColumnMapping = () => {
-    if (!uploadedFile) return;
-
-    if (requiredVariables.length > 0) {
-      if (!columnMapping.phone) {
-        toast.error("Please select the Phone Number column");
-        return;
-      }
-
-      const phoneColIdx = uploadedFile.headers.indexOf(columnMapping.phone);
-      if (phoneColIdx === -1) {
-        toast.error("Invalid Phone Number column mapping");
-        return;
-      }
-
-      const mappedRecipients: Recipient[] = [];
-      uploadedFile.rows.forEach(row => {
-        const rawPhone = String(row[phoneColIdx] || '').trim();
-        const phone = rawPhone.replace(/\D/g, '');
-        if (phone.length >= 10) {
-          const vars: Record<string, string> = {};
-          requiredVariables.forEach(v => {
-            const mappedHeader = columnMapping[v];
-            if (mappedHeader) {
-              const colIdx = uploadedFile.headers.indexOf(mappedHeader);
-              if (colIdx !== -1) {
-                vars[v] = row[colIdx] !== undefined && row[colIdx] !== null ? String(row[colIdx]).trim() : '';
-              }
-            }
-          });
-          mappedRecipients.push({ phone, variables: vars });
-        }
-      });
-
-      const uniqueMobiles = Array.from(new Set(mappedRecipients.map(r => r.phone)));
-      const filteredRecipients = uniqueMobiles.map(m => mappedRecipients.find(r => r.phone === m) as Recipient);
-
-      setRecipients(prev => {
-        const map = new Map(prev.map(r => [r.phone, r]));
-        filteredRecipients.forEach(r => {
-          map.set(r.phone, r);
-        });
-        return Array.from(map.values());
-      });
-
-      toast.success(`Processed and loaded ${filteredRecipients.length} staged contacts with mapped variables.`);
-      setUploadedFile(null);
-    } else {
-      const foundNumbers: string[] = [];
-      uploadedFile.rows.forEach(row => {
-        if (Array.isArray(row)) {
-          row.forEach(cell => {
-            const cleaned = String(cell).trim().replace(/\D/g, '');
-            if (cleaned.length >= 10) {
-              foundNumbers.push(cleaned);
-            }
-          });
-        }
-      });
-
-      const uniqueNums = Array.from(new Set(foundNumbers));
-      const currentPhones = recipients.map(r => r.phone);
-      const newNums = uniqueNums.filter(n => !currentPhones.includes(n));
-
-      if (newNums.length > 0) {
-        setRecipients(prev => [...prev, ...newNums.map(n => ({ phone: n }))]);
-        toast.success(`Loaded ${newNums.length} unique numbers from file.`);
-      } else {
-        toast.info("No new phone numbers found.");
-      }
-      setUploadedFile(null);
     }
   };
 
@@ -1724,22 +1742,11 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* ════════ TAB 5: ADD CONTACTS (PHASE 5) ════════ */}
-          <TabsContent value="contacts" className="space-y-4 animate-in fade-in-50 duration-200">
-            <Card className="border border-border/60">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-black text-foreground">Stage campaign contacts (Phase 5)</h3>
-                    <p className="text-[11px] text-muted-foreground">Upload and link phone numbers to active campaign <strong>#{campaignId}</strong>.</p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] font-mono h-5">
-                    Staged: {recipients.length} numbers
+                    <Badge variant="outline" className="text-[10px] font-mono h-5">
+                    Staged: {activeStagingCount} numbers
                   </Badge>
                 </div>
-
+ 
                 {/* Input Mode Tabs */}
                 <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg text-xs font-bold">
                   <button
@@ -1773,7 +1780,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     <Upload className="w-3.5 h-3.5" /> File Scanner
                   </button>
                 </div>
-
+ 
                 {/* Mode 1: Chips Input */}
                 {recipientInputMode === 'chips' && (
                   <div className="space-y-2">
@@ -1818,7 +1825,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 )}
-
+ 
                 {/* Mode 2: Bulk Textarea */}
                 {recipientInputMode === 'textarea' && (
                   <div className="space-y-2">
@@ -1843,7 +1850,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 )}
-
+ 
                 {/* Mode 3: File Upload */}
                 {recipientInputMode === 'upload' && (
                   <div className="space-y-2">
@@ -1861,18 +1868,38 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 )}
-
+ 
                 {recipientInputMode === 'upload' && uploadedFile && (
                   <div className="p-4 border border-border bg-muted/25 rounded-xl space-y-3 mt-2 animate-in fade-in duration-300">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold flex items-center gap-1.5 text-primary">
-                        <FileText className="w-4 h-4" /> {uploadedFile.fileName}
+                        <FileText className="w-4 h-4" /> {uploadedFile.fileName} ({uploadedFile.rows.length} rows)
                       </span>
                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => setUploadedFile(null)}>
                         <X className="w-3.5 h-3.5" />
                       </Button>
                     </div>
 
+                    {/* Target Template selector dropdown */}
+                    <div className="space-y-1 pt-1.5 border-t border-dashed">
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Select Target Template (Optional)</Label>
+                      <select
+                        value={selectedTemplateId}
+                        onChange={e => {
+                          setSelectedTemplateId(e.target.value);
+                          setSendMode(e.target.value ? 'template' : 'text');
+                        }}
+                        className="w-full text-xs bg-background border rounded-lg h-9 px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="">-- No Template / Custom Plain Text --</option>
+                        {templates.map((tpl, i) => (
+                          <option key={i} value={String(tpl.id || tpl.template_id)}>
+                            {tpl.template_name} ({getTemplateVarsCount(tpl)} variables)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+ 
                     {requiredVariables.length > 0 ? (
                       <div className="space-y-2.5 pt-2 border-t border-dashed">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Map Columns to Variables</p>
@@ -1891,7 +1918,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                               ))}
                             </select>
                           </div>
-
+ 
                           {requiredVariables.map((v, idx) => (
                             <div key={idx} className="space-y-1">
                               <Label className="text-[10px] font-bold text-muted-foreground">{`Variable {{${v}}}`}</Label>
@@ -1910,26 +1937,27 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-[10px] text-muted-foreground italic">No placeholders like {"{{var}}"} detected. The first column containing numbers will be staged.</p>
+                      <p className="text-[10px] text-muted-foreground italic bg-muted/50 p-2 rounded-lg leading-relaxed">
+                        No placeholders like {"{{var}}"} detected. Select a template above or stage numbers only. The first column containing numbers will be staged.
+                      </p>
                     )}
-
-                    <Button
-                      type="button"
-                      onClick={handleApplyColumnMapping}
-                      className="w-full h-9 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white mt-2"
-                    >
-                      Process & Load Staged Contacts
-                    </Button>
+ 
+                    <p className="text-[10px] text-muted-foreground italic bg-muted/50 p-2 rounded-lg leading-relaxed border-t border-dashed">
+                      Configure your column mappings above. Click the primary button below to stage all contacts directly.
+                    </p>
                   </div>
                 )}
-
+ 
                 <Button 
                   onClick={handleAddContacts} 
-                  disabled={isLoading || recipients.length === 0} 
+                  disabled={isLoading || (recipientInputMode === 'upload' ? !uploadedFile : recipients.length === 0)} 
                   className="w-full font-bold h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition-all hover:scale-[1.01]"
                 >
                   {activeAction === 'stage' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
-                  Stage {recipients.length} Contacts to Campaign #{campaignId}
+                  {recipientInputMode === 'upload'
+                    ? `Stage File Contacts (${uploadedFile ? uploadedFile.rows.length : 0}) to Campaign #${campaignId}`
+                    : `Stage ${recipients.length} Contacts to Campaign #${campaignId}`
+                  }
                 </Button>
               </CardContent>
             </Card>
@@ -2256,8 +2284,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-bold text-white truncate">{channel.name || 'Proero WhatsApp'}</p>
                   <p className="text-[10px] text-[#8696a0]">
-                    {recipients.length > 0 
-                      ? `${recipients.length} number${recipients.length > 1 ? 's' : ''} staging`
+                    {activeStagingCount > 0 
+                      ? `${activeStagingCount} number${activeStagingCount > 1 ? 's' : ''} staging`
                       : 'Active Connection'
                     }
                   </p>
@@ -2278,10 +2306,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   </span>
                 </div>
 
-                {recipients.length > 0 && (
+                {activeStagingCount > 0 && (
                   <div className="flex justify-center mb-3">
                     <div className="px-3 py-1.5 rounded-lg bg-[#182229]/90 text-[9.5px] text-[#ffd279] font-medium max-w-[200px] text-center border border-[#ffd279]/20 shadow-lg">
-                      📤 staging {recipients.length} number{recipients.length > 1 ? 's' : ''} to Campaign
+                      📤 staging {activeStagingCount} number{activeStagingCount > 1 ? 's' : ''} to Campaign
                     </div>
                   </div>
                 )}
@@ -2308,7 +2336,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 </div>
 
                 {/* Recipient list bubbles preview */}
-                {recipients.length > 0 && recipients.slice(0, 2).map((rec, i) => (
+                {activeStagingCount > 0 && activePreviewRecipients.map((rec, i) => (
                   <div key={i} className="flex justify-start mb-1.5 animate-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
                     <div className="max-w-[70%] rounded-xl rounded-tl-sm px-3 py-1.5 bg-[#1f2c34] shadow-sm">
                       <p className="text-[10px] text-[#8696a0] font-mono">
@@ -2322,10 +2350,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 ))}
-                {recipients.length > 2 && (
+                {activeStagingCount > 2 && (
                   <div className="flex justify-start mb-2">
                     <div className="px-3 py-1 rounded-xl bg-[#1f2c34] shadow-sm">
-                      <p className="text-[10px] text-[#8696a0]">+{recipients.length - 2} more recipients staged...</p>
+                      <p className="text-[10px] text-[#8696a0]">+{activeStagingCount - 2} more recipients staged...</p>
                     </div>
                   </div>
                 )}
@@ -2342,7 +2370,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   <Camera className="w-4 h-4 text-[#8696a0] shrink-0" />
                 </div>
                 <div className="w-9 h-9 rounded-full bg-[#00a884] flex items-center justify-center shadow-md shrink-0">
-                  {recipients.length > 0 && (messageContent || selectedTemplate) 
+                  {activeStagingCount > 0 && (messageContent || selectedTemplate) 
                     ? <Send className="w-4 h-4 text-white" />
                     : <Mic className="w-4 h-4 text-white" />
                   }
