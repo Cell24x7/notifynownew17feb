@@ -404,15 +404,30 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
             channel = channels[0];
         }
 
-        // 2. Parse numbers into array
+        // 2. Parse numbers into array (support both flat strings and objects with variables)
         let contactsArray = [];
+        let rawContacts = [];
         if (Array.isArray(to)) {
-            contactsArray = to.map(num => String(num).trim()).filter(Boolean);
+            rawContacts = to;
         } else if (typeof to === 'string') {
-            contactsArray = to.split(',').map(num => num.trim()).filter(Boolean);
+            rawContacts = to.split(',').map(num => num.trim()).filter(Boolean);
         } else {
-            contactsArray = [String(to).trim()];
+            rawContacts = [to];
         }
+
+        contactsArray = rawContacts.map(c => {
+            if (c && typeof c === 'object') {
+                const phoneVal = c.phone || c.number || c.mobile || '';
+                return {
+                    phone: String(phoneVal).trim().replace(/\D/g, ''),
+                    variables: c.variables || {}
+                };
+            }
+            return {
+                phone: String(c).trim().replace(/\D/g, ''),
+                variables: {}
+            };
+        }).filter(c => c.phone && c.phone.length >= 10);
 
         if (contactsArray.length === 0) {
             return res.status(400).json({ success: false, message: 'No valid recipient phone numbers resolved.' });
@@ -437,6 +452,21 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
 
         // Step A: Stage Contacts
         console.log(`[WA-API] Staging ${contactsArray.length} contacts for Campaign ${finalCampaignId}...`);
+        
+        // Mirror contacts to local api_campaign_queue for reports
+        try {
+            const values = contactsArray.map(c => {
+                const varsJson = c.variables ? JSON.stringify(c.variables) : null;
+                return [finalCampaignId, req.user.id, c.phone, 'staged', varsJson];
+            });
+            await query(
+                'INSERT IGNORE INTO api_campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?',
+                [values]
+            );
+        } catch (dbErr) {
+            console.warn('[WA-API] Local DB mirror for add-contacts failed:', dbErr.message);
+        }
+
         await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, {
             campaign_id: finalCampaignId,
             user_id: req.user.id,
@@ -456,7 +486,8 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
 
         // 4. Log to DB for user dashboard tracking
         try {
-            for (const recipient of contactsArray) {
+            for (const recipientObj of contactsArray) {
+                const recipient = recipientObj.phone;
                 // Insert into api_message_logs
                 await query(
                     'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)',

@@ -213,10 +213,18 @@ router.post('/proxy/api/campaign/add-contacts', authenticateToken, async (req, r
             };
         }).filter(c => c.phone.length >= 10) : [];
 
-        const r = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, {
+        const payloadToRemote = {
             ...req.body,
             contacts: formattedContacts
-        }, {
+        };
+        
+        console.log("-----------------------------------------");
+        console.log("➡️ FORWARDING TO REMOTE BAILEYS SERVER");
+        console.log("URL:", `${EXTERNAL_BASE_URL}/api/campaign/add-contacts`);
+        console.log("PAYLOAD:", JSON.stringify(payloadToRemote, null, 2));
+        console.log("-----------------------------------------");
+
+        const r = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, payloadToRemote, {
             headers: { 'Content-Type': 'application/json' }
         });
         proeroResponse = r.data;
