@@ -215,6 +215,22 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     }
   }, []);
 
+  // Auto-map newly detected variables if a file was already uploaded
+  useEffect(() => {
+    if (uploadedFile) {
+      setColumnMapping(prev => {
+        const nextMapping = { ...prev };
+        requiredVariables.forEach(v => {
+          if (!nextMapping[v]) {
+            const matchedHeader = uploadedFile.headers.find(h => h.toLowerCase() === v.toLowerCase()) || '';
+            nextMapping[v] = matchedHeader;
+          }
+        });
+        return nextMapping;
+      });
+    }
+  }, [requiredVariables, uploadedFile]);
+
   // Poll status when active campaign runs
   useEffect(() => {
     if (!campaignStatus) return;
@@ -858,9 +874,11 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
       const filteredRecipients = uniqueMobiles.map(m => mappedRecipients.find(r => r.phone === m) as Recipient);
 
       setRecipients(prev => {
-        const existingPhones = prev.map(r => r.phone);
-        const newItems = filteredRecipients.filter(r => !existingPhones.includes(r.phone));
-        return [...prev, ...newItems];
+        const map = new Map(prev.map(r => [r.phone, r]));
+        filteredRecipients.forEach(r => {
+          map.set(r.phone, r);
+        });
+        return Array.from(map.values());
       });
 
       toast.success(`Processed and loaded ${filteredRecipients.length} staged contacts with mapped variables.`);
@@ -911,11 +929,12 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
           const sheet = workbook.Sheets[sheetName];
           const json: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
           
-          if (requiredVariables.length > 0) {
-            const rawHeaders = (json[0] || []) as any[];
-            const headers = rawHeaders.map((h, idx) => h ? String(h).trim() : `Column ${idx + 1}`);
-            const rows = json.slice(1).filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''));
-            
+          const rawHeaders = (json[0] || []) as any[];
+          const headers = rawHeaders.map((h, idx) => h ? String(h).trim() : `Column ${idx + 1}`);
+          const rows = json.slice(1).filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+          const isMultiColumn = headers.length > 1;
+
+          if (isMultiColumn) {
             const phoneHeader = headers.find(h => /phone|mobile|number|contact|recipient/i.test(h)) || headers[0] || '';
             const initialMapping: Record<string, string> = { phone: phoneHeader };
             requiredVariables.forEach(v => {
@@ -962,11 +981,12 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
             return line.split(',').map(cell => cell.replace(/^["']|["']$/g, '').trim());
           });
 
-          if (requiredVariables.length > 0) {
-            const rawHeaders = (json[0] || []) as any[];
-            const headers = rawHeaders.map((h, idx) => h ? String(h).trim() : `Column ${idx + 1}`);
-            const rows = json.slice(1).filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''));
-            
+          const rawHeaders = (json[0] || []) as any[];
+          const headers = rawHeaders.map((h, idx) => h ? String(h).trim() : `Column ${idx + 1}`);
+          const rows = json.slice(1).filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+          const isMultiColumn = headers.length > 1;
+
+          if (isMultiColumn) {
             const phoneHeader = headers.find(h => /phone|mobile|number|contact|recipient/i.test(h)) || headers[0] || '';
             const initialMapping: Record<string, string> = { phone: phoneHeader };
             requiredVariables.forEach(v => {
