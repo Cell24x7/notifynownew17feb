@@ -1968,18 +1968,6 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     ? `Stage File Contacts (${uploadedFile ? uploadedFile.rows.length : 0}) to Campaign #${campaignId}`
                     : `Stage ${recipients.length} Contacts to Campaign #${campaignId}`
                   }
-                </Button>     Process & Load Staged Contacts
-                    </Button>
-                  </div>
-                )}
-
-                <Button 
-                  onClick={handleAddContacts} 
-                  disabled={isLoading || recipients.length === 0} 
-                  className="w-full font-bold h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition-all hover:scale-[1.01]"
-                >
-                  {activeAction === 'stage' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
-                  Stage {recipients.length} Contacts to Campaign #{campaignId}
                 </Button>
               </CardContent>
             </Card>
