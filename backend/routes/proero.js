@@ -194,10 +194,21 @@ router.post('/channels/:id/disconnect', authenticateToken, async (req, res) => {
 router.post('/proxy/api/campaign/add-contacts', authenticateToken, async (req, res) => {
     const { campaign_id, user_id, contacts } = req.body;
 
-    // 1. Forward to Baileys
+    // 1. Forward to Baileys (strip out variables, send only flat phone numbers to pass validation)
     let proeroResponse = null;
     try {
-        const r = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, req.body, {
+        const flatContacts = Array.isArray(contacts) ? contacts.map(c => {
+            if (c && typeof c === 'object') {
+                const phoneVal = c.phone || c.number || c.mobile || '';
+                return String(phoneVal).replace(/\D/g, '');
+            }
+            return String(c).replace(/\D/g, '');
+        }).filter(Boolean) : [];
+
+        const r = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, {
+            ...req.body,
+            contacts: flatContacts
+        }, {
             headers: { 'Content-Type': 'application/json' }
         });
         proeroResponse = r.data;
@@ -208,7 +219,7 @@ router.post('/proxy/api/campaign/add-contacts', authenticateToken, async (req, r
         );
     }
 
-    // 2. Mirror into local DB
+    // 2. Mirror into local DB (keep the variables!)
     if (campaign_id && Array.isArray(contacts) && contacts.length > 0) {
         try {
             const uid = req.user?.id || user_id;
