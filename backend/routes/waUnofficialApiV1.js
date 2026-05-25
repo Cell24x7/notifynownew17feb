@@ -69,15 +69,15 @@ const authenticateDeveloper = async (req, res, next) => {
 
         // Keep this check if users must have is_api_allowed enabled
         // If users table has is_api_allowed, let's honor it
-        if (userRecord.is_api_allowed === 0 || userRecord.is_api_allowed === false) {
-            // Allow override if they have an api_key or reseller role
-            if (userRecord.role !== 'reseller' && userRecord.role !== 'super_admin' && !apiKey) {
-                return res.status(403).json({ 
-                    success: false, 
-                    message: 'Developer API access is not enabled for your account.' 
-                });
-            }
-        }
+        // Developer API is allowed for all authenticated users for now
+        // if (userRecord.is_api_allowed === 0 || userRecord.is_api_allowed === false) {
+        //     if (userRecord.role !== 'reseller' && userRecord.role !== 'super_admin' && !apiKey) {
+        //         return res.status(403).json({ 
+        //             success: false, 
+        //             message: 'Developer API access is not enabled for your account.' 
+        //         });
+        //     }
+        // }
 
         req.user = userRecord;
         next();
