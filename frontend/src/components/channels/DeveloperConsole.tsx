@@ -1742,11 +1742,22 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 </div>
               </CardContent>
             </Card>
-                    <Badge variant="outline" className="text-[10px] font-mono h-5">
+          </TabsContent>
+
+          {/* ════════ TAB 5: ADD CONTACTS (PHASE 5) ════════ */}
+          <TabsContent value="contacts" className="space-y-4 animate-in fade-in-50 duration-200">
+            <Card className="border border-border/60">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-foreground">Stage campaign contacts (Phase 5)</h3>
+                    <p className="text-[11px] text-muted-foreground">Upload and link phone numbers to active campaign <strong>#{campaignId}</strong>.</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-mono h-5">
                     Staged: {activeStagingCount} numbers
                   </Badge>
                 </div>
- 
+
                 {/* Input Mode Tabs */}
                 <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg text-xs font-bold">
                   <button
@@ -1780,7 +1791,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     <Upload className="w-3.5 h-3.5" /> File Scanner
                   </button>
                 </div>
- 
+
                 {/* Mode 1: Chips Input */}
                 {recipientInputMode === 'chips' && (
                   <div className="space-y-2">
@@ -1825,7 +1836,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 )}
- 
+
                 {/* Mode 2: Bulk Textarea */}
                 {recipientInputMode === 'textarea' && (
                   <div className="space-y-2">
@@ -1850,8 +1861,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 )}
- 
-                {/* Mode 3: File Upload */}
+                              {/* Mode 3: File Upload */}
                 {recipientInputMode === 'upload' && (
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-muted-foreground">Upload Contact Files</Label>
@@ -1868,7 +1878,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 )}
- 
+
                 {recipientInputMode === 'upload' && uploadedFile && (
                   <div className="p-4 border border-border bg-muted/25 rounded-xl space-y-3 mt-2 animate-in fade-in duration-300">
                     <div className="flex items-center justify-between">
@@ -1899,7 +1909,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                         ))}
                       </select>
                     </div>
- 
+
                     {requiredVariables.length > 0 ? (
                       <div className="space-y-2.5 pt-2 border-t border-dashed">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Map Columns to Variables</p>
@@ -1918,7 +1928,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                               ))}
                             </select>
                           </div>
- 
+
                           {requiredVariables.map((v, idx) => (
                             <div key={idx} className="space-y-1">
                               <Label className="text-[10px] font-bold text-muted-foreground">{`Variable {{${v}}}`}</Label>
@@ -1941,13 +1951,13 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                         No placeholders like {"{{var}}"} detected. Select a template above or stage numbers only. The first column containing numbers will be staged.
                       </p>
                     )}
- 
+
                     <p className="text-[10px] text-muted-foreground italic bg-muted/50 p-2 rounded-lg leading-relaxed border-t border-dashed">
                       Configure your column mappings above. Click the primary button below to stage all contacts directly.
                     </p>
                   </div>
                 )}
- 
+
                 <Button 
                   onClick={handleAddContacts} 
                   disabled={isLoading || (recipientInputMode === 'upload' ? !uploadedFile : recipients.length === 0)} 
@@ -1958,6 +1968,18 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     ? `Stage File Contacts (${uploadedFile ? uploadedFile.rows.length : 0}) to Campaign #${campaignId}`
                     : `Stage ${recipients.length} Contacts to Campaign #${campaignId}`
                   }
+                </Button>     Process & Load Staged Contacts
+                    </Button>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={handleAddContacts} 
+                  disabled={isLoading || recipients.length === 0} 
+                  className="w-full font-bold h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition-all hover:scale-[1.01]"
+                >
+                  {activeAction === 'stage' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
+                  Stage {recipients.length} Contacts to Campaign #{campaignId}
                 </Button>
               </CardContent>
             </Card>
@@ -2284,8 +2306,8 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-bold text-white truncate">{channel.name || 'Proero WhatsApp'}</p>
                   <p className="text-[10px] text-[#8696a0]">
-                    {activeStagingCount > 0 
-                      ? `${activeStagingCount} number${activeStagingCount > 1 ? 's' : ''} staging`
+                    {recipients.length > 0 
+                      ? `${recipients.length} number${recipients.length > 1 ? 's' : ''} staging`
                       : 'Active Connection'
                     }
                   </p>
@@ -2306,10 +2328,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   </span>
                 </div>
 
-                {activeStagingCount > 0 && (
+                {recipients.length > 0 && (
                   <div className="flex justify-center mb-3">
                     <div className="px-3 py-1.5 rounded-lg bg-[#182229]/90 text-[9.5px] text-[#ffd279] font-medium max-w-[200px] text-center border border-[#ffd279]/20 shadow-lg">
-                      📤 staging {activeStagingCount} number{activeStagingCount > 1 ? 's' : ''} to Campaign
+                      📤 staging {recipients.length} number{recipients.length > 1 ? 's' : ''} to Campaign
                     </div>
                   </div>
                 )}
@@ -2336,7 +2358,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 </div>
 
                 {/* Recipient list bubbles preview */}
-                {activeStagingCount > 0 && activePreviewRecipients.map((rec, i) => (
+                {recipients.length > 0 && recipients.slice(0, 2).map((rec, i) => (
                   <div key={i} className="flex justify-start mb-1.5 animate-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
                     <div className="max-w-[70%] rounded-xl rounded-tl-sm px-3 py-1.5 bg-[#1f2c34] shadow-sm">
                       <p className="text-[10px] text-[#8696a0] font-mono">
@@ -2350,10 +2372,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                     </div>
                   </div>
                 ))}
-                {activeStagingCount > 2 && (
+                {recipients.length > 2 && (
                   <div className="flex justify-start mb-2">
                     <div className="px-3 py-1 rounded-xl bg-[#1f2c34] shadow-sm">
-                      <p className="text-[10px] text-[#8696a0]">+{activeStagingCount - 2} more recipients staged...</p>
+                      <p className="text-[10px] text-[#8696a0]">+{recipients.length - 2} more recipients staged...</p>
                     </div>
                   </div>
                 )}
@@ -2370,7 +2392,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   <Camera className="w-4 h-4 text-[#8696a0] shrink-0" />
                 </div>
                 <div className="w-9 h-9 rounded-full bg-[#00a884] flex items-center justify-center shadow-md shrink-0">
-                  {activeStagingCount > 0 && (messageContent || selectedTemplate) 
+                  {recipients.length > 0 && (messageContent || selectedTemplate) 
                     ? <Send className="w-4 h-4 text-white" />
                     : <Mic className="w-4 h-4 text-white" />
                   }
