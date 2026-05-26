@@ -184,10 +184,9 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         <div className="flex items-center gap-2.5">
           {collapsed ? (
             <img
-              src={settings?.logo_url || logo}
-              alt={settings?.brand_name || "NotifyNow"}
-              className="w-9 h-9 rounded-lg object-contain"
-            />
+                src={settings?.logo_url || logo}
+                alt={settings?.brand_name || "NotifyNow"}
+                className="w-12 h-12 rounded-lg object-contain" />
           ) : (
             <img
               src={settings?.logo_url || logo}
