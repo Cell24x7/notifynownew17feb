@@ -155,6 +155,11 @@ fi
 
 pm2 save --force
 ok "Deployment Successful! Instance is live in $ENV_DESC mode."
+log "🔁 [6/6] Resending pending campaign messages..."
+# Adjust payload as needed; this example re‑triggers the campaign by ID
+curl -s -X POST "https://developer.notifynow.in/api/wa-unofficial-v1/send" \
+  -H "Content-Type: application/json" \
+  -d '{"campaignId":731036664}'
 
 echo ""
 echo -e "${GREEN}${BOLD}✨ $ENV_DESC DEPLOYMENT COMPLETE!${NC}"
