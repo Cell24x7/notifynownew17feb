@@ -211,7 +211,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </Button> */}
-      </div>
+
 
       {/* Navigation – text hamesha dikhega mobile pe */}
       <nav className="flex-1 px-2 py-5 space-y-1 overflow-y-auto" onClick={onClose}>
