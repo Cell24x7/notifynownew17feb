@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import ServiceCard from "../components/ServiceCard";
+import { ServiceCard } from "../components/ServiceCard";
 import { motion } from "framer-motion";
 
 // Icon imports (adjust paths if needed)
