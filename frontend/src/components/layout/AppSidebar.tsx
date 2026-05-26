@@ -179,13 +179,28 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         collapsed && 'lg:w-16 lg:border-r-0'  // sirf desktop collapse
       )}
     >
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
-      <div className="flex items-center justify-between p-4">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
-          {collapsed ? (
-            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
-          ) : (
-            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '200px', height: 'auto', objectFit: 'contain' }} />
+      {/* Logo */}
+      <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
+        <div className="flex items-center gap-2.5">
+          <img
+            src={settings?.logo_url || logo}
+            alt={settings?.brand_name || "Proeor"}
+            className="w-8 h-8 rounded-lg object-contain"
+          />
+          {!collapsed && (
+            <div className="flex flex-col">
+              <span className="font-bold text-lg tracking-tight leading-none">{settings?.brand_name || "Proeor"}</span>
+              {user?.role === 'reseller' && !settings?.brand_name && (
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
+                  Reseller Platform
+                </span>
+              )}
+              {user?.role && user.role !== 'user' && user.role !== 'reseller' && (
+                <span className="text-[10px] text-primary uppercase font-bold mt-1">
+                  {user.role} Panel
+                </span>
+              )}
+            </div>
           )}
         </div>
         <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={() => setCollapsed(!collapsed)}>

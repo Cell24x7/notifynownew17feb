@@ -133,12 +133,22 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       )}
     >
       {/* Logo */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
-        {collapsed ? (
-          <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
-        ) : (
-          <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '200px', height: 'auto', objectFit: 'contain' }} />
-        )}
+      <div className="flex items-center justify-between h-16 px-4 border-b border-border">
+        <div className="flex items-center gap-2">
+          <img
+            src={settings?.logo_url || defaultLogo}
+            alt={settings?.brand_name || "Proeor"}
+            className="w-8 h-8 rounded-lg object-contain"
+          />
+          {!collapsed && (
+            <div className="flex flex-col">
+              <span className="font-bold text-sm leading-tight">{settings?.brand_name || "Proeor"}</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                {user?.role === 'admin' || user?.role === 'superadmin' ? 'Super Admin' : 'Business Owner'}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}

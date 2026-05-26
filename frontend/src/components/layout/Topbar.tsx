@@ -64,9 +64,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
                     <Menu className="h-5 w-5" />
                 </Button>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
-  <img src={settings?.logo_url || defaultLogo} alt="Logo" style={{ width: '80px', height: 'auto', objectFit: 'contain' }} />
-</div>
+                <img src={settings?.logo_url || defaultLogo} alt="Logo" className="h-8 md:hidden rounded-lg object-contain" />
             </div>
 
             <div className="flex-1 hidden md:flex items-center px-4">
