@@ -180,22 +180,28 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
-        <div className="flex items-center gap-2.5">
-          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" /><div className="flex flex-col">
-            <span className="font-bold text-lg tracking-tight leading-none">{settings?.brand_name || "NotifyNow"}</span>
+      {/* Logo */}
+      <div className="flex flex-col justify-center items-center h-20 px-4 border-b bg-background/80">
+        {collapsed ? (
+          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
+        ) : (
+          <>
+            <div className="flex items-center justify-center w-full">
+              <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-[12rem] h-10 object-contain rounded-lg" />
+            </div>
             {user?.role === 'reseller' && !settings?.brand_name && (
-               <span className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
+               <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider leading-none mt-1">
                  Reseller Platform
                </span>
             )}
             {user?.role && user.role !== 'user' && user.role !== 'reseller' && (
-               <span className="text-[10px] text-primary uppercase font-bold mt-1">
+               <span className="text-[9px] text-primary uppercase font-black tracking-wider leading-none mt-1">
                  {user.role} Panel
                </span>
             )}
-          </div>
-        </div>
+          </>
+        )}
+      </div>
 
         {/* <Button
           variant="ghost"

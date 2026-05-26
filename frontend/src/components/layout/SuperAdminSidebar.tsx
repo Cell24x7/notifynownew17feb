@@ -133,20 +133,18 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-border">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
-            <div className="flex flex-col">
-              <span className="font-bold text-sm leading-tight">{settings?.brand_name || "NotifyNow"}</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                {user?.role === 'admin' || user?.role === 'superadmin' ? 'Super Admin' : 'Business Owner'}
-              </span>
+      <div className="flex flex-col justify-center items-center h-20 px-4 border-b border-border">
+        {collapsed ? (
+          <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
+        ) : (
+          <>
+            <div className="flex items-center justify-center w-full">
+              <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-[12rem] h-10 object-contain rounded-lg" />
             </div>
-          </div>
-        )}
-        {collapsed && (
-            <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
+            <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-black mt-1">
+              {user?.role === 'admin' || user?.role === 'superadmin' ? 'Super Admin' : 'Business Owner'}
+            </span>
+          </>
         )}
       </div>
 
