@@ -182,7 +182,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
         <div className="flex items-center gap-2.5">
           <img
-            src={settings?.logo_url || "/logo-full.png"}
+            src={settings?.logo_url || "https://notifynow.in/assets/logo-full-BihHi4aR.png"}
             alt={settings?.brand_name || "NotifyNow"}
             className="w-8 h-8 rounded-lg object-contain"
           />

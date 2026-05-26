@@ -34,7 +34,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useBranding } from '@/contexts/BrandingContext';
 
 // ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
-import logo from '@/assets/logo-full.png';
+// Logo will be loaded from branding settings
 
 // Removed static menuItems to move inside component for dynamic access to user state
 
@@ -136,7 +136,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b border-border">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
+            <img src={settings?.logo_url || "https://notifynow.in/assets/logo-full-BihHi4aR.png"} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
             <div className="flex flex-col">
               <span className="font-bold text-sm leading-tight">{settings?.brand_name || "NotifyNow"}</span>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
@@ -146,7 +146,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
           </div>
         )}
         {collapsed && (
-          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
+          <img src={settings?.logo_url || "https://notifynow.in/assets/logo-full-BihHi4aR.png"} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
         )}
       </div>
 

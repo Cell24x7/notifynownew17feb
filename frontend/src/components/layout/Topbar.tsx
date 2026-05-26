@@ -1,8 +1,9 @@
 import { Wallet, Zap, ChevronDown, Sun, Moon, LogOut, Menu, User, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import logo from '@/assets/logo-full.png';
+const defaultLogo = 'https://notifynow.in/assets/logo-full-BihHi4aR.png';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranding } from '@/contexts/BrandingContext';
 import { useClient } from '@/contexts/ClientContext';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
@@ -30,6 +31,7 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
     const { user, logout } = useAuth();
+  const { settings } = useBranding();
     const { selectedClientId, setSelectedClientId } = useClient();
     const { theme, setTheme } = useTheme();
     const isDark = theme === 'dark';
@@ -62,7 +64,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
                     <Menu className="h-5 w-5" />
                 </Button>
-                <img src={logo} alt="Logo" className="h-8 md:hidden" />
+                <img src={settings?.logo_url || "https://notifynow.in/assets/logo-full-BihHi4aR.png"} alt="Logo" className="h-8 md:hidden" />
             </div>
 
             <div className="flex-1 hidden md:flex items-center px-4">
