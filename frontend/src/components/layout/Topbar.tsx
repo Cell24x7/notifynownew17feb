@@ -1,6 +1,6 @@
 import { Wallet, Zap, ChevronDown, Sun, Moon, LogOut, Menu, User, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import logo from '@/assets/logonotify.jpeg';
+import defaultLogo from '@/assets/logonotify.jpeg';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';
@@ -64,7 +64,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
                     <Menu className="h-5 w-5" />
                 </Button>
-                <img src={settings?.logo_url || logo} alt="Logo" className="h-8 md:hidden" />
+                <img src={settings?.logo_url || defaultLogo} alt="Logo" className="h-8 md:hidden" />
             </div>
 
             <div className="flex-1 hidden md:flex items-center px-4">

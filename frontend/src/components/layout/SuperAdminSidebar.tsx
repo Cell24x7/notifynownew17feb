@@ -33,7 +33,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useBranding } from '@/contexts/BrandingContext';
 
-import logo from '@/assets/logonotify.jpeg';
+import defaultLogo from '@/assets/logonotify.jpeg';
 // Logo will be loaded from branding settings
 
 // Removed static menuItems to move inside component for dynamic access to user state
@@ -146,7 +146,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
           </div>
         )}
         {collapsed && (
-            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
+            <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
         )}
       </div>
 
