@@ -182,25 +182,18 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
         <div className="flex items-center gap-2.5">
-          <img
-            src={settings?.logo_url || logo}
-            alt={settings?.brand_name || "Proeor"}
-            className="w-8 h-8 rounded-lg object-contain"
-          />
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight leading-none">{settings?.brand_name || "Proeor"}</span>
-              {user?.role === 'reseller' && !settings?.brand_name && (
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
-                  Reseller Platform
-                </span>
-              )}
-              {user?.role && user.role !== 'user' && user.role !== 'reseller' && (
-                <span className="text-[10px] text-primary uppercase font-bold mt-1">
-                  {user.role} Panel
-                </span>
-              )}
-            </div>
+          {collapsed ? (
+            <img
+              src={settings?.logo_url || logo}
+              alt={settings?.brand_name || "NotifyNow"}
+              className="w-9 h-9 rounded-lg object-contain"
+            />
+          ) : (
+            <img
+              src={settings?.logo_url || logo}
+              alt={settings?.brand_name || "NotifyNow"}
+              className="h-14 w-44 object-contain"
+            />
           )}
         </div>
         <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={() => setCollapsed(!collapsed)}>
