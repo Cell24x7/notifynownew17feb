@@ -145,7 +145,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
             <img
               src={settings?.logo_url || defaultLogo}
               alt={settings?.brand_name || "NotifyNow"}
-              className="h-11 w-36 object-contain"
+              className="h-14 w-44 object-contain"
             />
           )}
         </div>
