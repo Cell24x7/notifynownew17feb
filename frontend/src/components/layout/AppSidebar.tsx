@@ -39,8 +39,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';
+import { useAuth } from '@/contexts/AuthContext';
+import logo from '@/assets/logo-full.png';
 
 interface AppSidebarProps {
   onClose?: () => void;
@@ -181,12 +182,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
         <div className="flex items-center gap-2.5">
-          <img
-            src={settings?.logo_url || "https://notifynow.in/assets/logo-full-BihHi4aR.png"}
-            alt={settings?.brand_name || "NotifyNow"}
-            className="w-8 h-8 rounded-lg object-contain"
-          />
-          <div className="flex flex-col">
+          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" /><div className="flex flex-col">
             <span className="font-bold text-lg tracking-tight leading-none">{settings?.brand_name || "NotifyNow"}</span>
             {user?.role === 'reseller' && !settings?.brand_name && (
                <span className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
