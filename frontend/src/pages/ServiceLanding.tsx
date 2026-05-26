@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ServiceCard } from "../components/ServiceCard";
 import { motion } from "framer-motion";
 
-// Icon imports (adjust paths if needed)
+// Icon imports
 import whatsappIcon from "../assets/icons/whatsapp.svg";
 import smsIcon from "../assets/icons/sms.svg";
 import rcsIcon from "../assets/icons/rcs.svg";
