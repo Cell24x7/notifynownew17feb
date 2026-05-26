@@ -133,13 +133,13 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-center py-1 border-b bg-background/90 shadow-md">
-  {collapsed ? (
-    <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-16 h-16 rounded-full object-contain" />
-  ) : (
-    <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-32 h-16 object-contain" />
-  )}
-</div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
+        {collapsed ? (
+          <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
+        ) : (
+          <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '200px', height: 'auto', objectFit: 'contain' }} />
+        )}
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto" onClick={onClose}>
