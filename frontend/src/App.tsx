@@ -10,6 +10,7 @@ import { ClientProvider } from '@/contexts/ClientContext';
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SuperAdminLayout } from "@/components/layout/SuperAdminLayout";
 import Auth from "./pages/Auth";
+import ServiceLanding from "./pages/ServiceLanding";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Chats from "./pages/Chats";
@@ -90,7 +91,7 @@ const App = () => (
                     <Route path="/terms" element={<TermsOfService />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/" element={<ServiceLanding />} />
 
                     {/* Client App Routes */}
                     <Route element={<AppLayout />}>
