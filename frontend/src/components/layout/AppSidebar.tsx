@@ -180,27 +180,13 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex flex-col justify-center items-center py-2 px-4 border-b bg-background/90 shadow-md">
-        {collapsed ? (
-          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-32 h-32 rounded-full object-contain" />
-        ) : (
-          <>
-            <div className="flex items-center justify-center w-full">
-              <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-96 h-32 object-contain rounded-lg" />
-            </div>
-            {user?.role === 'reseller' && !settings?.brand_name && (
-              <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider leading-none mt-1">
-                Reseller Platform
-              </span>
-            )}
-            {user?.role && user.role !== 'user' && user.role !== 'reseller' && (
-              <span className="text-[9px] text-primary uppercase font-black tracking-wider leading-none mt-1">
-                {user.role} Panel
-              </span>
-            )}
-          </>
-        )}
-      </div>
+      <div className="flex items-center justify-center py-1 border-b bg-background/90 shadow-md">
+  {collapsed ? (
+    <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-16 h-16 rounded-full object-contain" />
+  ) : (
+    <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-32 h-16 object-contain" />
+  )}
+</div>
 
         {/* <Button
           variant="ghost"
