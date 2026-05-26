@@ -179,15 +179,12 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         collapsed && 'lg:w-16 lg:border-r-0'  // sirf desktop collapse
       )}
     >
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
-      <div className="flex items-center justify-between p-4">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
-          {collapsed ? (
-            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
-          ) : (
-            <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '200px', height: 'auto', objectFit: 'contain' }} />
-          )}
-        </div>
+      <div className="flex items-center justify-between p-4" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', border: '4px solid #1a202c', borderRadius: '10px', backgroundColor: '#ffffff', boxShadow: '0 0 8px rgba(0,0,0,0.2)' }}>
+        {collapsed ? (
+          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
+        ) : (
+          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} style={{ width: '200px', height: 'auto', objectFit: 'contain' }} />
+        )}
         <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </Button>
