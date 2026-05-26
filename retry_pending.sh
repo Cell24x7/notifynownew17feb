@@ -6,10 +6,6 @@
 #   Usage (Git Bash / WSL):
 #     chmod +x retry_pending.sh   # one-time only
 #     ./retry_pending.sh
-#
-#   Requirements:
-#     • curl
-#     • jq (JSON parser) – install via apt, brew, or download the Windows binary.
 # ---------------------------------------------------------------
 
 # ----- Configuration ------------------------------------------------
@@ -26,10 +22,10 @@ MAX_ATTEMPTS=0
 
 attempt=0
 while true; do
-    # 1️⃣ Get campaign status
+    # 1️⃣ Get campaign status (Use clean single-line JSON to avoid escaping issues)
     STATUS_JSON=$(curl -s -X POST "${BASE_URL}/campaigns/${CAMPAIGN_ID}/status" \
         -H "Content-Type: application/json" \
-        -d "{\n            \"username\": \"${USERNAME}\",\n            \"password\": \"${PASSWORD}\"\n        }")
+        -d "{\"username\":\"${USERNAME}\",\"password\":\"${PASSWORD}\"}")
 
     # Abort if response is not valid JSON
     if ! echo "$STATUS_JSON" | jq . > /dev/null 2>&1; then
@@ -43,6 +39,14 @@ while true; do
     CAMPAIGN_STATUS=$(echo "$STATUS_JSON" | jq -r '.data.campaign_status')
     PROGRESS=$(echo "$STATUS_JSON" | jq '.data.metrics.progress_percentage')
 
+    # Safety check: if response has error message or field is null
+    SUCCESS_FLAG=$(echo "$STATUS_JSON" | jq -r '.success')
+    if [[ "$SUCCESS_FLAG" != "true" ]] || [[ "$PENDING" == "null" ]] || [[ -z "$PENDING" ]]; then
+        echo "❌ API returned an error or invalid data:"
+        echo "$STATUS_JSON" | jq .
+        exit 1
+    fi
+
     echo "🕒 $(date '+%Y-%m-%d %H:%M:%S') – Campaign $CAMPAIGN_ID – status: $CAMPAIGN_STATUS – pending: $PENDING – progress: $PROGRESS%"
 
     # 3️⃣ Stop conditions
@@ -55,7 +59,7 @@ while true; do
     echo "🔁 Resending pending messages..."
     RESEND_RESP=$(curl -s -X POST "${BASE_URL}/send" \
         -H "Content-Type: application/json" \
-        -d "{\n            \"campaignId\": ${CAMPAIGN_ID},\n            \"username\": \"${USERNAME}\",\n            \"password\": \"${PASSWORD}\"\n        }")
+        -d "{\"campaignId\":${CAMPAIGN_ID},\"username\":\"${USERNAME}\",\"password\":\"${PASSWORD}\"}")
     echo "   ↳ Resend response: $(echo "$RESEND_RESP" | jq -r '.message // .success')"
 
     # 5️⃣ Wait before next poll
