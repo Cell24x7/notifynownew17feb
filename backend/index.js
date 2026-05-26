@@ -231,6 +231,10 @@ const runQueue = async () => {
 };
 runQueue();
 
+// Start Unofficial WhatsApp status polling service
+const { startPolling } = require('./services/waUnofficialPollingService');
+startPolling();
+
 // Auto-create chat_flows table if it doesn't exist
 const { ensureChatFlowsTable } = require('./services/chatflowService');
 const { ensureWhatsAppPricingColumns } = require('./services/pricingService');

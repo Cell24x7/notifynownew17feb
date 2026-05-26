@@ -490,7 +490,11 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
             payload.imageUrl = imageUrl;
         }
 
-        console.log(`[WA-API] Firing campaign execution for ${finalCampaignId}...`);
+        // Pass webhookUrl for real-time DLR callbacks
+        const baseApiUrl = process.env.API_BASE_URL || 'https://notifynow.in';
+        payload.webhookUrl = `${baseApiUrl}/api/webhooks/wa-unofficial/callback`;
+
+        console.log(`[WA-API] Firing campaign execution for ${finalCampaignId} with webhook ${payload.webhookUrl}...`);
         const campaignResponse = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/start/${finalCampaignId}`, payload);
 
         // 4. Log to DB for user dashboard tracking

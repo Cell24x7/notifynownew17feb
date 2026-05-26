@@ -1406,6 +1406,140 @@ router.get('/whatsapp', async (req, res) => {
     }
 });
 
+// ==========================================
+// UNOFFICIAL WHATSAPP (BAILEYS) DLR WEBHOOK
+// ==========================================
+
+// POST /api/webhooks/wa-unofficial/callback
+// Receives per-message delivery status updates from the Baileys gateway (wa.notifynow.in)
+// Payload can be a single object or an array of events.
+// Common fields: campaign_id, recipient/phone/to, status (sent|delivered|read|failed),
+//                message_id, reason/error (for failures)
+router.post('/wa-unofficial/callback', async (req, res) => {
+    // Always respond 200 immediately so the gateway never retries
+    res.status(200).json({ success: true, message: 'DLR received' });
+
+    try {
+        const raw = req.body;
+        const events = Array.isArray(raw) ? raw : [raw];
+
+        console.log(`[WA-UNOFFICIAL-DLR] Received ${events.length} event(s)`);
+
+        for (const event of events) {
+            const campaignId = event.campaign_id || event.campaignId || event.campaign?.id;
+            const recipient  = event.recipient   || event.phone     || event.to || event.number;
+            const messageId  = event.message_id  || event.messageId || event.id;
+            const rawStatus  = (event.status || event.ack || '').toLowerCase();
+
+            // Map Baileys ack numbers to status strings
+            // Baileys ACK: 0=error, 1=pending, 2=server, 3=delivered, 4=read
+            let status = rawStatus;
+            if (!isNaN(parseInt(rawStatus))) {
+                const ackMap = { '0': 'failed', '1': 'sent', '2': 'sent', '3': 'delivered', '4': 'read' };
+                status = ackMap[rawStatus] || 'sent';
+            }
+
+            if (!['delivered', 'read', 'failed'].includes(status)) continue;
+            if (!campaignId && !messageId && !recipient) continue;
+
+            try {
+                let rows = [];
+
+                // Priority 1: Match by message_id
+                if (messageId) {
+                    [rows] = await query(
+                        'SELECT id, status FROM api_message_logs WHERE message_id = ? LIMIT 1',
+                        [messageId]
+                    );
+                }
+
+                // Priority 2: Match by campaign_id + phone
+                if (rows.length === 0 && campaignId && recipient) {
+                    const cleanPhone = String(recipient).replace(/\D/g, '');
+                    const last10 = cleanPhone.slice(-10);
+                    [rows] = await query(
+                        `SELECT id, status FROM api_message_logs
+                         WHERE campaign_id = ? AND (recipient LIKE ? OR recipient = ?)
+                         LIMIT 1`,
+                        [campaignId, `%${last10}`, cleanPhone]
+                    );
+                }
+
+                if (rows.length === 0) continue;
+
+                const row = rows[0];
+                const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
+                const oldW    = weights[(row.status || 'sent').toLowerCase()] || 0;
+                const newW    = weights[status] || 0;
+
+                if (newW <= oldW) continue; // Never downgrade status
+
+                if (status === 'delivered') {
+                    await query(
+                        `UPDATE api_message_logs
+                         SET status = 'delivered',
+                             delivery_time = COALESCE(delivery_time, NOW()),
+                             updated_at = NOW()
+                         WHERE id = ?`,
+                        [row.id]
+                    );
+                } else if (status === 'read') {
+                    await query(
+                        `UPDATE api_message_logs
+                         SET status = 'read',
+                             delivery_time = COALESCE(delivery_time, NOW()),
+                             read_time = COALESCE(read_time, NOW()),
+                             updated_at = NOW()
+                         WHERE id = ?`,
+                        [row.id]
+                    );
+                } else if (status === 'failed') {
+                    const reason = event.reason || event.error || event.failure_reason || 'Gateway delivery failure';
+                    await query(
+                        `UPDATE api_message_logs
+                         SET status = 'failed',
+                             failure_reason = ?,
+                             updated_at = NOW()
+                         WHERE id = ?`,
+                        [reason, row.id]
+                    );
+                }
+
+                console.log(`[WA-UNOFFICIAL-DLR] Log ${row.id}: ${row.status} → ${status} (campaign:${campaignId}, phone:${recipient})`);
+            } catch (dbErr) {
+                console.error('[WA-UNOFFICIAL-DLR] DB update error:', dbErr.message);
+            }
+        }
+    } catch (error) {
+        console.error('[WA-UNOFFICIAL-DLR] Handler error:', error.message);
+    }
+});
+
+// GET /api/webhooks/wa-unofficial/callback
+// Health-check for the Baileys webhook endpoint (browser/postman verification)
+router.get('/wa-unofficial/callback', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Unofficial WhatsApp DLR webhook endpoint is active',
+        endpoint: 'POST /api/webhooks/wa-unofficial/callback'
+    });
+});
+
+// POST /api/webhooks/wa-unofficial/poll/:campaignId
+// Manually trigger a status sync for a specific campaign (for testing / UI refresh)
+router.post('/wa-unofficial/poll/:campaignId', async (req, res) => {
+    try {
+        const { syncCampaign } = require('../services/waUnofficialPollingService');
+        await syncCampaign(req.params.campaignId);
+        res.json({ success: true, message: `Campaign ${req.params.campaignId} synced from Baileys` });
+    } catch (err) {
+        console.error('[WA-POLL-MANUAL] Error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Self-healing database migration
 async function ensureMediaUrlColumn() {
     try {
