@@ -1,6 +1,6 @@
 import { Wallet, Zap, ChevronDown, Sun, Moon, LogOut, Menu, User, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import logo from '@/assets/logo-full.png';
+import logo from '@/assets/logonotify.jpeg';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranding } from '@/contexts/BrandingContext';

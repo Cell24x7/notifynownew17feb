@@ -41,7 +41,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useBranding } from '@/contexts/BrandingContext';
 import { useAuth } from '@/contexts/AuthContext';
-import logo from '@/assets/logo-full.png';
+import logo from '@/assets/logonotify.jpeg';
 
 interface AppSidebarProps {
   onClose?: () => void;
