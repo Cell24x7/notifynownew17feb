@@ -182,11 +182,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       {/* Logo */}
       <div className="flex flex-col justify-center items-center h-24 px-4 border-b bg-background/90 shadow-md">
         {collapsed ? (
-          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-12 h-12 rounded-lg object-contain" />
+          <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-20 h-20 rounded-full object-contain" />
         ) : (
           <>
             <div className="flex items-center justify-center w-full">
-              <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-48 h-16 object-contain rounded-lg" />
+              <img src={settings?.logo_url || logo} alt={settings?.brand_name || "NotifyNow"} className="w-80 h-24 object-contain rounded-lg" />
             </div>
             {user?.role === 'reseller' && !settings?.brand_name && (
                <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider leading-none mt-1">

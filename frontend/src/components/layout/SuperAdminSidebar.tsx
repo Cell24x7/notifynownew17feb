@@ -135,7 +135,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       {/* Logo */}
       <div className="flex flex-col justify-center items-center h-20 px-4 border-b border-border">
         {collapsed ? (
-          <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-8 h-8 rounded-lg object-contain" />
+          <img src={settings?.logo_url || defaultLogo} alt={settings?.brand_name || "NotifyNow"} className="w-12 h-12 rounded-full object-contain" />
         ) : (
           <>
             <div className="flex items-center justify-center w-full">
