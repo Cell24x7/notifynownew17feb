@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ServiceCard } from "../components/ServiceCard";
-import preoroLogo from "../assets/logo.png";
+const LOGO_URL = "https://developer.notifynow.in/assets/logonotify-aOdgYHbL.jpeg";
 
 import whatsappIcon from "../assets/icons/whatsapp.svg";
 import smsIcon from "../assets/icons/sms.svg";
@@ -44,7 +44,7 @@ const ServiceLanding: React.FC = () => {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-300 rounded-full opacity-30 blur-xl animate-pulse" />
       </div>
 
-      <img src={preoroLogo} alt="Preoro" className="mb-8 w-48 h-auto" />
+      <img src={LOGO_URL} alt="Preoro" className="mb-8 w-48 h-auto" />
       <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4 text-center">
         Welcome to NotifyNow
       </h1>
