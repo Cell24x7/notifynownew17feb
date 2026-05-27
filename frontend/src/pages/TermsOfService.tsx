@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import defaultLogo from "@/assets/logonotify.jpeg";
 
 export default function TermsOfService() {
   const [activeSection, setActiveSection] = React.useState("acceptance");
@@ -65,7 +66,7 @@ export default function TermsOfService() {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <img src="https://notifynow.in/assets/logo-full-BihHi4aR.png" alt="NotifyNow" className="w-8 h-8 rounded-lg shadow-sm" />
+            <img src={defaultLogo} alt="NotifyNow" className="w-8 h-8 rounded-lg shadow-sm object-contain" />
             <span className="font-bold text-xl tracking-tight">NotifyNow</span>
           </div>
         </div>

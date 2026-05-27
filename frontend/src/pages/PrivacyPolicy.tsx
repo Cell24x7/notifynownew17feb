@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import defaultLogo from "@/assets/logonotify.jpeg";
 
 export default function PrivacyPolicy() {
   const [activeSection, setActiveSection] = React.useState("introduction");
@@ -64,7 +65,7 @@ export default function PrivacyPolicy() {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <img src="/logo-full.png" alt="NotifyNow" className="w-8 h-8 rounded-lg shadow-sm" />
+            <img src={defaultLogo} alt="NotifyNow" className="w-8 h-8 rounded-lg shadow-sm object-contain" />
             <span className="font-bold text-xl tracking-tight">NotifyNow</span>
           </div>
         </div>
