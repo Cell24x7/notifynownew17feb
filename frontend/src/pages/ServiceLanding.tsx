@@ -96,7 +96,7 @@ const ServiceLanding: React.FC = () => {
               onError={(e) => {
                 e.currentTarget.src = DEFAULT_LOGO;
               }}
-              className="h-9 sm:h-10 w-auto object-contain max-w-[170px]" 
+              className="h-16 sm:h-20 md:h-24 w-auto object-contain max-w-[240px] -my-6" 
             />
           </Link>
 

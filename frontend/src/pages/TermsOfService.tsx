@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import defaultLogo from "@/assets/logonotify.jpeg";
+import defaultLogo from "@/assets/logo.svg";
 
 export default function TermsOfService() {
   const [activeSection, setActiveSection] = React.useState("acceptance");
