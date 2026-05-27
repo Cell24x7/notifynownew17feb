@@ -6,6 +6,15 @@ const bcrypt = require('bcryptjs');
 
 const EXTERNAL_BASE_URL = 'https://wa.notifynow.in';
 
+const parseActiveSessions = (resData) => {
+    if (!resData) return [];
+    if (Array.isArray(resData)) return resData;
+    if (resData.data && Array.isArray(resData.data)) return resData.data;
+    if (resData.sessions && Array.isArray(resData.sessions)) return resData.sessions;
+    if (resData.data?.sessions && Array.isArray(resData.data.sessions)) return resData.data.sessions;
+    return resData;
+};
+
 /**
  * Enhanced Developer Authentication Middleware
  * Supports Header (x-api-key), Query, and Body parameters (apiKey, username + password/pwd)
@@ -103,7 +112,7 @@ router.all('/channels', authenticateDeveloper, async (req, res) => {
         let activeSessions = [];
         try {
             const sessionsResponse = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`, { timeout: 3000 });
-            activeSessions = sessionsResponse.data.sessions || sessionsResponse.data.data?.sessions || sessionsResponse.data || [];
+            activeSessions = parseActiveSessions(sessionsResponse.data);
         } catch (sessionErr) {
             console.warn('Could not reach Baileys server for live sync:', sessionErr.message);
         }
@@ -239,7 +248,7 @@ router.post('/channels/:id/sync', authenticateDeveloper, async (req, res) => {
 
         // Query session status from Baileys engine
         const response = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`);
-        const sessions = response.data.sessions || response.data.data?.sessions || response.data || [];
+        const sessions = parseActiveSessions(response.data);
 
         let isConnected = false;
         let phoneNumber = channels[0].phone_number;
@@ -407,7 +416,7 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
             let activeSessions = null;
             try {
                 const sessionsResponse = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`, { timeout: 5000 });
-                activeSessions = sessionsResponse.data.sessions || sessionsResponse.data.data?.sessions || sessionsResponse.data || [];
+                activeSessions = parseActiveSessions(sessionsResponse.data);
             } catch (sessionErr) {
                 console.warn('[WA-API] Could not reach Baileys server for live sync:', sessionErr.message);
             }

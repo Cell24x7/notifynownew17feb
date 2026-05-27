@@ -6,6 +6,15 @@ const axios = require('axios');
 
 const EXTERNAL_BASE_URL = 'https://wa.notifynow.in';
 
+const parseActiveSessions = (resData) => {
+    if (!resData) return [];
+    if (Array.isArray(resData)) return resData;
+    if (resData.data && Array.isArray(resData.data)) return resData.data;
+    if (resData.sessions && Array.isArray(resData.sessions)) return resData.sessions;
+    if (resData.data?.sessions && Array.isArray(resData.data.sessions)) return resData.data.sessions;
+    return resData;
+};
+
 /**
  * @route   GET /api/proero/channels
  * @desc    Get all Proero channels for the logged-in user
@@ -103,7 +112,7 @@ router.post('/channels/:id/sync', authenticateToken, async (req, res) => {
         
         // Query sessions from wa.notifynow.in
         const response = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`);
-        const sessions = response.data.sessions || response.data.data?.sessions || response.data || [];
+        const sessions = parseActiveSessions(response.data);
         
         let isConnected = false;
         let phoneNumber = channels[0].phone_number;
