@@ -404,9 +404,9 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
             }
 
             // Sync statuses with Baileys server on-the-fly
-            let activeSessions = [];
+            let activeSessions = null;
             try {
-                const sessionsResponse = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`, { timeout: 3000 });
+                const sessionsResponse = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`, { timeout: 5000 });
                 activeSessions = sessionsResponse.data.sessions || sessionsResponse.data.data?.sessions || sessionsResponse.data || [];
             } catch (sessionErr) {
                 console.warn('[WA-API] Could not reach Baileys server for live sync:', sessionErr.message);
@@ -414,42 +414,48 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
 
             const connectedChannels = [];
             for (const chan of channels) {
-                const sessionName = `session${chan.id}`;
-                let isConnected = false;
+                let isConnected = chan.status === 'connected'; // Default to existing DB status
 
-                if (Array.isArray(activeSessions)) {
-                    const found = activeSessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
-                    if (found) {
-                        isConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                if (activeSessions !== null) {
+                    const sessionName = `session${chan.id}`;
+                    let foundConnected = false;
+
+                    if (Array.isArray(activeSessions)) {
+                        const found = activeSessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
+                        if (found) {
+                            foundConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                        }
+                    } else if (typeof activeSessions === 'object' && activeSessions !== null) {
+                        const found = activeSessions[sessionName];
+                        if (found) {
+                            foundConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                        }
                     }
-                } else if (typeof activeSessions === 'object' && activeSessions !== null) {
-                    const found = activeSessions[sessionName];
-                    if (found) {
-                        isConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+
+                    isConnected = foundConnected;
+
+                    const currentStatus = isConnected ? 'connected' : 'disconnected';
+                    if (currentStatus !== chan.status) {
+                        await query(
+                            'UPDATE whatsapp_proero_channels SET status = ? WHERE id = ?',
+                            [currentStatus, chan.id]
+                        );
+                        chan.status = currentStatus;
                     }
                 }
 
-                const currentStatus = isConnected ? 'connected' : 'disconnected';
-                if (currentStatus !== chan.status) {
-                    await query(
-                        'UPDATE whatsapp_proero_channels SET status = ? WHERE id = ?',
-                        [currentStatus, chan.id]
-                    );
-                    chan.status = currentStatus;
-                }
-
-                if (currentStatus === 'connected') {
+                if (isConnected) {
                     connectedChannels.push(chan);
                 }
             }
 
             if (connectedChannels.length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'No connected WhatsApp channel found. Please scan QR code and connect your channel first.'
-                });
+                // Last resort fallback: if no channels are marked connected, use the latest channel
+                console.warn('[WA-API] No active connected channels found in DB/sync, falling back to latest channel:', channels[0].name);
+                channelsToUse = [channels[0]];
+            } else {
+                channelsToUse = connectedChannels;
             }
-            channelsToUse = connectedChannels;
         }
 
         // 2. Parse numbers into array (support both flat strings and objects with variables)
