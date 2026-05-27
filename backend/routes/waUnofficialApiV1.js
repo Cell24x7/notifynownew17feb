@@ -695,4 +695,81 @@ router.all('/campaigns/:campaignId/logs', authenticateDeveloper, async (req, res
     }
 });
 
+/**
+ * @route   GET /api/wa-unofficial-v1/templates
+ * @desc    List all templates for the authenticated developer
+ * @access  Private (Developer)
+ */
+router.get('/templates', authenticateDeveloper, async (req, res) => {
+    try {
+        const response = await axios.get(`${EXTERNAL_BASE_URL}/api/template/templates/user/${req.user.id}`);
+        res.json(response.data);
+    } catch (err) {
+        console.error('List Developer Templates Error:', err.response?.data || err.message);
+        res.status(err.response?.status || 500).json(
+            err.response?.data || { success: false, message: 'Failed to list templates: ' + err.message }
+        );
+    }
+});
+
+/**
+ * @route   POST /api/wa-unofficial-v1/templates
+ * @desc    Create/Save a new message template
+ * @access  Private (Developer)
+ */
+router.post('/templates', authenticateDeveloper, async (req, res) => {
+    const {
+        template_name,
+        template_type = 'plainText',
+        template_content,
+        variables = [],
+        preview_text = '',
+        template_data = {}
+    } = req.body;
+
+    if (!template_name || !template_content) {
+        return res.status(400).json({ success: false, message: 'template_name and template_content are required.' });
+    }
+
+    try {
+        const payload = {
+            user_id: req.user.id,
+            template_name,
+            template_type,
+            template_content,
+            variables,
+            preview_text,
+            template_data
+        };
+
+        const response = await axios.post(`${EXTERNAL_BASE_URL}/api/template/save`, payload);
+        res.status(201).json(response.data);
+    } catch (err) {
+        console.error('Create Developer Template Error:', err.response?.data || err.message);
+        res.status(err.response?.status || 500).json(
+            err.response?.data || { success: false, message: 'Failed to create template: ' + (err.response?.data?.error || err.message) }
+        );
+    }
+});
+
+/**
+ * @route   DELETE /api/wa-unofficial-v1/templates/:templateId
+ * @desc    Delete a message template
+ * @access  Private (Developer)
+ */
+router.delete('/templates/:templateId', authenticateDeveloper, async (req, res) => {
+    const templateId = req.params.templateId;
+    try {
+        const response = await axios.delete(`${EXTERNAL_BASE_URL}/api/template/templates/${templateId}`, {
+            data: { user_id: req.user.id }
+        });
+        res.json(response.data);
+    } catch (err) {
+        console.error('Delete Developer Template Error:', err.response?.data || err.message);
+        res.status(err.response?.status || 500).json(
+            err.response?.data || { success: false, message: 'Failed to delete template: ' + err.message }
+        );
+    }
+});
+
 module.exports = router;
