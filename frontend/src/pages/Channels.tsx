@@ -278,6 +278,7 @@ export default function Channels() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-lg truncate">{channel.name || 'Unnamed'}</h3>
                   <p className="text-xs text-muted-foreground font-medium">{channel.phone_number || 'No Number'}</p>
+                  <p className="text-xs text-muted-foreground">{channel.provider || 'Proero'}</p>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 py-0">
                   QR Code
