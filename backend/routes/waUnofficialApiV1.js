@@ -738,9 +738,12 @@ router.post('/templates', authenticateDeveloper, async (req, res) => {
             template_type,
             template_content,
             variables,
-            preview_text,
             template_data
         };
+
+        if (preview_text) {
+            payload.preview_text = preview_text;
+        }
 
         const response = await axios.post(`${EXTERNAL_BASE_URL}/api/template/save`, payload);
         res.status(201).json(response.data);
