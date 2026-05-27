@@ -454,7 +454,8 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
                 console.warn('[WA-API] No active connected channels found in DB/sync, falling back to latest channel:', channels[0].name);
                 channelsToUse = [channels[0]];
             } else {
-                channelsToUse = connectedChannels;
+                // Shuffle the connected channels to load-balance individual API hits
+                channelsToUse = connectedChannels.sort(() => Math.random() - 0.5);
             }
         }
 
