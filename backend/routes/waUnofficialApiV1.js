@@ -117,13 +117,13 @@ router.all('/channels', authenticateDeveloper, async (req, res) => {
             if (Array.isArray(activeSessions)) {
                 const found = activeSessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
                 if (found) {
-                    isConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                    isConnected = found.connected === true || found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
                     phoneNumber = found.phone || found.number || found.wid || phoneNumber;
                 }
             } else if (typeof activeSessions === 'object' && activeSessions !== null) {
                 const found = activeSessions[sessionName];
                 if (found) {
-                    isConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                    isConnected = found.connected === true || found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
                     phoneNumber = found.phone || found.number || found.wid || phoneNumber;
                 }
             }
@@ -247,13 +247,13 @@ router.post('/channels/:id/sync', authenticateDeveloper, async (req, res) => {
         if (Array.isArray(sessions)) {
             const session = sessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
             if (session) {
-                isConnected = session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
+                isConnected = session.connected === true || session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
                 phoneNumber = session.phone || session.number || session.wid || phoneNumber;
             }
         } else if (typeof sessions === 'object' && sessions !== null) {
             const session = sessions[sessionName];
             if (session) {
-                isConnected = session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
+                isConnected = session.connected === true || session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
                 phoneNumber = session.phone || session.number || session.wid || phoneNumber;
             }
         }
@@ -423,12 +423,12 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
                     if (Array.isArray(activeSessions)) {
                         const found = activeSessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
                         if (found) {
-                            foundConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                            foundConnected = found.connected === true || found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
                         }
                     } else if (typeof activeSessions === 'object' && activeSessions !== null) {
                         const found = activeSessions[sessionName];
                         if (found) {
-                            foundConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                            foundConnected = found.connected === true || found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
                         }
                     }
 

@@ -111,13 +111,13 @@ router.post('/channels/:id/sync', authenticateToken, async (req, res) => {
         if (Array.isArray(sessions)) {
             const session = sessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
             if (session) {
-                isConnected = session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
+                isConnected = session.connected === true || session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
                 phoneNumber = session.phone || session.number || session.wid || phoneNumber;
             }
         } else if (typeof sessions === 'object') {
             const session = sessions[sessionName];
             if (session) {
-                isConnected = session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
+                isConnected = session.connected === true || session.status === 'connected' || session.state === 'CONNECTED' || session.ready === true;
                 phoneNumber = session.phone || session.number || session.wid || phoneNumber;
             }
         }
