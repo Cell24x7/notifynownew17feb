@@ -158,7 +158,9 @@ async function updateSchema() {
                 { name: 'wa_limit', type: 'INT DEFAULT 0' },
                 { name: 'sms_limit', type: 'INT DEFAULT 0' },
                 { name: 'voice_limit', type: 'INT DEFAULT 0' },
-                { name: 'is_proero_enabled', type: 'TINYINT(1) DEFAULT 0' }
+                { name: 'is_proero_enabled', type: 'TINYINT(1) DEFAULT 0' },
+                { name: 'is_smm_enabled', type: 'TINYINT(1) DEFAULT 0' },
+                { name: 'is_social_signup', type: 'TINYINT(1) DEFAULT 0' }
             ];
 
             for (const col of missingCols) {
@@ -776,6 +778,46 @@ async function updateSchema() {
             }
         } catch (e) {
             console.log('Error updating rcs_configs table columns:', e.message);
+        }
+
+        // 23. Social Media Marketing Infrastructure (SMM)
+        try {
+            console.log('Ensuring SMM tables exist...');
+            
+            // social_accounts
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS social_accounts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    platform ENUM('facebook', 'instagram', 'linkedin', 'twitter') NOT NULL,
+                    platform_account_id VARCHAR(255),
+                    account_name VARCHAR(255),
+                    access_token TEXT,
+                    status ENUM('active', 'expired', 'disconnected') DEFAULT 'active',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            `);
+            
+            // social_posts
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS social_posts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    content TEXT,
+                    media_url TEXT,
+                    platforms JSON,
+                    scheduled_at DATETIME,
+                    status ENUM('draft', 'scheduled', 'published', 'failed') DEFAULT 'draft',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            `);
+            
+            console.log('✅ SMM tables ready.');
+        } catch (e) {
+            console.log('Error creating SMM tables:', e.message);
         }
 
         console.log('--- Schema updates finished ---');
