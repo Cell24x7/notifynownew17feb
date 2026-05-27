@@ -391,18 +391,65 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
             }
             channelsToUse = [channels[0]];
         } else {
-            // Find all of the user's connected channels
+            // Find all of the user's channels
             const [channels] = await query(
-                'SELECT id, name, status, phone_number FROM whatsapp_proero_channels WHERE user_id = ? AND status = "connected" ORDER BY id DESC',
+                'SELECT id, name, status, phone_number FROM whatsapp_proero_channels WHERE user_id = ? ORDER BY id DESC',
                 [req.user.id]
             );
             if (channels.length === 0) {
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'No connected WhatsApp channel found. Please connect a channel first.' 
+                    message: 'No WhatsApp channels found. Please create a channel first.' 
                 });
             }
-            channelsToUse = channels;
+
+            // Sync statuses with Baileys server on-the-fly
+            let activeSessions = [];
+            try {
+                const sessionsResponse = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/sessions`, { timeout: 3000 });
+                activeSessions = sessionsResponse.data.sessions || sessionsResponse.data.data?.sessions || sessionsResponse.data || [];
+            } catch (sessionErr) {
+                console.warn('[WA-API] Could not reach Baileys server for live sync:', sessionErr.message);
+            }
+
+            const connectedChannels = [];
+            for (const chan of channels) {
+                const sessionName = `session${chan.id}`;
+                let isConnected = false;
+
+                if (Array.isArray(activeSessions)) {
+                    const found = activeSessions.find(s => s.sessionName === sessionName || s.name === sessionName || s.id === sessionName);
+                    if (found) {
+                        isConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                    }
+                } else if (typeof activeSessions === 'object' && activeSessions !== null) {
+                    const found = activeSessions[sessionName];
+                    if (found) {
+                        isConnected = found.status === 'connected' || found.state === 'CONNECTED' || found.ready === true;
+                    }
+                }
+
+                const currentStatus = isConnected ? 'connected' : 'disconnected';
+                if (currentStatus !== chan.status) {
+                    await query(
+                        'UPDATE whatsapp_proero_channels SET status = ? WHERE id = ?',
+                        [currentStatus, chan.id]
+                    );
+                    chan.status = currentStatus;
+                }
+
+                if (currentStatus === 'connected') {
+                    connectedChannels.push(chan);
+                }
+            }
+
+            if (connectedChannels.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No connected WhatsApp channel found. Please scan QR code and connect your channel first.'
+                });
+            }
+            channelsToUse = connectedChannels;
         }
 
         // 2. Parse numbers into array (support both flat strings and objects with variables)
