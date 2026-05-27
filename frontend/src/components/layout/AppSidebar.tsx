@@ -180,10 +180,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className={cn(
-        "flex items-center justify-between px-4 border-b bg-background/80",
-        collapsed ? "h-16" : "h-[13rem]"
-      )}>
+      <div className="flex items-center justify-between h-16 px-4 border-b bg-background/80">
         <div className="flex items-center gap-2.5">
           {collapsed ? (
             <img
@@ -195,7 +192,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
             <img
               src={settings?.logo_url || logo}
               alt={settings?.brand_name || "NotifyNow"}
-              className="h-[13rem] w-64 object-contain"
+              className="h-24 w-64 object-contain"
             />
           )}
         </div>
