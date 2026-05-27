@@ -378,10 +378,10 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
     }
 
     try {
-        let channel = null;
+        let channelsToUse = [];
 
-        // 1. Resolve channel to use
-        if (channelId) {
+        // 1. Resolve channels to use
+        if (channelId && channelId !== 'rotate') {
             const [channels] = await query(
                 'SELECT id, name, status, phone_number FROM whatsapp_proero_channels WHERE id = ? AND user_id = ?',
                 [channelId, req.user.id]
@@ -389,20 +389,20 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
             if (channels.length === 0) {
                 return res.status(404).json({ success: false, message: 'Specified channel not found or unauthorized.' });
             }
-            channel = channels[0];
+            channelsToUse = [channels[0]];
         } else {
-            // Find the user's first connected channel
+            // Find all of the user's connected channels
             const [channels] = await query(
-                'SELECT id, name, status, phone_number FROM whatsapp_proero_channels WHERE user_id = ? AND status = "connected" ORDER BY id DESC LIMIT 1',
+                'SELECT id, name, status, phone_number FROM whatsapp_proero_channels WHERE user_id = ? AND status = "connected" ORDER BY id DESC',
                 [req.user.id]
             );
             if (channels.length === 0) {
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'No connected WhatsApp channel found. Please connect a channel first or specify channelId.' 
+                    message: 'No connected WhatsApp channel found. Please connect a channel first.' 
                 });
             }
-            channel = channels[0];
+            channelsToUse = channels;
         }
 
         // 2. Parse numbers into array (support both flat strings and objects with variables)
@@ -434,100 +434,125 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
             return res.status(400).json({ success: false, message: 'No valid recipient phone numbers resolved.' });
         }
 
-        // 3. Generate campaign ID and trigger Baileys campaign flow
-        // The Baileys server requires campaign_id to be a number within 32-bit INT range (max 2147483647).
-        let finalCampaignId;
-        if (customCampaignId && !isNaN(customCampaignId)) {
-            const parsed = Number(customCampaignId);
-            if (parsed > 0 && parsed <= 2147483647) {
-                finalCampaignId = parsed;
+        // 3. Distribute contacts round-robin across available channels
+        const channelGroups = [];
+        for (let i = 0; i < channelsToUse.length; i++) {
+            channelGroups.push({
+                channel: channelsToUse[i],
+                contacts: []
+            });
+        }
+
+        contactsArray.forEach((contact, index) => {
+            const groupIndex = index % channelsToUse.length;
+            channelGroups[groupIndex].contacts.push(contact);
+        });
+
+        // Filter out groups with no contacts
+        const activeGroups = channelGroups.filter(g => g.contacts.length > 0);
+        const dispatchResults = [];
+
+        for (const group of activeGroups) {
+            const { channel, contacts } = group;
+
+            // Generate unique 32-bit INT campaign ID for this chunk
+            let finalCampaignId;
+            if (customCampaignId && !isNaN(customCampaignId) && activeGroups.length === 1) {
+                const parsed = Number(customCampaignId);
+                if (parsed > 0 && parsed <= 2147483647) {
+                    finalCampaignId = parsed;
+                } else {
+                    finalCampaignId = Math.floor(Math.random() * 2000000000) + 1;
+                }
             } else {
                 finalCampaignId = Math.floor(Math.random() * 2000000000) + 1;
             }
-        } else {
-            // Generate a random integer within standard 32-bit INT limits (1 to 2,000,000,000)
-            finalCampaignId = Math.floor(Math.random() * 2000000000) + 1;
-        }
-        
-        const campaignName = customCampaignId ? `API Bulk Campaign: ${customCampaignId}` : `API Direct Dispatch ${finalCampaignId}`;
 
-        // Step A: Stage Contacts
-        console.log(`[WA-API] Staging ${contactsArray.length} contacts for Campaign ${finalCampaignId}...`);
-        
-        // Mirror contacts to local api_campaign_queue for reports
-        try {
-            const values = contactsArray.map(c => {
-                const varsJson = c.variables ? JSON.stringify(c.variables) : null;
-                return [finalCampaignId, req.user.id, c.phone, 'staged', varsJson];
-            });
-            await query(
-                'INSERT IGNORE INTO api_campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?',
-                [values]
-            );
-        } catch (dbErr) {
-            console.warn('[WA-API] Local DB mirror for add-contacts failed:', dbErr.message);
-        }
+            const campaignName = customCampaignId 
+                ? `API Bulk Campaign: ${customCampaignId} (Ch:${channel.id})` 
+                : `API Direct Dispatch ${finalCampaignId} (Ch:${channel.id})`;
 
-        await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, {
-            campaign_id: finalCampaignId,
-            user_id: req.user.id,
-            contacts: contactsArray
-        });
-
-        // Step B: Start Campaign
-        let payload = {};
-        if (isTemplate) {
-            payload = { templateId: parseInt(templateId) };
-        } else {
-            payload = { messageTemplate: messageContent };
-        }
-        
-        // Pass sessionName so that the campaign is dispatched ONLY via this channel
-        payload.sessionName = `session${channel.id}`;
-
-        // Pass imageUrl if provided
-        if (imageUrl) {
-            payload.imageUrl = imageUrl;
-        }
-
-        // Pass webhookUrl for real-time DLR callbacks
-        const baseApiUrl = process.env.API_BASE_URL || 'https://notifynow.in';
-        payload.webhookUrl = `${baseApiUrl}/api/webhooks/wa-unofficial/callback`;
-
-        console.log(`[WA-API] Firing campaign execution for ${finalCampaignId} with webhook ${payload.webhookUrl}...`);
-        const campaignResponse = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/start/${finalCampaignId}`, payload);
-
-        // 4. Log to DB for user dashboard tracking
-        try {
-            for (const recipientObj of contactsArray) {
-                const recipient = recipientObj.phone;
-                // Insert into api_message_logs
+            // Step A: Stage Contacts locally
+            try {
+                const values = contacts.map(c => {
+                    const varsJson = c.variables ? JSON.stringify(c.variables) : null;
+                    return [finalCampaignId, req.user.id, c.phone, 'staged', varsJson];
+                });
                 await query(
-                    'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)',
-                    [
-                        req.user.id, 
-                        finalCampaignId, 
-                        campaignName, 
-                        isTemplate ? `Template ID: ${templateId}` : 'Plain Text API', 
-                        `MSG_${Date.now()}_${recipient}`, 
-                        recipient, 
-                        'sent', 
-                        'WhatsApp_Unofficial',
-                        messageContent || `Template ID: ${templateId}`
-                    ]
+                    'INSERT IGNORE INTO api_campaign_queue (campaign_id, user_id, mobile, status, variables) VALUES ?',
+                    [values]
                 );
+            } catch (dbErr) {
+                console.warn('[WA-API] Local DB mirror for add-contacts failed:', dbErr.message);
             }
-        } catch (logErr) {
-            console.error('[WA-API] Error saving message logs:', logErr.message);
+
+            // Step B: Stage Contacts on Baileys Server
+            await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/add-contacts`, {
+                campaign_id: finalCampaignId,
+                user_id: req.user.id,
+                contacts: contacts
+            });
+
+            // Step C: Start Campaign
+            let payload = {};
+            if (isTemplate) {
+                payload = { templateId: parseInt(templateId) };
+            } else {
+                payload = { messageTemplate: messageContent };
+            }
+
+            payload.sessionName = `session${channel.id}`;
+            if (imageUrl) payload.imageUrl = imageUrl;
+
+            const baseApiUrl = process.env.API_BASE_URL || 'https://notifynow.in';
+            payload.webhookUrl = `${baseApiUrl}/api/webhooks/wa-unofficial/callback`;
+
+            console.log(`[WA-API] Firing campaign execution for ${finalCampaignId} on channel ${channel.id}...`);
+            const campaignResponse = await axios.post(`${EXTERNAL_BASE_URL}/api/campaign/start/${finalCampaignId}`, payload);
+
+            // Step D: Log to DB for user dashboard tracking
+            try {
+                for (const recipientObj of contacts) {
+                    const recipient = recipientObj.phone;
+                    await query(
+                        'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)',
+                        [
+                            req.user.id,
+                            finalCampaignId,
+                            campaignName,
+                            isTemplate ? `Template ID: ${templateId}` : 'Plain Text API',
+                            `MSG_${Date.now()}_${recipient}`,
+                            recipient,
+                            'sent',
+                            'WhatsApp_Unofficial',
+                            messageContent || `Template ID: ${templateId}`
+                        ]
+                    );
+                }
+            } catch (logErr) {
+                console.error('[WA-API] Error saving message logs:', logErr.message);
+            }
+
+            dispatchResults.push({
+                channelId: channel.id,
+                channelName: channel.name,
+                campaignId: finalCampaignId,
+                recipientCount: contacts.length,
+                providerResponse: campaignResponse.data
+            });
         }
 
         res.json({
             success: true,
-            message: 'WhatsApp message dispatch initiated successfully.',
-            campaignId: finalCampaignId,
+            message: activeGroups.length > 1
+                ? 'WhatsApp message dispatch initiated successfully with round-robin rotation.'
+                : 'WhatsApp message dispatch initiated successfully.',
+            campaignId: dispatchResults[0].campaignId,
             recipientCount: contactsArray.length,
-            channelUsed: channel.name,
-            providerResponse: campaignResponse.data
+            channelUsed: activeGroups.length > 1
+                ? dispatchResults.map(d => `${d.channelName} (${d.recipientCount})`).join(', ')
+                : dispatchResults[0].channelName,
+            dispatches: dispatchResults
         });
 
     } catch (err) {
