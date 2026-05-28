@@ -223,6 +223,51 @@ async function executeNode(userId, currentNode, allNodes, allEdges, channel, pay
 
         console.log(`⚙️ [AutomationService] Action: ${actionType}`);
 
+        if (actionType === 'criteria_router') {
+            const branches = config.branches || [];
+            const msgContent = (payload.message_content || '').trim();
+            const msgLower = msgContent.toLowerCase();
+
+            let matchedBranch = null;
+
+            for (const branch of branches) {
+                const criteria = branch.criteria || 'contains';
+                const val = (branch.value || '').trim();
+                const valLower = val.toLowerCase();
+
+                let matches = false;
+                if (criteria === 'exact') {
+                    matches = msgLower === valLower;
+                } else if (criteria === 'contains') {
+                    matches = msgLower.includes(valLower);
+                } else if (criteria === 'starts_with') {
+                    matches = msgLower.startsWith(valLower);
+                } else if (criteria === 'exists') {
+                    matches = !!msgContent;
+                }
+
+                if (matches) {
+                    matchedBranch = branch;
+                    break;
+                }
+            }
+
+            if (matchedBranch) {
+                console.log(`🛣️ [AutomationService] Criteria Router matched branch: ${matchedBranch.name}`);
+                // Find edge from this router with sourceHandle = matchedBranch.id
+                const branchEdge = allEdges.find(e => e.source === currentNode.id && e.sourceHandle === matchedBranch.id);
+                if (branchEdge) {
+                    const nextNode = allNodes.find(n => n.id === branchEdge.target);
+                    if (nextNode) {
+                        await executeNode(userId, nextNode, allNodes, allEdges, channel, payload, io);
+                    }
+                }
+            } else {
+                console.log(`🛣️ [AutomationService] Criteria Router: No branch matched incoming text: "${msgContent}"`);
+            }
+            return; // Stop default next edge processing
+        }
+
         if (actionType === 'auto_reply' || actionType === 'auto_reply_buttons' || actionType === 'send_message' || actionType === 'auto_reply_template') {
             
             if (actionType === 'auto_reply_template' && config.templateId) {
@@ -355,7 +400,9 @@ async function sendWhatsAppReply(userId, to, text, config = {}) {
             to: mobile
         };
 
-        if (config.messageType === 'button_flow' && config.buttons && config.buttons.length > 0) {
+        const messageType = config.messageType;
+
+        if (messageType === 'button_flow' && config.buttons && config.buttons.length > 0) {
             payload.type = 'interactive';
             payload.interactive = {
                 type: 'button',
@@ -367,26 +414,46 @@ async function sendWhatsAppReply(userId, to, text, config = {}) {
                     }))
                 }
             };
-        } else if (config.messageType === 'list_flow' && config.sections) {
+        } else if ((messageType === 'list_flow' && config.sections) || (messageType === 'list' && config.listOptions)) {
             // Support for List Messages (Max 10 rows)
+            let sections = [];
+            if (messageType === 'list' && config.listOptions) {
+                // Map UI options to sections format
+                sections = [{
+                    title: config.header || 'Options',
+                    rows: config.listOptions.map(opt => ({
+                        id: opt.callbackId || opt.id,
+                        title: (opt.title || '').slice(0, 24),
+                        description: (opt.description || '').slice(0, 72)
+                    }))
+                }];
+            } else {
+                sections = config.sections.map(sec => ({
+                    title: sec.title,
+                    rows: sec.rows.map(row => ({
+                        id: row.id,
+                        title: row.title.slice(0, 24),
+                        description: (row.description || '').slice(0, 72)
+                    }))
+                }));
+            }
+
             payload.type = 'interactive';
             payload.interactive = {
                 type: 'list',
-                header: { type: 'text', text: config.header || 'Menu' },
                 body: { text: text || 'Select an item' },
-                footer: { text: config.footer || '' },
                 action: {
-                    button: config.listButtonLabel || 'View Options',
-                    sections: config.sections.map(sec => ({
-                        title: sec.title,
-                        rows: sec.rows.map(row => ({
-                            id: row.id,
-                            title: row.title.slice(0, 24),
-                            description: (row.description || '').slice(0, 72)
-                        }))
-                    }))
+                    button: config.ctaLabel || config.listButtonLabel || 'View Options',
+                    sections: sections
                 }
             };
+
+            if (config.header && typeof config.header === 'string') {
+                payload.interactive.header = { type: 'text', text: config.header };
+            }
+            if (config.footer && typeof config.footer === 'string') {
+                payload.interactive.footer = { text: config.footer };
+            }
         } else if (config.messageType === 'catalog_flow' || config.messageType === 'product_list') {
             // Support for Catalog/Product Messages
             payload.type = 'interactive';
