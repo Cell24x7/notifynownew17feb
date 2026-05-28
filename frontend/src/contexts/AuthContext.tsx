@@ -43,6 +43,7 @@ interface User {
   is_proero_enabled?: number | boolean;
   is_smm_enabled?: number | boolean;
   api_key?: string;
+  dlr_webhook_url?: string;
 }
 
 interface AuthContextType {
@@ -176,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_proero_enabled: userData.is_proero_enabled,
           is_smm_enabled: userData.is_smm_enabled,
           api_key: userData.api_key,
+          dlr_webhook_url: userData.dlr_webhook_url,
         });
         return true;
       }
@@ -339,6 +341,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       is_proero_enabled: userData.is_proero_enabled,
       is_smm_enabled: userData.is_smm_enabled,
       api_key: userData.api_key,
+      dlr_webhook_url: userData.dlr_webhook_url,
     });
   };
 

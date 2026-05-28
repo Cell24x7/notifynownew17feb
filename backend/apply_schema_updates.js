@@ -160,7 +160,8 @@ async function updateSchema() {
                 { name: 'voice_limit', type: 'INT DEFAULT 0' },
                 { name: 'is_proero_enabled', type: 'TINYINT(1) DEFAULT 0' },
                 { name: 'is_smm_enabled', type: 'TINYINT(1) DEFAULT 0' },
-                { name: 'is_social_signup', type: 'TINYINT(1) DEFAULT 0' }
+                { name: 'is_social_signup', type: 'TINYINT(1) DEFAULT 0' },
+                { name: 'dlr_webhook_url', type: 'VARCHAR(255) DEFAULT NULL' }
             ];
 
             for (const col of missingCols) {

@@ -55,6 +55,9 @@ export function SecuritySettings() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
 
+  const [webhookUrl, setWebhookUrl] = useState<string>('');
+  const [webhookUrlLoading, setWebhookUrlLoading] = useState(false);
+
   const fetchApiKey = async () => {
     try {
       const token = localStorage.getItem('authToken');
@@ -98,6 +101,37 @@ export function SecuritySettings() {
     }
   };
 
+  const handleWebhookUrlSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWebhookUrlLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.put(
+        `${API_URL}/profile`,
+        { dlr_webhook_url: webhookUrl },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        if (response.data.user) {
+          updateUser(response.data.user);
+        }
+        toast({
+          title: 'Webhook URL Updated',
+          description: 'Your developer webhook forwarding URL has been saved successfully.',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to update Webhook URL',
+        variant: 'destructive',
+      });
+    } finally {
+      setWebhookUrlLoading(false);
+    }
+  };
+
   // Update current email when user changes
   useEffect(() => {
     if (user?.email) {
@@ -108,6 +142,9 @@ export function SecuritySettings() {
         pe_id: user.pe_id || '',
         hash_id: user.hash_id || '',
       });
+      if (user.dlr_webhook_url) {
+        setWebhookUrl(user.dlr_webhook_url);
+      }
     }
     fetchApiKey();
   }, [user]);
@@ -640,6 +677,53 @@ export function SecuritySettings() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Developer Webhook */}
+      <Card className="card-elevated">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Smartphone className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Developer Webhook Forwarding</CardTitle>
+              <CardDescription>
+                Forward message status updates (Delivered, Read, Failed) to your custom server webhook.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleWebhookUrlSave} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="dlrWebhookUrlInput">Webhook URL</Label>
+              <Input
+                id="dlrWebhookUrlInput"
+                placeholder="e.g. https://yourdomain.com/webhooks/notify-dlr"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                disabled={webhookUrlLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                We will send POST requests with the following JSON body: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{"{ message_id, recipient, status, errorcode (if failed), timestamp }"}</code>
+              </p>
+            </div>
+            <Button type="submit" className="gradient-primary" disabled={webhookUrlLoading}>
+              {webhookUrlLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Save Webhook URL
+                </>
+              )}
+            </Button>
+          </form>
         </CardContent>
       </Card>
 

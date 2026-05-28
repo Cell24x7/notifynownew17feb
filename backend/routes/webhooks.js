@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
+const axios = require('axios');
 const countCache = {};
 const COUNT_CACHE_TTL = 60000; // 60 seconds
 const { triggerChatflow } = require('../services/chatflowService');
@@ -1448,7 +1449,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                 // Priority 1: Match by message_id
                 if (messageId) {
                     [rows] = await query(
-                        'SELECT id, status FROM api_message_logs WHERE message_id = ? LIMIT 1',
+                        'SELECT id, status, user_id, message_id, recipient FROM api_message_logs WHERE message_id = ? LIMIT 1',
                         [messageId]
                     );
                 }
@@ -1458,7 +1459,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     const cleanPhone = String(recipient).replace(/\D/g, '');
                     const last10 = cleanPhone.slice(-10);
                     [rows] = await query(
-                        `SELECT id, status FROM api_message_logs
+                        `SELECT id, status, user_id, message_id, recipient FROM api_message_logs
                          WHERE campaign_id = ? AND (recipient LIKE ? OR recipient = ?)
                          LIMIT 1`,
                         [campaignId, `%${last10}`, cleanPhone]
@@ -1506,6 +1507,28 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                 }
 
                 console.log(`[WA-UNOFFICIAL-DLR] Log ${row.id}: ${row.status} → ${status} (campaign:${campaignId}, phone:${recipient})`);
+
+                // Forward DLR to user's custom webhook URL if configured
+                const [users] = await query('SELECT dlr_webhook_url FROM users WHERE id = ?', [row.user_id]);
+                if (users.length > 0 && users[0].dlr_webhook_url) {
+                    const dlrUrl = users[0].dlr_webhook_url;
+                    const webhookPayload = {
+                        message_id: messageId || row.message_id,
+                        recipient: recipient || row.recipient,
+                        status: status,
+                        timestamp: Math.floor(Date.now() / 1000)
+                    };
+                    if (status === 'failed') {
+                        webhookPayload.errorcode = event.reason || event.error || event.failure_reason || 'Gateway delivery failure';
+                    }
+
+                    console.log(`[WA-UNOFFICIAL-DLR] Forwarding DLR to ${dlrUrl}:`, JSON.stringify(webhookPayload));
+                    
+                    axios.post(dlrUrl, webhookPayload, { timeout: 5000 })
+                        .catch(err => {
+                            console.error(`[WA-UNOFFICIAL-DLR] Forwarding failed to ${dlrUrl}:`, err.message);
+                        });
+                }
             } catch (dbErr) {
                 console.error('[WA-UNOFFICIAL-DLR] DB update error:', dbErr.message);
             }
