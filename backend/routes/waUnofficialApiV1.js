@@ -104,6 +104,67 @@ const authenticateDeveloper = async (req, res, next) => {
 };
 
 /**
+ * @route   POST /api/wa-unofficial-v1/auth/api-key
+ * @desc    Retrieve or generate API Key using username & password
+ * @access  Public
+ */
+router.post('/auth/api-key', async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: 'Username and password are required.' });
+    }
+
+    try {
+        const [users] = await query(
+            'SELECT id, status, api_password, password, api_key FROM users WHERE email = ? OR contact_phone = ?',
+            [username, username]
+        );
+
+        if (users.length === 0) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+        }
+
+        const user = users[0];
+        const dbApiPassword = user.api_password;
+        const dbLoginPassword = user.password;
+
+        // Try API Password first, then login password
+        let match = false;
+        if (dbApiPassword) {
+            match = await bcrypt.compare(password, dbApiPassword);
+        }
+        if (!match && !dbApiPassword && dbLoginPassword) {
+            match = await bcrypt.compare(password, dbLoginPassword);
+        }
+
+        if (!match) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+        }
+
+        if (user.status !== 'active' && user.status !== 'pending') {
+            return res.status(403).json({ success: false, message: `Account is inactive.` });
+        }
+
+        let apiKey = user.api_key;
+        if (!apiKey) {
+            const crypto = require('crypto');
+            apiKey = `nn_${crypto.randomBytes(24).toString('hex')}`;
+            await query('UPDATE users SET api_key = ? WHERE id = ?', [apiKey, user.id]);
+        }
+
+        res.json({
+            success: true,
+            apiKey,
+            message: 'API Key retrieved successfully.'
+        });
+    } catch (err) {
+        console.error('Auth API Key Generation Error:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error.' });
+    }
+});
+
+/**
  * @route   GET /api/wa-unofficial-v1/channels
  * @desc    List user's unofficial WhatsApp channels and sync status
  * @access  Private (Developer)
