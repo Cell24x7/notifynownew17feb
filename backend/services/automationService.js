@@ -121,6 +121,56 @@ async function processAutomation(userId, triggerType, arg3, arg4, arg5) {
                 }
             }
 
+            // 1.5. Stateless router fallback (If buttonId is list/button option value, or text matches a router branch)
+            if (!entryNode) {
+                const routerNodes = nodes.filter(n => {
+                    const actType = n.data?.subType || n.data?.actionType;
+                    return actType === 'criteria_router';
+                });
+                
+                const msgContent = (payload.message_content || '').trim().toLowerCase();
+                const listIdVal = (payload.listId || '').trim().toLowerCase();
+                const buttonIdVal = (payload.buttonId || '').trim().toLowerCase();
+
+                let matchedRouterNode = null;
+                let matchedBranch = null;
+
+                for (const rNode of routerNodes) {
+                    const branches = rNode.data?.config?.branches || [];
+                    for (const branch of branches) {
+                        const criteria = branch.criteria || 'contains';
+                        const val = (branch.value || '').trim().toLowerCase();
+
+                        let matches = false;
+                        if (val) {
+                            if (listIdVal === val || buttonIdVal === val) {
+                                matches = true;
+                            } else if (criteria === 'exact') {
+                                matches = msgContent === val;
+                            } else if (criteria === 'contains') {
+                                matches = msgContent.includes(val);
+                            } else if (criteria === 'starts_with') {
+                                matches = msgContent.startsWith(val);
+                            }
+                        }
+                        if (matches) {
+                            matchedRouterNode = rNode;
+                            matchedBranch = branch;
+                            break;
+                        }
+                    }
+                    if (matchedBranch) break;
+                }
+
+                if (matchedRouterNode && matchedBranch) {
+                    const branchEdge = edges.find(e => e.source === matchedRouterNode.id && e.sourceHandle === matchedBranch.id);
+                    if (branchEdge) {
+                        entryNode = nodes.find(n => n.id === branchEdge.target);
+                        console.log(`🤖 [AutomationService] Continuing flow from matched router branch target: ${entryNode?.id} (Branch: ${matchedBranch.name})`);
+                    }
+                }
+            }
+
             // 2. Fallback to Trigger Node if no branch matched and trigger matches
             if (!entryNode && triggerType === automation.trigger_type) {
                 const triggerNode = nodes.find(n => n.type === 'trigger');
