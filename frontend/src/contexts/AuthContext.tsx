@@ -42,6 +42,7 @@ interface User {
   is_api_allowed?: number | boolean;
   is_proero_enabled?: number | boolean;
   is_smm_enabled?: number | boolean;
+  api_key?: string;
 }
 
 interface AuthContextType {
@@ -174,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_api_allowed: userData.is_api_allowed,
           is_proero_enabled: userData.is_proero_enabled,
           is_smm_enabled: userData.is_smm_enabled,
+          api_key: userData.api_key,
         });
         return true;
       }
@@ -336,6 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       is_api_allowed: userData.is_api_allowed,
       is_proero_enabled: userData.is_proero_enabled,
       is_smm_enabled: userData.is_smm_enabled,
+      api_key: userData.api_key,
     });
   };
 

@@ -21,7 +21,14 @@ const parseActiveSessions = (resData) => {
  */
 const authenticateDeveloper = async (req, res, next) => {
     const params = { ...req.query, ...req.body };
-    const apiKey = req.headers['x-api-key'] || params.apiKey || params.apikey;
+    let apiKey = req.headers['x-api-key'] || params.apiKey || params.apikey;
+
+    // Support standard Authorization: Bearer <key> header
+    const authHeader = req.headers['authorization'];
+    if (!apiKey && authHeader && authHeader.startsWith('Bearer ')) {
+        apiKey = authHeader.substring(7).trim();
+    }
+
     const username = params.username || params.user;
     const password = params.password || params.pwd;
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Lock, Eye, EyeOff, Shield, Check, Loader2, Smartphone } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Shield, Check, Loader2, Smartphone, Key, RefreshCw, Copy } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,53 @@ export function SecuritySettings() {
   const [apiPasswordLoading, setApiPasswordLoading] = useState(false);
   const [dltLoading, setDltLoading] = useState(false);
 
+  const [apiKey, setApiKey] = useState<string>('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+
+  const fetchApiKey = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(`${API_URL}/profile/api-key`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success && response.data.apiKey) {
+        setApiKey(response.data.apiKey);
+      }
+    } catch (err) {
+      console.error('Failed to fetch API key:', err);
+    }
+  };
+
+  const handleGenerateApiKey = async () => {
+    setApiKeyLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.post(
+        `${API_URL}/profile/api-key/generate`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        const newKey = response.data.apiKey;
+        setApiKey(newKey);
+        updateUser({ api_key: newKey });
+        toast({
+          title: 'API Key Generated',
+          description: 'Your developer API key has been generated and updated successfully.',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to generate API key',
+        variant: 'destructive',
+      });
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
   // Update current email when user changes
   useEffect(() => {
     if (user?.email) {
@@ -62,6 +109,7 @@ export function SecuritySettings() {
         hash_id: user.hash_id || '',
       });
     }
+    fetchApiKey();
   }, [user]);
 
   const handleEmailChange = async (e: React.FormEvent) => {
@@ -500,6 +548,98 @@ export function SecuritySettings() {
               )}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Developer API Key */}
+      <Card className="card-elevated">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Key className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Developer API Key</CardTitle>
+              <CardDescription>
+                Use this API Key to authenticate your developer requests. Pass it in the <code className="bg-muted px-1.5 py-0.5 rounded text-xs">x-api-key</code> header or as <code className="bg-muted px-1.5 py-0.5 rounded text-xs">Authorization: Bearer &lt;key&gt;</code>.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {apiKey ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="apiKeyInput">Your API Key</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="apiKeyInput"
+                    readOnly
+                    value={showApiKey ? apiKey : '•'.repeat(40)}
+                    className="font-mono text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(apiKey);
+                      toast({
+                        title: 'Copied',
+                        description: 'API key copied to clipboard.',
+                      });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGenerateApiKey}
+                  disabled={apiKeyLoading}
+                  className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
+                >
+                  {apiKeyLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Regenerate API Key
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4 space-y-3">
+              <p className="text-sm text-muted-foreground">You don't have a developer API Key generated yet.</p>
+              <Button
+                type="button"
+                onClick={handleGenerateApiKey}
+                disabled={apiKeyLoading}
+                className="gradient-primary"
+              >
+                {apiKeyLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Key className="h-4 w-4 mr-2" />
+                    Generate API Key
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

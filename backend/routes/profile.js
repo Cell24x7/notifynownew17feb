@@ -26,7 +26,7 @@ router.get('/', authenticate, async (req, res) => {
               u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
               u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, 
               u.rcs_config_id, u.whatsapp_config_id, u.pe_id, u.hash_id,
-              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit, u.is_proero_enabled, u.is_smm_enabled,
+              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit, u.is_proero_enabled, u.is_smm_enabled, u.api_key,
               p.permissions as plan_permissions,
               COALESCE(r.id, u.reseller_id) as actual_reseller_id,
               r.brand_name as reseller_brand_name, r.logo_url as reseller_logo_url
@@ -305,6 +305,34 @@ router.put('/api-password', authenticate, async (req, res) => {
     await query('UPDATE users SET api_password = ? WHERE id = ?', [hash, req.user.id]);
 
     return res.json({ success: true, message: 'API Password updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// GET /api/profile/api-key
+router.get('/api-key', authenticate, async (req, res) => {
+  try {
+    const [rows] = await query('SELECT api_key FROM users WHERE id = ?', [req.user.id]);
+    if (!rows.length) return res.status(404).json({ success: false, message: 'User not found' });
+    return res.json({ success: true, apiKey: rows[0].api_key });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// POST /api/profile/api-key/generate
+router.post('/api-key/generate', authenticate, async (req, res) => {
+  try {
+    const crypto = require('crypto');
+    // Generate a secure API Key prefixed with "nn_"
+    const newKey = `nn_${crypto.randomBytes(24).toString('hex')}`;
+    
+    await query('UPDATE users SET api_key = ? WHERE id = ?', [newKey, req.user.id]);
+    
+    return res.json({ success: true, apiKey: newKey, message: 'API Key generated successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
