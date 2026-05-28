@@ -194,6 +194,25 @@ app.get('/api/debug-stats', async (req, res) => {
   }
 });
 
+app.get('/api/debug-automations-graph', async (req, res) => {
+  const { query } = require('./config/db');
+  try {
+      const [rows] = await query("SELECT id, name, user_id, status, channel, nodes, edges FROM automations");
+      const mapped = rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          user_id: r.user_id,
+          status: r.status,
+          channel: r.channel,
+          nodes: typeof r.nodes === 'string' ? JSON.parse(r.nodes) : r.nodes,
+          edges: typeof r.edges === 'string' ? JSON.parse(r.edges) : r.edges
+      }));
+      res.json({ success: true, automations: mapped });
+  } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/check-system', (req, res) => {
   res.json({
       success: true,
