@@ -7,7 +7,7 @@ import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // ✅ VERY IMPORTANT: IMPORT LOGO FROM SRC/ASSETS
-import logo from '@/assets/logo.svg';
+import logo from '@/assets/veloxaio.png';
 
 export function SuperAdminLayout() {
   const { isAuthenticated, isLoading, user } = useAuth();

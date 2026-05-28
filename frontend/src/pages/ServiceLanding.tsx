@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBranding } from "../contexts/BrandingContext";
-import defaultLogo from "@/assets/logonotify.jpeg";
+import defaultLogo from "@/assets/veloxaio.png";
 import { 
   Sparkles, 
   ArrowRight, 

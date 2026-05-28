@@ -11,7 +11,7 @@ import unofficialIcon from "../assets/icons/unofficial_whatsapp.svg";
 import callCenterIcon from "../assets/icons/call_center.svg";
 import crmIcon from "../assets/icons/crm.svg";
 import webDevIcon from "../assets/icons/web_dev.svg";
-import preoroLogo from "../assets/logo.png";
+import preoroLogo from "../assets/veloxaio.png";
 
 const services = [
   { title: "WhatsApp", icon: whatsappIcon },
