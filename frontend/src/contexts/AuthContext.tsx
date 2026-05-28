@@ -44,6 +44,7 @@ interface User {
   is_smm_enabled?: number | boolean;
   api_key?: string;
   dlr_webhook_url?: string;
+  wa_unofficial_webhook_enabled?: number | boolean;
 }
 
 interface AuthContextType {
@@ -109,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_api_allowed: decoded.is_api_allowed,
           is_proero_enabled: decoded.is_proero_enabled,
           is_smm_enabled: decoded.is_smm_enabled,
+          wa_unofficial_webhook_enabled: decoded.wa_unofficial_webhook_enabled,
         });
 
         // Hydrate from DB to get the live wallet_balance immediately to prevent flashing
@@ -178,6 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_smm_enabled: userData.is_smm_enabled,
           api_key: userData.api_key,
           dlr_webhook_url: userData.dlr_webhook_url,
+          wa_unofficial_webhook_enabled: userData.wa_unofficial_webhook_enabled,
         });
         return true;
       }
@@ -342,6 +345,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       is_smm_enabled: userData.is_smm_enabled,
       api_key: userData.api_key,
       dlr_webhook_url: userData.dlr_webhook_url,
+      wa_unofficial_webhook_enabled: userData.wa_unofficial_webhook_enabled,
     });
   };
 

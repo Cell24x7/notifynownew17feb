@@ -74,6 +74,8 @@ export default function SuperAdminClients() {
     is_api_allowed: false,
     is_proero_enabled: false,
     is_smm_enabled: false,
+    dlr_webhook_url: '',
+    wa_unofficial_webhook_enabled: false,
   });
 
   // Fetch real plans
@@ -382,6 +384,8 @@ export default function SuperAdminClients() {
       is_api_allowed: false,
       is_proero_enabled: false,
       is_smm_enabled: false,
+      dlr_webhook_url: '',
+      wa_unofficial_webhook_enabled: false,
     });
   }
 
@@ -442,6 +446,8 @@ export default function SuperAdminClients() {
       is_api_allowed: !!client.is_api_allowed,
       is_proero_enabled: !!client.is_proero_enabled,
       is_smm_enabled: !!client.is_smm_enabled,
+      dlr_webhook_url: client.dlr_webhook_url || '',
+      wa_unofficial_webhook_enabled: !!client.wa_unofficial_webhook_enabled,
     });
     setModalMode('view');
     setIsClientModalOpen(true);
@@ -483,6 +489,8 @@ export default function SuperAdminClients() {
       is_api_allowed: !!client.is_api_allowed,
       is_proero_enabled: !!client.is_proero_enabled,
       is_smm_enabled: !!client.is_smm_enabled,
+      dlr_webhook_url: client.dlr_webhook_url || '',
+      wa_unofficial_webhook_enabled: !!client.wa_unofficial_webhook_enabled,
     });
     setModalMode('edit');
     setIsClientModalOpen(true);
@@ -1247,6 +1255,41 @@ export default function SuperAdminClients() {
                     onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_smm_enabled: !!checked }))}
                     disabled={modalMode === 'view'}
                   />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Section: Developer Webhook Settings */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> Developer Webhook Forwarding
+              </h3>
+              <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-dashed border-border">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base font-semibold">Enable Unofficial WhatsApp Webhook</Label>
+                    <p className="text-xs text-muted-foreground">Forward real-time DLR callbacks for unofficial WhatsApp campaigns</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentClient.wa_unofficial_webhook_enabled}
+                    onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, wa_unofficial_webhook_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Custom DLR Webhook URL</Label>
+                  <Input
+                    type="url"
+                    placeholder="https://your-domain.com/webhook/dlr"
+                    value={currentClient.dlr_webhook_url || ''}
+                    onChange={e => setCurrentClient(p => ({ ...p, dlr_webhook_url: e.target.value }))}
+                    disabled={modalMode === 'view' || !currentClient.wa_unofficial_webhook_enabled}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Status updates will be POSTed as JSON. Fields sent: message_id, recipient, status, timestamp, and errorcode (if failed).
+                  </p>
                 </div>
               </div>
             </div>

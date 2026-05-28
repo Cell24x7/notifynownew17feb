@@ -1508,9 +1508,9 @@ router.post('/wa-unofficial/callback', async (req, res) => {
 
                 console.log(`[WA-UNOFFICIAL-DLR] Log ${row.id}: ${row.status} → ${status} (campaign:${campaignId}, phone:${recipient})`);
 
-                // Forward DLR to user's custom webhook URL if configured
-                const [users] = await query('SELECT dlr_webhook_url FROM users WHERE id = ?', [row.user_id]);
-                if (users.length > 0 && users[0].dlr_webhook_url) {
+                // Forward DLR to user's custom webhook URL if configured and wa_unofficial_webhook_enabled is true
+                const [users] = await query('SELECT dlr_webhook_url, wa_unofficial_webhook_enabled FROM users WHERE id = ?', [row.user_id]);
+                if (users.length > 0 && users[0].dlr_webhook_url && users[0].wa_unofficial_webhook_enabled) {
                     const dlrUrl = users[0].dlr_webhook_url;
                     const webhookPayload = {
                         message_id: messageId || row.message_id,
