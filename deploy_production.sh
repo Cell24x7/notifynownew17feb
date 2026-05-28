@@ -204,7 +204,7 @@ ok "Database migrations complete."
 
 # ─── Wait for frontend build to finish ───
 step "Waiting for frontend build..."
-wait $FRONTEND_PID
+wait $FRONTEND_PID || true
 if grep -q "___FRONTEND_BUILD_DONE___" /dev/null 2>/dev/null || true; then
     ok "Frontend build complete."
 else
