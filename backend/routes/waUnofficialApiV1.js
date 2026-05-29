@@ -423,6 +423,171 @@ router.delete('/channels/:id', authenticateDeveloper, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/wa-unofficial-v1/channels/:id/chats
+ * @desc    Get list of conversations/chats for a specific channel
+ * @access  Private (Developer)
+ */
+router.get('/channels/:id/chats', authenticateDeveloper, async (req, res) => {
+    const channelId = req.params.id;
+    const sessionName = `session${channelId}`;
+
+    try {
+        // 1. Verify channel ownership
+        const [channels] = await query(
+            'SELECT id, phone_number FROM whatsapp_proero_channels WHERE id = ? AND user_id = ?',
+            [channelId, req.user.id]
+        );
+
+        if (channels.length === 0) {
+            return res.status(404).json({ success: false, message: 'Channel not found or unauthorized' });
+        }
+
+        // 2. Try to fetch live chats list from Baileys engine
+        let liveChats = [];
+        let fetchedFromBaileys = false;
+        try {
+            const response = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/session/${sessionName}/chats`, { timeout: 4000 });
+            if (response.data && response.data.success) {
+                liveChats = response.data.chats || response.data.data || [];
+                fetchedFromBaileys = true;
+            }
+        } catch (baileysErr) {
+            console.warn(`[WA-API] Failed to fetch live chats from Baileys for ${sessionName}:`, baileysErr.message);
+        }
+
+        // 3. Fallback: Query local database webhook_logs
+        const channelPhone = channels[0].phone_number;
+        let localChats = [];
+        if (channelPhone) {
+            const cleanPhone = channelPhone.replace(/\D/g, '');
+            const sql = `
+                SELECT 
+                    contact_phone,
+                    MAX(created_at) as last_message_time,
+                    MAX(message_content) as last_message,
+                    MAX(status) as status
+                FROM (
+                    SELECT 
+                        CASE 
+                            WHEN sender = ? THEN recipient
+                            ELSE sender 
+                        END as contact_phone,
+                        created_at,
+                        message_content,
+                        status
+                    FROM webhook_logs 
+                    WHERE user_id = ? AND (sender = ? OR recipient = ?)
+                ) as channel_logs
+                WHERE contact_phone IS NOT NULL AND contact_phone != ?
+                GROUP BY contact_phone 
+                ORDER BY last_message_time DESC 
+                LIMIT 100
+            `;
+            const [rows] = await query(sql, [cleanPhone, req.user.id, cleanPhone, cleanPhone, cleanPhone]);
+            localChats = rows;
+        }
+
+        res.json({
+            success: true,
+            channelId,
+            sessionName,
+            fetchedFromBaileys,
+            chats: fetchedFromBaileys ? liveChats : localChats,
+            message: fetchedFromBaileys 
+                ? 'Chats retrieved successfully from Baileys session store.' 
+                : 'Showing local message logs fallback (Baileys gateway not yet sending live chat syncs).'
+        });
+    } catch (err) {
+        console.error('Get Channel Chats API Error:', err);
+        res.status(500).json({ success: false, message: 'Failed to retrieve chats: ' + err.message });
+    }
+});
+
+/**
+ * @route   GET /api/wa-unofficial-v1/channels/:id/chats/:contactPhone
+ * @desc    Get detailed message history with a specific contact on this channel
+ * @access  Private (Developer)
+ */
+router.get('/channels/:id/chats/:contactPhone', authenticateDeveloper, async (req, res) => {
+    const channelId = req.params.id;
+    const contactPhone = req.params.contactPhone.replace(/\D/g, '');
+    const sessionName = `session${channelId}`;
+
+    try {
+        // 1. Verify channel ownership
+        const [channels] = await query(
+            'SELECT id, phone_number FROM whatsapp_proero_channels WHERE id = ? AND user_id = ?',
+            [channelId, req.user.id]
+        );
+
+        if (channels.length === 0) {
+            return res.status(404).json({ success: false, message: 'Channel not found or unauthorized' });
+        }
+
+        const channelPhone = channels[0].phone_number;
+        if (!channelPhone) {
+            return res.status(400).json({ success: false, message: 'Channel is not fully connected or does not have a phone number.' });
+        }
+        const cleanChannelPhone = channelPhone.replace(/\D/g, '');
+
+        // 2. Try to fetch from Baileys engine
+        let liveMessages = [];
+        let fetchedFromBaileys = false;
+        try {
+            const response = await axios.get(`${EXTERNAL_BASE_URL}/api/whatsapp/session/${sessionName}/chats/${contactPhone}`, { timeout: 4000 });
+            if (response.data && response.data.success) {
+                liveMessages = response.data.messages || response.data.data || [];
+                fetchedFromBaileys = true;
+            }
+        } catch (baileysErr) {
+            console.warn(`[WA-API] Failed to fetch live messages from Baileys for ${sessionName}/${contactPhone}:`, baileysErr.message);
+        }
+
+        // 3. Fallback: Query local database webhook_logs
+        let localMessages = [];
+        const sql = `
+            SELECT 
+                id, 
+                sender, 
+                recipient, 
+                message_content, 
+                status, 
+                created_at 
+            FROM webhook_logs 
+            WHERE user_id = ? AND (
+                (sender = ? AND recipient = ?) OR 
+                (sender = ? AND recipient = ?)
+            )
+            ORDER BY created_at ASC 
+            LIMIT 200
+        `;
+        const [rows] = await query(sql, [
+            req.user.id,
+            cleanChannelPhone,
+            contactPhone,
+            contactPhone,
+            cleanChannelPhone
+        ]);
+        localMessages = rows;
+
+        res.json({
+            success: true,
+            channelId,
+            sessionName,
+            contactPhone,
+            fetchedFromBaileys,
+            messages: fetchedFromBaileys ? liveMessages : localMessages,
+            message: fetchedFromBaileys
+                ? 'Messages retrieved successfully from Baileys session store.'
+                : 'Showing local message logs fallback.'
+        });
+    } catch (err) {
+        console.error('Get Channel Contact Chats API Error:', err);
+        res.status(500).json({ success: false, message: 'Failed to retrieve messages: ' + err.message });
+    }
+});
+
+/**
  * @route   POST /api/wa-unofficial-v1/send
  * @desc    Send text/template message to recipient(s) using a WhatsApp channel
  * @access  Private (Developer)
