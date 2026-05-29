@@ -30,6 +30,7 @@ interface CampaignCreationStepperProps {
    templates: MessageTemplate[];
    onComplete: (campaignData: CampaignData) => void;
    onCancel: () => void;
+   whatsappError?: string;
 }
 
 export interface CampaignData {
@@ -111,7 +112,7 @@ const channelOptions = [
    { value: 'voicebot', label: 'AI Voice', icon: '🎙️', costPerMessage: 1.50 },
 ];
 
-export default function CampaignCreationStepper({ templates, onComplete, onCancel }: CampaignCreationStepperProps) {
+export default function CampaignCreationStepper({ templates, onComplete, onCancel, whatsappError }: CampaignCreationStepperProps) {
    const { user } = useAuth();
    const { toast } = useToast();
    const enabledChannels = user?.channels_enabled || [];
@@ -949,9 +950,16 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                     </div>
                                  ) : (
                                     <div className="p-8 border-2 border-dashed rounded-lg text-center">
-                                       <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                                       <p className="text-muted-foreground">No templates available for {channelConfig?.label}</p>
-                                       <p className="text-sm text-muted-foreground">Create a template first in the Templates tab</p>
+                                       <AlertCircle className="h-10 w-10 mx-auto text-destructive mb-2" />
+                                       <p className="text-muted-foreground font-semibold">No templates available for {channelConfig?.label}</p>
+                                       {campaignData.channel === 'whatsapp' && whatsappError ? (
+                                          <div className="mt-3 p-3 bg-red-500/10 text-red-600 dark:bg-red-950/30 dark:text-red-400 rounded-lg max-w-md mx-auto text-xs font-mono text-left break-words border border-red-500/20">
+                                             <strong className="block mb-1 text-[11px] uppercase tracking-wider">Integration Error:</strong>
+                                             {whatsappError}
+                                          </div>
+                                       ) : (
+                                          <p className="text-sm text-muted-foreground">Create a template first in the Templates tab</p>
+                                       )}
                                     </div>
                                  )}
                               </div>

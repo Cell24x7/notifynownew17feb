@@ -60,6 +60,7 @@ export default function Campaigns() {
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [whatsappError, setWhatsappError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
@@ -220,10 +221,13 @@ export default function Campaigns() {
               }
             });
 
+            setWhatsappError(null);
             mergedTemplates = [...other, ...reconciled];
           }
-        } catch (waErr) {
+        } catch (waErr: any) {
           console.error('Failed to fetch WhatsApp templates:', waErr);
+          const errorMsg = waErr.response?.data?.error?.message || waErr.response?.data?.message || waErr.message || 'Failed to connect to WhatsApp API';
+          setWhatsappError(errorMsg);
         }
       }
       const isSmsEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'sms') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'sms');
@@ -556,6 +560,7 @@ export default function Campaigns() {
                 templates={templates.filter(t => t.status === 'approved') as any}
                 onComplete={handleCampaignComplete}
                 onCancel={() => setIsCreateOpen(false)}
+                whatsappError={whatsappError || undefined}
               />
             </DialogContent>
           </Dialog>
