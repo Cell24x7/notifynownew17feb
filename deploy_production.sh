@@ -195,6 +195,7 @@ wait  # Wait for BATCH 2
 (NODE_ENV=production node scripts/add_media_support.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
 (NODE_ENV=production node migrate_api_flag.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
 (NODE_ENV=production node migration_reseller_payment.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
+(NODE_ENV=production node migration_reseller_paypal.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
 wait  # Wait for BATCH 3
 
 # BATCH 4 — Index optimization (can run while PM2 restarts)

@@ -3,6 +3,7 @@ const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware'); // Ensure auth middleware is used
 const ccav = require('../utils/ccavutil');
 const qs = require('querystring');
+const axios = require('axios');
 
 const router = express.Router();
 
@@ -342,6 +343,245 @@ router.post('/adjust', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid data format for database' });
     }
     res.status(500).json({ success: false, message: 'Database error: ' + err.message });
+  }
+});
+
+/**
+ * Get Available Payment Gateways for user
+ */
+router.get('/gateways', authenticateToken, async (req, res) => {
+  try {
+    const gateways = [];
+    const currentResellerId = req.user.actual_reseller_id;
+
+    if (currentResellerId && req.user.role !== 'reseller') {
+      const [reseller] = await query(
+        'SELECT payment_gateway_type, ccavenue_merchant_id, paypal_client_id FROM resellers WHERE id = ?',
+        [currentResellerId]
+      );
+
+      if (reseller.length > 0) {
+        const type = reseller[0].payment_gateway_type;
+        if (type === 'ccavenue' && reseller[0].ccavenue_merchant_id) {
+          gateways.push('ccavenue');
+        } else if (type === 'paypal' && reseller[0].paypal_client_id) {
+          gateways.push('paypal');
+        } else if (type === 'both') {
+          if (reseller[0].ccavenue_merchant_id) gateways.push('ccavenue');
+          if (reseller[0].paypal_client_id) gateways.push('paypal');
+        }
+      }
+    }
+
+    if (gateways.length === 0) {
+      // Fallback to platform settings
+      if (process.env.CCAVENUE_MERCHANT_ID) gateways.push('ccavenue');
+      if (process.env.PAYPAL_CLIENT_ID) gateways.push('paypal');
+    }
+
+    res.json({ success: true, gateways });
+  } catch (err) {
+    console.error('GET GATEWAYS ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Initiate PayPal Recharge Payment
+ */
+router.post('/paypal-initiate', authenticateToken, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || isNaN(amount) || amount < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid recharge amount' });
+    }
+
+    let clientId = (process.env.PAYPAL_CLIENT_ID || '').trim();
+    let secretKey = (process.env.PAYPAL_SECRET_KEY || '').trim();
+    let mode = (process.env.PAYPAL_MODE || 'sandbox').trim();
+    let currentResellerId = req.user.actual_reseller_id;
+
+    if (currentResellerId && req.user.role !== 'reseller') {
+      const [reseller] = await query(
+        'SELECT payment_gateway_type, paypal_client_id, paypal_secret_key, paypal_mode FROM resellers WHERE id = ?',
+        [currentResellerId]
+      );
+
+      if (reseller.length > 0 && (reseller[0].payment_gateway_type === 'paypal' || reseller[0].payment_gateway_type === 'both') && reseller[0].paypal_client_id) {
+        clientId = reseller[0].paypal_client_id;
+        secretKey = reseller[0].paypal_secret_key;
+        mode = reseller[0].paypal_mode || 'sandbox';
+      } else {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'PayPal gateway is not configured by your provider.' 
+        });
+      }
+    }
+
+    if (!clientId || !secretKey) {
+      return res.status(500).json({ success: false, message: 'PayPal gateway configuration missing' });
+    }
+
+    // Get PayPal token
+    const paypalUrl = mode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+    const authString = Buffer.from(`${clientId}:${secretKey}`).toString('base64');
+    
+    const tokenResponse = await axios.post(
+      `${paypalUrl}/v1/oauth2/token`,
+      'grant_type=client_credentials',
+      {
+        headers: {
+          'Authorization': `Basic ${authString}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+
+    // Calculate USD amount (INR to USD)
+    const rate = parseFloat(process.env.PAYPAL_INR_TO_USD_RATE || '83');
+    const amountInUSD = (parseFloat(amount) / rate).toFixed(2);
+
+    const orderId = `${Date.now()}${userId}`;
+    const baseUrl = process.env.BACKEND_URL || 'https://notifynow.in/api';
+    const returnUrl = currentResellerId
+      ? `${baseUrl}/wallet/paypal-response?reseller_id=${currentResellerId}&original_amount=${amount}&user_id=${userId}`
+      : `${baseUrl}/wallet/paypal-response?original_amount=${amount}&user_id=${userId}`;
+    const cancelUrl = `${process.env.FRONTEND_URL || 'https://notifynow.in'}/wallet?status=failed`;
+
+    // Create PayPal Order
+    const orderResponse = await axios.post(
+      `${paypalUrl}/v2/checkout/orders`,
+      {
+        intent: 'CAPTURE',
+        purchase_units: [{
+          amount: {
+            currency_code: 'USD',
+            value: amountInUSD
+          },
+          description: `NotifyNow Wallet Recharge - Order ${orderId}`
+        }],
+        application_context: {
+          return_url: returnUrl,
+          cancel_url: cancelUrl,
+          user_action: 'PAY_NOW'
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const approveLink = orderResponse.data.links.find(link => link.rel === 'approve');
+    if (!approveLink) {
+      throw new Error('PayPal approval link not found');
+    }
+
+    res.json({
+      success: true,
+      order_id: orderResponse.data.id,
+      approve_url: approveLink.href
+    });
+
+  } catch (err) {
+    console.error('PAYPAL INITIATE ERROR:', err.response?.data || err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * PayPal Response Handler (Redirect Callback)
+ */
+router.get('/paypal-response', async (req, res) => {
+  try {
+    const { token, reseller_id, original_amount, user_id } = req.query;
+    
+    if (!token || !original_amount || !user_id) {
+      return res.status(400).send('Invalid Response Parameters');
+    }
+
+    let clientId = (process.env.PAYPAL_CLIENT_ID || '').trim();
+    let secretKey = (process.env.PAYPAL_SECRET_KEY || '').trim();
+    let mode = (process.env.PAYPAL_MODE || 'sandbox').trim();
+
+    if (reseller_id) {
+      const [reseller] = await query(
+        'SELECT paypal_client_id, paypal_secret_key, paypal_mode FROM resellers WHERE id = ?',
+        [reseller_id]
+      );
+      if (reseller.length > 0 && reseller[0].paypal_client_id) {
+        clientId = reseller[0].paypal_client_id;
+        secretKey = reseller[0].paypal_secret_key;
+        mode = reseller[0].paypal_mode || 'sandbox';
+      }
+    }
+
+    const paypalUrl = mode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+    const authString = Buffer.from(`${clientId}:${secretKey}`).toString('base64');
+    
+    // Get PayPal token
+    const tokenResponse = await axios.post(
+      `${paypalUrl}/v1/oauth2/token`,
+      'grant_type=client_credentials',
+      {
+        headers: {
+          'Authorization': `Basic ${authString}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+
+    // Capture Order
+    console.log(`[PayPal Callback] Order: ${token}, User: ${user_id}. Attempting Capture...`);
+    const captureResponse = await axios.post(
+      `${paypalUrl}/v2/checkout/orders/${token}/capture`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const orderStatus = captureResponse.data.status;
+    console.log(`[PayPal Capture] Status: ${orderStatus}`);
+
+    if (orderStatus === 'COMPLETED') {
+      const amount = parseFloat(original_amount);
+
+      // Idempotency: check if transaction already processed
+      const [existing] = await query('SELECT id FROM transactions WHERE description LIKE ?', [`%PayPal Order: ${token}%`]);
+
+      if (existing.length === 0) {
+        // Update User Balance
+        await query('UPDATE users SET wallet_balance = wallet_balance + ?, credits_available = credits_available + ? WHERE id = ?', 
+            [amount, amount, user_id]);
+
+        // Log Transaction
+        await query(`
+            INSERT INTO transactions (user_id, type, amount, description, status)
+            VALUES (?, 'credit', ?, ?, 'completed')
+        `, [user_id, amount, `PayPal Recharge (PayPal Order: ${token})`]);
+      }
+
+      return res.redirect(`${process.env.FRONTEND_URL || 'https://notifynow.in'}/wallet?status=success&amt=${amount}`);
+    } else {
+      return res.redirect(`${process.env.FRONTEND_URL || 'https://notifynow.in'}/wallet?status=failed`);
+    }
+
+  } catch (err) {
+    console.error('PAYPAL CALLBACK ERROR:', err.response?.data || err.message);
+    res.redirect(`${process.env.FRONTEND_URL || 'https://notifynow.in'}/wallet?status=failed`);
   }
 });
 

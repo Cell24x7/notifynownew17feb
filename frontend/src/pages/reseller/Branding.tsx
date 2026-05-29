@@ -27,7 +27,10 @@ export default function ResellerBranding() {
         payment_gateway_type: 'none',
         ccavenue_merchant_id: '',
         ccavenue_access_code: '',
-        ccavenue_working_key: ''
+        ccavenue_working_key: '',
+        paypal_client_id: '',
+        paypal_secret_key: '',
+        paypal_mode: 'sandbox'
     });
 
     useEffect(() => {
@@ -52,7 +55,7 @@ export default function ResellerBranding() {
 
     const handleSave = async () => {
         // Strict Validation
-        if (settings.payment_gateway_type === 'ccavenue') {
+        if (settings.payment_gateway_type === 'ccavenue' || settings.payment_gateway_type === 'both') {
             const merchantIdRegex = /^\d+$/;
             const accessCodeRegex = /^[a-zA-Z0-9]+$/;
             
@@ -64,6 +67,15 @@ export default function ResellerBranding() {
             }
             if ((settings.ccavenue_working_key || '').length !== 32) {
                 return toast({ title: 'Invalid Working Key', description: 'Working Key must be exactly 32 characters long.', variant: 'destructive' });
+            }
+        }
+
+        if (settings.payment_gateway_type === 'paypal' || settings.payment_gateway_type === 'both') {
+            if (!(settings.paypal_client_id || '').trim()) {
+                return toast({ title: 'Invalid PayPal Client ID', description: 'PayPal Client ID cannot be empty.', variant: 'destructive' });
+            }
+            if (!(settings.paypal_secret_key || '').trim()) {
+                return toast({ title: 'Invalid PayPal Secret Key', description: 'PayPal Secret Key cannot be empty.', variant: 'destructive' });
             }
         }
 
@@ -277,12 +289,14 @@ export default function ResellerBranding() {
                                     <SelectContent>
                                         <SelectItem value="none">None (Use Platform Default)</SelectItem>
                                         <SelectItem value="ccavenue">CCAvenue</SelectItem>
+                                        <SelectItem value="paypal">PayPal</SelectItem>
+                                        <SelectItem value="both">Both (CCAvenue & PayPal)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
 
-                        {settings.payment_gateway_type === 'ccavenue' && (
+                        {(settings.payment_gateway_type === 'ccavenue' || settings.payment_gateway_type === 'both') && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-muted/30 rounded-lg border border-dashed animate-in fade-in slide-in-from-top-2">
                                 <div className="space-y-2">
                                     <Label className="flex items-center gap-1">
@@ -314,6 +328,47 @@ export default function ResellerBranding() {
                                         onChange={e => setSettings({ ...settings, ccavenue_working_key: e.target.value })}
                                         placeholder="CCAvenue Working Key"
                                     />
+                                </div>
+                            </div>
+                        )}
+
+                        {(settings.payment_gateway_type === 'paypal' || settings.payment_gateway_type === 'both') && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-muted/30 rounded-lg border border-dashed animate-in fade-in slide-in-from-top-2">
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-1">
+                                        <Lock className="w-3 h-3" /> PayPal Client ID
+                                    </Label>
+                                    <Input
+                                        value={settings.paypal_client_id || ''}
+                                        onChange={e => setSettings({ ...settings, paypal_client_id: e.target.value })}
+                                        placeholder="PayPal Client ID"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-1">
+                                        <Lock className="w-3 h-3" /> PayPal Secret Key
+                                    </Label>
+                                    <Input
+                                        type="password"
+                                        value={settings.paypal_secret_key || ''}
+                                        onChange={e => setSettings({ ...settings, paypal_secret_key: e.target.value })}
+                                        placeholder="PayPal Client Secret"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>PayPal Mode</Label>
+                                    <Select
+                                        value={settings.paypal_mode || 'sandbox'}
+                                        onValueChange={val => setSettings({ ...settings, paypal_mode: val })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Mode" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
+                                            <SelectItem value="live">Live (Production)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         )}

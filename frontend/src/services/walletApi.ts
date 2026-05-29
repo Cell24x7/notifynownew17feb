@@ -43,5 +43,22 @@ export const walletApi = {
             { headers: { Authorization: `Bearer ${token}` } }
         );
         return response.data;
+    },
+
+    getGateways: async () => {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.get(`${API_BASE_URL}/api/wallet/gateways`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return response.data;
+    },
+
+    paypalInitiate: async (amount: number) => {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.post(`${API_BASE_URL}/api/wallet/paypal-initiate`,
+            { amount },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return response.data;
     }
 };

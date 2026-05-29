@@ -21,6 +21,7 @@ router.get('/', authenticate, async (req, res) => {
         r.brand_name, r.logo_url, r.favicon_url, r.primary_color, r.secondary_color,
         r.support_email, r.support_phone,
         r.payment_gateway_type, r.ccavenue_merchant_id, r.ccavenue_access_code, r.ccavenue_working_key,
+        r.paypal_client_id, r.paypal_secret_key, r.paypal_mode,
         u.wallet_balance as credits_available, u.credits_used as credits_spent
       FROM resellers r
       LEFT JOIN users u ON r.email = u.email
@@ -156,14 +157,16 @@ router.post('/', async (req, res) => {
         revenue_generated, clients_managed, payout_pending,
         plan_id, channels_enabled,
         brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
-        payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key,
+        paypal_client_id, paypal_secret_key, paypal_mode
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, email, phone, domain, api_base_url,
       commission_percent, status,
       plan_id, channelsJson,
       brand_name || name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
-      null, null, null, null
+      null, null, null, null,
+      null, null, 'sandbox'
     ]);
 
     res.status(201).json({
@@ -194,7 +197,8 @@ router.get('/my-branding', authenticate, async (req, res) => {
   try {
     const [rows] = await query(`
       SELECT brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone, domain,
-             payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
+             payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key,
+             paypal_client_id, paypal_secret_key, paypal_mode
       FROM resellers
       WHERE email = ?
       LIMIT 1
@@ -219,12 +223,13 @@ router.put('/my-branding', authenticate, async (req, res) => {
 
   const {
     brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
-    payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key
+    payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key,
+    paypal_client_id, paypal_secret_key, paypal_mode
   } = req.body;
-
+ 
   const fields = [];
   const values = [];
-
+ 
   if (brand_name !== undefined) { fields.push('brand_name = ?'); values.push(brand_name); }
   if (logo_url !== undefined) { fields.push('logo_url = ?'); values.push(logo_url); }
   if (favicon_url !== undefined) { fields.push('favicon_url = ?'); values.push(favicon_url); }
@@ -236,6 +241,9 @@ router.put('/my-branding', authenticate, async (req, res) => {
   if (ccavenue_merchant_id !== undefined) { fields.push('ccavenue_merchant_id = ?'); values.push(ccavenue_merchant_id); }
   if (ccavenue_access_code !== undefined) { fields.push('ccavenue_access_code = ?'); values.push(ccavenue_access_code); }
   if (ccavenue_working_key !== undefined) { fields.push('ccavenue_working_key = ?'); values.push(ccavenue_working_key); }
+  if (paypal_client_id !== undefined) { fields.push('paypal_client_id = ?'); values.push(paypal_client_id); }
+  if (paypal_secret_key !== undefined) { fields.push('paypal_secret_key = ?'); values.push(paypal_secret_key); }
+  if (paypal_mode !== undefined) { fields.push('paypal_mode = ?'); values.push(paypal_mode); }
 
   if (fields.length === 0) {
     return res.status(400).json({ success: false, message: 'No fields to update' });
@@ -265,12 +273,14 @@ router.put('/:id', authenticate, async (req, res) => {
     channels_enabled, permissions,
     password,
     brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
-    credits_available
+    credits_available,
+    payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key,
+    paypal_client_id, paypal_secret_key, paypal_mode
   } = req.body;
-
+ 
   const fields = [];
   const values = [];
-
+ 
   if (name !== undefined) { fields.push('name = ?'); values.push(name); }
   if (email !== undefined) { fields.push('email = ?'); values.push(email); }
   if (phone !== undefined) { fields.push('phone = ?'); values.push(phone); }
@@ -279,7 +289,7 @@ router.put('/:id', authenticate, async (req, res) => {
   if (commission_percent !== undefined) { fields.push('commission_percent = ?'); values.push(commission_percent); }
   if (status !== undefined) { fields.push('status = ?'); values.push(status); }
   if (plan_id !== undefined) { fields.push('plan_id = ?'); values.push(plan_id); }
-
+ 
   if (channels_enabled !== undefined) {
     const channelsJson = Array.isArray(channels_enabled)
       ? JSON.stringify(channels_enabled)
@@ -287,12 +297,12 @@ router.put('/:id', authenticate, async (req, res) => {
     fields.push('channels_enabled = ?');
     values.push(channelsJson);
   }
-
+ 
   if (permissions !== undefined) {
     fields.push('permissions = ?');
     values.push(JSON.stringify(permissions));
   }
-
+ 
   if (brand_name !== undefined) { fields.push('brand_name = ?'); values.push(brand_name); }
   if (logo_url !== undefined) { fields.push('logo_url = ?'); values.push(logo_url); }
   if (favicon_url !== undefined) { fields.push('favicon_url = ?'); values.push(favicon_url); }
@@ -300,6 +310,13 @@ router.put('/:id', authenticate, async (req, res) => {
   if (secondary_color !== undefined) { fields.push('secondary_color = ?'); values.push(secondary_color); }
   if (support_email !== undefined) { fields.push('support_email = ?'); values.push(support_email); }
   if (support_phone !== undefined) { fields.push('support_phone = ?'); values.push(support_phone); }
+  if (payment_gateway_type !== undefined) { fields.push('payment_gateway_type = ?'); values.push(payment_gateway_type); }
+  if (ccavenue_merchant_id !== undefined) { fields.push('ccavenue_merchant_id = ?'); values.push(ccavenue_merchant_id); }
+  if (ccavenue_access_code !== undefined) { fields.push('ccavenue_access_code = ?'); values.push(ccavenue_access_code); }
+  if (ccavenue_working_key !== undefined) { fields.push('ccavenue_working_key = ?'); values.push(ccavenue_working_key); }
+  if (paypal_client_id !== undefined) { fields.push('paypal_client_id = ?'); values.push(paypal_client_id); }
+  if (paypal_secret_key !== undefined) { fields.push('paypal_secret_key = ?'); values.push(paypal_secret_key); }
+  if (paypal_mode !== undefined) { fields.push('paypal_mode = ?'); values.push(paypal_mode); }
 
   if (!fields.length && !password) { // If no fields AND no password
     return res.status(400).json({ success: false, message: 'No fields to update' });

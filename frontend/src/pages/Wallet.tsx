@@ -31,6 +31,8 @@ export default function Wallet() {
   const [rechargeAmount, setRechargeAmount] = useState('1000');
   const [isRechargeLoading, setIsRechargeLoading] = useState(false);
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
+  const [gateways, setGateways] = useState<string[]>([]);
+  const [selectedGateway, setSelectedGateway] = useState<string>('ccavenue');
   
   // Pagination states
   const [page, setPage] = useState(1);
@@ -86,43 +88,70 @@ export default function Wallet() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const fetchGateways = async () => {
+        try {
+            const res = await walletApi.getGateways();
+            if (res.success && res.gateways) {
+                setGateways(res.gateways);
+                if (res.gateways.length > 0) {
+                    setSelectedGateway(res.gateways[0]);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load gateways:", e);
+        }
+    };
+    fetchGateways();
+  }, []);
+
   const handleInitiatePayment = async () => {
     if (!rechargeAmount || isNaN(Number(rechargeAmount)) || Number(rechargeAmount) < 1) {
         toast({ title: 'Invalid Amount', description: 'Minimum recharge amount is ₹1', variant: 'destructive' });
         return;
     }
 
+    const gatewayToUse = selectedGateway || (gateways.length > 0 ? gateways[0] : 'ccavenue');
+
     setIsRechargeLoading(true);
     try {
-        const res = await walletApi.ccavenueInitiate(Number(rechargeAmount));
-        if (res.success) {
-            // Create a hidden form and submit it to CCAvenue
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = res.gateway_url;
-
-            const merchantInput = document.createElement('input');
-            merchantInput.type = 'hidden';
-            merchantInput.name = 'merchant_id';
-            merchantInput.value = res.merchant_id;
-            form.appendChild(merchantInput);
-
-            const encInput = document.createElement('input');
-            encInput.type = 'hidden';
-            encInput.name = 'encRequest';
-            encInput.value = res.enc_request;
-            form.appendChild(encInput);
-
-            const accessInput = document.createElement('input');
-            accessInput.type = 'hidden';
-            accessInput.name = 'access_code';
-            accessInput.value = res.access_code;
-            form.appendChild(accessInput);
-
-            document.body.appendChild(form);
-            form.submit();
+        if (gatewayToUse === 'paypal') {
+            const res = await walletApi.paypalInitiate(Number(rechargeAmount));
+            if (res.success && res.approve_url) {
+                window.location.href = res.approve_url;
+            } else {
+                toast({ title: 'Payment Initiation Failed', description: res.message || 'Something went wrong', variant: 'destructive' });
+            }
         } else {
-            toast({ title: 'Payment Initiation Failed', description: res.message || 'Something went wrong', variant: 'destructive' });
+            const res = await walletApi.ccavenueInitiate(Number(rechargeAmount));
+            if (res.success) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = res.gateway_url;
+
+                const merchantInput = document.createElement('input');
+                merchantInput.type = 'hidden';
+                merchantInput.name = 'merchant_id';
+                merchantInput.value = res.merchant_id;
+                form.appendChild(merchantInput);
+
+                const encInput = document.createElement('input');
+                encInput.type = 'hidden';
+                encInput.name = 'encRequest';
+                encInput.value = res.enc_request;
+                form.appendChild(encInput);
+
+                const accessInput = document.createElement('input');
+                accessInput.type = 'hidden';
+                accessInput.name = 'access_code';
+                accessInput.value = res.access_code;
+                form.appendChild(accessInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            } else {
+                toast({ title: 'Payment Initiation Failed', description: res.message || 'Something went wrong', variant: 'destructive' });
+            }
         }
     } catch (err: any) {
         toast({ 
@@ -213,7 +242,7 @@ export default function Wallet() {
                                     Recharge Wallet
                                 </DialogTitle>
                                 <DialogDescription>
-                                    Add funds to your wallet instantly via CCAvenue Secure Gateway.
+                                    Add funds to your wallet instantly using your preferred payment gateway.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
@@ -243,10 +272,43 @@ export default function Wallet() {
                                         ))}
                                     </div>
                                 </div>
+
+                                {gateways.length > 1 && (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium leading-none">Select Payment Method</label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {gateways.map(gw => (
+                                                <div 
+                                                    key={gw}
+                                                    onClick={() => setSelectedGateway(gw)}
+                                                    className={cn(
+                                                        "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all hover:bg-muted/40",
+                                                        selectedGateway === gw 
+                                                            ? "border-primary bg-primary/5" 
+                                                            : "border-muted"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-4 h-4 rounded-full border flex items-center justify-center",
+                                                        selectedGateway === gw ? "border-primary" : "border-muted-foreground"
+                                                    )}>
+                                                        {selectedGateway === gw && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                                                    </div>
+                                                    <div className="text-sm font-semibold capitalize">
+                                                        {gw === 'ccavenue' ? 'CCAvenue' : 'PayPal'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="bg-muted/50 p-3 rounded-lg flex items-start gap-3">
                                     <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                                     <p className="text-xs text-muted-foreground">
-                                        You will be redirected to CCAvenue secure payment page to complete your transaction.
+                                        {selectedGateway === 'paypal'
+                                            ? 'You will be redirected to PayPal secure payment checkout page. Note: amount will be converted and paid in USD equivalence.'
+                                            : 'You will be redirected to CCAvenue secure payment page to complete your transaction.'}
                                     </p>
                                 </div>
                             </div>
