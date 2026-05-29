@@ -455,12 +455,16 @@ router.get('/channels/:id/chats', authenticateDeveloper, async (req, res) => {
             console.warn(`[WA-API] Failed to fetch live chats from Baileys for ${sessionName}:`, baileysErr.message);
         }
 
-        // 3. Fallback: Query local database webhook_logs
+// 3. Fallback: Query local database webhook_logs
         const channelPhone = channels[0].phone_number;
         let localChats = [];
-        if (channelPhone) {
-            const cleanPhone = channelPhone.replace(/\D/g, '');
-            const sql = `
+        const cleanPhone = channelPhone ? channelPhone.replace(/\D/g, '') : null;
+
+        let sql = '';
+        let params = [];
+
+        if (cleanPhone) {
+            sql = `
                 SELECT 
                     contact_phone,
                     MAX(created_at) as last_message_time,
@@ -483,9 +487,38 @@ router.get('/channels/:id/chats', authenticateDeveloper, async (req, res) => {
                 ORDER BY last_message_time DESC 
                 LIMIT 100
             `;
-            const [rows] = await query(sql, [cleanPhone, req.user.id, cleanPhone, cleanPhone, cleanPhone]);
-            localChats = rows;
+            params = [cleanPhone, req.user.id, cleanPhone, cleanPhone, cleanPhone];
+        } else {
+            // General fallback: retrieve all conversations for this user across all channels
+            sql = `
+                SELECT 
+                    contact_phone,
+                    MAX(created_at) as last_message_time,
+                    MAX(message_content) as last_message,
+                    MAX(status) as status
+                FROM (
+                    SELECT 
+                        CASE 
+                            WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                            WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                            ELSE sender 
+                        END as contact_phone,
+                        created_at,
+                        message_content,
+                        status
+                    FROM webhook_logs 
+                    WHERE user_id = ?
+                ) as recent_logs
+                WHERE contact_phone IS NOT NULL AND contact_phone != 'System'
+                GROUP BY contact_phone 
+                ORDER BY last_message_time DESC 
+                LIMIT 100
+            `;
+            params = [req.user.id];
         }
+
+        const [rows] = await query(sql, params);
+        localChats = rows;
 
         res.json({
             success: true,
@@ -525,10 +558,7 @@ router.get('/channels/:id/chats/:contactPhone', authenticateDeveloper, async (re
         }
 
         const channelPhone = channels[0].phone_number;
-        if (!channelPhone) {
-            return res.status(400).json({ success: false, message: 'Channel is not fully connected or does not have a phone number.' });
-        }
-        const cleanChannelPhone = channelPhone.replace(/\D/g, '');
+        const cleanChannelPhone = channelPhone ? channelPhone.replace(/\D/g, '') : null;
 
         // 2. Try to fetch from Baileys engine
         let liveMessages = [];
@@ -545,29 +575,66 @@ router.get('/channels/:id/chats/:contactPhone', authenticateDeveloper, async (re
 
         // 3. Fallback: Query local database webhook_logs
         let localMessages = [];
-        const sql = `
-            SELECT 
-                id, 
-                sender, 
-                recipient, 
-                message_content, 
-                status, 
-                created_at 
-            FROM webhook_logs 
-            WHERE user_id = ? AND (
-                (sender = ? AND recipient = ?) OR 
-                (sender = ? AND recipient = ?)
-            )
-            ORDER BY created_at ASC 
-            LIMIT 200
-        `;
-        const [rows] = await query(sql, [
-            req.user.id,
-            cleanChannelPhone,
-            contactPhone,
-            contactPhone,
-            cleanChannelPhone
-        ]);
+        let sql = '';
+        let params = [];
+
+        if (cleanChannelPhone) {
+            sql = `
+                SELECT 
+                    id, 
+                    sender, 
+                    recipient, 
+                    message_content, 
+                    status, 
+                    created_at 
+                FROM webhook_logs 
+                WHERE user_id = ? AND (
+                    (sender = ? AND recipient = ?) OR 
+                    (sender = ? AND recipient = ?) OR
+                    (sender = 'System' AND recipient = ?) OR
+                    (sender = ? AND recipient = 'System')
+                )
+                ORDER BY created_at ASC 
+                LIMIT 200
+            `;
+            params = [
+                req.user.id,
+                cleanChannelPhone,
+                contactPhone,
+                contactPhone,
+                cleanChannelPhone,
+                contactPhone,
+                contactPhone
+            ];
+        } else {
+            // General fallback: Get messages between contactPhone and 'System' (or any number) for this user
+            sql = `
+                SELECT 
+                    id, 
+                    sender, 
+                    recipient, 
+                    message_content, 
+                    status, 
+                    created_at 
+                FROM webhook_logs 
+                WHERE user_id = ? AND (
+                    sender = ? OR recipient = ? OR
+                    REPLACE(REPLACE(sender, '+', ''), ' ', '') = ? OR
+                    REPLACE(REPLACE(recipient, '+', ''), ' ', '') = ?
+                )
+                ORDER BY created_at ASC 
+                LIMIT 200
+            `;
+            params = [
+                req.user.id,
+                contactPhone,
+                contactPhone,
+                contactPhone,
+                contactPhone
+            ];
+        }
+
+        const [rows] = await query(sql, params);
         localMessages = rows;
 
         res.json({
