@@ -25,7 +25,7 @@ const authenticateDeveloper = async (req, res, next) => {
 
     // Support standard Authorization: Bearer <key> header
     const authHeader = req.headers['authorization'];
-    if (!apiKey && authHeader && authHeader.startsWith('Bearer ')) {
+    if ((!apiKey || apiKey.includes('...')) && authHeader && authHeader.startsWith('Bearer ')) {
         apiKey = authHeader.substring(7).trim();
     }
 
