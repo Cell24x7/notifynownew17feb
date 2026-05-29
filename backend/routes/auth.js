@@ -480,6 +480,8 @@ router.post('/google', async (req, res) => {
         is_api_allowed: user.is_api_allowed,
         is_proero_enabled: user.is_proero_enabled,
         is_smm_enabled: user.is_smm_enabled,
+        whatsapp_config_id: user.whatsapp_config_id,
+        rcs_config_id: user.rcs_config_id,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -496,7 +498,8 @@ router.post('/google', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressPermissions(finalPermissions), plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled,
+        whatsapp_config_id: user.whatsapp_config_id, rcs_config_id: user.rcs_config_id
       }
     });
 
@@ -605,6 +608,8 @@ router.post('/linkedin', async (req, res) => {
         is_api_allowed: user.is_api_allowed,
         is_proero_enabled: user.is_proero_enabled,
         is_smm_enabled: user.is_smm_enabled,
+        whatsapp_config_id: user.whatsapp_config_id,
+        rcs_config_id: user.rcs_config_id,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -621,7 +626,8 @@ router.post('/linkedin', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled,
+        whatsapp_config_id: user.whatsapp_config_id, rcs_config_id: user.rcs_config_id
       }
     });
 
@@ -648,8 +654,11 @@ router.post('/facebook', async (req, res) => {
 
     let [rows] = await query(`
       SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
-             COALESCE(r.id, u.reseller_id) as actual_reseller_id, u.is_proero_enabled
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id
       FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
+      WHERE u.email = ?
     `, [payload.email]);
 
     let user;
@@ -705,6 +714,10 @@ router.post('/facebook', async (req, res) => {
         permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         is_api_allowed: user.is_api_allowed,
+        is_proero_enabled: user.is_proero_enabled,
+        is_smm_enabled: user.is_smm_enabled,
+        whatsapp_config_id: user.whatsapp_config_id,
+        rcs_config_id: user.rcs_config_id,
         actual_reseller_id: user.actual_reseller_id || null
       },
       JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }
@@ -721,7 +734,8 @@ router.post('/facebook', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled,
+        whatsapp_config_id: user.whatsapp_config_id, rcs_config_id: user.rcs_config_id
       }
     });
 

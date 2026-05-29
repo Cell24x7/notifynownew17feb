@@ -83,6 +83,67 @@ const getMessagesUrl = (config) => {
 // ─────────────────────────────────────────────
 
 /**
+ * GET /api/whatsapp/diagnose
+ * Secure database and API diagnostic endpoint
+ */
+router.get('/diagnose', async (req, res) => {
+    try {
+        const { secret } = req.query;
+        if (!secret || secret !== process.env.JWT_SECRET) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const data = {};
+
+        // 1. Fetch Users with WhatsApp Config
+        const [users] = await query(
+            'SELECT id, name, email, whatsapp_config_id, channels_enabled, status FROM users WHERE whatsapp_config_id IS NOT NULL AND whatsapp_config_id != 0'
+        );
+        data.users = users;
+
+        // 2. Fetch WhatsApp Configurations
+        const [configs] = await query('SELECT * FROM whatsapp_configs');
+        data.configs = configs;
+
+        // 3. Test API for each configuration
+        data.apiTests = [];
+        for (const config of configs) {
+            const isPinbot = config.provider === 'vendor2';
+            const headers = isPinbot 
+                ? { apikey: config.api_key, 'Content-Type': 'application/json' }
+                : { Authorization: `Bearer ${config.wa_token}`, 'Content-Type': 'application/json' };
+                
+            const url = isPinbot 
+                ? `https://partnersv1.pinbot.ai/v3/${config.wa_biz_accnt_id}/message_templates`
+                : `https://graph.facebook.com/v19.0/${config.wa_biz_accnt_id}/message_templates`;
+
+            const testResult = {
+                configId: config.id,
+                chatbot_name: config.chatbot_name,
+                url,
+                isPinbot,
+                isActive: config.is_active
+            };
+
+            try {
+                const response = await axios.get(url, { headers, timeout: 5000 });
+                testResult.success = true;
+                testResult.templatesCount = (response.data.data || response.data || []).length;
+            } catch (err) {
+                testResult.success = false;
+                testResult.error = err.response ? err.response.data : err.message;
+                testResult.status = err.response ? err.response.status : null;
+            }
+            data.apiTests.push(testResult);
+        }
+
+        res.json({ success: true, data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
  * GET /api/whatsapp/templates
  * Fetch all templates (works for both Meta & Pinbot)
  */
