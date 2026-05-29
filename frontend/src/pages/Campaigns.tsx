@@ -226,7 +226,10 @@ export default function Campaigns() {
           }
         } catch (waErr: any) {
           console.error('Failed to fetch WhatsApp templates:', waErr);
-          const errorMsg = waErr.response?.data?.error?.message || waErr.response?.data?.message || waErr.message || 'Failed to connect to WhatsApp API';
+          const errorData = waErr.response?.data;
+          const errorMsg = typeof errorData?.error === 'string'
+            ? errorData.error
+            : (errorData?.error?.message || errorData?.message || waErr.message || 'Failed to connect to WhatsApp API');
           setWhatsappError(errorMsg);
         }
       }

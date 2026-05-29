@@ -222,8 +222,17 @@ export default function Templates() {
               return [...other, ...reconciled];
             });
           }
-        } catch (waErr) {
+        } catch (waErr: any) {
           console.warn('WhatsApp template fetch failed:', waErr);
+          const errorData = waErr.response?.data;
+          const errorMsg = typeof errorData?.error === 'string'
+            ? errorData.error
+            : (errorData?.error?.message || errorData?.message || waErr.message);
+          toast({
+            title: 'WhatsApp Sync Failed',
+            description: `Could not fetch templates from Meta: ${errorMsg}`,
+            variant: 'destructive'
+          });
         }
       }
     } catch (err) {
