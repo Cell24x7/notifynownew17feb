@@ -86,6 +86,24 @@ const ServiceLanding: React.FC = () => {
       <div className="absolute top-[15%] left-[-10%] w-[500px] h-[500px] bg-blue-300/10 rounded-full blur-[140px] pointer-events-none z-0 animate-pulse" />
       <div className="absolute top-[5%] right-[-10%] w-[500px] h-[500px] bg-purple-300/10 rounded-full blur-[140px] pointer-events-none z-0 animate-pulse" />
 
+      {/* ── TOP CONTACT INFO BAR ── */}
+      <div className="bg-slate-900 text-white text-[11px] font-semibold py-2 px-4 flex flex-col sm:flex-row justify-between items-center z-50 relative gap-2 sm:gap-0">
+        <div className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row justify-between items-center px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4">
+            <a href="mailto:sales@cell24x7.com" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+              <span>✉ sales@cell24x7.com</span>
+            </a>
+            <span className="text-slate-700 hidden sm:inline">|</span>
+            <a href="tel:+918779721034" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+              <span>📞 +91 8779721034</span>
+            </a>
+          </div>
+          <div className="hidden sm:block text-slate-400 font-medium">
+            Omnichannel Business Communication Solution
+          </div>
+        </div>
+      </div>
+
       {/* ── NAVIGATION NAVBAR (STICKY + GLASSMORPHISM) ── */}
       <header className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 border-b border-slate-200/50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
@@ -754,20 +772,34 @@ const ServiceLanding: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto shrink-0 z-10">
-            <Link to="/auth" className="inline-flex items-center justify-center px-7 py-4 text-sm font-bold text-slate-900 bg-white hover:bg-slate-50 rounded-xl shadow-md transition-all duration-300">
-              Get Started Free
-            </Link>
-            <Link to="/auth" className="inline-flex items-center justify-center px-7 py-4 text-sm font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-300">
-              Contact Sales
-            </Link>
+          <div className="flex flex-col items-center sm:items-end gap-2.5 z-10 shrink-0">
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <Link to="/auth" className="inline-flex items-center justify-center px-7 py-4 text-sm font-bold text-slate-900 bg-white hover:bg-slate-50 rounded-xl shadow-md transition-all duration-300">
+                Get Started Free
+              </Link>
+              <a href="mailto:sales@cell24x7.com" className="inline-flex items-center justify-center px-7 py-4 text-sm font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-300">
+                Contact Sales
+              </a>
+            </div>
+            <span className="text-white/80 text-xs font-bold mr-0 sm:mr-4">
+              Call Us: <a href="tel:+918779721034" className="hover:underline hover:text-white transition-colors">+91 8779721034</a>
+            </span>
           </div>
 
         </div>
       </section>
 
-      {/* ── FOOTER COPYRIGHT ── */}
-      <footer className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 text-center text-xs font-semibold text-slate-400">
+      {/* ── FOOTER ── */}
+      <footer className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 text-center text-xs font-semibold text-slate-400 border-t border-slate-200/50 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-slate-500">
+          <a href="mailto:sales@cell24x7.com" className="hover:text-blue-600 transition-colors">
+            sales@cell24x7.com
+          </a>
+          <span className="hidden md:inline text-slate-300">|</span>
+          <a href="tel:+918779721034" className="hover:text-blue-600 transition-colors">
+            +91 8779721034
+          </a>
+        </div>
         <p>&copy; {new Date().getFullYear()} {brandName}. All rights reserved.</p>
       </footer>
 
