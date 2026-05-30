@@ -800,7 +800,7 @@ const ServiceLanding: React.FC = () => {
             +91 8779721034
           </a>
         </div>
-        <p>&copy; {new Date().getFullYear()} {brandName}. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} {brandName}. All rights reserved. | Powered by <a href="https://cell24x7.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors font-bold">Cell24x7</a></p>
       </footer>
 
     </div>
