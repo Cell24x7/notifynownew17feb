@@ -668,9 +668,12 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
         msg, 
         isTemplate = false, 
         templateId,
-        campaignId: customCampaignId,
+        campaignId: customCampaignIdRaw,
+        campaignID: customCampaignIdRawAlt,
         imageUrl     // ✅ NEW: optional image URL
     } = req.body;
+
+    const customCampaignId = customCampaignIdRaw || customCampaignIdRawAlt;
 
     const messageContent = message || text || msg;
 

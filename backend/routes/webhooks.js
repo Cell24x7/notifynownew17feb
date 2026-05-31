@@ -1449,7 +1449,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                 // Priority 1: Match by message_id
                 if (messageId) {
                     [rows] = await query(
-                        'SELECT id, status, user_id, message_id, recipient FROM api_message_logs WHERE message_id = ? LIMIT 1',
+                        'SELECT id, status, user_id, message_id, recipient, campaign_id FROM api_message_logs WHERE message_id = ? LIMIT 1',
                         [messageId]
                     );
                 }
@@ -1459,7 +1459,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     const cleanPhone = String(recipient).replace(/\D/g, '');
                     const last10 = cleanPhone.slice(-10);
                     [rows] = await query(
-                        `SELECT id, status, user_id, message_id, recipient FROM api_message_logs
+                        `SELECT id, status, user_id, message_id, recipient, campaign_id FROM api_message_logs
                          WHERE campaign_id = ? AND (recipient LIKE ? OR recipient = ?)
                          LIMIT 1`,
                         [campaignId, `%${last10}`, cleanPhone]
@@ -1512,21 +1512,63 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                 const [users] = await query('SELECT dlr_webhook_url, wa_unofficial_webhook_enabled FROM users WHERE id = ?', [row.user_id]);
                 if (users.length > 0 && users[0].dlr_webhook_url && users[0].wa_unofficial_webhook_enabled) {
                     const dlrUrl = users[0].dlr_webhook_url;
+                    
+                    // Map status to uppercase values: RECEIVED, FORWARDED, FAILED, DELIVERED, UNDELIVERED, REJECTED, EXPIRED
+                    let mappedStatus = 'FORWARDED';
+                    const upperStatus = (status || '').toUpperCase();
+                    if (upperStatus === 'DELIVERED' || upperStatus === 'READ') {
+                        mappedStatus = 'DELIVERED';
+                    } else if (upperStatus === 'FAILED') {
+                        mappedStatus = 'FAILED';
+                    } else {
+                        mappedStatus = upperStatus;
+                    }
+
                     const webhookPayload = {
-                        message_id: messageId || row.message_id,
+                        providerMessageId: messageId || row.message_id,
+                        message_id: messageId || row.message_id, // kept for backward compatibility
                         recipient: recipient || row.recipient,
-                        status: status,
+                        status: mappedStatus,
+                        campaignID: row.campaign_id,
+                        campaignId: row.campaign_id,
+                        campaign_id: row.campaign_id,
                         timestamp: Math.floor(Date.now() / 1000)
                     };
                     if (status === 'failed') {
-                        webhookPayload.errorcode = event.reason || event.error || event.failure_reason || 'Gateway delivery failure';
+                        const errVal = String(event.reason || event.error || event.failure_reason || '113');
+                        webhookPayload.errorMessage = errVal;
+                        webhookPayload.errorcode = errVal; // kept for backward compatibility
                     }
 
-                    console.log(`[WA-UNOFFICIAL-DLR] Forwarding DLR to ${dlrUrl}:`, JSON.stringify(webhookPayload));
+                    // Extract custom headers if configured in query parameters (e.g. X-Webhook-Token)
+                    const headers = { 'Content-Type': 'application/json' };
+                    let finalUrl = dlrUrl;
+                    try {
+                        const urlObj = new URL(dlrUrl);
+                        const paramsToRemove = [];
+                        for (const [key, value] of urlObj.searchParams.entries()) {
+                            if (key.toLowerCase().startsWith('x-') || key.toLowerCase() === 'authorization') {
+                                headers[key] = value;
+                                paramsToRemove.push(key);
+                            }
+                        }
+                        // Remove header parameters from final URL to keep the endpoint clean
+                        paramsToRemove.forEach(p => urlObj.searchParams.delete(p));
+                        finalUrl = urlObj.toString();
+                    } catch (urlErr) {
+                        // Keep using dlrUrl if parsing fails
+                    }
+
+                    // Auto-append fallback X-Webhook-Token header if it targets cell24x7.com and doesn't have it
+                    if (finalUrl.includes('cell24x7.com') && !headers['X-Webhook-Token'] && !headers['x-webhook-token']) {
+                        headers['X-Webhook-Token'] = '4a9f8b2c1d3e5f6a7b8c9d0e';
+                    }
+
+                    console.log(`[WA-UNOFFICIAL-DLR] Forwarding DLR to ${finalUrl} with headers:`, JSON.stringify(headers), "payload:", JSON.stringify(webhookPayload));
                     
-                    axios.post(dlrUrl, webhookPayload, { timeout: 5000 })
+                    axios.post(finalUrl, webhookPayload, { headers, timeout: 5000 })
                         .catch(err => {
-                            console.error(`[WA-UNOFFICIAL-DLR] Forwarding failed to ${dlrUrl}:`, err.message);
+                            console.error(`[WA-UNOFFICIAL-DLR] Forwarding failed to ${finalUrl}:`, err.message);
                         });
                 }
             } catch (dbErr) {
