@@ -878,10 +878,11 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
 
             // Step D: Log to DB for user dashboard tracking
             try {
+                const metadataVal = customCampaignId ? JSON.stringify({ customCampaignId }) : null;
                 for (const recipientObj of contacts) {
                     const recipient = recipientObj.phone;
                     await query(
-                        'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)',
+                        'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel, message_content, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)',
                         [
                             req.user.id,
                             finalCampaignId,
@@ -891,7 +892,8 @@ router.post('/send', authenticateDeveloper, async (req, res) => {
                             recipient,
                             'sent',
                             'WhatsApp_Unofficial',
-                            messageContent || `Template ID: ${templateId}`
+                            messageContent || `Template ID: ${templateId}`,
+                            metadataVal
                         ]
                     );
                 }

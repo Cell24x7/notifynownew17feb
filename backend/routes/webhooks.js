@@ -1449,7 +1449,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                 // Priority 1: Match by message_id
                 if (messageId) {
                     [rows] = await query(
-                        'SELECT id, status, user_id, message_id, recipient, campaign_id FROM api_message_logs WHERE message_id = ? LIMIT 1',
+                        'SELECT id, status, user_id, message_id, recipient, campaign_id, metadata FROM api_message_logs WHERE message_id = ? LIMIT 1',
                         [messageId]
                     );
                 }
@@ -1459,7 +1459,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     const cleanPhone = String(recipient).replace(/\D/g, '');
                     const last10 = cleanPhone.slice(-10);
                     [rows] = await query(
-                        `SELECT id, status, user_id, message_id, recipient, campaign_id FROM api_message_logs
+                        `SELECT id, status, user_id, message_id, recipient, campaign_id, metadata FROM api_message_logs
                          WHERE campaign_id = ? AND (recipient LIKE ? OR recipient = ?)
                          LIMIT 1`,
                         [campaignId, `%${last10}`, cleanPhone]
@@ -1524,14 +1524,27 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                         mappedStatus = upperStatus;
                     }
 
+                    // Check if there is an original customCampaignId stored in metadata JSON
+                    let finalCampaignIdVal = row.campaign_id;
+                    if (row.metadata) {
+                        try {
+                            const meta = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+                            if (meta && meta.customCampaignId) {
+                                finalCampaignIdVal = meta.customCampaignId;
+                            }
+                        } catch (e) {
+                            // Fallback to row.campaign_id
+                        }
+                    }
+
                     const webhookPayload = {
-                        providerMessageId: row.campaign_id || messageId || row.message_id,
+                        providerMessageId: finalCampaignIdVal || messageId || row.message_id,
                         message_id: messageId || row.message_id, // kept for backward compatibility
                         recipient: recipient || row.recipient,
                         status: mappedStatus,
-                        campaignID: row.campaign_id,
-                        campaignId: row.campaign_id,
-                        campaign_id: row.campaign_id,
+                        campaignID: finalCampaignIdVal,
+                        campaignId: finalCampaignIdVal,
+                        campaign_id: finalCampaignIdVal,
                         timestamp: Math.floor(Date.now() / 1000)
                     };
                     if (status === 'failed') {
