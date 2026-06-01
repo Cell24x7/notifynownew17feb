@@ -468,7 +468,8 @@ router.post('/paypal-initiate', authenticateToken, async (req, res) => {
         application_context: {
           return_url: returnUrl,
           cancel_url: cancelUrl,
-          user_action: 'PAY_NOW'
+          user_action: 'PAY_NOW',
+          shipping_preference: 'NO_SHIPPING'
         }
       },
       {

@@ -1473,13 +1473,13 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     );
                 }
 
-                // Priority 3: Match by phone only fallback (latest 'sent' log)
+                // Priority 3: Match by phone only fallback (latest 'sent' or 'delivered' log)
                 if (rows.length === 0 && recipient) {
                     const cleanPhone = String(recipient).replace(/\D/g, '');
                     const last10 = cleanPhone.slice(-10);
                     [rows] = await query(
                         `SELECT id, status, user_id, message_id, recipient, campaign_id, metadata FROM api_message_logs
-                         WHERE (recipient LIKE ? OR recipient = ?) AND status = 'sent' AND channel = 'WhatsApp_Unofficial'
+                         WHERE (recipient LIKE ? OR recipient = ?) AND status IN ('sent', 'delivered') AND channel = 'WhatsApp_Unofficial'
                          ORDER BY id DESC LIMIT 1`,
                         [`%${last10}`, cleanPhone]
                     );
