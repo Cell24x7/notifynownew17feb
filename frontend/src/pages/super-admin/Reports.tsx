@@ -183,6 +183,18 @@ export default function SuperAdminReports() {
         }
     };
 
+    // Background Auto-Refresh every 10 seconds for super-admin dashboard
+    useEffect(() => {
+        if (!selectedUserId) return;
+
+        const interval = setInterval(() => {
+            if (activeTab === 'summary') fetchReports(summaryPage);
+            if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
+        }, 10000); // 10 seconds
+
+        return () => clearInterval(interval);
+    }, [selectedUserId, activeTab, summaryPage, detailedPage, startDate, endDate, searchQuery]);
+
     const handleExport = () => {
         if (!selectedUserId) {
             toast({ title: 'Selection Required', description: 'Please select a user first' });

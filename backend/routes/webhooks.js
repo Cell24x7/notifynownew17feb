@@ -1530,6 +1530,18 @@ router.post('/wa-unofficial/callback', async (req, res) => {
 
                 console.log(`[WA-UNOFFICIAL-DLR] Log ${row.id}: ${row.status} → ${status} (campaign:${campaignId}, phone:${recipient})`);
 
+                // 📡 REAL-TIME CHAT STATUS UPDATE EMISSION (Via Socket.io if available)
+                if (req.io) {
+                    const socketUser = row.user_id;
+                    if (socketUser) {
+                        req.io.to(`user_${socketUser}`).emit('message_status_update', {
+                            message_id: messageId || row.message_id,
+                            status: status
+                        });
+                        console.log(`📡 Emitted Status Update (${status}) for unofficial WA msg ${messageId || row.message_id} to user_${socketUser}`);
+                    }
+                }
+
                 // Forward DLR to user's custom webhook URL if configured and wa_unofficial_webhook_enabled is true
                 const [users] = await query('SELECT dlr_webhook_url, wa_unofficial_webhook_enabled FROM users WHERE id = ?', [row.user_id]);
                 if (users.length > 0 && users[0].dlr_webhook_url && users[0].wa_unofficial_webhook_enabled) {

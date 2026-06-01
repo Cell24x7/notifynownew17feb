@@ -404,6 +404,17 @@ export default function Reports() {
         if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
     };
 
+    // Background Auto-Refresh every 10 seconds (Mandatory real-time updates)
+    useEffect(() => {
+        if (!autoRefresh) return;
+
+        const interval = setInterval(() => {
+            handleRefresh();
+        }, 10000); // 10 seconds
+
+        return () => clearInterval(interval);
+    }, [autoRefresh, activeTab, summaryPage, scheduledPage, detailedPage, apiPage, startDate, endDate, channelFilter, statusFilter, targetUserId, searchQuery]);
+
     const filteredReports = reports;
 
     const getStatusColor = (status: string) => {
