@@ -53,29 +53,62 @@ All API calls require an `api_key`. Include it in the header: `Authorization: Be
 
 ---
 
-## 📅 Recent Release Highlights [Apr 11 - Apr 16]
-### 📲 WhatsApp-to-SMS Failover (Engine v2.0)
-*   **Intelligent Fallback:** System now detects WhatsApp delivery failure (via API or Webhook) and automatically triggers a mapped SMS DLT template.
-*   **Idempotency Locks:** Added `failover_triggered` atomic locking to prevent duplicate SMS sends during high-volume traffic.
-*   **Dynamic Labels:** Detailed reports now distinguish between `⚡ RCS Fallback` and `⚡ WhatsApp Fallback` with color-coded badges.
+## 📅 Recent Release Highlights [May 28 - Jun 01]
+### 📲 Unofficial WhatsApp Delivery & Reports
+*   **Real-time Callback Updates:** Improved webhook callbacks `/wa-unofficial/callback` with gateway message ID synchronization and a Priority 3 phone-number matching fallback.
+*   **Automatic Polling & Refresh:** Configured client and super-admin reports panels with a background 10-second auto-refresh timer to automatically render incoming delivery status updates.
+*   **Channel-wise Filters:** Extended filters and badges to distinguish between `'WhatsApp (Official)'` and `'WhatsApp (Unofficial)'` in detailed MIS and API reports.
 
-### 🏎️ Database Performance (1Cr+ Ready)
-*   **Turbo Indexing:** Applied vital composite indexes across `campaigns`, `logs`, and `transactions` to ensure instant loading of Reports and Dashboards.
-*   **Emoji Content:** Full `utf8mb4` support across all messaging tables—meaning templates with emojis no longer crash the API.
-### 📧 Email Channel (Full Launch)
-*   **Campaign Flow:** Recipients can now be targeted via **Email Addresses**. Added manual "Bulk Email" input support.
-*   **Professional Branding:** Added **Sender Name**, **From Email ID**, and **Subject Line** customization for every campaign.
-*   **Multimedia:** Support for **Attachments** (PDF, Images, Excel, DOC) up to 10MB per email.
+### 💰 Multi-Gateway PayPal Integration
+*   **Dual Gateway Support:** Integrated PayPal client configurations alongside CCAvenue for both platform and whitelabel reseller sub-users.
+*   **Real-time Deduction:** Standardized dynamic credits deduction and live transaction logging for payments completed in USD.
 
-### 👥 Reseller Management
-*   **Access Control:** Resellers can now manage **Campaigns, Templates, Chats, and Contacts** for their specific clients with strict permission isolation.
-*   **Permission Sync:** Fixed "Fuzzy Matching" for permissions—ensuring sidebars correctly show/hide based on assigned roles.
+### 🛠️ Developer REST APIs & Webhooks
+*   **APIs for Channels:** Exposed developer REST API endpoints to fetch unofficial WhatsApp channel conversations and message history.
+*   **Webhook DLR Forwarding:** Enabled automated delivery reports (DLR) webhook forwarding to custom user endpoints with optional secure header tokens.
 
 ---
 
 <details>
 <summary>📂 <b>View All Technical Git Logs (Historical Archive)</b></summary>
 <br>
+
+## [2026-06-01]
+- feat: 📡 10-second automatic background refresh and socket.io updates in reports dashboard
+- feat: 🛠️ Enable real-time status updates and channel filtering for Unofficial WhatsApp reports
+- feat: 🔗 Support tracking original custom campaign ID via metadata across multi-recipient or rotated dispatches
+- feat: 📲 Set providerMessageId to campaign_id in webhook forwarding
+- feat: ⚙️ Update unofficial WhatsApp send and webhook forwarding to match custom developer payload and headers
+- ui: 🏷️ Update footer with "Powered by Cell24x7" link
+
+## [2026-05-31]
+- feat: 📞 Update landing page contact information with sales email and phone number
+
+## [2026-05-30]
+- feat: 💬 Make developer chats API query independent of active channel connection state by fallback querying local database logs
+- fix: 🔑 Ignore truncated x-api-key placeholder in developer auth middleware and fallback to bearer token
+- feat: 📂 Add developer api endpoints for fetching channel chats and messages
+
+## [2026-05-29]
+- chore: 💳 Change PayPal mode to live to match production credentials
+- feat: ⚙️ Add PayPal credentials to env configs
+- feat: 💰 Add PayPal payment gateway option alongside CCAvenue for platform and resellers
+
+## [2026-05-28]
+- fix: ⚠️ Fix frontend error details parsing for WhatsApp templates and add error toast to Templates tab
+- feat: 🛠️ Show precise Meta API error details in Campaign select template wizard
+- fix: 🔐 Fix social login config IDs, Facebook login query bug, and add secure WhatsApp diagnostic route
+- feat: 📡 Move unofficial WhatsApp DLR webhook settings to super-admin client modal and restrict webhook payload to essential fields
+- feat: ⚙️ Add developer webhook DLR forwarding and settings UI
+- fix: 🚀 Ignore wait command failures in deploy script
+- feat: 🔑 Add public endpoint to retrieve/generate developer API Key
+- feat: 🔐 Add developer API key auth and settings UI
+- brand: 🎨 Replace NotifyNow logo with transparent veloxaio logo across all layout files and public assets
+- debug: 🔍 Add temporary debug-automations-graph route
+
+## [2026-05-27]
+- fix: ⚙️ Implement criteria_router and list option mapping in automation service
+- fix: 🤖 Implement stateless flow resumption fallback in automationService
 
 ## [2026-04-30]
 - feat: 📱 Premium Multi-Channel Live Preview with unified Phone Mockup frame (Templates.tsx)
