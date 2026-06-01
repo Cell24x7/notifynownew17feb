@@ -576,12 +576,13 @@ export default function Reports() {
 
                     <div className="flex items-center gap-2">
                         <Select value={channelFilter} onValueChange={setChannelFilter}>
-                            <SelectTrigger className="w-[150px] h-9 text-xs font-semibold bg-muted/20 border-border">
+                            <SelectTrigger className="w-[180px] h-9 text-xs font-semibold bg-muted/20 border-border">
                                 <SelectValue placeholder="All Channels" />
                             </SelectTrigger>
                             <SelectContent className="bg-card border-border">
                                 <SelectItem value="all">All Channels</SelectItem>
-                                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                                <SelectItem value="whatsapp">WhatsApp (Official)</SelectItem>
+                                <SelectItem value="whatsapp_unofficial">WhatsApp (Unofficial)</SelectItem>
                                 <SelectItem value="rcs">RCS</SelectItem>
                                 <SelectItem value="sms">SMS</SelectItem>
                             </SelectContent>
@@ -815,8 +816,11 @@ export default function Reports() {
                                                         <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-black uppercase", 
                                                             (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'sms' ? "bg-amber-50 text-amber-700" : 
                                                             (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : 
+                                                            (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp_unofficial' ? "bg-teal-50 text-teal-700 border border-teal-200/50" :
                                                             "bg-blue-50 text-blue-700")}>
-                                                            {log.channel || log.campaign_channel || 'rcs'}
+                                                            {(log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp_unofficial' 
+                                                                ? 'WhatsApp Unofficial' 
+                                                                : (log.channel || log.campaign_channel || 'rcs')}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-[10px] border-r border-border text-center px-3 py-2 font-medium text-muted-foreground">

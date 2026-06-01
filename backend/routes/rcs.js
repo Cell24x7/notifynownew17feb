@@ -160,8 +160,15 @@ router.get('/reports', authenticate, async (req, res) => {
     const params = [];
 
     if (channel && channel !== 'all') {
-      sql += ` AND c.channel = ?`;
-      params.push(channel);
+      const chLower = channel.toLowerCase();
+      if (chLower === 'whatsapp') {
+        sql += ` AND (c.channel = 'WhatsApp' OR c.channel = 'whatsapp')`;
+      } else if (chLower === 'whatsapp_unofficial') {
+        sql += ` AND (c.channel = 'WhatsApp_Unofficial' OR c.channel = 'whatsapp_unofficial')`;
+      } else {
+        sql += ` AND c.channel = ?`;
+        params.push(channel);
+      }
     }
 
     // Filter by userId. If provided and user is admin, use targetUserId.

@@ -606,8 +606,15 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         }
 
         if (req.query.channel && req.query.channel !== 'all') {
-            conditions.push("ml.channel = ?");
-            params.push(req.query.channel);
+            const chLower = req.query.channel.toLowerCase();
+            if (chLower === 'whatsapp') {
+                conditions.push("(ml.channel = 'WhatsApp' OR ml.channel = 'whatsapp')");
+            } else if (chLower === 'whatsapp_unofficial') {
+                conditions.push("(ml.channel = 'WhatsApp_Unofficial' OR ml.channel = 'whatsapp_unofficial')");
+            } else {
+                conditions.push("ml.channel = ?");
+                params.push(req.query.channel);
+            }
         }
 
         if (req.query.search) {
@@ -1466,6 +1473,18 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     );
                 }
 
+                // Priority 3: Match by phone only fallback (latest 'sent' log)
+                if (rows.length === 0 && recipient) {
+                    const cleanPhone = String(recipient).replace(/\D/g, '');
+                    const last10 = cleanPhone.slice(-10);
+                    [rows] = await query(
+                        `SELECT id, status, user_id, message_id, recipient, campaign_id, metadata FROM api_message_logs
+                         WHERE (recipient LIKE ? OR recipient = ?) AND status = 'sent' AND channel = 'WhatsApp_Unofficial'
+                         ORDER BY id DESC LIMIT 1`,
+                        [`%${last10}`, cleanPhone]
+                    );
+                }
+
                 if (rows.length === 0) continue;
 
                 const row = rows[0];
@@ -1479,30 +1498,33 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     await query(
                         `UPDATE api_message_logs
                          SET status = 'delivered',
+                             message_id = COALESCE(?, message_id),
                              delivery_time = COALESCE(delivery_time, NOW()),
                              updated_at = NOW()
                          WHERE id = ?`,
-                        [row.id]
+                        [messageId || null, row.id]
                     );
                 } else if (status === 'read') {
                     await query(
                         `UPDATE api_message_logs
                          SET status = 'read',
+                             message_id = COALESCE(?, message_id),
                              delivery_time = COALESCE(delivery_time, NOW()),
                              read_time = COALESCE(read_time, NOW()),
                              updated_at = NOW()
                          WHERE id = ?`,
-                        [row.id]
+                        [messageId || null, row.id]
                     );
                 } else if (status === 'failed') {
                     const reason = event.reason || event.error || event.failure_reason || 'Gateway delivery failure';
                     await query(
                         `UPDATE api_message_logs
                          SET status = 'failed',
+                             message_id = COALESCE(?, message_id),
                              failure_reason = ?,
                              updated_at = NOW()
                          WHERE id = ?`,
-                        [reason, row.id]
+                        [messageId || null, reason, row.id]
                     );
                 }
 

@@ -41,6 +41,8 @@ interface WebhookLog {
     failure_reason: string | null;
     created_at: string;
     updated_at: string;
+    channel?: string;
+    campaign_channel?: string;
 }
 
 interface Client {
@@ -205,13 +207,14 @@ export default function SuperAdminReports() {
 
             downloadCsv(csvContent, `super_admin_summary_${selectedUserId}_${format(new Date(), 'yyyyMMdd')}.csv`);
         } else if (activeTab === 'detailed') {
-            const headers = ['Id', 'Rtime', 'Mobile', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
+            const headers = ['Id', 'Rtime', 'Mobile', 'Channel', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
             const csvContent = [
                 headers.join(','),
                 ...webhookLogs.map(l => [
                     l.id,
                     l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
                     l.recipient,
+                    `"${l.channel || l.campaign_channel || 'rcs'}"`,
                     l.send_time ? format(new Date(l.send_time), 'HH:mm:ss') : '-',
                     l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
                     l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
@@ -452,6 +455,7 @@ export default function SuperAdminReports() {
                                                 <TableHead className="w-[50px] font-bold text-black border-r px-2 text-[10px]">Id</TableHead>
                                                 <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Rtime</TableHead>
                                                 <TableHead className="w-[100px] font-bold text-black border-r text-center px-2 text-[10px]">Mobile</TableHead>
+                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Channel</TableHead>
                                                 <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">sendTime</TableHead>
                                                 <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">DelTime</TableHead>
                                                 <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">ReadTime</TableHead>
@@ -477,6 +481,17 @@ export default function SuperAdminReports() {
                                                         </TableCell>
                                                         <TableCell className="text-[10px] border-r text-center px-2">
                                                             {log.recipient?.replace(/^\+/, '')}
+                                                        </TableCell>
+                                                        <TableCell className="text-center border-r px-2 py-2">
+                                                            <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-black uppercase", 
+                                                                (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'sms' ? "bg-amber-50 text-amber-700" : 
+                                                                (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : 
+                                                                (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp_unofficial' ? "bg-teal-50 text-teal-700 border border-teal-200/50" :
+                                                                "bg-blue-50 text-blue-700")}>
+                                                                {(log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp_unofficial' 
+                                                                    ? 'WhatsApp Unofficial' 
+                                                                    : (log.channel || log.campaign_channel || 'rcs')}
+                                                            </Badge>
                                                         </TableCell>
                                                         <TableCell className="text-[10px] border-r text-center px-2">
                                                             {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
