@@ -1525,7 +1525,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     }
 
                     const webhookPayload = {
-                        providerMessageId: messageId || row.message_id,
+                        providerMessageId: row.campaign_id || messageId || row.message_id,
                         message_id: messageId || row.message_id, // kept for backward compatibility
                         recipient: recipient || row.recipient,
                         status: mappedStatus,
