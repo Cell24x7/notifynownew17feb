@@ -1504,6 +1504,9 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                          WHERE id = ?`,
                         [messageId || null, row.id]
                     );
+                    if (row.campaign_id && oldW < 2) {
+                        await query('UPDATE api_campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [row.campaign_id]);
+                    }
                 } else if (status === 'read') {
                     await query(
                         `UPDATE api_message_logs
@@ -1515,6 +1518,13 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                          WHERE id = ?`,
                         [messageId || null, row.id]
                     );
+                    if (row.campaign_id && oldW < 3) {
+                        if (oldW < 2) {
+                            await query('UPDATE api_campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [row.campaign_id]);
+                        } else {
+                            await query('UPDATE api_campaigns SET read_count = read_count + 1 WHERE id = ?', [row.campaign_id]);
+                        }
+                    }
                 } else if (status === 'failed') {
                     const reason = event.reason || event.error || event.failure_reason || 'Gateway delivery failure';
                     await query(
@@ -1526,6 +1536,9 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                          WHERE id = ?`,
                         [messageId || null, reason, row.id]
                     );
+                    if (row.campaign_id && oldW < 99) {
+                        await query('UPDATE api_campaigns SET failed_count = failed_count + 1 WHERE id = ?', [row.campaign_id]);
+                    }
                 }
 
                 console.log(`[WA-UNOFFICIAL-DLR] Log ${row.id}: ${row.status} → ${status} (campaign:${campaignId}, phone:${recipient})`);

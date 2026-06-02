@@ -39,10 +39,10 @@ async function fetchBaileysRecipientStatus(campaignId) {
         );
         const data = res.data;
         const logs = data?.logs || data?.data || (Array.isArray(data) ? data : null);
-        if (Array.isArray(logs) && logs.length > 0 && logs[0].status) {
+        if (Array.isArray(logs) && logs.length > 0 && (logs[0].status || logs[0].queue_status)) {
             return logs.map(l => ({
-                phone: String(l.phone || l.mobile || l.number || l.recipient || '').replace(/\D/g, ''),
-                status: (l.status || 'sent').toLowerCase()
+                phone: String(l.phone_number || l.phone || l.mobile || l.number || l.recipient || '').replace(/\D/g, ''),
+                status: (l.status || l.queue_status || 'sent').toLowerCase()
             })).filter(l => l.phone.length >= 10);
         }
     } catch (e) { /* endpoint may not exist */ }
@@ -55,12 +55,12 @@ async function fetchBaileysRecipientStatus(campaignId) {
         );
         const data = res.data;
         const contacts = data?.contacts || data?.data || (Array.isArray(data) ? data : null);
-        if (Array.isArray(contacts) && contacts.length > 0 && contacts[0].status) {
+        if (Array.isArray(contacts) && contacts.length > 0 && (contacts[0].status || contacts[0].queue_status)) {
             const actionable = contacts
-                .filter(c => ['delivered', 'read', 'failed'].includes((c.status || '').toLowerCase()))
+                .filter(c => ['delivered', 'read', 'failed'].includes((c.status || c.queue_status || '').toLowerCase()))
                 .map(c => ({
-                    phone: String(c.phone || c.mobile || c.number || '').replace(/\D/g, ''),
-                    status: c.status.toLowerCase()
+                    phone: String(c.phone_number || c.phone || c.mobile || c.number || '').replace(/\D/g, ''),
+                    status: (c.status || c.queue_status).toLowerCase()
                 }))
                 .filter(c => c.phone.length >= 10);
             if (actionable.length > 0) return actionable;
@@ -110,7 +110,8 @@ async function syncCampaign(campaignId) {
 
                 const row = rows[0];
                 const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
-                if ((weights[status] || 0) <= (weights[row.status?.toLowerCase()] || 0)) continue;
+                const oldStatus = (row.status || 'sent').toLowerCase();
+                if ((weights[status] || 0) <= (weights[oldStatus] || 0)) continue;
 
                 if (status === 'delivered') {
                     await query(
@@ -121,6 +122,9 @@ async function syncCampaign(campaignId) {
                          WHERE id = ?`,
                         [row.id]
                     );
+                    if (oldStatus !== 'delivered' && oldStatus !== 'read') {
+                        await query(`UPDATE api_campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [campaignId]);
+                    }
                 } else if (status === 'read') {
                     await query(
                         `UPDATE api_message_logs
@@ -131,6 +135,13 @@ async function syncCampaign(campaignId) {
                          WHERE id = ?`,
                         [row.id]
                     );
+                    if (oldStatus !== 'read') {
+                        if (oldStatus !== 'delivered') {
+                            await query(`UPDATE api_campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [campaignId]);
+                        } else {
+                            await query(`UPDATE api_campaigns SET read_count = read_count + 1 WHERE id = ?`, [campaignId]);
+                        }
+                    }
                 } else if (status === 'failed') {
                     await query(
                         `UPDATE api_message_logs
@@ -140,6 +151,9 @@ async function syncCampaign(campaignId) {
                          WHERE id = ?`,
                         [row.id]
                     );
+                    if (oldStatus !== 'failed') {
+                        await query(`UPDATE api_campaigns SET failed_count = failed_count + 1 WHERE id = ?`, [campaignId]);
+                    }
                 }
                 updated++;
             }
@@ -210,6 +224,17 @@ async function syncCampaign(campaignId) {
                  WHERE id = ?`,
                 [failCandidates[i].id]
             );
+        }
+
+        // Bulk update campaign counters
+        if (toMarkRead > 0) {
+            await query(`UPDATE api_campaigns SET delivered_count = delivered_count + ?, read_count = read_count + ? WHERE id = ?`, [toMarkRead, toMarkRead, campaignId]);
+        }
+        if (toMarkDelivered > 0) {
+            await query(`UPDATE api_campaigns SET delivered_count = delivered_count + ? WHERE id = ?`, [toMarkDelivered, campaignId]);
+        }
+        if (toMarkFailed > 0) {
+            await query(`UPDATE api_campaigns SET failed_count = failed_count + ? WHERE id = ?`, [toMarkFailed, campaignId]);
         }
 
         const totalChanged = toMarkRead + toMarkDelivered + toMarkFailed;
