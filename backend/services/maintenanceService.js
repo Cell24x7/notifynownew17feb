@@ -96,6 +96,9 @@ async function runMaintenance() {
         const [apiResult] = await query(`DELETE FROM api_message_logs WHERE created_at < NOW() - INTERVAL 90 DAY`);
         // console.log(`✅ [Maintenance] Cleaned ${apiResult.affectedRows} old API message logs.`);
 
+        // Prune otp_verifications older than 30 days to keep table fast
+        await query(`DELETE FROM otp_verifications WHERE created_at < NOW() - INTERVAL 30 DAY`).catch(() => {});
+
     } catch (error) {
         console.error('❌ [Maintenance] Cleanup failed:', error.message);
     }
