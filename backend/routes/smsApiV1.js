@@ -241,8 +241,239 @@ const handleSendSms = async (req, res) => {
     }
 };
 
+/**
+ * Handle OTP SMS Generation and Dispatch
+ */
+const handleSendOtp = async (req, res) => {
+    const params = { ...req.query, ...req.body };
+    const mobile = params.mobile || params.to || params.phone;
+    const message = params.message || params.msg || params.text;
+    
+    // DLT Specific IDs
+    let templateId = params.templateId || params.template_id || params.dlt_template_id || params.temp_id;
+    let senderId = params.senderId || params.sender_id || params.sender || params.from;
+    let peId = params.peId || params.pe_id;
+    let hashId = params.hashId || params.hash_id;
+
+    if (!mobile) {
+        return res.status(400).json({ success: false, message: 'Mobile number is required (mobile or to)' });
+    }
+
+    if (!message) {
+        return res.status(400).json({ success: false, message: 'Message content is required (must contain OTP placeholder e.g. %OTP%)' });
+    }
+
+    // Must contain %OTP%, {#OTP#}, or {{otp}}
+    const hasPlaceholder = /%OTP%|\{#OTP#\}|\{\{otp\}\}/i.test(message);
+    if (!hasPlaceholder) {
+        return res.status(400).json({ success: false, message: 'Message template must contain an OTP placeholder: %OTP%, {#OTP#}, or {{otp}}' });
+    }
+
+    const cleanMobile = mobile.replace(/\D/g, '');
+    if (!cleanMobile) {
+        return res.status(400).json({ success: false, message: 'Invalid mobile number' });
+    }
+
+    try {
+        // Generate 6-digit OTP code and unique session ID
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const { v4: uuidv4 } = require('uuid');
+        const otpSessionId = 'otp_' + uuidv4().replace(/-/g, '');
+        const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins expiry
+
+        // Replace placeholder in message
+        const finalMessage = message.replace(/%OTP%|\{#OTP#\}|\{\{otp\}\}/gi, otpCode);
+
+        let finalTemplateId = templateId || '';
+        let finalSenderId = senderId || '';
+        let finalPeId = peId || '';
+        let finalHashId = hashId || '';
+        let templateResolved = false;
+
+        // Resolve DLT Metadata from Database if templateId is provided
+        if (templateId) {
+            // Check user's message_templates first
+            const [msgTmpl] = await query(
+                'SELECT name, body, metadata FROM message_templates WHERE (id = ? OR name = ?) AND user_id = ? LIMIT 1',
+                [templateId, templateId, req.user.id]
+            );
+
+            if (msgTmpl.length > 0) {
+                const tmpl = msgTmpl[0];
+                try {
+                    const meta = typeof tmpl.metadata === 'string' ? JSON.parse(tmpl.metadata) : (tmpl.metadata || {});
+                    finalTemplateId = meta.templateId || meta.dlt_template_id || finalTemplateId;
+                    finalPeId = meta.peId || meta.pe_id || finalPeId;
+                    finalHashId = meta.hashId || meta.hash_id || finalHashId;
+                    templateResolved = true;
+                } catch (e) {
+                    console.warn('[SMS-API-OTP] Meta parse failed for templateId:', templateId);
+                }
+            } else {
+                // Check global dlt_templates if not found in personal templates
+                const [dltTmpl] = await query(
+                    'SELECT temp_id, pe_id, hash_id FROM dlt_templates WHERE (temp_id = ? OR temp_name = ?) LIMIT 1',
+                    [templateId, templateId]
+                );
+                
+                if (dltTmpl.length > 0) {
+                    finalTemplateId = dltTmpl[0].temp_id;
+                    finalPeId = dltTmpl[0].pe_id || finalPeId;
+                    finalHashId = dltTmpl[0].hash_id || finalHashId;
+                    templateResolved = true;
+                }
+            }
+        } 
+
+        // Save OTP record to database
+        await query(
+            'INSERT INTO otp_verifications (user_id, mobile, otp_code, otp_session_id, expiry, status, attempts) VALUES (?, ?, ?, ?, ?, "pending", 0)',
+            [req.user.id, cleanMobile, otpCode, otpSessionId, expiry]
+        );
+
+        // Credit Check & Deduction
+        const creditResult = await deductSingleMessageCredit(req.user.id, 'sms', finalTemplateId || 'OTP Send');
+        if (!creditResult.success) {
+            return res.status(402).json({ success: false, message: creditResult.message });
+        }
+
+        // Dispatch SMS
+        const baseUrl = (process.env.API_BASE_URL || 'http://notifynow.in').replace('https://', 'http://');
+        const callbackUrl = `${baseUrl}/api/webhooks/sms/callback`;
+        
+        const smsResult = await sendSMS(cleanMobile, finalMessage, {
+            userId: req.user.id,
+            templateId: finalTemplateId,
+            sender: finalSenderId,
+            peId: finalPeId,
+            hashId: finalHashId,
+            callbackUrl: callbackUrl
+        });
+
+        if (!smsResult.success) {
+            return res.status(502).json({ 
+                success: false, 
+                message: 'Gateway Rejection: ' + smsResult.error,
+                details: 'Ensure your message matches the DLT template exactly and provides valid Template ID.'
+            });
+        }
+
+        // Log to API usage
+        const finalMsgId = smsResult.messageId;
+        await query(
+            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
+            [req.user.id, 'API_OTP_V1', 'OTP SMS API', finalTemplateId || 'OTP SMS', finalMsgId, cleanMobile, 'sent', 'SMS']
+        );
+
+        res.json({
+            success: true,
+            message: 'OTP sent successfully',
+            otp_session_id: otpSessionId
+        });
+
+    } catch (err) {
+        console.error('OTP Send API error:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error: ' + err.message });
+    }
+};
+
+/**
+ * Handle OTP Verification
+ */
+const handleVerifyOtp = async (req, res) => {
+    const params = { ...req.query, ...req.body };
+    const mobile = params.mobile || params.to || params.phone;
+    const otp = params.otp || params.code;
+    const otpSessionId = params.otp_session_id || params.sessionId || params.session_id;
+
+    if (!mobile) {
+        return res.status(400).json({ success: false, message: 'Mobile number is required (mobile or to)' });
+    }
+
+    if (!otp) {
+        return res.status(400).json({ success: false, message: 'OTP code is required (otp or code)' });
+    }
+
+    const cleanMobile = mobile.replace(/\D/g, '');
+    if (!cleanMobile) {
+        return res.status(400).json({ success: false, message: 'Invalid mobile number' });
+    }
+
+    try {
+        let record = null;
+        if (otpSessionId) {
+            // Find specific session
+            const [rows] = await query(
+                'SELECT * FROM otp_verifications WHERE user_id = ? AND mobile = ? AND otp_session_id = ? ORDER BY id DESC LIMIT 1',
+                [req.user.id, cleanMobile, otpSessionId]
+            );
+            if (rows.length > 0) record = rows[0];
+        } else {
+            // Find latest pending session for this number
+            const [rows] = await query(
+                'SELECT * FROM otp_verifications WHERE user_id = ? AND mobile = ? AND status = "pending" ORDER BY id DESC LIMIT 1',
+                [req.user.id, cleanMobile]
+            );
+            if (rows.length > 0) record = rows[0];
+        }
+
+        if (!record) {
+            return res.status(404).json({ success: false, message: 'No pending OTP verification request found for this mobile number.' });
+        }
+
+        // Check if already verified
+        if (record.status === 'verified') {
+            return res.status(400).json({ success: false, message: 'OTP has already been verified' });
+        }
+
+        // Check if expired
+        const isExpiredByTime = new Date() > new Date(record.expiry);
+        if (record.status === 'expired' || isExpiredByTime) {
+            if (record.status === 'pending') {
+                await query('UPDATE otp_verifications SET status = "expired" WHERE id = ?', [record.id]);
+            }
+            return res.status(400).json({ success: false, message: 'OTP has expired' });
+        }
+
+        // Verify the code
+        if (record.otp_code.trim() !== otp.toString().trim()) {
+            const newAttempts = record.attempts + 1;
+            let finalStatus = 'pending';
+            
+            if (newAttempts >= 3) {
+                finalStatus = 'expired';
+            }
+
+            await query('UPDATE otp_verifications SET attempts = ?, status = ? WHERE id = ?', [newAttempts, finalStatus, record.id]);
+
+            if (finalStatus === 'expired') {
+                return res.status(400).json({ success: false, message: 'Invalid OTP. Max verification attempts exceeded. OTP expired.' });
+            }
+            return res.status(400).json({ success: false, message: 'Invalid OTP' });
+        }
+
+        // OTP is correct! Update status to verified
+        await query('UPDATE otp_verifications SET status = "verified" WHERE id = ?', [record.id]);
+
+        res.json({
+            success: true,
+            message: 'OTP verified successfully'
+        });
+
+    } catch (err) {
+        console.error('OTP Verification API error:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error: ' + err.message });
+    }
+};
+
 router.get('/send', authenticateApiKey, handleSendSms);
 router.post('/send', authenticateApiKey, handleSendSms);
+
+router.get('/otp/send', authenticateApiKey, handleSendOtp);
+router.post('/otp/send', authenticateApiKey, handleSendOtp);
+
+router.get('/otp/verify', authenticateApiKey, handleVerifyOtp);
+router.post('/otp/verify', authenticateApiKey, handleVerifyOtp);
 
 // Diagnostic Tools for Developers
 router.get('/debug-templates', authenticateApiKey, async (req, res) => {

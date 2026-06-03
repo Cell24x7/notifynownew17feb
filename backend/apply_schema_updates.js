@@ -822,6 +822,31 @@ async function updateSchema() {
             console.log('Error creating SMM tables:', e.message);
         }
 
+        // 24. Client OTP Verifications Infrastructure
+        try {
+            console.log('Ensuring otp_verifications table exists...');
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS otp_verifications (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    mobile VARCHAR(20) NOT NULL,
+                    otp_code VARCHAR(20) NOT NULL,
+                    otp_session_id VARCHAR(100) UNIQUE NOT NULL,
+                    expiry TIMESTAMP NOT NULL,
+                    status ENUM('pending', 'verified', 'expired') DEFAULT 'pending',
+                    attempts INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_mobile (mobile),
+                    INDEX idx_session (otp_session_id),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            `);
+            console.log('✅ otp_verifications table ready.');
+        } catch (e) {
+            console.log('Error creating otp_verifications table:', e.message);
+        }
+
         console.log('--- Schema updates finished ---');
 
 
