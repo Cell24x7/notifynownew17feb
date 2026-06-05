@@ -116,7 +116,7 @@ export default function Reports() {
         setSearchParams({ tab });
     };
     
-    const [autoRefresh] = useState(true); // Mandatory auto-refresh
+    const [autoRefresh, setAutoRefresh] = useState(false);
 
     useEffect(() => {
         setSummaryPage(1); // Reset page on filter change
@@ -174,8 +174,8 @@ export default function Reports() {
         }
     }, [detailedPage, apiPage, engagementPage, targetUserId]);
 
-    const fetchReports = async (page: number = 1, fetchForTab: string = activeTab) => {
-        setLoading(true);
+    const fetchReports = async (page: number = 1, fetchForTab: string = activeTab, silent: boolean = false) => {
+        if (!silent) setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -216,8 +216,8 @@ export default function Reports() {
         }
     };
 
-    const fetchWebhookLogs = async (page: number = 1, currentTab: string = activeTab) => {
-        setLoadingLogs(true);
+    const fetchWebhookLogs = async (page: number = 1, currentTab: string = activeTab, silent: boolean = false) => {
+        if (!silent) setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -306,17 +306,7 @@ export default function Reports() {
         if (activeTab === 'engagement') fetchEngagementReports(engagementPage);
     }, [activeTab, startDate, endDate, searchQuery, targetUserId]);
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (autoRefresh) {
-            interval = setInterval(() => {
-                handleRefresh();
-            }, 30000); // Refresh every 30 seconds
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [autoRefresh, activeTab, summaryPage, scheduledPage, detailedPage]);
+    // Removed duplicate 30s auto-refresh interval
 
     const handleExport = async () => {
         try {
@@ -397,19 +387,22 @@ export default function Reports() {
         }
     };
 
-    const handleRefresh = () => {
-        if (activeTab === 'summary') fetchReports(summaryPage);
-        if (activeTab === 'scheduled') fetchReports(scheduledPage, 'scheduled');
-        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed');
-        if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api');
+    const handleRefresh = (silent: boolean = false) => {
+        if (activeTab === 'summary') {
+            fetchReports(summaryPage, 'summary', silent);
+            fetchSummaryStats();
+        }
+        if (activeTab === 'scheduled') fetchReports(scheduledPage, 'scheduled', silent);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed', silent);
+        if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api', silent);
     };
 
-    // Background Auto-Refresh every 10 seconds (Mandatory real-time updates)
+    // Background Auto-Refresh every 10 seconds
     useEffect(() => {
         if (!autoRefresh) return;
 
         const interval = setInterval(() => {
-            handleRefresh();
+            handleRefresh(true);
         }, 10000); // 10 seconds
 
         return () => clearInterval(interval);
@@ -475,7 +468,19 @@ export default function Reports() {
                     <p className="text-sm text-muted-foreground mt-1">Real-time performance and delivery intelligence</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={handleRefresh} className="h-9 px-4">
+                    <div className="flex items-center gap-2 mr-2">
+                        <input
+                            type="checkbox"
+                            id="auto-refresh-toggle"
+                            checked={autoRefresh}
+                            onChange={(e) => setAutoRefresh(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                        />
+                        <Label htmlFor="auto-refresh-toggle" className="text-xs font-bold cursor-pointer select-none text-muted-foreground">
+                            Auto-refresh (10s)
+                        </Label>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleRefresh(false)} className="h-9 px-4">
                       Refresh Data
                     </Button>
                     <Button variant="default" size="sm" onClick={handleExport} className="h-9 gap-2 shadow-md">

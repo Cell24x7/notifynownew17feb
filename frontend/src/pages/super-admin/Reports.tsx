@@ -83,6 +83,7 @@ export default function SuperAdminReports() {
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('summary');
+    const [autoRefresh, setAutoRefresh] = useState(false);
 
     // Fetch clients on mount
     useEffect(() => {
@@ -129,9 +130,9 @@ export default function SuperAdminReports() {
         if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
     }, [activeTab, searchQuery]);
 
-    const fetchReports = async (page: number = 1) => {
+    const fetchReports = async (page: number = 1, silent: boolean = false) => {
         if (!selectedUserId) return;
-        setLoading(true);
+        if (!silent) setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/rcs/reports?userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -157,9 +158,9 @@ export default function SuperAdminReports() {
         }
     };
 
-    const fetchWebhookLogs = async (page: number = 1) => {
+    const fetchWebhookLogs = async (page: number = 1, silent: boolean = false) => {
         if (!selectedUserId) return;
-        setLoadingLogs(true);
+        if (!silent) setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/webhooks/message-logs?userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -183,17 +184,21 @@ export default function SuperAdminReports() {
         }
     };
 
+    const handleRefresh = (silent: boolean = false) => {
+        if (activeTab === 'summary') fetchReports(summaryPage, silent);
+        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, silent);
+    };
+
     // Background Auto-Refresh every 10 seconds for super-admin dashboard
     useEffect(() => {
-        if (!selectedUserId) return;
+        if (!selectedUserId || !autoRefresh) return;
 
         const interval = setInterval(() => {
-            if (activeTab === 'summary') fetchReports(summaryPage);
-            if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
+            handleRefresh(true);
         }, 10000); // 10 seconds
 
         return () => clearInterval(interval);
-    }, [selectedUserId, activeTab, summaryPage, detailedPage, startDate, endDate, searchQuery]);
+    }, [selectedUserId, autoRefresh, activeTab, summaryPage, detailedPage, startDate, endDate, searchQuery]);
 
     const handleExport = () => {
         if (!selectedUserId) {
@@ -299,6 +304,25 @@ export default function SuperAdminReports() {
                     <p className="text-muted-foreground">Monitor performance across all users</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    {selectedUserId && (
+                        <>
+                            <div className="flex items-center gap-2 mr-2">
+                                <input
+                                    type="checkbox"
+                                    id="super-auto-refresh-toggle"
+                                    checked={autoRefresh}
+                                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                                />
+                                <Label htmlFor="super-auto-refresh-toggle" className="text-xs font-bold cursor-pointer select-none text-muted-foreground">
+                                    Auto-refresh (10s)
+                                </Label>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => handleRefresh(false)} className="h-9 px-4">
+                                Refresh Data
+                            </Button>
+                        </>
+                    )}
                     <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                         <SelectTrigger className="w-[280px] bg-primary/5 border-primary/20">
                             <User className="w-4 h-4 mr-2" />
