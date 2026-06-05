@@ -1,6 +1,13 @@
 const axios = require("axios");
 const FormData = require("form-data");
+const https = require("https");
 require("dotenv").config();
+
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 200,
+  keepAliveMsecs: 1000
+});
 
 // Token caching Map: configId -> { token, expiresAt }
 // Keys: 'default', 'admin', or configId
@@ -169,6 +176,7 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
+      httpsAgent,
       timeout: 6000
     });
 
@@ -228,6 +236,7 @@ const sendRcsMessage = async (mobile, message, config) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
+      httpsAgent,
       timeout: 6000
     });
 
