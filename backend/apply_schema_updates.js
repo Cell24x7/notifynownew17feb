@@ -506,10 +506,26 @@ async function updateSchema() {
 
         // 12. Fix campaign_queue status column (ENUM to VARCHAR)
         try {
-            console.log('Optimizing campaign_queue status column...');
-            await connection.execute('ALTER TABLE campaign_queue MODIFY COLUMN status VARCHAR(50) DEFAULT "pending"');
-            await connection.execute('ALTER TABLE api_campaign_queue MODIFY COLUMN status VARCHAR(50) DEFAULT "pending"');
-            console.log('Status columns optimized.');
+            const [cqCols] = await connection.execute('DESCRIBE campaign_queue');
+            const cqStatus = cqCols.find(col => col.Field === 'status');
+            const cqStatusAlreadyVarchar = cqStatus && cqStatus.Type.toLowerCase().indexOf('varchar') !== -1;
+
+            const [apiCqCols] = await connection.execute('DESCRIBE api_campaign_queue');
+            const apiCqStatus = apiCqCols.find(col => col.Field === 'status');
+            const apiCqStatusAlreadyVarchar = apiCqStatus && apiCqStatus.Type.toLowerCase().indexOf('varchar') !== -1;
+
+            if (!cqStatusAlreadyVarchar || !apiCqStatusAlreadyVarchar) {
+                console.log('Optimizing campaign_queue status columns...');
+                if (!cqStatusAlreadyVarchar) {
+                    await connection.execute('ALTER TABLE campaign_queue MODIFY COLUMN status VARCHAR(50) DEFAULT "pending"');
+                }
+                if (!apiCqStatusAlreadyVarchar) {
+                    await connection.execute('ALTER TABLE api_campaign_queue MODIFY COLUMN status VARCHAR(50) DEFAULT "pending"');
+                }
+                console.log('Status columns optimized.');
+            } else {
+                console.log('✅ campaign_queue and api_campaign_queue status columns are already VARCHAR.');
+            }
         } catch (e) {
             console.log('Error optimizing status columns:', e.message);
         }
@@ -529,39 +545,52 @@ async function updateSchema() {
                 )
             `);
 
-         console.log('🔓 [ConstraintLiberation] Dropping ALL check constraints on users table...');
-        // We drop known legacy constraint names and any that look like check constraints for this column
-        const [constraints] = await connection.execute(`
-            SELECT CONSTRAINT_NAME 
-            FROM information_schema.TABLE_CONSTRAINTS 
-            WHERE TABLE_NAME = 'users' 
-            AND TABLE_SCHEMA = DATABASE()
-            AND CONSTRAINT_TYPE = 'CHECK'
-        `);
+            const channelsEnabledCol = userCols.find(col => col.Field === 'channels_enabled');
+            const isAlreadyText = channelsEnabledCol && (
+                channelsEnabledCol.Type.toLowerCase().indexOf('text') !== -1 ||
+                channelsEnabledCol.Type.toLowerCase() === 'text'
+            );
 
-        for (const row of constraints) {
-            const cName = row.CONSTRAINT_NAME;
-            console.log(`🗑️  Dropping constraint: ${cName}...`);
-            try {
-                await connection.execute(`ALTER TABLE users DROP CONSTRAINT \`${cName}\``);
-            } catch (e) {
-                console.warn(`⚠️  Failed to drop ${cName} (likely already gone): ${e.message}`);
+            if (!isAlreadyText) {
+                console.log('🔓 [ConstraintLiberation] Dropping check constraints on users table...');
+                try {
+                    const [constraints] = await connection.execute(`
+                        SELECT CONSTRAINT_NAME 
+                        FROM information_schema.TABLE_CONSTRAINTS 
+                        WHERE TABLE_NAME = 'users' 
+                        AND TABLE_SCHEMA = DATABASE()
+                        AND CONSTRAINT_TYPE = 'CHECK'
+                    `);
+
+                    for (const row of constraints) {
+                        const cName = row.CONSTRAINT_NAME;
+                        console.log(`🗑️  Dropping constraint: ${cName}...`);
+                        try {
+                            await connection.execute(`ALTER TABLE users DROP CONSTRAINT \`${cName}\``);
+                        } catch (e) {
+                            console.warn(`⚠️  Failed to drop ${cName} (likely already gone): ${e.message}`);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Failed to query information_schema for check constraints:', e.message);
+                }
+
+                // Just in case it's a legacy MariaDB 'users_chk_1' style
+                try { await connection.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_chk_1"); } catch(e){}
+                try { await connection.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_chk_2"); } catch(e){}
+                try { await connection.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_chk_3"); } catch(e){}
+            } else {
+                console.log('✅ channels_enabled is already TEXT. Skipping check constraints dropping.');
             }
-        }
 
-        // Just in case it's a legacy MariaDB 'users_chk_1' style
-        try { await connection.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_chk_1"); } catch(e){}
-        try { await connection.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_chk_2"); } catch(e){}
-        try { await connection.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_chk_3"); } catch(e){}
-
-        console.log('🚀 Syncing AI Voice Bot infrastructure...');
-        // Final attempt to update - we use a direct string if JSON_ARRAY fails
-        try {
-            await connection.execute('UPDATE users SET channels_enabled = "[\"WhatsApp\", \"SMS\", \"RCS\", \"Email\", \"voicebot\"]" WHERE channels_enabled IS NULL OR channels_enabled = "" OR channels_enabled = "[]"');
-        } catch (e) {
-            console.warn('⚠️ JSON_ARRAY failed, using raw string update...');
-            await connection.execute("UPDATE users SET channels_enabled = '[\"WhatsApp\", \"SMS\", \"RCS\", \"Email\", \"voicebot\"]' WHERE channels_enabled IS NULL OR channels_enabled = ''");
-        }
+            console.log('🚀 Syncing AI Voice Bot infrastructure...');
+            // Final attempt to update - we use a direct string if JSON_ARRAY fails
+            try {
+                await connection.execute('UPDATE users SET channels_enabled = "[\"WhatsApp\", \"SMS\", \"RCS\", \"Email\", \"voicebot\"]" WHERE channels_enabled IS NULL OR channels_enabled = "" OR channels_enabled = "[]"');
+            } catch (e) {
+                console.warn('⚠️ JSON_ARRAY failed, using raw string update...');
+                await connection.execute("UPDATE users SET channels_enabled = '[\"WhatsApp\", \"SMS\", \"RCS\", \"Email\", \"voicebot\"]' WHERE channels_enabled IS NULL OR channels_enabled = ''");
+            }
           
             // Add voice columns to users
             if (!userCols.some(col => col.Field === 'voice_price')) {
@@ -581,17 +610,21 @@ async function updateSchema() {
             }
 
             // 💎 PROERO: Liberate channels_enabled from any restrictive legacy constraints
-            console.log('Liberating channels_enabled column from legacy constraints...');
-            try {
-                // Ensure the column is TEXT to handle growing channel lists and remove ENUM/Length limits
-                await connection.execute('ALTER TABLE users MODIFY COLUMN channels_enabled TEXT');
-                
-                // For MySQL 8+, try to drop the specific check constraint if it exists
-                // We attempt this inside a try-catch as the constraint name might vary or not exist
-                await connection.execute(`ALTER TABLE users DROP CHECK channels_enabled`).catch(() => {});
-                await connection.execute(`ALTER TABLE users DROP CONSTRAINT channels_enabled`).catch(() => {});
-            } catch (libError) {
-                console.log('Note: Column already liberated or constraint not found.');
+            if (!isAlreadyText) {
+                console.log('Liberating channels_enabled column from legacy constraints...');
+                try {
+                    // Ensure the column is TEXT to handle growing channel lists and remove ENUM/Length limits
+                    await connection.execute('ALTER TABLE users MODIFY COLUMN channels_enabled TEXT');
+                    
+                    // For MySQL 8+, try to drop the specific check constraint if it exists
+                    // We attempt this inside a try-catch as the constraint name might vary or not exist
+                    await connection.execute(`ALTER TABLE users DROP CHECK channels_enabled`).catch(() => {});
+                    await connection.execute(`ALTER TABLE users DROP CONSTRAINT channels_enabled`).catch(() => {});
+                } catch (libError) {
+                    console.log('Note: Column already liberated or constraint not found.');
+                }
+            } else {
+                console.log('✅ channels_enabled column is already TEXT (liberated).');
             }
 
             // Enable voicebot channel for all users who have access to other channels
