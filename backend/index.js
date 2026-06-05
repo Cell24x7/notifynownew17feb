@@ -291,4 +291,47 @@ app.get('*', (req, res) => {
   });
 });
 
+app.get('/api/turbo-diagnostics', async (req, res) => {
+  const { execSync } = require('child_process');
+  const fs = require('fs');
+  const results = {};
+  
+  // 1. Run pm2 status
+  try {
+    results.pm2_status = execSync('pm2 status', { encoding: 'utf8' });
+  } catch (err) {
+    results.pm2_status = 'Error: ' + err.message;
+  }
+  
+  // 2. Check PM2 logs directory
+  try {
+    const logDir = require('os').homedir() + '/.pm2/logs';
+    if (fs.existsSync(logDir)) {
+      results.log_files = fs.readdirSync(logDir);
+      // Read last 150 lines of active logs
+      const outLog = logDir + '/notifynow-live-prod-out.log';
+      const errLog = logDir + '/notifynow-live-prod-error.log';
+      if (fs.existsSync(outLog)) {
+        results.out_log_tail = fs.readFileSync(outLog, 'utf8').split('\n').slice(-150).join('\n');
+      }
+      if (fs.existsSync(errLog)) {
+        results.err_log_tail = fs.readFileSync(errLog, 'utf8').split('\n').slice(-150).join('\n');
+      }
+    } else {
+      results.log_files = 'Dir not found: ' + logDir;
+    }
+  } catch (err) {
+    results.log_files_error = err.message;
+  }
+  
+  // 3. Redis / BullMQ check
+  try {
+    results.redis_ping = execSync('redis-cli ping', { encoding: 'utf8' }).trim();
+  } catch (err) {
+    results.redis_error = err.message;
+  }
+  
+  res.json(results);
+});
+
 module.exports = app;
