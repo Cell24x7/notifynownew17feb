@@ -24,6 +24,20 @@ if (daysIndex !== -1 && args[daysIndex + 1]) {
 async function recalculateManualCampaign(camp) {
     const start = Date.now();
     try {
+        const [queueRes] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ?', [camp.id]);
+        const [logsRes] = await query('SELECT COUNT(DISTINCT recipient) as count FROM message_logs WHERE campaign_id = ?', [camp.id]);
+        
+        const queueCount = queueRes[0]?.count || 0;
+        const logsCount = logsRes[0]?.count || 0;
+        
+        let total = Math.max(camp.recipient_count || 0, camp.audience_count || 0, queueCount, logsCount);
+        
+        if (total > (camp.recipient_count || 0)) {
+            await query('UPDATE campaigns SET recipient_count = ?, audience_count = ? WHERE id = ?', [total, total, camp.id]);
+            camp.recipient_count = total;
+            camp.audience_count = total;
+        }
+
         const [statsResult] = await query(`
             SELECT 
                 COALESCE(SUM(is_sent), 0) as sent_count,
@@ -43,7 +57,6 @@ async function recalculateManualCampaign(camp) {
         `, [camp.id]);
 
         const stats = statsResult[0];
-        const total = camp.recipient_count || camp.audience_count || 0;
         
         let sent = stats.sent_count;
         let failed = stats.failed_count;
@@ -59,7 +72,7 @@ async function recalculateManualCampaign(camp) {
             [sent, delivered, read, failed, camp.id]
         );
         const duration = Date.now() - start;
-        console.log(`✅ Updated Campaign: ${camp.name} (${camp.id}) -> Sent: ${sent}, Delivered: ${delivered}, Read: ${read}, Failed: ${failed} (Took ${duration}ms)`);
+        console.log(`✅ Updated Campaign: ${camp.name} (${camp.id}) -> Total: ${total}, Sent: ${sent}, Delivered: ${delivered}, Read: ${read}, Failed: ${failed} (Took ${duration}ms)`);
     } catch (err) {
         console.error(`❌ Error updating manual campaign ${camp.id}:`, err.message);
     }
@@ -68,6 +81,20 @@ async function recalculateManualCampaign(camp) {
 async function recalculateApiCampaign(camp) {
     const start = Date.now();
     try {
+        const [queueRes] = await query('SELECT COUNT(*) as count FROM api_campaign_queue WHERE campaign_id = ?', [camp.id]);
+        const [logsRes] = await query('SELECT COUNT(DISTINCT recipient) as count FROM api_message_logs WHERE campaign_id = ?', [camp.id]);
+        
+        const queueCount = queueRes[0]?.count || 0;
+        const logsCount = logsRes[0]?.count || 0;
+        
+        let total = Math.max(camp.recipient_count || 0, camp.audience_count || 0, queueCount, logsCount);
+        
+        if (total > (camp.recipient_count || 0)) {
+            await query('UPDATE api_campaigns SET recipient_count = ?, audience_count = ? WHERE id = ?', [total, total, camp.id]);
+            camp.recipient_count = total;
+            camp.audience_count = total;
+        }
+
         const [statsResult] = await query(`
             SELECT 
                 COALESCE(SUM(is_sent), 0) as sent_count,
@@ -87,7 +114,6 @@ async function recalculateApiCampaign(camp) {
         `, [camp.id]);
 
         const stats = statsResult[0];
-        const total = camp.recipient_count || camp.audience_count || 0;
         
         let sent = stats.sent_count;
         let failed = stats.failed_count;
@@ -103,7 +129,7 @@ async function recalculateApiCampaign(camp) {
             [sent, delivered, read, failed, camp.id]
         );
         const duration = Date.now() - start;
-        console.log(`✅ Updated API Campaign: ${camp.name} (${camp.id}) -> Sent: ${sent}, Delivered: ${delivered}, Read: ${read}, Failed: ${failed} (Took ${duration}ms)`);
+        console.log(`✅ Updated API Campaign: ${camp.name} (${camp.id}) -> Total: ${total}, Sent: ${sent}, Delivered: ${delivered}, Read: ${read}, Failed: ${failed} (Took ${duration}ms)`);
     } catch (err) {
         console.error(`❌ Error updating API campaign ${camp.id}:`, err.message);
     }

@@ -176,6 +176,21 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             console.error(`[Worker:${processorName}] Recovery error:`, recoverErr.message);
         }
 
+        // --- 1.5. Check for IST DND regulatory window (9:00 PM to 9:00 AM) for manual campaigns ---
+        if (campaignTable === 'campaigns') {
+            const getISTHour = () => {
+                const d = new Date();
+                const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+                const istDate = new Date(utc + (3600000 * 5.5));
+                return istDate.getHours();
+            };
+            const currentIstHour = getISTHour();
+            if (currentIstHour >= 21 || currentIstHour < 9) {
+                // Restricted time window - exit early to leave items pending in queue
+                return;
+            }
+        }
+
         // --- 2. SQL FETCH JOINED DATA (Optimized to ignore junk/orphaned items) ---
         // Fast existence check instead of counting hundreds of thousands of rows
         const [stats] = await query(`
