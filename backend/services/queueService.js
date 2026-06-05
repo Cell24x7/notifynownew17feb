@@ -134,7 +134,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             // Fast ping check
             await Promise.race([
                 redisClient.ping(),
-                new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 500))
+                new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))
             ]);
         } catch (redisErr) {
             // console.log('⚠️ [Worker] Redis unavailable, using DIRECT SQL processing.');

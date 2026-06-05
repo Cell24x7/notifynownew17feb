@@ -335,7 +335,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
         
-        const allowedStatuses = ['running', 'paused', 'cancelled', 'sent', 'draft', 'completed'];
+        const allowedStatuses = ['running', 'paused', 'cancelled', 'sent', 'draft', 'completed', 'scheduled'];
         if (!status || !allowedStatuses.includes(status)) {
             return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
         }

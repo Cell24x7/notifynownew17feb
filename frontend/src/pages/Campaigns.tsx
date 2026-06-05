@@ -323,7 +323,7 @@ export default function Campaigns() {
         template_type: selectedTpl?.template_type, // New snapshot
         audience_id: campaignData.audienceId || undefined,
         recipient_count: 0, // uploadContacts will accurately increment this later
-        status: campaignData.scheduleType === 'scheduled' ? 'scheduled' as any : 'draft' as any, // Start as draft, update later if 'now'
+        status: 'draft' as any, // Start as draft, update later to scheduled or start if 'now' to prevent race condition during upload
         scheduled_at: campaignData.scheduleType === 'scheduled'
           ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
           : undefined,
@@ -405,6 +405,8 @@ export default function Campaigns() {
           await refreshUser();
         }
       } else {
+        // Activate scheduled campaign after contacts upload is complete
+        await campaignService.updateStatus(campaignId, 'scheduled');
         const scheduleLabel = campaignData.schedulingMode === 'repeat' ? 'Recurring campaign' : 'Campaign';
         toast({
           title: `📅 ${scheduleLabel} Scheduled`,
