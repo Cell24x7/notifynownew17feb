@@ -48,6 +48,37 @@ async function rescueStuckJobsOnStartup() {
 }
 rescueStuckJobsOnStartup();
 
+// Helper to safely decrement progress and mark campaign completed if remains === 0
+async function decrementAndCheckCompletion(campId, envSuffix, campaignTable) {
+    try {
+        const remains = await redis.decr(`${envSuffix}:camp_progress:${campId}`);
+        if (remains === 0) {
+            const finalStats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
+            if (Object.keys(finalStats).length > 0) {
+                const finalTotalSent = parseInt(finalStats.sent || 0);
+                const finalTotalFailed = parseInt(finalStats.failed || 0);
+                await query(
+                    `UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
+                    [finalTotalSent, finalTotalFailed, campId]
+                );
+                
+                // Cleanup Redis
+                await redis.del(`${envSuffix}:camp_progress:${campId}`);
+                await redis.del(`${envSuffix}:stats:${campId}`);
+                await redis.del(`${envSuffix}:tracked:${campId}`);
+                await redis.del(`${envSuffix}:tracked_fail:${campId}`);
+            } else {
+                await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [campId]);
+                await redis.del(`${envSuffix}:camp_progress:${campId}`);
+            }
+        } else if (remains < 0) {
+            await redis.del(`${envSuffix}:camp_progress:${campId}`); // Safeguard
+        }
+    } catch (err) {
+        console.error(`[Completion Helper Error] Campaign ${campId}:`, err.message);
+    }
+}
+
 const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 const queueName = `campaign-sending-${envSuffix}`;
 
@@ -61,6 +92,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         const [check] = await query(`SELECT status FROM ${queueTable} WHERE id = ?`, [item.id]);
         if (check.length > 0 && (check[0].status === 'sent' || check[0].status === 'failed')) {
             // console.log(`[Worker] Skipping job ${job.id} for ${item.mobile} - Already processed (Status: ${check[0].status})`);
+            await decrementAndCheckCompletion(item.campaign_id, envSuffix, campaignTable);
             return;
         }
 
@@ -69,6 +101,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         const acquired = await redis.setnx(lockKey, "1");
         if (acquired === 0) {
             console.warn(`[Worker] Skipping duplicate send attempt for ${item.mobile} (Job ${job.id}) due to active Redis lock.`);
+            await decrementAndCheckCompletion(item.campaign_id, envSuffix, campaignTable);
             return; // Assume previous attempt succeeded or is still in flight
         }
         await redis.expire(lockKey, 3600); // Lock for 1 hour
@@ -166,28 +199,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         }
 
         // 4. COMPLETION CHECK
-        const remains = await redis.decr(`${envSuffix}:camp_progress:${campId}`);
-        if (remains === 0) {
-            // Final Sync
-            const finalStats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
-            if (Object.keys(finalStats).length > 0) {
-                const finalTotalSent = parseInt(finalStats.sent || 0);
-                await query(`UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
-                    [finalTotalSent, parseInt(finalStats.failed || 0), campId]);
-                
-                // Cleanup Redis
-                await redis.del(`${envSuffix}:camp_progress:${campId}`);
-                await redis.del(`${envSuffix}:stats:${campId}`);
-                await redis.del(`${envSuffix}:tracked:${campId}`);
-                await redis.del(`${envSuffix}:tracked_fail:${campId}`);
-                // console.log(`[Engine] Campaign ${campId} COMPLETED and Synced.`);
-            } else {
-                await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [campId]);
-                await redis.del(`${envSuffix}:camp_progress:${campId}`);
-            }
-        } else if (remains < 0) {
-             await redis.del(`${envSuffix}:camp_progress:${campId}`); // Safeguard
-        }
+        await decrementAndCheckCompletion(campId, envSuffix, campaignTable);
 
     } catch (err) {
         console.error(`[Worker Error] Job ${job.id}:`, err.message);
