@@ -274,7 +274,7 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
   
   // 1. Run pm2 status
   try {
-    results.pm2_status = execSync('pm2 status', { encoding: 'utf8' });
+    results.pm2_status = execSync('pm2 status', { encoding: 'utf8', timeout: 3000 });
   } catch (err) {
     results.pm2_status = 'Error: ' + err.message;
   }
@@ -283,18 +283,13 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
   try {
     const logDir = require('os').homedir() + '/.pm2/logs';
     if (fs.existsSync(logDir)) {
-      results.log_files = fs.readdirSync(logDir);
       const outLog = logDir + '/notifynow-live-prod-out.log';
       const errLog = logDir + '/notifynow-live-prod-error.log';
       
       const safeTail = (filePath) => {
         if (!fs.existsSync(filePath)) return 'File not found';
         try {
-          const stats = fs.statSync(filePath);
-          if (stats.size < 1024 * 1024) { // Under 1MB
-            return fs.readFileSync(filePath, 'utf8').split('\n').slice(-150).join('\n');
-          }
-          return execSync(`tail -n 150 "${filePath}"`, { encoding: 'utf8', timeout: 2000 });
+          return execSync(`tail -n 100 "${filePath}"`, { encoding: 'utf8', timeout: 2000 });
         } catch (e) {
           return 'Tail error: ' + e.message;
         }
@@ -311,12 +306,12 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
   
   // 3. Redis / BullMQ check
   try {
-    results.redis_ping = execSync('redis-cli ping', { encoding: 'utf8' }).trim();
+    results.redis_ping = execSync('redis-cli ping', { encoding: 'utf8', timeout: 2000 }).trim();
     
     // Check active jobs in BullMQ
     const { redisConnection } = require('./queues/campaignQueue');
     const Redis = require('ioredis');
-    const redis = new Redis({ ...redisConnection, maxRetriesPerRequest: 0 });
+    const redis = new Redis({ ...redisConnection, maxRetriesPerRequest: 0, connectTimeout: 1000 });
     const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
     const queueKey = `bull:campaign-sending-${envSuffix}`;
     const activeJobs = await redis.llen(`${queueKey}:active`).catch(() => 0);
@@ -337,20 +332,6 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
         ORDER BY created_at DESC
         LIMIT 10
     `);
-    
-    // For each campaign, count queue
-    for (const c of campaigns) {
-        const [qPending] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "pending"', [c.id]);
-        const [qProcessing] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "processing"', [c.id]);
-        const [qSent] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "sent"', [c.id]);
-        const [qFailed] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "failed"', [c.id]);
-        c.queue_counts = {
-            pending: qPending[0].count,
-            processing: qProcessing[0].count,
-            sent: qSent[0].count,
-            failed: qFailed[0].count
-        };
-    }
     results.campaigns = campaigns;
   } catch (err) {
     results.db_error = err.message;
