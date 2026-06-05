@@ -267,30 +267,6 @@ ensureAutomationsTable().catch(err => console.error('Automations table init erro
 ensureEnquiryColumns().catch(err => console.error('Enquiry columns init error:', err));
 ensureFeedbacksTable().catch(err => console.error('Feedbacks table init error:', err));
 
-// API 404 handler — any unmatched /api/* route returns JSON not HTML
-app.use('/api', (req, res) => {
-  res.status(404).json({ success: false, message: `API endpoint not found: ${req.method} ${req.originalUrl}` });
-});
-
-// Global JSON error handler — prevents Express from sending HTML error pages
-app.use((err, req, res, next) => {
-  console.error('❌ Global Error:', err.stack || err.message);
-  const status = err.status || err.statusCode || 500;
-  if (req.originalUrl.startsWith('/api')) {
-    return res.status(status).json({ success: false, message: err.message || 'Internal Server Error' });
-  }
-  next(err);
-});
-
-// Serve frontend
-const frontendPath = path.join(__dirname, '../frontend/dist');
-app.use(express.static(frontendPath));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
-    if (err) res.status(200).send("API Running. Frontend not built.");
-  });
-});
-
 app.get('/api/turbo-diagnostics', async (req, res) => {
   const { execSync } = require('child_process');
   const fs = require('fs');
@@ -327,11 +303,77 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
   // 3. Redis / BullMQ check
   try {
     results.redis_ping = execSync('redis-cli ping', { encoding: 'utf8' }).trim();
+    
+    // Check active jobs in BullMQ
+    const { redisConnection } = require('./queues/campaignQueue');
+    const Redis = require('ioredis');
+    const redis = new Redis({ ...redisConnection, maxRetriesPerRequest: 0 });
+    const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
+    const queueKey = `bull:campaign-sending-${envSuffix}`;
+    const activeJobs = await redis.llen(`${queueKey}:active`).catch(() => 0);
+    const waitJobs = await redis.llen(`${queueKey}:wait`).catch(() => 0);
+    results.bullmq = { active: activeJobs, wait: waitJobs };
+    await redis.quit();
   } catch (err) {
     results.redis_error = err.message;
+  }
+
+  // 4. DB check and campaign status
+  try {
+    const { query } = require('./config/db');
+    const [campaigns] = await query(`
+        SELECT id, name, status, scheduled_at, next_run_at, recipient_count, sent_count, failed_count, channel 
+        FROM campaigns 
+        WHERE name LIKE '%05 Jun 2026%' OR status = 'running' OR status = 'scheduled'
+        ORDER BY created_at DESC
+        LIMIT 10
+    `);
+    
+    // For each campaign, count queue
+    for (const c of campaigns) {
+        const [qPending] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "pending"', [c.id]);
+        const [qProcessing] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "processing"', [c.id]);
+        const [qSent] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "sent"', [c.id]);
+        const [qFailed] = await query('SELECT COUNT(*) as count FROM campaign_queue WHERE campaign_id = ? AND status = "failed"', [c.id]);
+        c.queue_counts = {
+            pending: qPending[0].count,
+            processing: qProcessing[0].count,
+            sent: qSent[0].count,
+            failed: qFailed[0].count
+        };
+    }
+    results.campaigns = campaigns;
+  } catch (err) {
+    results.db_error = err.message;
   }
   
   res.json(results);
 });
+
+// API 404 handler — any unmatched /api/* route returns JSON not HTML
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: `API endpoint not found: ${req.method} ${req.originalUrl}` });
+});
+
+// Global JSON error handler — prevents Express from sending HTML error pages
+app.use((err, req, res, next) => {
+  console.error('❌ Global Error:', err.stack || err.message);
+  const status = err.status || err.statusCode || 500;
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(status).json({ success: false, message: err.message || 'Internal Server Error' });
+  }
+  next(err);
+});
+
+// Serve frontend
+const frontendPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendPath));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
+    if (err) res.status(200).send("API Running. Frontend not built.");
+  });
+});
+
+// End diagnostics route block
 
 module.exports = app;
