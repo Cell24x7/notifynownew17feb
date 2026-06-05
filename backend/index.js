@@ -284,15 +284,24 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
     const logDir = require('os').homedir() + '/.pm2/logs';
     if (fs.existsSync(logDir)) {
       results.log_files = fs.readdirSync(logDir);
-      // Read last 150 lines of active logs
       const outLog = logDir + '/notifynow-live-prod-out.log';
       const errLog = logDir + '/notifynow-live-prod-error.log';
-      if (fs.existsSync(outLog)) {
-        results.out_log_tail = fs.readFileSync(outLog, 'utf8').split('\n').slice(-150).join('\n');
-      }
-      if (fs.existsSync(errLog)) {
-        results.err_log_tail = fs.readFileSync(errLog, 'utf8').split('\n').slice(-150).join('\n');
-      }
+      
+      const safeTail = (filePath) => {
+        if (!fs.existsSync(filePath)) return 'File not found';
+        try {
+          const stats = fs.statSync(filePath);
+          if (stats.size < 1024 * 1024) { // Under 1MB
+            return fs.readFileSync(filePath, 'utf8').split('\n').slice(-150).join('\n');
+          }
+          return execSync(`tail -n 150 "${filePath}"`, { encoding: 'utf8', timeout: 2000 });
+        } catch (e) {
+          return 'Tail error: ' + e.message;
+        }
+      };
+      
+      results.out_log_tail = safeTail(outLog);
+      results.err_log_tail = safeTail(errLog);
     } else {
       results.log_files = 'Dir not found: ' + logDir;
     }
