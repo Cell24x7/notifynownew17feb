@@ -274,8 +274,25 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                 Object.keys(countsByCamp).forEach(cid => pipeline.incrby(`${envSuffix}:camp_progress:${cid}`, countsByCamp[cid]));
                 await pipeline.exec();
 
-                // 6. BullMQ Offloading
-                const jobs = validItems.map(item => ({
+                // 6. BullMQ Offloading — Interleave jobs across campaigns so BullMQ workers
+                //    process all campaigns in parallel, not one-campaign-at-a-time FIFO.
+                //    Before: [A1,A2,...A1000, B1,B2,...B1000] → A finishes before B starts
+                //    After:  [A1,B1,C1, A2,B2,C2, ...] → all campaigns advance together
+                const byCamp = {};
+                validItems.forEach(item => {
+                    if (!byCamp[item.campaign_id]) byCamp[item.campaign_id] = [];
+                    byCamp[item.campaign_id].push(item);
+                });
+                const campArrays = Object.values(byCamp);
+                const interleaved = [];
+                const maxLen = Math.max(...campArrays.map(a => a.length));
+                for (let i = 0; i < maxLen; i++) {
+                    for (const arr of campArrays) {
+                        if (i < arr.length) interleaved.push(arr[i]);
+                    }
+                }
+
+                const jobs = interleaved.map(item => ({
                     name: `sending-${item.mobile}`,
                     data: { item: item, tableConfig },
                     opts: { jobId: `${queueTable}-${item.id}`, removeOnComplete: true } 
