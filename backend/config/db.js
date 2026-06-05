@@ -11,7 +11,7 @@ const pool = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 100, // Increased to support 200 concurrent BullMQ workers
+  connectionLimit: 50, // Safe — MySQL max_connections ~151, pool 50 + dev(40) + system = safe
   queueLimit: 0,
   connectTimeout: 10000 // 10s wait for DB
 });
