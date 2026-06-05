@@ -56,7 +56,7 @@ module.exports = {
       exec_mode: 'cluster',
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
+      max_memory_restart: '2G',
       error_file: path.join(currentPath, 'logs', `pm2-${appName}-error.log`),
       out_file: path.join(currentPath, 'logs', `pm2-${appName}-out.log`),
       log_date_format: 'YYYY-MM-DD HH:mm:ss'

@@ -698,12 +698,36 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         if (cachedEntry && (Date.now() - cachedEntry.timestamp < COUNT_CACHE_TTL)) {
             total = cachedEntry.total;
         } else {
-            const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml ${whereClause}`, params);
-            total = countResult[0].total;
-            countCache[cacheKey] = {
-                total,
-                timestamp: Date.now()
-            };
+            // OPTIMIZATION: If user is admin/superadmin and querying 'all' (no campaign/search filter),
+            // use TABLE_ROWS estimate from INFORMATION_SCHEMA to avoid slow scanning of 1Cr+ rows!
+            const isAdminAllQuery = isAdminRole && userIdQuery === 'all' && !req.query.campaignId && !req.query.search && !req.query.channel;
+            
+            if (isAdminAllQuery) {
+                const cacheTTL = 600000; // 10 minutes cache for global admin count
+                const globalCached = countCache['global_admin_' + logsTable];
+                if (globalCached && (Date.now() - globalCached.timestamp < cacheTTL)) {
+                    total = globalCached.total;
+                } else {
+                    const [statusResult] = await query(`
+                        SELECT TABLE_ROWS as total 
+                        FROM INFORMATION_SCHEMA.TABLES 
+                        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+                    `, [logsTable]);
+                    
+                    total = statusResult[0]?.total || 1000000; // Fallback
+                    countCache['global_admin_' + logsTable] = {
+                        total,
+                        timestamp: Date.now()
+                    };
+                }
+            } else {
+                const [countResult] = await query(`SELECT COUNT(*) as total FROM ${logsTable} ml ${whereClause}`, params);
+                total = countResult[0].total;
+                countCache[cacheKey] = {
+                    total,
+                    timestamp: Date.now()
+                };
+            }
         }
 
         const isExport = req.query.export === 'true';

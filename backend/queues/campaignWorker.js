@@ -18,6 +18,15 @@ redis.on('error', (err) => {
 // AUTO-RECOVERY: Clean up stuck jobs and orphaned data on startup
 async function rescueStuckJobsOnStartup() {
     try {
+        // 0. Drain waiting jobs from BullMQ to prevent duplicate bloat after restarts
+        try {
+            const { campaignQueue } = require('./campaignQueue');
+            await campaignQueue.drain(true);
+            console.log('[Rescue] Drained waiting jobs from BullMQ queue to prevent duplicates.');
+        } catch (drainErr) {
+            console.error('[Rescue] Draining queue failed:', drainErr.message);
+        }
+
         // 1. Reset stuck processing jobs
         await query('UPDATE campaign_queue SET status = "pending" WHERE status = "processing" AND updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)');
         

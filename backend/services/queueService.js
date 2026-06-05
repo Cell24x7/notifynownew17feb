@@ -179,10 +179,9 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         // --- 1.5. Check for IST DND regulatory window (9:00 PM to 10:00 AM) for manual campaigns ---
         if (campaignTable === 'campaigns') {
             const getISTHour = () => {
-                const d = new Date();
-                const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-                const istDate = new Date(utc + (3600000 * 5.5));
-                return istDate.getHours();
+                const options = { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false };
+                const formatter = new Intl.DateTimeFormat('en-US', options);
+                return parseInt(formatter.format(new Date()), 10);
             };
             const currentIstHour = getISTHour();
             if (currentIstHour >= 21 || currentIstHour < 10) {
