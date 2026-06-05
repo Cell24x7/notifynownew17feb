@@ -330,9 +330,20 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
         FROM campaigns 
         WHERE name LIKE '%05 Jun 2026%' OR status = 'running' OR status = 'scheduled'
         ORDER BY created_at DESC
-        LIMIT 10
+        LIMIT 15
     `);
     results.campaigns = campaigns;
+    
+    if (campaigns.length > 0) {
+      const campIds = campaigns.map(c => c.id);
+      const [queueStats] = await query(`
+          SELECT campaign_id, status, COUNT(*) as count 
+          FROM campaign_queue 
+          WHERE campaign_id IN (?)
+          GROUP BY campaign_id, status
+      `, [campIds]);
+      results.campaign_queue_stats = queueStats;
+    }
   } catch (err) {
     results.db_error = err.message;
   }
