@@ -19,7 +19,7 @@ redis.on('error', (err) => {
 async function rescueStuckJobsOnStartup() {
     try {
         // 1. Reset stuck processing jobs
-        await query('UPDATE campaign_queue SET status = "pending" WHERE status = "processing" AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)');
+        await query('UPDATE campaign_queue SET status = "pending" WHERE status = "processing" AND updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)');
         
         // 2. DELETE orphaned items (Campaign no longer exists) - CRITICAL for stability
         await query('DELETE q FROM campaign_queue q LEFT JOIN campaigns c ON q.campaign_id = c.id WHERE c.id IS NULL');
@@ -104,7 +104,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
             await decrementAndCheckCompletion(item.campaign_id, envSuffix, campaignTable);
             return; // Assume previous attempt succeeded or is still in flight
         }
-        await redis.expire(lockKey, 3600); // Lock for 1 hour
+        await redis.expire(lockKey, 90); // Lock for 90s only — allows retry after PM2 crash
 
         // Pre-calculate status independent variables
         const now = new Date();

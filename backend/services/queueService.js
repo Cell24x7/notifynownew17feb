@@ -167,7 +167,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                 UPDATE ${queueTable} 
                 SET status = 'pending', worker_id = NULL, updated_at = NOW()
                 WHERE status = 'processing' 
-                AND updated_at < NOW() - INTERVAL 30 MINUTE
+                AND updated_at < NOW() - INTERVAL 5 MINUTE
             `);
             if (recovered && recovered.affectedRows > 0) {
                 console.log(`[Worker:${processorName}] 🔄 Auto-recovered ${recovered.affectedRows} stuck processing items → pending`);
