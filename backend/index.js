@@ -246,7 +246,7 @@ const runQueue = async () => {
     await processQueue(); 
     await processApiQueue();
   } catch (err) { console.error('Queue error:', err); }
-  setTimeout(runQueue, 3000); // Fast feed — keep BullMQ always full
+  setTimeout(runQueue, 5000); // 5s — fast enough to keep BullMQ full, safe for DB
 };
 runQueue();
 
