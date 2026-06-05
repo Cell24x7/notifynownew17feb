@@ -28,13 +28,40 @@ async function fixScheduledFinal() {
         let updatedCount = 0;
 
         for (const camp of campaignsList) {
-            // Frontend sends scheduled_at as ISO-like local string without offset: '2026-06-05T14:49:00' or similar
-            // Ensure we replace any spaces/Ts to form a clean ISO string
-            const cleanStr = String(camp.scheduled_at).replace(' ', 'T');
-            const utcDate = new Date(cleanStr + "+05:30");
-            const dbDate = new Date(utcDate.getTime() + dbOffsetMins * 60 * 1000);
-            const pad = (n) => String(n).padStart(2, '0');
-            const nextRunAt = `${dbDate.getUTCFullYear()}-${pad(dbDate.getUTCMonth()+1)}-${pad(dbDate.getUTCDate())} ${pad(dbDate.getUTCHours())}:${pad(dbDate.getUTCMinutes())}:${pad(dbDate.getUTCSeconds())}`;
+            let nextRunAt;
+            try {
+                let scheduledDate = camp.scheduled_at;
+                if (!scheduledDate) continue;
+                
+                if (typeof scheduledDate === 'string') {
+                    // It's a string, e.g. "2026-06-05 15:30:00"
+                    const cleanStr = scheduledDate.replace(' ', 'T');
+                    scheduledDate = new Date(cleanStr + "+05:30");
+                } else if (scheduledDate instanceof Date) {
+                    // Extract the raw parts directly to avoid timezone shift
+                    const year = scheduledDate.getFullYear();
+                    const month = String(scheduledDate.getMonth() + 1).padStart(2, '0');
+                    const date = String(scheduledDate.getDate()).padStart(2, '0');
+                    const hours = String(scheduledDate.getHours()).padStart(2, '0');
+                    const minutes = String(scheduledDate.getMinutes()).padStart(2, '0');
+                    const seconds = String(scheduledDate.getSeconds()).padStart(2, '0');
+                    scheduledDate = new Date(`${year}-${month}-${date}T${hours}:${minutes}:${seconds}+05:30`);
+                } else {
+                    scheduledDate = new Date(scheduledDate);
+                }
+
+                if (isNaN(scheduledDate.getTime())) {
+                    console.log(`  ⚠️ Skipping invalid scheduled date for ${camp.name}: ${camp.scheduled_at}`);
+                    continue;
+                }
+
+                const dbDate = new Date(scheduledDate.getTime() + dbOffsetMins * 60 * 1000);
+                const pad = (n) => String(n).padStart(2, '0');
+                nextRunAt = `${dbDate.getUTCFullYear()}-${pad(dbDate.getUTCMonth()+1)}-${pad(dbDate.getUTCDate())} ${pad(dbDate.getUTCHours())}:${pad(dbDate.getUTCMinutes())}:${pad(dbDate.getUTCSeconds())}`;
+            } catch (e) {
+                console.log(`  ⚠️ Error parsing scheduled date for ${camp.name}:`, e.message);
+                continue;
+            }
             
             await query(`UPDATE campaigns SET next_run_at = ? WHERE id = ?`, [nextRunAt, camp.id]);
             console.log(`  ✅ Updated: ${camp.name} (ID: ${camp.id}) to DB Time: ${nextRunAt}`);
