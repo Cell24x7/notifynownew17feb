@@ -225,16 +225,21 @@ router.post('/', authenticate, async (req, res) => {
 
         let nextRunAt = null;
         if (schedule_type === 'scheduled') {
-            // CRITICAL: Do NOT use toISOString() as it converts to UTC.
-            // MySQL NOW() returns server local time, so next_run_at must also be in local time.
-            // Frontend sends scheduled_at as local time string like "2026-05-22T15:20"
-            const d = new Date(scheduled_at);
+            // Frontend sends scheduled_at as local IST time string like "2026-05-22T15:20"
+            // Parse strictly in IST (+05:30) and adjust to database timezone
+            const utcDate = new Date(scheduled_at + "+05:30");
+            const [offsetRows] = await query("SELECT TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), NOW()) as offset_mins");
+            const dbOffsetMins = offsetRows[0]?.offset_mins || 0;
+            const dbDate = new Date(utcDate.getTime() + dbOffsetMins * 60 * 1000);
             const pad = (n) => String(n).padStart(2, '0');
-            nextRunAt = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            nextRunAt = `${dbDate.getUTCFullYear()}-${pad(dbDate.getUTCMonth()+1)}-${pad(dbDate.getUTCDate())} ${pad(dbDate.getUTCHours())}:${pad(dbDate.getUTCMinutes())}:${pad(dbDate.getUTCSeconds())}`;
         } else if (schedule_type === 'now') {
-            const d = new Date();
+            const utcDate = new Date();
+            const [offsetRows] = await query("SELECT TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), NOW()) as offset_mins");
+            const dbOffsetMins = offsetRows[0]?.offset_mins || 0;
+            const dbDate = new Date(utcDate.getTime() + dbOffsetMins * 60 * 1000);
             const pad = (n) => String(n).padStart(2, '0');
-            nextRunAt = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            nextRunAt = `${dbDate.getUTCFullYear()}-${pad(dbDate.getUTCMonth()+1)}-${pad(dbDate.getUTCDate())} ${pad(dbDate.getUTCHours())}:${pad(dbDate.getUTCMinutes())}:${pad(dbDate.getUTCSeconds())}`;
         }
 
         let finalMetadata = template_metadata || {};
