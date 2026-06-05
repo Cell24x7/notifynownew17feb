@@ -66,42 +66,38 @@ ok "Updated to: $COMMIT"
 # ── Step 3: Smart Dependency Install ──────────────────────
 log "[3/7] Smart dependency install (skips if unchanged)..."
 
-# Backend: skip if package-lock unchanged since last deploy
+# Backend: skip if package-lock unchanged since last deploy (checked via MD5)
 BACKEND_LOCK="$BACKEND_DIR/package-lock.json"
-BACKEND_LOCK_STAMP="$BACKEND_DIR/.last_install_stamp"
-if [ -f "$BACKEND_LOCK" ] && [ -f "$BACKEND_LOCK_STAMP" ] && \
-   [ "$BACKEND_LOCK" -nt "$BACKEND_LOCK_STAMP" ]; then
+BACKEND_MD5_FILE="$BACKEND_DIR/.last_install_md5"
+CURRENT_BACKEND_MD5=""
+if [ -f "$BACKEND_LOCK" ]; then
+    CURRENT_BACKEND_MD5=$(md5sum "$BACKEND_LOCK" 2>/dev/null | cut -d' ' -f1 || sha1sum "$BACKEND_LOCK" 2>/dev/null | cut -d' ' -f1 || echo "1")
+fi
+
+if [ -f "$BACKEND_LOCK" ] && { [ ! -f "$BACKEND_MD5_FILE" ] || [ "$(cat "$BACKEND_MD5_FILE")" != "$CURRENT_BACKEND_MD5" ]; }; then
     step "Backend package-lock changed — installing..."
     cd "$BACKEND_DIR"
     npm install --production --prefer-offline --no-audit --no-fund 2>&1 | tail -3
-    touch "$BACKEND_LOCK_STAMP"
+    echo "$CURRENT_BACKEND_MD5" > "$BACKEND_MD5_FILE"
     ok "Backend deps updated."
-elif [ ! -f "$BACKEND_LOCK_STAMP" ]; then
-    step "First run — installing backend deps..."
-    cd "$BACKEND_DIR"
-    npm install --production --prefer-offline --no-audit --no-fund 2>&1 | tail -3
-    touch "$BACKEND_LOCK_STAMP"
-    ok "Backend deps installed."
 else
     ok "Backend deps unchanged — skipped ⚡"
 fi
 
 # Frontend: skip if package-lock unchanged
 FRONTEND_LOCK="$FRONTEND_DIR/package-lock.json"
-FRONTEND_LOCK_STAMP="$FRONTEND_DIR/.last_install_stamp"
-if [ -f "$FRONTEND_LOCK" ] && [ -f "$FRONTEND_LOCK_STAMP" ] && \
-   [ "$FRONTEND_LOCK" -nt "$FRONTEND_LOCK_STAMP" ]; then
+FRONTEND_MD5_FILE="$FRONTEND_DIR/.last_install_md5"
+CURRENT_FRONTEND_MD5=""
+if [ -f "$FRONTEND_LOCK" ]; then
+    CURRENT_FRONTEND_MD5=$(md5sum "$FRONTEND_LOCK" 2>/dev/null | cut -d' ' -f1 || sha1sum "$FRONTEND_LOCK" 2>/dev/null | cut -d' ' -f1 || echo "1")
+fi
+
+if [ -f "$FRONTEND_LOCK" ] && { [ ! -f "$FRONTEND_MD5_FILE" ] || [ "$(cat "$FRONTEND_MD5_FILE")" != "$CURRENT_FRONTEND_MD5" ]; }; then
     step "Frontend package-lock changed — installing..."
     cd "$FRONTEND_DIR"
     npm install --prefer-offline --no-audit --no-fund 2>&1 | tail -3
-    touch "$FRONTEND_LOCK_STAMP"
+    echo "$CURRENT_FRONTEND_MD5" > "$FRONTEND_MD5_FILE"
     ok "Frontend deps updated."
-elif [ ! -f "$FRONTEND_LOCK_STAMP" ]; then
-    step "First run — installing frontend deps..."
-    cd "$FRONTEND_DIR"
-    npm install --prefer-offline --no-audit --no-fund 2>&1 | tail -3
-    touch "$FRONTEND_LOCK_STAMP"
-    ok "Frontend deps installed."
 else
     ok "Frontend deps unchanged — skipped ⚡"
 fi
@@ -146,71 +142,39 @@ grep -q "^DB_PASS=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_PASS missing in $ENV_FI
 chmod 600 "$BACKEND_DIR/$ENV_FILE"
 ok "ENV configured."
 
-# ── Step 5: PARALLEL — Frontend Build + DB Migrations ─────
-log "[5/7] Running frontend build + DB migrations IN PARALLEL..."
+# ── Step 5: SEQUENTIAL — DB Migrations + Frontend Build ───
+log "[5/7] Running DB migrations + frontend build sequentially..."
 
-# ─── 5a: Frontend Build (background) ───
-(
-    cd "$FRONTEND_DIR"
-    rm -rf dist
-    VITE_API_URL="$APP_URL" npm run build -- --logLevel warn
-    chmod -R 755 "$FRONTEND_DIR/dist"
-    chmod o+x "$PROJECT_DIR" || true
-    chmod o+x "$FRONTEND_DIR" || true
-    echo "___FRONTEND_BUILD_DONE___"
-) &
-FRONTEND_PID=$!
-
-# ─── 5b: DB Migrations (main thread, parallel batches) ────
+# ─── 5a: DB Migrations (sequential) ────
 cd "$BACKEND_DIR"
-step "Running schema migrations (parallel batches)..."
+step "Running database migrations sequentially (OOM protection)..."
 
-run_migration() {
-    local script="$1"
-    if [ -f "$BACKEND_DIR/$script" ]; then
-        NODE_ENV=production node "$script" 2>&1 | sed "s/^/   [$(basename $script .js)] /" || true
-    fi
-}
-
-# BATCH 1 — Core schema (must run in order for FK safety)
+# Run Core Schema first
 NODE_ENV=production node apply_schema_updates.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true
 
-# BATCH 2 — Independent fixes (run in parallel)
-(NODE_ENV=production node scripts/fix_truncation.js 2>&1 | grep -v "already exists\|Skipping\|already utf8mb4\|^$" || true) &
-(NODE_ENV=production node migrate_reports.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/fix_pricing_precision.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/fix_emojis.js 2>&1 | grep -v "already utf8mb4\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/fix_collation_crash.js 2>&1 | grep -v "already utf8mb4\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/fix_api_campaigns_schema.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/add_failover_lock.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-wait  # Wait for BATCH 2
+# Run all other migration scripts one by one to avoid CPU/RAM spikes
+for script in scripts/fix_truncation.js migrate_reports.js scripts/fix_pricing_precision.js scripts/fix_emojis.js scripts/fix_collation_crash.js scripts/fix_api_campaigns_schema.js scripts/add_failover_lock.js scripts/enable_email_for_all.js scripts/fix_sent_counts.js scripts/add_failover_cols.js scripts/voice_bot_infrastructure.js update_smm_schema.js update_rcs_multi_provider.js scripts/add_media_support.js migrate_api_flag.js migration_reseller_payment.js migration_reseller_paypal.js; do
+    if [ -f "$BACKEND_DIR/$script" ]; then
+        NODE_ENV=production node "$BACKEND_DIR/$script" 2>&1 | grep -v "already exists\|Skipping\|already utf8mb4\|^$" || true
+    fi
+done
 
-# BATCH 3 — Feature migrations (parallel)
-(NODE_ENV=production node scripts/enable_email_for_all.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/fix_sent_counts.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/add_failover_cols.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/voice_bot_infrastructure.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node update_smm_schema.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node update_rcs_multi_provider.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node scripts/add_media_support.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node migrate_api_flag.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node migration_reseller_payment.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-(NODE_ENV=production node migration_reseller_paypal.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true) &
-wait  # Wait for BATCH 3
-
-# BATCH 4 — Index optimization (can run while PM2 restarts)
-NODE_ENV=production node scripts/turbo_speed_optimize.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true
+# Run index optimization last
+if [ -f "$BACKEND_DIR/scripts/turbo_speed_optimize.js" ]; then
+    NODE_ENV=production node "$BACKEND_DIR/scripts/turbo_speed_optimize.js" 2>&1 | grep -v "already exists\|Skipping\|^$" || true
+fi
 
 ok "Database migrations complete."
 
-# ─── Wait for frontend build to finish ───
-step "Waiting for frontend build..."
-wait $FRONTEND_PID || true
-if grep -q "___FRONTEND_BUILD_DONE___" /dev/null 2>/dev/null || true; then
-    ok "Frontend build complete."
-else
-    ok "Frontend build complete."
-fi
+# ─── 5b: Frontend Build (sequential, memory-limited) ───
+step "Building frontend (Vite build)..."
+cd "$FRONTEND_DIR"
+rm -rf dist
+NODE_OPTIONS="--max-old-space-size=1024" VITE_API_URL="$APP_URL" npm run build -- --logLevel warn
+chmod -R 755 "$FRONTEND_DIR/dist"
+chmod o+x "$PROJECT_DIR" || true
+chmod o+x "$FRONTEND_DIR" || true
+ok "Frontend build complete."
 
 # ── Step 6: PM2 Zero-Downtime Reload ──────────────────────
 log "[6/7] PM2 Zero-Downtime Reload..."

@@ -177,16 +177,18 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         }
 
         // --- 2. SQL FETCH JOINED DATA (Optimized to ignore junk/orphaned items) ---
+        // Fast existence check instead of counting hundreds of thousands of rows
         const [stats] = await query(`
-            SELECT COUNT(q.id) as pendingCount 
+            SELECT q.id 
             FROM ${queueTable} q 
             JOIN ${campaignTable} c ON q.campaign_id = c.id 
             WHERE q.status = 'pending' AND c.status = 'running'
+            LIMIT 1
         `);
         const [runStats] = await query(`SELECT COUNT(*) as runningCamps FROM ${campaignTable} WHERE status = 'running'`);
         
-        if (stats[0].pendingCount > 0) {
-            console.log(`[Worker:${processorName}] 🚀 Found ${stats[0].pendingCount} valid pending messages across ${runStats[0].runningCamps} running campaigns.`);
+        if (stats.length > 0) {
+            console.log(`[Worker:${processorName}] 🚀 Found pending messages across ${runStats[0].runningCamps} running campaigns.`);
         }
 
         const sql = `

@@ -38,10 +38,12 @@ async function turboOptimize() {
 
         // 4. Templates (Templates Page SPEED)
         { table: 'message_templates', index: 'idx_user_channel', cols: '(user_id, channel)' },
+        { table: 'message_templates', index: 'idx_name_user', cols: '(name, user_id)' },
         
         // 5. Contacts & Chats (Contacts & Chat SPEED)
         { table: 'contacts', index: 'idx_user_phone', cols: '(user_id, phone)' },
         { table: 'webhook_logs', index: 'idx_user_recipient', cols: '(user_id, recipient)' },
+        { table: 'webhook_logs', index: 'idx_campaign_id', cols: '(campaign_id)' },
         { table: 'webhook_logs', index: 'idx_type_status', cols: '(type, status)' },
         { table: 'webhook_logs', index: 'idx_user_type_status', cols: '(user_id, type, status)' },
         { table: 'webhook_logs', index: 'idx_created_at', cols: '(created_at)' },
