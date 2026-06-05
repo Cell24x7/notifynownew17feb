@@ -9,6 +9,47 @@ const { triggerChatflow } = require('../services/chatflowService');
 const { processAutomation } = require('../services/automationService');
 const { downloadWAMedia } = require('../utils/whatsappMedia');
 
+// Global memory buffer for campaign counters to prevent row lock contention under high load
+global.campaignCountBuffer = global.campaignCountBuffer || {};
+
+// Flush campaign counters helper
+const flushCampaignCounters = async () => {
+    const buffer = global.campaignCountBuffer;
+    if (!buffer || Object.keys(buffer).length === 0) return;
+
+    // Clear buffer immediately to avoid race conditions
+    global.campaignCountBuffer = {};
+
+    for (const key of Object.keys(buffer)) {
+        const value = buffer[key];
+        if (value === 0) continue;
+
+        try {
+            const [table, campaignId, column] = key.split(':');
+            const allowedColumns = ['delivered_count', 'read_count', 'failed_count', 'sent_count'];
+            const allowedTables = ['campaigns', 'api_campaigns'];
+            
+            if (allowedColumns.includes(column) && allowedTables.includes(table)) {
+                await query(`UPDATE ${table} SET ${column} = GREATEST(0, CAST(${column} AS SIGNED) + ?) WHERE id = ?`, [value, campaignId]);
+            }
+        } catch (e) {
+            console.error('❌ Error flushing campaign count:', e.message);
+        }
+    }
+};
+
+// Set interval to flush every 5 seconds
+if (!global.campaignCounterInterval) {
+    global.campaignCounterInterval = setInterval(flushCampaignCounters, 5000);
+}
+
+// Function to queue a count increment
+const incrementCampaignCount = (table, campaignId, column) => {
+    if (!campaignId) return;
+    const key = `${table}:${campaignId}:${column}`;
+    global.campaignCountBuffer[key] = (global.campaignCountBuffer[key] || 0) + 1;
+};
+
 // POST /api/webhooks/rcs/callback
 // Standard endpoint for RCS Delivery Reports & Incoming Messages
 router.post('/rcs/callback', async (req, res) => {
@@ -58,20 +99,21 @@ router.post('/rcs/callback', async (req, res) => {
 
                         if (log.campaign_id) {
                             if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
                                 await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
                             } 
                             else if (finalStatus === 'read' && oldStatus !== 'read') {
                                 if (oldStatus !== 'delivered') {
-                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
                                 } else {
-                                    await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
                                 }
                                 await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
                             } 
                             else if (finalStatus === 'failed' && oldStatus !== 'failed') {
                                 if (log.campaign_id) {
-                                    await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
                                 }
                                 await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
 
@@ -480,19 +522,20 @@ router.post('/dotgo', async (req, res) => {
                         // Handle Campaign Counters (Real-time updates)
                         if (log.campaign_id) {
                             if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
-                                console.log(`📈 Campaign ${log.campaign_id}: Delivered count +1`);
+                                incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                console.log(`📈 Campaign ${log.campaign_id}: Buffered Delivered count increment`);
                             } else if (finalStatus === 'read' && oldStatus !== 'read') {
                                 if (oldStatus !== 'delivered') {
-                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
-                                    console.log(`📈 Campaign ${log.campaign_id}: Delivered & Read count +1`);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                    console.log(`📈 Campaign ${log.campaign_id}: Buffered Delivered & Read count increment`);
                                 } else {
-                                    await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
-                                    console.log(`📈 Campaign ${log.campaign_id}: Read count +1`);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                    console.log(`📈 Campaign ${log.campaign_id}: Buffered Read count increment`);
                                 }
                             } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
-                                console.log(`📉 Campaign ${log.campaign_id}: Failed count +1`);
+                                incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
+                                console.log(`📉 Campaign ${log.campaign_id}: Buffered Failed count increment`);
                             }
                         }
                     } else {
@@ -948,20 +991,21 @@ router.post('/whatsapp/callback', async (req, res) => {
                                             // 2. INCREMENT CAMPAIGN COUNTERS ATOMICALLY
                                             if (log.campaign_id) {
                                                 if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
                                                     await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
                                                 } 
                                                 else if (finalStatus === 'read' && oldStatus !== 'read') {
                                                     // If directly moved from sent to read, increment both
                                                     if (oldStatus !== 'delivered') {
-                                                        await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
                                                     } else {
-                                                        await query(`UPDATE ${campaignsTable} SET read_count = read_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
                                                     }
                                                     await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
                                                 } 
                                                 else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                                    await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
                                                     await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
                                                 }
                                             }
@@ -1336,9 +1380,12 @@ const handleSmsCallback = async (req, res) => {
                             if (log.campaign_id) {
                                 const isFailover = log.channel === 'sms' && log.failure_reason && log.failure_reason.includes('Failover from');
                                 if (isFailover) {
-                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1, failed_count = GREATEST(0, CAST(failed_count AS SIGNED) - 1) WHERE id = ?`, [log.campaign_id]);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                    // Decrement failed_count (subtract 1)
+                                    const key = `${campaignsTable}:${log.campaign_id}:failed_count`;
+                                    global.campaignCountBuffer[key] = (global.campaignCountBuffer[key] || 0) - 1;
                                 } else {
-                                    await query(`UPDATE ${campaignsTable} SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
                                 }
                             }
                         } else if (finalStatus === 'failed') {
@@ -1364,7 +1411,7 @@ const handleSmsCallback = async (req, res) => {
                             if (log.campaign_id) {
                                 const isFailover = log.channel === 'sms' && log.failure_reason && log.failure_reason.includes('Failover from');
                                 if (!isFailover) {
-                                    await query(`UPDATE ${campaignsTable} SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
                                 }
                             }
                         }
@@ -1505,7 +1552,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                         [messageId || null, row.id]
                     );
                     if (row.campaign_id && oldW < 2) {
-                        await query('UPDATE api_campaigns SET delivered_count = delivered_count + 1 WHERE id = ?', [row.campaign_id]);
+                        incrementCampaignCount('api_campaigns', row.campaign_id, 'delivered_count');
                     }
                 } else if (status === 'read') {
                     await query(
@@ -1520,9 +1567,10 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                     );
                     if (row.campaign_id && oldW < 3) {
                         if (oldW < 2) {
-                            await query('UPDATE api_campaigns SET delivered_count = delivered_count + 1, read_count = read_count + 1 WHERE id = ?', [row.campaign_id]);
+                            incrementCampaignCount('api_campaigns', row.campaign_id, 'delivered_count');
+                            incrementCampaignCount('api_campaigns', row.campaign_id, 'read_count');
                         } else {
-                            await query('UPDATE api_campaigns SET read_count = read_count + 1 WHERE id = ?', [row.campaign_id]);
+                            incrementCampaignCount('api_campaigns', row.campaign_id, 'read_count');
                         }
                     }
                 } else if (status === 'failed') {
@@ -1537,7 +1585,7 @@ router.post('/wa-unofficial/callback', async (req, res) => {
                         [messageId || null, reason, row.id]
                     );
                     if (row.campaign_id && oldW < 99) {
-                        await query('UPDATE api_campaigns SET failed_count = failed_count + 1 WHERE id = ?', [row.campaign_id]);
+                        incrementCampaignCount('api_campaigns', row.campaign_id, 'failed_count');
                     }
                 }
 
