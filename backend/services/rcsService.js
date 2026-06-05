@@ -169,7 +169,7 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      timeout: 15000
+      timeout: 6000
     });
 
     let messageId = response.data?.messageId || response.data?.messageID || response.data?.id || response.data?.msgId || "N/A";
@@ -232,7 +232,7 @@ const sendRcsMessage = async (mobile, message, config) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      timeout: 15000
+      timeout: 6000
     });
 
     console.log(`📥 ${config.provider || 'RCS'} Text Response [${response.status}]:`, JSON.stringify(response.data));
