@@ -295,7 +295,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                 const jobs = interleaved.map(item => ({
                     name: `sending-${item.mobile}`,
                     data: { item: item, tableConfig },
-                    opts: { jobId: `${queueTable}-${item.id}`, removeOnComplete: true } 
+                    opts: { removeOnComplete: true } // No jobId — prevents BullMQ silent dedup rejection on recovery
                 }));
                 await campaignQueue.addBulk(jobs);
                 totalProcessed += validItems.length;
