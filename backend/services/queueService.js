@@ -212,13 +212,26 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
              LEFT JOIN whatsapp_configs wc ON IFNULL(c.whatsapp_config_id, u.whatsapp_config_id) = wc.id
              LEFT JOIN voice_configs v ON IFNULL(c.ai_voice_config_id, u.ai_voice_config_id) = v.id
              LEFT JOIN message_templates mt ON (c.template_id = mt.id OR (c.template_id = mt.name AND c.user_id = mt.user_id))
-             WHERE q.status = 'pending' AND c.status = 'running'
+             WHERE q.status = 'pending' AND c.status = 'running' AND c.id = ?
              LIMIT ?
         `;
 
         let totalProcessed = 0;
         while (true) {
-            const [candidates] = await query(sql, [DRIP_BATCH_SIZE]);
+            // Find currently running campaigns to distribute load fairly
+            const [runningCampsList] = await query(`SELECT id FROM ${campaignTable} WHERE status = 'running'`);
+            if (runningCampsList.length === 0) break;
+
+            // Divide batch size dynamically among running campaigns
+            const limitPerCamp = Math.max(1000, Math.floor(DRIP_BATCH_SIZE / runningCampsList.length));
+            let candidates = [];
+
+            for (const camp of runningCampsList) {
+                const [campCandidates] = await query(sql, [camp.id, limitPerCamp]);
+                if (campCandidates && campCandidates.length > 0) {
+                    candidates = candidates.concat(campCandidates);
+                }
+            }
             
             if (!candidates || candidates.length === 0) {
                 if (stats[0].pendingCount > 0 && runStats[0].runningCamps > 0) {
