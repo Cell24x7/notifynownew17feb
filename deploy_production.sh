@@ -145,6 +145,12 @@ ok "ENV configured."
 # ── Step 5: SEQUENTIAL — DB Migrations + Frontend Build ───
 log "[5/7] Running DB migrations + frontend build sequentially..."
 
+# Release database locks by temporarily stopping PM2
+if pm2 list | grep -q "$APP_NAME"; then
+    step "Temporarily stopping PM2 application to release database metadata locks..."
+    pm2 stop "$APP_NAME" || true
+fi
+
 # ─── 5a: DB Migrations (sequential) ────
 cd "$BACKEND_DIR"
 step "Running database migrations sequentially (OOM protection)..."
@@ -184,8 +190,8 @@ cd "$PROJECT_DIR"
 (NODE_ENV=production node "$BACKEND_DIR/scripts/auto_changelog.js" 2>&1 || true) &
 
 if pm2 list | grep -q "$APP_NAME"; then
-    pm2 reload "$APP_NAME" --update-env
-    ok "PM2 reloaded (zero-downtime)."
+    pm2 start "$APP_NAME" --update-env || pm2 reload "$APP_NAME" --update-env
+    ok "PM2 started/reloaded successfully."
 else
     pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
     ok "PM2 started new instance."
