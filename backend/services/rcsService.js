@@ -180,14 +180,10 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
     return { success: true, messageId: messageId, raw: response.data };
 
   } catch (error) {
-    // Fallback removed to enforce strict routing to assigned bots only.
     if (error.response?.status === 401) {
+        const cacheKey = config.id || config.bot_id;
         console.log(`🔑 [RCS] Token expired for Bot ${config.name}. Forcing refresh...`);
-    }
-
-    if (error.response?.status === 401) {
-        console.log(`🔑 [RCS] Token expired for Bot ${config.name}. Forcing refresh...`);
-        // We might want to clear cache here, but for now just fail so next attempt refreshes
+        tokenCache.delete(cacheKey);
     }
 
     console.error(`❌ ${config.provider || 'RCS'} Send Error:`, error.message);
@@ -247,6 +243,11 @@ const sendRcsMessage = async (mobile, message, config) => {
 
     return { success: false, error: `API status ${response.status}` };
   } catch (error) {
+    if (error.response?.status === 401) {
+        const cacheKey = config.id || config.bot_id;
+        console.log(`🔑 [RCS] Text token expired for Bot ${config.name}. Forcing refresh...`);
+        tokenCache.delete(cacheKey);
+    }
     console.error(`❌ ${config.provider || 'RCS'} Text Send Error:`, error.message);
     return { success: false, error: error.message };
   }
@@ -405,6 +406,11 @@ const submitRcsTemplate = async (config, templateData, files = [], existingName 
 
     return { success: true, data: response.data };
   } catch (error) {
+    if (error.response?.status === 401) {
+        tokenCache.delete('admin');
+        const cacheKey = config.id || config.bot_id;
+        tokenCache.delete(cacheKey);
+    }
     console.error("❌ Dotgo Template Submission Error:", error.message);
     if (error.response) {
       console.error("📦 Error Response:", JSON.stringify(error.response.data));
@@ -445,6 +451,10 @@ const getRcsTemplateStatus = async (config, templateName) => {
 
     return { success: true, status: response.data?.status || 'UNKNOWN', raw: response.data };
   } catch (error) {
+    if (error.response?.status === 401) {
+        const cacheKey = config.provider === 'vi' ? (config.id || config.bot_id) : 'admin';
+        tokenCache.delete(cacheKey);
+    }
     console.error("❌ Dotgo Status Check Error:", error.message);
     return { success: false, error: error.message };
   }

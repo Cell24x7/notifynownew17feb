@@ -60,128 +60,139 @@ router.post('/rcs/callback', async (req, res) => {
         console.log('Payload:', JSON.stringify(payload, null, 2));
         console.log('==============================================');
 
-        // 1. DELIVERY REPORTS (DLR)
-        if (payload.status && (payload.messageId || (payload.message && payload.message.name))) {
-            let messageId = payload.messageId;
-            const status = payload.status;
-            const error = payload.error;
+        // Respond immediately to the carrier to release the thread
+        res.status(200).json({ success: true, message: 'RCS callback received' });
 
-            if (!messageId && payload.message && payload.message.name) {
-                const parts = payload.message.name.split('/');
-                messageId = parts[parts.length - 1]; 
-            }
+        const io = req.io; // Capture local reference to req.io
 
+        setImmediate(async () => {
             try {
-                let [logs] = [];
-                let isApiLog = false;
-                let attempts = 0;
-                while (attempts < 10) {
-                    [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
-                    if (logs.length === 0) {
-                        [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
-                        if (logs.length > 0) { isApiLog = true; break; }
-                    } else { break; }
-                    attempts++;
-                    if (attempts < 10) await new Promise(resolve => setTimeout(resolve, 500));
-                }
+                // 1. DELIVERY REPORTS (DLR)
+                if (payload.status && (payload.messageId || (payload.message && payload.message.name))) {
+                    let messageId = payload.messageId;
+                    const status = payload.status;
+                    const error = payload.error;
 
-                if (logs.length > 0) {
-                    const log = logs[0];
-                    const finalStatus = (status || '').toLowerCase();
-                    const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
-                    const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+                    if (!messageId && payload.message && payload.message.name) {
+                        const parts = payload.message.name.split('/');
+                        messageId = parts[parts.length - 1]; 
+                    }
 
-                    const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
-                    const oldStatus = (log.status || 'sent').toLowerCase();
+                    try {
+                        let [logs] = [];
+                        let isApiLog = false;
+                        let attempts = 0;
+                        while (attempts < 3) { // Reduced retry count from 10 to 3
+                            [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                            if (logs.length === 0) {
+                                [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                                if (logs.length > 0) { isApiLog = true; break; }
+                            } else { break; }
+                            attempts++;
+                            if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 150)); // Reduced delay from 500ms to 150ms
+                        }
 
-                    if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
-                        await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+                        if (logs.length > 0) {
+                            const log = logs[0];
+                            const finalStatus = (status || '').toLowerCase();
+                            const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                            const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
 
-                        if (log.campaign_id) {
-                            if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
-                            } 
-                            else if (finalStatus === 'read' && oldStatus !== 'read') {
-                                if (oldStatus !== 'delivered') {
-                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                } else {
-                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                }
-                                await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
-                            } 
-                            else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                            const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
+                            const oldStatus = (log.status || 'sent').toLowerCase();
+
+                            if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
+                                await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+
                                 if (log.campaign_id) {
-                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
-                                }
-                                await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
-
-                                console.log(`🤖 Failover Check for Log ${log.id}: Enabled=${log.is_failover_enabled}, Template=${log.failover_sms_template}`);
-                             
-                                // 🤖 TRIGGER FAILOVER AUTOMATION
-                                if (typeof processAutomation === 'function' && log.is_failover_enabled) {
-                                    let mappedVariables = {};
-                                    try {
-                                        const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
-                                        const [qRes] = await query(`SELECT variables FROM ${queueTable} WHERE message_id = ? LIMIT 1`, [messageId]);
-                                        if (qRes.length > 0 && qRes[0].variables) {
-                                            mappedVariables = typeof qRes[0].variables === 'string' ? JSON.parse(qRes[0].variables) : qRes[0].variables;
+                                    if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                        await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
+                                    } 
+                                    else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                        if (oldStatus !== 'delivered') {
+                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                        } else {
+                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
                                         }
-                                    } catch(e) {}
+                                        await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
+                                    } 
+                                    else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                        if (log.campaign_id) {
+                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
+                                        }
+                                        await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [error || 'Unknown error', messageId]);
 
-                                    processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
-                                        sender: log.recipient,
-                                        message_content: log.message_content,
-                                        messageId: messageId,
-                                        failed_reason: error || 'Unknown error',
-                                        failover_template_id: log.failover_sms_template,
-                                        campaign_id: log.campaign_id,
-                                        campaign_name: log.campaign_name,
-                                        variables: mappedVariables,
-                                        is_api: isApiLog
-                                    }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
+                                        console.log(`🤖 Failover Check for Log ${log.id}: Enabled=${log.is_failover_enabled}, Template=${log.failover_sms_template}`);
+                                     
+                                        // 🤖 TRIGGER FAILOVER AUTOMATION
+                                        if (typeof processAutomation === 'function' && log.is_failover_enabled) {
+                                            let mappedVariables = {};
+                                            try {
+                                                const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
+                                                const [qRes] = await query(`SELECT variables FROM ${queueTable} WHERE message_id = ? LIMIT 1`, [messageId]);
+                                                if (qRes.length > 0 && qRes[0].variables) {
+                                                    mappedVariables = typeof qRes[0].variables === 'string' ? JSON.parse(qRes[0].variables) : qRes[0].variables;
+                                                }
+                                            } catch(e) {}
+
+                                            processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
+                                                sender: log.recipient,
+                                                message_content: log.message_content,
+                                                messageId: messageId,
+                                                failed_reason: error || 'Unknown error',
+                                                failover_template_id: log.failover_sms_template,
+                                                campaign_id: log.campaign_id,
+                                                campaign_name: log.campaign_name,
+                                                variables: mappedVariables,
+                                                is_api: isApiLog
+                                            }, io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
+                                        }
+                                    }
                                 }
                             }
+                            console.log(`✅ Updated RCS status for ${messageId} to ${finalStatus}`);
+                        } else {
+                            console.warn(`⚠️ RCS Message ID ${messageId} not found in logs after retries.`);
                         }
+                    } catch (dbErr) {
+                        console.error('❌ Database Error updating RCS DLR:', dbErr.message);
                     }
-                    console.log(`✅ Updated RCS status for ${messageId} to ${finalStatus}`);
-                } else {
-                    console.warn(`⚠️ RCS Message ID ${messageId} not found in logs after retries.`);
                 }
-            } catch (dbErr) {
-                console.error('❌ Database Error updating RCS DLR:', dbErr.message);
+
+                // 2. INCOMING MESSAGES (Replies)
+                if (payload.sender && (payload.message || payload.text)) {
+                    const sender = payload.sender;
+                    const text = payload.message || payload.text;
+                    console.log(`💬 Incoming RCS Reply from ${sender}: ${text}`);
+
+                    try {
+                        // Determine user_id from previous message record
+                        const [owner] = await query('SELECT user_id FROM message_logs WHERE recipient LIKE ? ORDER BY id DESC LIMIT 1', [`%${sender.slice(-10)}%`]);
+                        const userId = owner.length > 0 ? owner[0].user_id : 1;
+
+                        await query(
+                            'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type, channel) VALUES (?, ?, ?, ?, ?, "received", "rcs", "rcs")',
+                            [userId, sender, 'System', text, JSON.stringify(payload)]
+                        );
+
+                        if (io) {
+                            io.to(`user_${userId}`).emit('new_message', { sender, message_content: text, created_at: new Date(), status: 'received', type: 'rcs' });
+                            triggerChatflow(userId, sender, text, 'rcs', io).catch(() => {});
+                            processAutomation(userId, 'new_message', 'rcs', { sender, message_content: text }, io).catch(() => {});
+                        }
+                    } catch (err) { console.error('❌ Error handling RCS reply:', err.message); }
+                }
+            } catch (bgErr) {
+                console.error('❌ RCS Callback Background Processing Error:', bgErr.message);
             }
-        }
-
-        // 2. INCOMING MESSAGES (Replies)
-        if (payload.sender && (payload.message || payload.text)) {
-            const sender = payload.sender;
-            const text = payload.message || payload.text;
-            console.log(`💬 Incoming RCS Reply from ${sender}: ${text}`);
-
-            try {
-                // Determine user_id from previous message record
-                const [owner] = await query('SELECT user_id FROM message_logs WHERE recipient LIKE ? ORDER BY id DESC LIMIT 1', [`%${sender.slice(-10)}%`]);
-                const userId = owner.length > 0 ? owner[0].user_id : 1;
-
-                await query(
-                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type, channel) VALUES (?, ?, ?, ?, ?, "received", "rcs", "rcs")',
-                    [userId, sender, 'System', text, JSON.stringify(payload)]
-                );
-
-                if (req.io) {
-                    req.io.to(`user_${userId}`).emit('new_message', { sender, message_content: text, created_at: new Date(), status: 'received', type: 'rcs' });
-                    triggerChatflow(userId, sender, text, 'rcs', req.io).catch(() => {});
-                    processAutomation(userId, 'new_message', 'rcs', { sender, message_content: text }, req.io).catch(() => {});
-                }
-            } catch (err) { console.error('❌ Error handling RCS reply:', err.message); }
-        }
-
-        res.status(200).json({ success: true, message: 'RCS callback processed' });
+        });
     } catch (error) {
         console.error('❌ RCS Callback Error:', error.message);
-        res.status(500).json({ success: false, message: 'Internal Server Error' });
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: 'Internal Server Error' });
+        }
     }
 });
 
@@ -215,375 +226,384 @@ router.post('/dotgo', async (req, res) => {
             return res.status(200).json({ success: true, message: 'Heartbeat acknowledged' });
         }
 
-        // 1. Decode Base64 data
-        let decodedData = {};
-        try {
-            const base64Data = payload.message.data;
-            const decodedString = Buffer.from(base64Data, 'base64').toString('utf-8');
-            decodedData = JSON.parse(decodedString);
-            console.log('🔓 Decoded Dotgo Data:', JSON.stringify(decodedData, null, 2));
-        } catch (e) {
-            console.warn('⚠️ Failed to decode Dotgo message.data:', e.message);
-        }
+        // Respond immediately to the gateway
+        res.status(200).json({ success: true, message: 'Dotgo webhook received' });
 
-        // Robust messageId extraction for Dotgo (check name field if messageId missing)
-        const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId || (payload.message?.name ? payload.message.name.split('/').pop() : null);
-        const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
-        
-        let finalStatus = 'unknown';
-        if (eventType) {
-            const et = eventType.toLowerCase();
-            if (et === 'message' || et === 'text' || et.includes('received')) finalStatus = 'received';
-            else if (et === 'delivered') finalStatus = 'delivered';
-            else if (et === 'displayed' || et === 'read') finalStatus = 'read';
-            else if (et === 'failed') finalStatus = 'failed';
-            else finalStatus = et;
-        } else if (decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text) || decodedData.suggestionResponse || (decodedData.response && decodedData.response.suggestionResponse)) {
-            finalStatus = 'received';
-        }
+        const io = req.io; // Capture local reference to req.io
 
-        const messageContent = 
-            decodedData.text || 
-            decodedData.message || 
-            (decodedData.response && decodedData.response.text) || 
-            (decodedData.suggestionResponse && (decodedData.suggestionResponse.text || decodedData.suggestionResponse.postbackData)) ||
-            (decodedData.response && decodedData.response.suggestionResponse && (decodedData.response.suggestionResponse.text || decodedData.response.suggestionResponse.postbackData)) ||
-            null;
-        
-        // Identify participants
-        const rawSender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
-        const rawRecipient = decodedData.destinationPhoneNumber || decodedData.recipient || null;
-        
-        const cleanSender = rawSender ? rawSender.replace(/\D/g, '') : null;
-        const cleanRecipient = rawRecipient ? rawRecipient.replace(/\D/g, '') : null;
-
-        // For incoming messages, the person we are talking to is the SENDER.
-        // For outgoing/DLRs, the person we are talking to is the RECIPIENT.
-        // IMPORTANT: In Dotgo DLR events (delivered/failed/read), destinationPhoneNumber is often missing.
-        // In that case, senderPhoneNumber IS actually the recipient (the person message was sent TO).
-        let contactPhone;
-        if (finalStatus === 'received') {
-            contactPhone = cleanSender;
-        } else {
-            contactPhone = cleanRecipient || cleanSender; // Fallback to sender for DLR events
-        }
-
-        console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
-        console.log(`🔍 LOG DEBUG: messageID=${messageId}, contact=${contactPhone}, finalStatus=${finalStatus}`);
-        if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${cleanSender}`);
-
-        // userId needs to be available for both webhook_logs AND message_logs sections
-        let userId = null;
-
-        // 2. Save/Update webhook_logs (Smart UPSERT logic)
-        try {
-            
-            // Step A: Try matching by existing messageId (Delivery Reports)
-            if (messageId) {
-                const [ownerLookup] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
-                if (ownerLookup.length > 0) {
-                    userId = ownerLookup[0].user_id;
-                }
-            }
-
-            // Step B: If still null, try matching by Bot ID + contactPhone
-            if (!userId) {
-                const botId = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
-                
-                // Step B1: Try by botId + contactPhone
-                if (botId && contactPhone) {
-                    const [configs] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId]);
-                    if (configs.length > 0) {
-                        const configId = configs[0].id;
-                        
-                        const [lastChat] = await query(
-                            `SELECT user_id FROM message_logs 
-                             WHERE recipient LIKE ? 
-                             AND user_id IN (SELECT id FROM users WHERE rcs_config_id = ?)
-                             ORDER BY created_at DESC LIMIT 1`,
-                            [`%${contactPhone.slice(-10)}%`, configId]
-                        );
-                        
-                        if (lastChat.length > 0) {
-                            userId = lastChat[0].user_id;
-                        } else {
-                            const [fallbackUser] = await query('SELECT id FROM users WHERE rcs_config_id = ? LIMIT 1', [configId]);
-                            if (fallbackUser.length > 0) {
-                                userId = fallbackUser[0].id;
-                            }
-                        }
-                    }
-                }
-                
-                // Step B2: If still null and we have botId, just find any user with this config
-                if (!userId) {
-                    const botId2 = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
-                    if (botId2) {
-                        const [configs2] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId2]);
-                        if (configs2.length > 0) {
-                            const [fallbackUser2] = await query('SELECT id FROM users WHERE rcs_config_id = ? LIMIT 1', [configs2[0].id]);
-                            if (fallbackUser2.length > 0) {
-                                userId = fallbackUser2[0].id;
-                            }
-                        }
-                    }
-                }
-            }
-
-            const [existing] = await query('SELECT id FROM webhook_logs WHERE message_id = ? LIMIT 1', [messageId]);
-
-            if (existing.length > 0) {
-                // UPDATE existing row
-                await query(
-                    `UPDATE webhook_logs SET 
-                    user_id = COALESCE(?, user_id),
-                    sender = COALESCE(?, sender),
-                    message_content = COALESCE(?, message_content),
-                    status = ?, 
-                    event_type = ?, 
-                    type = 'rcs',
-                    raw_payload = ?,
-                    received_time = COALESCE(?, received_time),
-                    publish_time = COALESCE(?, publish_time),
-                    updated_at = NOW()
-                    WHERE id = ?`,
-                    [
-                        userId,
-                        cleanSender,
-                        messageContent,
-                        finalStatus,
-                        eventType || null,
-                        JSON.stringify(payload),
-                        payload.receivedTime || null,
-                        payload.message?.publishTime || null,
-                        existing[0].id
-                    ]
-                );
-                console.log(`✅ Updated existing webhook_log (ID: ${existing[0].id}) for ${messageId}`);
-            } else {
-                let reconstructedContent = messageContent;
-                if (!reconstructedContent && messageId) {
-                    const [orig] = await query(
-                        'SELECT message_content FROM message_logs WHERE message_id = ? UNION SELECT message_content FROM api_message_logs WHERE message_id = ? LIMIT 1',
-                        [messageId, messageId]
-                    );
-                    if (orig.length > 0) reconstructedContent = orig[0].message_content;
-                }
-
-                // INSERT new row as fallback
-                await query(
-                    `INSERT INTO webhook_logs 
-                    (user_id, sender, message_content, received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rcs', ?, ?, ?, ?, ?, ?)`,
-                    [
-                        userId,
-                        finalStatus === 'received' ? (cleanSender || contactPhone) : 'System',
-                        reconstructedContent,
-                        payload.receivedTime || null,
-                        contactPhone || null,
-                        messageId || null,
-                        payload.subscription || null,
-                        payload.message?.data || null,
-                        payload.message?.attributes?.product || null,
-                        payload.message?.attributes?.business_id || null,
-                        payload.message?.attributes?.project_number || null,
-                        payload.message?.attributes?.event_type || null,
-                        payload.message?.messageId || null,
-                        payload.message?.publishTime || null,
-                        JSON.stringify(payload),
-                        finalStatus
-                    ]
-                );
-                console.log(`✅ Created new webhook_log for ${messageId}`);
-            }
-        } catch (logErr) {
-            console.error('❌ Error handling webhook_logs:', logErr.message);
-        }
-
-        // 3. Update message_logs & Campaign counts
-        if (messageId || contactPhone) {
+        setImmediate(async () => {
             try {
-                // Try matching by message_id first (checks both manual and API logs)
-                let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
-                let isApiLog = false;
+                // 1. Decode Base64 data
+                let decodedData = {};
+                try {
+                    const base64Data = payload.message.data;
+                    const decodedString = Buffer.from(base64Data, 'base64').toString('utf-8');
+                    decodedData = JSON.parse(decodedString);
+                    console.log('🔓 Decoded Dotgo Data:', JSON.stringify(decodedData, null, 2));
+                } catch (e) {
+                    console.warn('⚠️ Failed to decode Dotgo message.data:', e.message);
+                }
+
+                // Robust messageId extraction for Dotgo (check name field if messageId missing)
+                const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId || (payload.message?.name ? payload.message.name.split('/').pop() : null);
+                const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
                 
-                if (logs.length === 0) {
-                    [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
-                    if (logs.length > 0) isApiLog = true;
+                let finalStatus = 'unknown';
+                if (eventType) {
+                    const et = eventType.toLowerCase();
+                    if (et === 'message' || et === 'text' || et.includes('received')) finalStatus = 'received';
+                    else if (et === 'delivered') finalStatus = 'delivered';
+                    else if (et === 'displayed' || et === 'read') finalStatus = 'read';
+                    else if (et === 'failed') finalStatus = 'failed';
+                    else finalStatus = et;
+                } else if (decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text) || decodedData.suggestionResponse || (decodedData.response && decodedData.response.suggestionResponse)) {
+                    finalStatus = 'received';
                 }
 
-                // Fallback: Match by contactPhone (last 10 digits) if message_id not found
-                if (logs.length === 0 && contactPhone) {
-                    const last10 = contactPhone.slice(-10);
-                    console.log(`🔍 No ID match for ${messageId}. Searching by recipient (last 10): ${last10}`);
+                const messageContent = 
+                    decodedData.text || 
+                    decodedData.message || 
+                    (decodedData.response && decodedData.response.text) || 
+                    (decodedData.suggestionResponse && (decodedData.suggestionResponse.text || decodedData.suggestionResponse.postbackData)) ||
+                    (decodedData.response && decodedData.response.suggestionResponse && (decodedData.response.suggestionResponse.text || decodedData.response.suggestionResponse.postbackData)) ||
+                    null;
+                
+                // Identify participants
+                const rawSender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
+                const rawRecipient = decodedData.destinationPhoneNumber || decodedData.recipient || null;
+                
+                const cleanSender = rawSender ? rawSender.replace(/\D/g, '') : null;
+                const cleanRecipient = rawRecipient ? rawRecipient.replace(/\D/g, '') : null;
 
-                    // Try Manual Logs first
-                    [logs] = await query(
-                        `SELECT * FROM message_logs WHERE (recipient LIKE ? OR recipient LIKE ?) AND (message_id = 'N/A' OR message_id IS NULL OR status = 'sent') ORDER BY created_at DESC LIMIT 1`,
-                        [`%${last10}`, `%${last10}%`]
-                    );
+                // For incoming messages, the person we are talking to is the SENDER.
+                // For outgoing/DLRs, the person we are talking to is the RECIPIENT.
+                // IMPORTANT: In Dotgo DLR events (delivered/failed/read), destinationPhoneNumber is often missing.
+                // In that case, senderPhoneNumber IS actually the recipient (the person message was sent TO).
+                let contactPhone;
+                if (finalStatus === 'received') {
+                    contactPhone = cleanSender;
+                } else {
+                    contactPhone = cleanRecipient || cleanSender; // Fallback to sender for DLR events
+                }
 
-                    if (logs.length > 0) {
-                        isApiLog = false;
-                        console.log(`✨ REPAIR: Found MANUAL log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
-                        await query('UPDATE message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
-                    } else {
-                        // Try API Logs
-                        [logs] = await query(
-                            `SELECT * FROM api_message_logs WHERE (recipient LIKE ? OR recipient LIKE ?) AND (message_id = 'N/A' OR message_id IS NULL OR status = 'sent') ORDER BY created_at DESC LIMIT 1`,
-                            [`%${last10}`, `%${last10}%`]
-                        );
-                        if (logs.length > 0) {
-                            isApiLog = true;
-                            console.log(`✨ REPAIR: Found API log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
-                            await query('UPDATE api_message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
+                console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
+                console.log(`🔍 LOG DEBUG: messageID=${messageId}, contact=${contactPhone}, finalStatus=${finalStatus}`);
+                if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${cleanSender}`);
+
+                // userId needs to be available for both webhook_logs AND message_logs sections
+                let userId = null;
+
+                // 2. Save/Update webhook_logs (Smart UPSERT logic)
+                try {
+                    
+                    // Step A: Try matching by existing messageId (Delivery Reports)
+                    if (messageId) {
+                        const [ownerLookup] = await query('SELECT user_id FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
+                        if (ownerLookup.length > 0) {
+                            userId = ownerLookup[0].user_id;
                         }
                     }
-                }
 
-                if (logs.length === 0 && process.env.APP_NAME === 'notifynow-production') {
-                    // RELAY: This report does not belong to Production database.
-                    // Forward it to the Developer app so its reports also work!
-                    console.log(`📡 [Relay] Unknown DLR ${messageId}. Forwarding to Developer instance...`);
-                    const axios = require('axios');
-                    const devUrl = 'https://developer.notifynow.in/api/webhooks/dotgo';
-                    axios.post(devUrl, req.body, { headers: { 'x-relay': 'true' } }).catch(e => {
-                        if (!e.response || e.response.status !== 404) console.error('[Relay] Forwarding failed:', e.message);
-                    });
-                }
-
-                if (logs.length > 0) {
-                    const log = logs[0];
-                    const oldStatus = (log.status || '').toLowerCase();
-
-                    console.log(`🔍 LOG DATA for ${log.id}: Enabled: ${log.is_failover_enabled}, Template: ${log.failover_sms_template}, Campaign: ${log.campaign_id}`);
-                    // Only update if status is actually different
-                    if (oldStatus !== finalStatus) {
-                        // Hierarchy Protection: Don't downgrade status (e.g., if 'sent' comes after 'delivered')
-                        const statusWeights = { 'sent': 1, 'delivered': 2, 'displayed': 3, 'read': 4, 'failed': -1, 'received': 10 };
-                        if ((statusWeights[finalStatus] || 0) < (statusWeights[oldStatus] || 0) && finalStatus !== 'failed') {
-                            console.log(`⚠️ Prevented status downgrade for ${log.id}: ${oldStatus} -> ${finalStatus}`);
-                            return res.status(200).json({ success: true, message: 'Status downgrade ignored' });
-                        }
-
-                        console.log(`📝 Updating Log ${log.id}: ${oldStatus} -> ${finalStatus}`);
-
-                        const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
-                        const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
-
-                        await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE id = ?`, [finalStatus, log.id]);
-
-                        // 📡 REAL-TIME CHAT STATUS UPDATE (ONLY for manual messages to prevent browser hang during 1Cr campaigns)
-                        if (['delivered', 'read', 'displayed', 'failed'].includes(finalStatus) && req.io && !log.campaign_id) {
-                            const socketUser = userId || log.user_id;
-                            if (socketUser) {
-                                req.io.to(`user_${socketUser}`).emit('message_status_update', {
-                                    message_id: messageId || log.message_id,
-                                    status: finalStatus
-                                });
-                                console.log(`📡 Emitted Status Update (${finalStatus}) for manual msg ${messageId} to user_${socketUser}`);
-                            }
-                        }
-
-                        // Handle Timestamps
-                        if (finalStatus === 'delivered') {
-                            await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
-                        } else if (finalStatus === 'read') {
-                            await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?`, [log.id]);
-                        } else if (finalStatus === 'failed') {
-                            const reason = decodedData.reason || decodedData.description || decodedData.error || 'Provider rejected (Check raw data)';
-                            await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
-                            
-                            // 🤖 TRIGGER FAILOVER AUTOMATION
-                             if (typeof processAutomation === 'function' && log.is_failover_enabled) {
-                                 let mappedVariables = {};
-                                 try {
-                                     const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
-                                     const [qRes] = await query(`SELECT variables FROM ${queueTable} WHERE message_id = ? LIMIT 1`, [log.message_id]);
-                                     if (qRes.length > 0 && qRes[0].variables) {
-                                         mappedVariables = typeof qRes[0].variables === 'string' ? JSON.parse(qRes[0].variables) : qRes[0].variables;
-                                     }
-                                 } catch(e) {}
-
-                                 processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
-                                     sender: log.recipient,
-                                     message_content: log.message_content,
-                                     messageId: log.message_id,
-                                     failed_reason: reason,
-                                     failover_template_id: log.failover_sms_template,
-                                     campaign_id: log.campaign_id,
-                                     campaign_name: log.campaign_name,
-                                     variables: mappedVariables,
-                                     is_api: isApiLog
-                                 }, req.io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
-                             }
-                        }
-
-                        // Handle Campaign Counters (Real-time updates)
-                        if (log.campaign_id) {
-                            if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                console.log(`📈 Campaign ${log.campaign_id}: Buffered Delivered count increment`);
-                            } else if (finalStatus === 'read' && oldStatus !== 'read') {
-                                if (oldStatus !== 'delivered') {
-                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                    console.log(`📈 Campaign ${log.campaign_id}: Buffered Delivered & Read count increment`);
+                    // Step B: If still null, try matching by Bot ID + contactPhone
+                    if (!userId) {
+                        const botId = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
+                        
+                        // Step B1: Try by botId + contactPhone
+                        if (botId && contactPhone) {
+                            const [configs] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId]);
+                            if (configs.length > 0) {
+                                const configId = configs[0].id;
+                                
+                                const [lastChat] = await query(
+                                    `SELECT user_id FROM message_logs 
+                                     WHERE recipient LIKE ? 
+                                     AND user_id IN (SELECT id FROM users WHERE rcs_config_id = ?)
+                                     ORDER BY created_at DESC LIMIT 1`,
+                                    [`%${contactPhone.slice(-10)}%`, configId]
+                                );
+                                
+                                if (lastChat.length > 0) {
+                                    userId = lastChat[0].user_id;
                                 } else {
-                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                    console.log(`📈 Campaign ${log.campaign_id}: Buffered Read count increment`);
+                                    const [fallbackUser] = await query('SELECT id FROM users WHERE rcs_config_id = ? LIMIT 1', [configId]);
+                                    if (fallbackUser.length > 0) {
+                                        userId = fallbackUser[0].id;
+                                    }
                                 }
-                            } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
-                                console.log(`📉 Campaign ${log.campaign_id}: Buffered Failed count increment`);
                             }
                         }
-                    } else {
-                        console.log(`ℹ️ Status for Log ${log.id} is already ${oldStatus}. No update needed.`);
+                        
+                        // Step B2: If still null and we have botId, just find any user with this config
+                        if (!userId) {
+                            const botId2 = payload.message?.attributes?.business_id || payload.message?.attributes?.bot_id;
+                            if (botId2) {
+                                const [configs2] = await query('SELECT id FROM rcs_configs WHERE bot_id = ? LIMIT 1', [botId2]);
+                                if (configs2.length > 0) {
+                                    const [fallbackUser2] = await query('SELECT id FROM users WHERE rcs_config_id = ? LIMIT 1', [configs2[0].id]);
+                                    if (fallbackUser2.length > 0) {
+                                        userId = fallbackUser2[0].id;
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    // 📡 REAL-TIME CHAT STATUS UPDATE (Moved to final block)
-                } 
-            } catch (dbErr) {
-                console.error('❌ Failed to update RCS DLR in DB:', dbErr.message);
+                    const [existing] = await query('SELECT id FROM webhook_logs WHERE message_id = ? LIMIT 1', [messageId]);
+
+                    if (existing.length > 0) {
+                        // UPDATE existing row
+                        await query(
+                            `UPDATE webhook_logs SET 
+                            user_id = COALESCE(?, user_id),
+                            sender = COALESCE(?, sender),
+                            message_content = COALESCE(?, message_content),
+                            status = ?, 
+                            event_type = ?, 
+                            type = 'rcs',
+                            raw_payload = ?,
+                            received_time = COALESCE(?, received_time),
+                            publish_time = COALESCE(?, publish_time),
+                            updated_at = NOW()
+                            WHERE id = ?`,
+                            [
+                                userId,
+                                cleanSender,
+                                messageContent,
+                                finalStatus,
+                                eventType || null,
+                                JSON.stringify(payload),
+                                payload.receivedTime || null,
+                                payload.message?.publishTime || null,
+                                existing[0].id
+                            ]
+                        );
+                        console.log(`✅ Updated existing webhook_log (ID: ${existing[0].id}) for ${messageId}`);
+                    } else {
+                        let reconstructedContent = messageContent;
+                        if (!reconstructedContent && messageId) {
+                            const [orig] = await query(
+                                'SELECT message_content FROM message_logs WHERE message_id = ? UNION SELECT message_content FROM api_message_logs WHERE message_id = ? LIMIT 1',
+                                [messageId, messageId]
+                            );
+                            if (orig.length > 0) reconstructedContent = orig[0].message_content;
+                        }
+
+                        // INSERT new row as fallback
+                        await query(
+                            `INSERT INTO webhook_logs 
+                            (user_id, sender, message_content, received_time, recipient, message_id, subscription, message_data, product, business_id, type, project_number, event_type, message_id_envelope, publish_time, raw_payload, status) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rcs', ?, ?, ?, ?, ?, ?)`,
+                            [
+                                userId,
+                                finalStatus === 'received' ? (cleanSender || contactPhone) : 'System',
+                                reconstructedContent,
+                                payload.receivedTime || null,
+                                contactPhone || null,
+                                messageId || null,
+                                payload.subscription || null,
+                                payload.message?.data || null,
+                                payload.message?.attributes?.product || null,
+                                payload.message?.attributes?.business_id || null,
+                                payload.message?.attributes?.project_number || null,
+                                payload.message?.attributes?.event_type || null,
+                                payload.message?.messageId || null,
+                                payload.message?.publishTime || null,
+                                JSON.stringify(payload),
+                                finalStatus
+                            ]
+                        );
+                        console.log(`✅ Created new webhook_log for ${messageId}`);
+                    }
+                } catch (logErr) {
+                    console.error('❌ Error handling webhook_logs:', logErr.message);
+                }
+
+                // 3. Update message_logs & Campaign counts
+                if (messageId || contactPhone) {
+                    try {
+                        // Try matching by message_id first (checks both manual and API logs)
+                        let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                        let isApiLog = false;
+                        
+                        if (logs.length === 0) {
+                            [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                            if (logs.length > 0) isApiLog = true;
+                        }
+
+                        // Fallback: Match by contactPhone (last 10 digits) if message_id not found
+                        if (logs.length === 0 && contactPhone) {
+                            const last10 = contactPhone.slice(-10);
+                            console.log(`🔍 No ID match for ${messageId}. Searching by recipient (last 10): ${last10}`);
+
+                            // Try Manual Logs first
+                            [logs] = await query(
+                                `SELECT * FROM message_logs WHERE (recipient LIKE ? OR recipient LIKE ?) AND (message_id = 'N/A' OR message_id IS NULL OR status = 'sent') ORDER BY created_at DESC LIMIT 1`,
+                                [`%${last10}`, `%${last10}%`]
+                            );
+
+                            if (logs.length > 0) {
+                                isApiLog = false;
+                                console.log(`✨ REPAIR: Found MANUAL log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
+                                await query('UPDATE message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
+                            } else {
+                                // Try API Logs
+                                [logs] = await query(
+                                    `SELECT * FROM api_message_logs WHERE (recipient LIKE ? OR recipient LIKE ?) AND (message_id = 'N/A' OR message_id IS NULL OR status = 'sent') ORDER BY created_at DESC LIMIT 1`,
+                                    [`%${last10}`, `%${last10}%`]
+                                );
+                                if (logs.length > 0) {
+                                    isApiLog = true;
+                                    console.log(`✨ REPAIR: Found API log ID ${logs[0].id} for ${contactPhone}. Linking UUID: ${messageId}`);
+                                    await query('UPDATE api_message_logs SET message_id = ? WHERE id = ?', [messageId, logs[0].id]);
+                                }
+                            }
+                        }
+
+                        if (logs.length === 0 && process.env.APP_NAME === 'notifynow-production') {
+                            // RELAY: This report does not belong to Production database.
+                            // Forward it to the Developer app so its reports also work!
+                            console.log(`📡 [Relay] Unknown DLR ${messageId}. Forwarding to Developer instance...`);
+                            const axios = require('axios');
+                            const devUrl = 'https://developer.notifynow.in/api/webhooks/dotgo';
+                            axios.post(devUrl, payload, { headers: { 'x-relay': 'true' } }).catch(e => {
+                                if (!e.response || e.response.status !== 404) console.error('[Relay] Forwarding failed:', e.message);
+                            });
+                        }
+
+                        if (logs.length > 0) {
+                            const log = logs[0];
+                            const oldStatus = (log.status || '').toLowerCase();
+
+                            console.log(`🔍 LOG DATA for ${log.id}: Enabled: ${log.is_failover_enabled}, Template: ${log.failover_sms_template}, Campaign: ${log.campaign_id}`);
+                            // Only update if status is actually different
+                            if (oldStatus !== finalStatus) {
+                                // Hierarchy Protection: Don't downgrade status (e.g., if 'sent' comes after 'delivered')
+                                const statusWeights = { 'sent': 1, 'delivered': 2, 'displayed': 3, 'read': 4, 'failed': -1, 'received': 10 };
+                                if ((statusWeights[finalStatus] || 0) < (statusWeights[oldStatus] || 0) && finalStatus !== 'failed') {
+                                    console.log(`⚠️ Prevented status downgrade for ${log.id}: ${oldStatus} -> ${finalStatus}`);
+                                    return;
+                                }
+
+                                console.log(`📝 Updating Log ${log.id}: ${oldStatus} -> ${finalStatus}`);
+
+                                const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                                const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+
+                                await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE id = ?`, [finalStatus, log.id]);
+
+                                // 📡 REAL-TIME CHAT STATUS UPDATE (ONLY for manual messages to prevent browser hang during 1Cr campaigns)
+                                if (['delivered', 'read', 'displayed', 'failed'].includes(finalStatus) && io && !log.campaign_id) {
+                                    const socketUser = userId || log.user_id;
+                                    if (socketUser) {
+                                        io.to(`user_${socketUser}`).emit('message_status_update', {
+                                            message_id: messageId || log.message_id,
+                                            status: finalStatus
+                                        });
+                                        console.log(`📡 Emitted Status Update (${finalStatus}) for manual msg ${messageId} to user_${socketUser}`);
+                                    }
+                                }
+
+                                // Handle Timestamps
+                                if (finalStatus === 'delivered') {
+                                    await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
+                                } else if (finalStatus === 'read') {
+                                    await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?`, [log.id]);
+                                } else if (finalStatus === 'failed') {
+                                    const reason = decodedData.reason || decodedData.description || decodedData.error || 'Provider rejected (Check raw data)';
+                                    await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [reason, log.id]);
+                                    
+                                    // 🤖 TRIGGER FAILOVER AUTOMATION
+                                     if (typeof processAutomation === 'function' && log.is_failover_enabled) {
+                                         let mappedVariables = {};
+                                         try {
+                                             const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
+                                             const [qRes] = await query(`SELECT variables FROM ${queueTable} WHERE message_id = ? LIMIT 1`, [log.message_id]);
+                                             if (qRes.length > 0 && qRes[0].variables) {
+                                                 mappedVariables = typeof qRes[0].variables === 'string' ? JSON.parse(qRes[0].variables) : qRes[0].variables;
+                                             }
+                                         } catch(e) {}
+
+                                         processAutomation(log.user_id || 1, 'message_failed', 'rcs', {
+                                             sender: log.recipient,
+                                             message_content: log.message_content,
+                                             messageId: log.message_id,
+                                             failed_reason: reason,
+                                             failover_template_id: log.failover_sms_template,
+                                             campaign_id: log.campaign_id,
+                                             campaign_name: log.campaign_name,
+                                             variables: mappedVariables,
+                                             is_api: isApiLog
+                                         }, io).catch(e => console.error('[AutomationService] RCS failover trigger error:', e.message));
+                                     }
+                                }
+
+                                // Handle Campaign Counters (Real-time updates)
+                                if (log.campaign_id) {
+                                    if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                        console.log(`📈 Campaign ${log.campaign_id}: Buffered Delivered count increment`);
+                                    } else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                        if (oldStatus !== 'delivered') {
+                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                            console.log(`📈 Campaign ${log.campaign_id}: Buffered Delivered & Read count increment`);
+                                        } else {
+                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                            console.log(`📈 Campaign ${log.campaign_id}: Buffered Read count increment`);
+                                        }
+                                    } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
+                                        console.log(`📉 Campaign ${log.campaign_id}: Buffered Failed count increment`);
+                                    }
+                                }
+                            } else {
+                                console.log(`ℹ️ Status for Log ${log.id} is already ${oldStatus}. No update needed.`);
+                            }
+                        } 
+                    } catch (dbErr) {
+                        console.error('❌ Failed to update RCS DLR in DB:', dbErr.message);
+                    }
+                }
+
+                // 4. Final Real-time Emission (Work for both Status Update & New Received Message)
+                if (finalStatus === 'received' && messageContent && io && userId) {
+                    io.to(`user_${userId}`).emit('new_message', {
+                        id: messageId,
+                        sender: cleanSender,
+                        recipient: cleanRecipient || 'System',
+                        message_content: messageContent,
+                        created_at: new Date(),
+                        status: 'received',
+                        type: 'rcs'
+                    });
+                    console.log(`📡 Emitted RCS new_message to user_${userId} for ${cleanSender}`);
+
+                    // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
+                    if (typeof triggerChatflow === 'function') {
+                        triggerChatflow(userId, cleanSender, messageContent, 'rcs', io).catch(e =>
+                            console.error('[ChatFlow] RCS trigger error:', e.message)
+                        );
+                    }
+
+                    // 🤖 CHECK AUTOMATIONS — graph-based logic
+                    if (typeof processAutomation === 'function') {
+                        processAutomation(userId, 'new_message', 'rcs', {
+                            sender: cleanSender,
+                            message_content: messageContent,
+                            messageId: messageId,
+                            metadata: decodedData
+                        }, io).catch(e => console.error('[AutomationService] RCS trigger error:', e.message));
+                    }
+                }
+            } catch (bgErr) {
+                console.error('❌ Dotgo Background Processing Error:', bgErr.message);
             }
-        }
-
-        // 4. Final Real-time Emission (Work for both Status Update & New Received Message)
-        if (finalStatus === 'received' && messageContent && req.io && userId) {
-            req.io.to(`user_${userId}`).emit('new_message', {
-                id: messageId,
-                sender: cleanSender,
-                recipient: cleanRecipient || 'System',
-                message_content: messageContent,
-                created_at: new Date(),
-                status: 'received',
-                type: 'rcs'
-            });
-            console.log(`📡 Emitted RCS new_message to user_${userId} for ${cleanSender}`);
-
-            // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
-            if (typeof triggerChatflow === 'function') {
-                triggerChatflow(userId, cleanSender, messageContent, 'rcs', req.io).catch(e =>
-                    console.error('[ChatFlow] RCS trigger error:', e.message)
-                );
-            }
-
-            // 🤖 CHECK AUTOMATIONS — graph-based logic
-            if (typeof processAutomation === 'function') {
-                processAutomation(userId, 'new_message', 'rcs', {
-                    sender: cleanSender,
-                    message_content: messageContent,
-                    messageId: messageId,
-                    metadata: decodedData
-                }, req.io).catch(e => console.error('[AutomationService] RCS trigger error:', e.message));
-            }
-        }
-
-        res.status(200).json({ success: true, message: 'Dotgo webhook processed' });
+        });
     } catch (error) {
         console.error('❌ Dotgo Webhook Error:', error.message);
-        res.status(500).json({ success: false, message: 'Internal Server Error' });
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: 'Internal Server Error' });
+        }
     }
 });
 
@@ -931,279 +951,283 @@ router.post('/whatsapp/callback', async (req, res) => {
         console.log('==============================================');
 
         if (payload.object === "whatsapp_business_account") {
-            for (let entry of payload.entry) {
-                for (let change of entry.changes) {
-                    let value = change.value;
-
-                    // 1. DELIVERY REPORTS (Statuses)
-                    if (value.statuses && value.statuses.length > 0) {
-                        for (let statusObj of value.statuses) {
-                            const messageId = statusObj.id;
-                            const status = statusObj.status; // sent, delivered, read, failed
-                            const recipientId = statusObj.recipient_id;
-
-                            let errorReason = null;
-                            if (status === 'failed' && statusObj.errors) {
-                                const err = statusObj.errors[0];
-                                const mainMsg = err.title || err.message || 'Unknown error';
-                                const detailedMsg = err.error_data?.details || '';
-                                errorReason = detailedMsg ? `${mainMsg} (${detailedMsg})` : mainMsg;
-                            }
-
-                            console.log(`📊 WA DLR Update: Msg ${messageId} is ${status} for ${recipientId}`);
-
-                            // Update logic based on messageId (checks both manual and API logs)
-                            try {
-                                let [logs] = [];
-                                let isApiLog = false;
-                                let attempts = 0;
-                                while (attempts < 10) {
-                                    [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
-                                    if (logs.length === 0) {
-                                        [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
-                                        if (logs.length > 0) {
-                                            isApiLog = true;
-                                            break;
-                                        }
-                                    } else {
-                                        break;
-                                    }
-                                    
-                                    attempts++;
-                                    if (attempts < 10) await new Promise(resolve => setTimeout(resolve, 500));
-                                }
-
-                                    if (logs.length > 0) {
-                                        const log = logs[0];
-                                        const finalStatus = (status || '').toLowerCase();
-                                        const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
-                                        const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
-
-                                        // Status hierarchy to prevent downgrades (sent < delivered < read)
-                                        // FAILED is a terminal state that can override ANY previous status
-                                        const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
-                                        const oldStatus = (log.status || 'sent').toLowerCase();
-
-                                        if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
-                                            // 1. UPDATE DB LOG STATUS
-                                            await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
-
-                                            // 2. INCREMENT CAMPAIGN COUNTERS ATOMICALLY
-                                            if (log.campaign_id) {
-                                                if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                                    await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
-                                                } 
-                                                else if (finalStatus === 'read' && oldStatus !== 'read') {
-                                                    // If directly moved from sent to read, increment both
-                                                    if (oldStatus !== 'delivered') {
-                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                                    } else {
-                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                                    }
-                                                    await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
-                                                } 
-                                                else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
-                                                    await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
-                                                }
-                                            }
-
-                                            // 🤖 WHATSAPP -> SMS FAILOVER TRIGGER (If Failed)
-                                            if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                                if (log.is_failover_enabled && log.failover_sms_template) {
-                                                    console.log(`🤖 Whatsapp Failover Triggered via webhook for ${log.recipient}. Template=${log.failover_sms_template}`);
-                                                    const { processAutomation } = require('../services/automationService');
-                                                    
-                                                    // We mock the IO instance if not available
-                                                    const ioDummy = req.io || { to: () => ({ emit: () => {} }) };
-                                                    
-                                                    try {
-                                                        console.log(`[WEBHOOK-DEBUG] Raw Metadata from DB for ${messageId}: ${JSON.stringify(log.metadata)}`);
-                                                        let parsedMetadata = log.metadata || {};
-                                                        if (typeof parsedMetadata === 'string') {
-                                                            try { parsedMetadata = JSON.parse(parsedMetadata); } catch(e) {
-                                                                console.error(`[WEBHOOK-DEBUG] JSON Parse failed for metadata: ${e.message}`);
-                                                            }
-                                                        }
-                                                        console.log(`[WEBHOOK-DEBUG] Parsed Metadata: ${JSON.stringify(parsedMetadata)}`);
-
-                                                        await processAutomation(log.user_id, 'message_failed', {
-                                                            ...log,
-                                                            is_api: isApiLog,
-                                                            metadata: parsedMetadata,
-                                                            original_channel: 'whatsapp',
-                                                            failover_template_id: log.failover_sms_template
-                                                        }, ioDummy);
-                                                    } catch (e) {
-                                                        console.error('[AutomationService] WA failover trigger error:', e.message);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    // 📡 REAL-TIME CHAT STATUS UPDATE (Manual only)
-                                    if (['delivered', 'read', 'failed'].includes(finalStatus) && req.io && !log.campaign_id) {
-                                        req.io.to(`user_${log.user_id}`).emit('message_status_update', {
-                                            message_id: messageId,
-                                            status: finalStatus
-                                        });
-                                    }
-                                } else {
-                                    console.warn(`⚠️ WA Message ID ${messageId} not found in logs after retries.`);
-                                }
-                            } catch (error) {
-                                console.error('❌ Error handling WA DLR:', error.message);
-                            }
-                        }
-                    }
-
-                    // 2. INCOMING MESSAGES
-                    if (value.messages && value.messages.length > 0) {
-                        for (let msg of value.messages) {
-                            const sender = msg.from; // Sender phone number
-                            const msgId = msg.id;
-                            let text = '';
-
-                            let buttonId = null;
-                            let listId = null;
-
-                            let mediaUrl = null;
-
-                            if (msg.type === 'text') {
-                                text = msg.text.body;
-                            } else if (msg.type === 'button') {
-                                text = msg.button.text;
-                                buttonId = msg.button.payload;
-                            } else if (msg.type === 'interactive') {
-                                if (msg.interactive.type === 'button_reply') {
-                                    text = msg.interactive.button_reply.title;
-                                    buttonId = msg.interactive.button_reply.id;
-                                } else if (msg.interactive.type === 'list_reply') {
-                                    text = msg.interactive.list_reply.title;
-                                    listId = msg.interactive.list_reply.id;
-                                }
-                            } else if (msg.type === 'image') {
-                                text = '[Image Received]';
-                                if (msg.image && msg.image.id) mediaUrl = msg.image.id;
-                            } else if (msg.type === 'video') {
-                                text = '[Video Received]';
-                                if (msg.video && msg.video.id) mediaUrl = msg.video.id;
-                            } else if (msg.type === 'document') {
-                                text = `[Document: ${msg.document.filename || 'file'}]`;
-                                if (msg.document && msg.document.id) mediaUrl = msg.document.id;
-                            } else {
-                                text = `[Received ${msg.type} message]`;
-                            }
-
-                            console.log(`💬 Incoming WA Reply from ${sender}: ${text}`);
-
-                            try {
-                                // 1. Identify User ID
-                                let userId = null;
-                                const phoneId = value.metadata?.phone_number_id;
-
-                                // 1. Identify User ID & Campaign Context
-                                let campaignName = 'Unknown';
-                                if (phoneId) {
-                                    const cleanSender = String(sender).replace(/\D/g, '').slice(-10); 
-                                    const [lastChat] = await query(
-                                        `SELECT user_id, campaign_name FROM (
-                                            SELECT user_id, campaign_name, created_at as sort_time FROM message_logs WHERE recipient LIKE ?
-                                            UNION ALL
-                                            SELECT user_id, campaign_name, send_time as sort_time FROM api_message_logs WHERE recipient LIKE ?
-                                        ) as combined_logs 
-                                        ORDER BY sort_time DESC LIMIT 1`,
-                                        [`%${cleanSender}`, `%${cleanSender}`]
-                                    );
-                                    if (lastChat.length > 0) {
-                                        userId = lastChat[0].user_id;
-                                        campaignName = lastChat[0].campaign_name || 'API Campaign';
-                                    }
-                                }
-
-                                // Campaign context is extracted above and saved to DB.
-                                // Removed the code that appends ' (Campaign: ...)' to `text` because it breaks exact keyword matches.
-
-                                // Fallback: Just pick the first user assigned to this WhatsApp configuration
-                                if (!userId && phoneId) {
-                                    const [fallbackUser] = await query(
-                                        'SELECT id FROM users WHERE whatsapp_config_id = (SELECT id FROM whatsapp_configs WHERE ph_no_id = ? LIMIT 1) LIMIT 1',
-                                        [phoneId]
-                                    );
-                                    if (fallbackUser.length > 0) {
-                                        userId = fallbackUser[0].id;
-                                    }
-                                }
-
-                                // 2. Handle Media Download (Background)
-                                let finalMediaUrl = null;
-                                if (mediaUrl && userId) {
-                                  try {
-                                    finalMediaUrl = await downloadWAMedia(mediaUrl, userId);
-                                    if (finalMediaUrl) {
-                                      // Prepend BASE_URL for absolute access if needed, or keep relative for proxy
-                                      const baseUrl = process.env.API_BASE_URL || '';
-                                      finalMediaUrl = finalMediaUrl; // Keep relative for now, Chat.tsx can prefix if needed
-                                    }
-                                  } catch (mediaErr) {
-                                    console.error('❌ WA Media Download Error:', mediaErr.message);
-                                  }
-                                }
-
-                                // 3. Save to webhook_logs
-                                const [result] = await query(
-                                    'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, media_url, raw_payload, status, type, message_id_envelope, campaign_name) VALUES (?, ?, ?, ?, ?, ?, "received", "whatsapp", ?, ?)',
-                                    [userId, sender, value.metadata?.display_phone_number || 'System', text, finalMediaUrl, JSON.stringify(payload), msgId, campaignName]
-                                );
-
-                                // 4. Notify via Socket.io for real-time chat
-                                if (req.io && userId) {
-                                    req.io.to(`user_${userId}`).emit('new_message', {
-                                        id: result.insertId,
-                                        sender,
-                                        recipient: value.metadata?.display_phone_number || 'System',
-                                        message_content: text,
-                                        media_url: finalMediaUrl,
-                                        created_at: new Date(),
-                                        status: 'received',
-                                        type: 'whatsapp'
-                                    });
-                                    console.log(`📡 Emitted new_message to user_${userId} (Media: ${finalMediaUrl ? 'Yes' : 'No'})`);
-                                }
-
-                                // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
-                                if (userId) {
-                                    triggerChatflow(userId, sender, text, 'whatsapp', req.io, {
-                                        phoneId: value.metadata?.phone_number_id
-                                    }).catch(e => console.error('[ChatFlow] WA trigger error:', e.message));
-
-                                    // 🤖 CHECK AUTOMATIONS — graph-based logic
-                                    processAutomation(userId, 'new_message', 'whatsapp', { 
-                                        sender, 
-                                        message_content: text, 
-                                        messageId: msgId,
-                                        buttonId,
-                                        listId,
-                                        metadata: value.metadata 
-                                    }, req.io).catch(e => console.error('[AutomationService] WA trigger error:', e.message));
-                                }
-
-                                console.log(`✅ Saved incoming WA message from ${sender} to DB (User: ${userId}).`);
-                            } catch (dbErr) {
-                                console.error('❌ Failed to save incoming WA message:', dbErr.message);
-                            }
-                        }
-                    }
-                }
-            }
+            // Respond 200 immediately to Meta to avoid timeouts/retries
             res.sendStatus(200);
+
+            const io = req.io; // Capture local reference to req.io
+
+            setImmediate(async () => {
+                try {
+                    for (let entry of payload.entry) {
+                        for (let change of entry.changes) {
+                            let value = change.value;
+
+                            // 1. DELIVERY REPORTS (Statuses)
+                            if (value.statuses && value.statuses.length > 0) {
+                                for (let statusObj of value.statuses) {
+                                    const messageId = statusObj.id;
+                                    const status = statusObj.status; // sent, delivered, read, failed
+                                    const recipientId = statusObj.recipient_id;
+
+                                    let errorReason = null;
+                                    if (status === 'failed' && statusObj.errors) {
+                                        const err = statusObj.errors[0];
+                                        const mainMsg = err.title || err.message || 'Unknown error';
+                                        const detailedMsg = err.error_data?.details || '';
+                                        errorReason = detailedMsg ? `${mainMsg} (${detailedMsg})` : mainMsg;
+                                    }
+
+                                    console.log(`📊 WA DLR Update: Msg ${messageId} is ${status} for ${recipientId}`);
+
+                                    // Update logic based on messageId (checks both manual and API logs)
+                                    try {
+                                        let [logs] = [];
+                                        let isApiLog = false;
+                                        let attempts = 0;
+                                        while (attempts < 3) { // Reduced retry count from 10 to 3
+                                            [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                                            if (logs.length === 0) {
+                                                [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                                                if (logs.length > 0) {
+                                                    isApiLog = true;
+                                                    break;
+                                                }
+                                            } else {
+                                                break;
+                                            }
+                                            
+                                            attempts++;
+                                            if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 150)); // Reduced delay from 500ms to 150ms
+                                        }
+
+                                        if (logs.length > 0) {
+                                            const log = logs[0];
+                                            const finalStatus = (status || '').toLowerCase();
+                                            const logsTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                                            const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+
+                                            // Status hierarchy to prevent downgrades (sent < delivered < read)
+                                            // FAILED is a terminal state that can override ANY previous status
+                                            const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
+                                            const oldStatus = (log.status || 'sent').toLowerCase();
+
+                                            if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
+                                                // 1. UPDATE DB LOG STATUS
+                                                await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+
+                                                // 2. INCREMENT CAMPAIGN COUNTERS ATOMICALLY
+                                                if (log.campaign_id) {
+                                                    if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                                        await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
+                                                    } 
+                                                    else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                                        // If directly moved from sent to read, increment both
+                                                        if (oldStatus !== 'delivered') {
+                                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                                        } else {
+                                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                                        }
+                                                        await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
+                                                    } 
+                                                    else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
+                                                        await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
+                                                    }
+                                                }
+
+                                                // 🤖 WHATSAPP -> SMS FAILOVER TRIGGER (If Failed)
+                                                if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                                    if (log.is_failover_enabled && log.failover_sms_template) {
+                                                        console.log(`🤖 Whatsapp Failover Triggered via webhook for ${log.recipient}. Template=${log.failover_sms_template}`);
+                                                        const { processAutomation } = require('../services/automationService');
+                                                        
+                                                        // We mock the IO instance if not available
+                                                        const ioDummy = io || { to: () => ({ emit: () => {} }) };
+                                                        
+                                                        try {
+                                                            console.log(`[WEBHOOK-DEBUG] Raw Metadata from DB for ${messageId}: ${JSON.stringify(log.metadata)}`);
+                                                            let parsedMetadata = log.metadata || {};
+                                                            if (typeof parsedMetadata === 'string') {
+                                                                try { parsedMetadata = JSON.parse(parsedMetadata); } catch(e) {
+                                                                    console.error(`[WEBHOOK-DEBUG] JSON Parse failed for metadata: ${e.message}`);
+                                                                }
+                                                            }
+                                                            console.log(`[WEBHOOK-DEBUG] Parsed Metadata: ${JSON.stringify(parsedMetadata)}`);
+
+                                                            await processAutomation(log.user_id, 'message_failed', {
+                                                                ...log,
+                                                                is_api: isApiLog,
+                                                                metadata: parsedMetadata,
+                                                                original_channel: 'whatsapp',
+                                                                failover_template_id: log.failover_sms_template
+                                                            }, ioDummy);
+                                                        } catch (e) {
+                                                            console.error('[AutomationService] WA failover trigger error:', e.message);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            // 📡 REAL-TIME CHAT STATUS UPDATE (Manual only)
+                                            if (['delivered', 'read', 'failed'].includes(finalStatus) && io && !log.campaign_id) {
+                                                io.to(`user_${log.user_id}`).emit('message_status_update', {
+                                                    message_id: messageId,
+                                                    status: finalStatus
+                                                });
+                                            }
+                                        } else {
+                                            console.warn(`⚠️ WA Message ID ${messageId} not found in logs after retries.`);
+                                        }
+                                    } catch (error) {
+                                        console.error('❌ Error handling WA DLR:', error.message);
+                                    }
+                                }
+                            }
+
+                            // 2. INCOMING MESSAGES
+                            if (value.messages && value.messages.length > 0) {
+                                for (let msg of value.messages) {
+                                    const sender = msg.from; // Sender phone number
+                                    const msgId = msg.id;
+                                    let text = '';
+
+                                    let buttonId = null;
+                                    let listId = null;
+
+                                    let mediaUrl = null;
+
+                                    if (msg.type === 'text') {
+                                        text = msg.text.body;
+                                    } else if (msg.type === 'button') {
+                                        text = msg.button.text;
+                                        buttonId = msg.button.payload;
+                                    } else if (msg.type === 'interactive') {
+                                        if (msg.interactive.type === 'button_reply') {
+                                            text = msg.interactive.button_reply.title;
+                                            buttonId = msg.interactive.button_reply.id;
+                                        } else if (msg.interactive.type === 'list_reply') {
+                                            text = msg.interactive.list_reply.title;
+                                            listId = msg.interactive.list_reply.id;
+                                        }
+                                    } else if (msg.type === 'image') {
+                                        text = '[Image Received]';
+                                        if (msg.image && msg.image.id) mediaUrl = msg.image.id;
+                                    } else if (msg.type === 'video') {
+                                        text = '[Video Received]';
+                                        if (msg.video && msg.video.id) mediaUrl = msg.video.id;
+                                    } else if (msg.type === 'document') {
+                                        text = `[Document: ${msg.document.filename || 'file'}]`;
+                                        if (msg.document && msg.document.id) mediaUrl = msg.document.id;
+                                    } else {
+                                        text = `[Received ${msg.type} message]`;
+                                    }
+
+                                    console.log(`💬 Incoming WA Reply from ${sender}: ${text}`);
+
+                                    try {
+                                        // 1. Identify User ID
+                                        let userId = null;
+                                        const phoneId = value.metadata?.phone_number_id;
+
+                                        // 1. Identify User ID & Campaign Context
+                                        let campaignName = 'Unknown';
+                                        if (phoneId) {
+                                            const cleanSender = String(sender).replace(/\D/g, '').slice(-10); 
+                                            const [lastChat] = await query(
+                                                `SELECT user_id, campaign_name FROM (
+                                                    SELECT user_id, campaign_name, created_at as sort_time FROM message_logs WHERE recipient LIKE ?
+                                                    UNION ALL
+                                                    SELECT user_id, campaign_name, send_time as sort_time FROM api_message_logs WHERE recipient LIKE ?
+                                                ) as combined_logs 
+                                                ORDER BY sort_time DESC LIMIT 1`,
+                                                [`%${cleanSender}`, `%${cleanSender}`]
+                                            );
+                                            if (lastChat.length > 0) {
+                                                userId = lastChat[0].user_id;
+                                                campaignName = lastChat[0].campaign_name || 'API Campaign';
+                                            }
+                                        }
+
+                                        // Fallback: Just pick the first user assigned to this WhatsApp configuration
+                                        if (!userId && phoneId) {
+                                            const [fallbackUser] = await query(
+                                                'SELECT id FROM users WHERE whatsapp_config_id = (SELECT id FROM whatsapp_configs WHERE ph_no_id = ? LIMIT 1) LIMIT 1',
+                                                [phoneId]
+                                            );
+                                            if (fallbackUser.length > 0) {
+                                                userId = fallbackUser[0].id;
+                                            }
+                                        }
+
+                                        // 2. Handle Media Download (Background)
+                                        let finalMediaUrl = null;
+                                        if (mediaUrl && userId) {
+                                          try {
+                                            finalMediaUrl = await downloadWAMedia(mediaUrl, userId);
+                                          } catch (mediaErr) {
+                                            console.error('❌ WA Media Download Error:', mediaErr.message);
+                                          }
+                                        }
+
+                                        // 3. Save to webhook_logs
+                                        const [result] = await query(
+                                            'INSERT INTO webhook_logs (user_id, sender, recipient, message_content, media_url, raw_payload, status, type, message_id_envelope, campaign_name) VALUES (?, ?, ?, ?, ?, ?, "received", "whatsapp", ?, ?)',
+                                            [userId, sender, value.metadata?.display_phone_number || 'System', text, finalMediaUrl, JSON.stringify(payload), msgId, campaignName]
+                                        );
+
+                                        // 4. Notify via Socket.io for real-time chat
+                                        if (io && userId) {
+                                            io.to(`user_${userId}`).emit('new_message', {
+                                                id: result.insertId,
+                                                sender,
+                                                recipient: value.metadata?.display_phone_number || 'System',
+                                                message_content: text,
+                                                media_url: finalMediaUrl,
+                                                created_at: new Date(),
+                                                status: 'received',
+                                                type: 'whatsapp'
+                                            });
+                                            console.log(`📡 Emitted new_message to user_${userId} (Media: ${finalMediaUrl ? 'Yes' : 'No'})`);
+                                        }
+
+                                        // 🤖 CHECK CHATFLOWS — auto-reply if keyword matched
+                                        if (userId) {
+                                            triggerChatflow(userId, sender, text, 'whatsapp', io, {
+                                                phoneId: value.metadata?.phone_number_id
+                                            }).catch(e => console.error('[ChatFlow] WA trigger error:', e.message));
+
+                                            // 🤖 CHECK AUTOMATIONS — graph-based logic
+                                            processAutomation(userId, 'new_message', 'whatsapp', { 
+                                                sender, 
+                                                message_content: text, 
+                                                messageId: msgId,
+                                                buttonId,
+                                                listId,
+                                                metadata: value.metadata 
+                                            }, io).catch(e => console.error('[AutomationService] WA trigger error:', e.message));
+                                        }
+
+                                        console.log(`✅ Saved incoming WA message from ${sender} to DB (User: ${userId}).`);
+                                    } catch (dbErr) {
+                                        console.error('❌ Failed to save incoming WA message:', dbErr.message);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (bgErr) {
+                    console.error('❌ WhatsApp Webhook Background Processing Error:', bgErr.message);
+                }
+            });
         } else {
             res.sendStatus(404);
         }
     } catch (error) {
         console.error('❌ WA Webhook Error:', error.message);
-        res.status(500).send("Internal Error");
+        if (!res.headersSent) {
+            res.status(500).send("Internal Error");
+        }
     }
 });
 
