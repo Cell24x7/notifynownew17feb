@@ -1,77 +1,93 @@
 /**
  * drain_and_recover.js
- * Run ONCE on server to clear BullMQ backlog & reset stuck items
+ * Run ONCE on server to reset stuck 'processing' items back to 'pending'
  * Usage: node backend/scratch/drain_and_recover.js
  */
 
-const { Queue } = require('bullmq');
-const { query } = require('../config/db');
-const Redis = require('ioredis');
+const path = require('path');
 
-require('dotenv').config();
+// Load .env from project root (works from any subdirectory)
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-const redisHost = process.env.REDIS_HOST || '127.0.0.1';
-const redisPort = parseInt(process.env.REDIS_PORT || '6379');
-const redisPass = process.env.REDIS_PASSWORD || undefined;
+// Fallback: try parent directories
+if (!process.env.DB_HOST) {
+    require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+}
+if (!process.env.DB_HOST) {
+    require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
+}
 
-const connection = { host: redisHost, port: redisPort, password: redisPass };
-const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
-const queueName = `campaign-sending-${envSuffix}`;
+if (!process.env.DB_HOST) {
+    console.error('❌ Could not load .env — DB_HOST missing');
+    console.error('   Run from project root: node backend/scratch/drain_and_recover.js');
+    process.exit(1);
+}
+
+console.log(`✅ DB Config loaded: ${process.env.DB_USER}@${process.env.DB_HOST}/${process.env.DB_NAME}`);
+
+const mysql = require('mysql2/promise');
 
 async function drainAndRecover() {
     console.log(`\n🔧 Drain & Recover Tool`);
-    console.log(`Queue: ${queueName}`);
 
-    // 1. Drain BullMQ waiting jobs
-    const q = new Queue(queueName, { connection });
-    const waitingBefore = await q.getWaitingCount();
-    console.log(`\n📊 BullMQ waiting jobs BEFORE drain: ${waitingBefore}`);
+    const conn = await mysql.createConnection({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASS,
+        database: process.env.DB_NAME,
+    });
 
-    if (waitingBefore > 0) {
-        await q.drain(); // Remove all waiting (not active) jobs
-        console.log(`✅ BullMQ queue drained — ${waitingBefore} waiting jobs removed`);
-    } else {
-        console.log(`ℹ️  Queue already empty`);
-    }
+    // 1. Show pending counts per running campaign BEFORE reset
+    const [before] = await conn.query(`
+        SELECT c.name, c.status as camp_status,
+               SUM(q.status = 'pending') as pending,
+               SUM(q.status = 'processing') as stuck_processing
+        FROM campaign_queue q
+        JOIN campaigns c ON q.campaign_id = c.id
+        WHERE c.status = 'running'
+        GROUP BY q.campaign_id, c.name, c.status
+        ORDER BY stuck_processing DESC
+    `);
 
-    const waitingAfter = await q.getWaitingCount();
-    const activeAfter = await q.getActiveCount();
-    console.log(`📊 BullMQ after drain — waiting: ${waitingAfter}, active: ${activeAfter}`);
+    console.log(`\n📋 BEFORE reset — Running campaigns:`);
+    before.forEach(r => {
+        console.log(`   ${r.name}: ${(r.pending||0).toLocaleString()} pending, ${(r.stuck_processing||0).toLocaleString()} stuck-processing`);
+    });
 
     // 2. Reset ALL stuck 'processing' items to 'pending'
-    const [res1] = await query(`
+    const [res1] = await conn.query(`
         UPDATE campaign_queue 
         SET status = 'pending', worker_id = NULL, updated_at = NOW()
         WHERE status = 'processing'
     `);
     console.log(`\n✅ Reset ${res1.affectedRows} campaign_queue items: processing → pending`);
 
-    const [res2] = await query(`
+    const [res2] = await conn.query(`
         UPDATE api_campaign_queue 
         SET status = 'pending', worker_id = NULL, updated_at = NOW()
         WHERE status = 'processing'
     `);
     console.log(`✅ Reset ${res2.affectedRows} api_campaign_queue items: processing → pending`);
 
-    // 3. Show pending counts per campaign
-    const [pending] = await query(`
-        SELECT c.name, c.status as camp_status, COUNT(q.id) as pending_count
+    // 3. Show AFTER counts
+    const [after] = await conn.query(`
+        SELECT c.name, COUNT(q.id) as pending_count
         FROM campaign_queue q
         JOIN campaigns c ON q.campaign_id = c.id
         WHERE q.status = 'pending' AND c.status = 'running'
-        GROUP BY q.campaign_id, c.name, c.status
+        GROUP BY q.campaign_id, c.name
         ORDER BY pending_count DESC
     `);
 
-    console.log(`\n📋 Pending items per running campaign:`);
-    pending.forEach(r => {
-        console.log(`   ${r.name}: ${r.pending_count.toLocaleString()} pending`);
+    console.log(`\n📋 AFTER reset — Pending items per running campaign:`);
+    after.forEach(r => {
+        console.log(`   ${r.name}: ${Number(r.pending_count).toLocaleString()} pending`);
     });
 
     console.log(`\n🚀 Done! processBatch will now pick up ALL campaigns fairly.`);
     console.log(`   Watch the dashboard — all campaigns should start moving in ~30 seconds.\n`);
 
-    await q.close();
+    await conn.end();
     process.exit(0);
 }
 
