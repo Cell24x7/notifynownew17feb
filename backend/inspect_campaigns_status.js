@@ -1,5 +1,5 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env.production') });
 const { query } = require('./config/db');
-require('dotenv').config({ path: './.env.production' });
 
 async function check() {
     try {
