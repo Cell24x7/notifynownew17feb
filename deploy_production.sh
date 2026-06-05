@@ -198,6 +198,7 @@ step "Scheduling background data-fix jobs..."
     sleep 10  # Let PM2 fully stabilize first
     cd "$BACKEND_DIR"
     NODE_ENV=production node scripts/fix_scheduled_final.js >> /tmp/deploy_fix_scheduled.log 2>&1 || true
+    NODE_ENV=production node scripts/sync_stuck_campaigns.js >> /tmp/deploy_sync_stuck.log 2>&1 || true
     NODE_ENV=production node scripts/recalculate_all_reports.js >> /tmp/deploy_recalculate.log 2>&1 || true
     echo "[$(date)] Background fixes complete." >> /tmp/deploy_background.log
 ) &
