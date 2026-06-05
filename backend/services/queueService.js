@@ -150,7 +150,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             const [autoStartResult] = await query(`
                 UPDATE ${campaignTable} 
                 SET status = 'running', last_run_at = NOW()
-                WHERE status IN ('scheduled', 'draft') 
+                WHERE status = 'scheduled' 
                 AND next_run_at <= NOW()
                 AND status != 'running'
             `);
