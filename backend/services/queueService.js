@@ -176,7 +176,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             console.error(`[Worker:${processorName}] Recovery error:`, recoverErr.message);
         }
 
-        // --- 1.5. Check for IST DND regulatory window (9:00 PM to 9:00 AM) for manual campaigns ---
+        // --- 1.5. Check for IST DND regulatory window (9:00 PM to 10:00 AM) for manual campaigns ---
         if (campaignTable === 'campaigns') {
             const getISTHour = () => {
                 const d = new Date();
@@ -185,7 +185,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                 return istDate.getHours();
             };
             const currentIstHour = getISTHour();
-            if (currentIstHour >= 21 || currentIstHour < 9) {
+            if (currentIstHour >= 21 || currentIstHour < 10) {
                 // Restricted time window - exit early to leave items pending in queue
                 return;
             }
