@@ -501,7 +501,7 @@ const sendUniversalMessage = async (item) => {
             console.log(`[Meta] Sending via Bot: ${waConfig.ph_no_id} | Template: ${payload.template.name} | Payload: ${JSON.stringify(payload)}`);
 
             try {
-                const response = await axios.post(msgUrl, payload, { headers });
+                const response = await axios.post(msgUrl, payload, { headers, timeout: 15000 });
                 const respData = response.data;
                 console.log(`✅ [Meta Response] Success: ${JSON.stringify(respData)}`);
                 result = { 

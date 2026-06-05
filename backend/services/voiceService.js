@@ -16,7 +16,7 @@ const getVoiceAuthToken = async (config) => {
         
         console.log(`🎙️ Attempting Voice Auth for user: ${payload.username} at ${url}`);
         
-        const response = await axios.post(url, payload);
+        const response = await axios.post(url, payload, { timeout: 10000 });
         const token = response.data?.jwttoken || response.data?.token || response.data?.accessToken || null;
         
         if (token) {
@@ -56,7 +56,8 @@ const uploadVoiceAudio = async (fileBuffer, fileName, config) => {
             headers: {
                 ...form.getHeaders(),
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 30000
         });
 
         console.log('🎙️ Voice Upload Response:', JSON.stringify(response.data));
@@ -99,7 +100,7 @@ const sendVoiceCall = async (mobile, audioId, options = {}, config = {}) => {
         console.log(`📡 Sending Voice Call to ${cleanMobile}...`);
         console.log(`🔗 URL: ${url}`);
 
-        const response = await axios.get(url);
+        const response = await axios.get(url, { timeout: 15000 });
         
         console.log('📥 Voice Gateway Response:', String(response.data));
 
