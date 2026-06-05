@@ -1,5 +1,6 @@
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.production') });
+const path = require('path');
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: path.join(__dirname, '..', envFile) });
 const { query } = require('../config/db');
 const { campaignQueue } = require('../queues/campaignQueue');
 const Redis = require('ioredis');
