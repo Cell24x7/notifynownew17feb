@@ -207,7 +207,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
     }
 }, {
     connection: redisConnection,
-    concurrency: 80, // Optimized to prevent triggering carrier rate limits & timeouts
+    concurrency: 200, // Increased for max throughput — 200 parallel RCS sends
     limiter: {
         max: 1000,    // 1000 messages per second
         duration: 1000,

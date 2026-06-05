@@ -246,7 +246,7 @@ const runQueue = async () => {
     await processQueue(); 
     await processApiQueue();
   } catch (err) { console.error('Queue error:', err); }
-  setTimeout(runQueue, 15000); // Slooooow down SQL queue, Redis takes the heat
+  setTimeout(runQueue, 3000); // Fast feed — keep BullMQ always full
 };
 runQueue();
 

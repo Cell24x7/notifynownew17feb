@@ -115,7 +115,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
     try {
         const tableConfig = { campaignTable, queueTable, logsTable };
         const workerId = `worker_${process.env.APP_NAME || 'notifynow'}_${process.pid}_${Date.now()}`;
-        const DRIP_BATCH_SIZE = 10000;
+        const DRIP_BATCH_SIZE = 30000; // Increased for max throughput
         const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 
         // 0. Persistent Redis for this loop
