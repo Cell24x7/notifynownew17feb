@@ -317,6 +317,19 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
     const activeJobs = await redis.llen(`${queueKey}:active`).catch(() => 0);
     const waitJobs = await redis.llen(`${queueKey}:wait`).catch(() => 0);
     results.bullmq = { active: activeJobs, wait: waitJobs };
+
+    // Inspect Redis stats and progress keys
+    const statsKeys = await redis.keys(`${envSuffix}:stats:*`).catch(() => []);
+    results.redis_stats = {};
+    for (const key of statsKeys) {
+      results.redis_stats[key] = await redis.hgetall(key).catch(() => ({}));
+    }
+    const progKeys = await redis.keys(`${envSuffix}:camp_progress:*`).catch(() => []);
+    results.redis_progress = {};
+    for (const key of progKeys) {
+      results.redis_progress[key] = await redis.get(key).catch(() => null);
+    }
+
     await redis.quit();
   } catch (err) {
     results.redis_error = err.message;
