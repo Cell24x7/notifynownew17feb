@@ -45,8 +45,8 @@ async function getLocation(ip) {
     }
 
     try {
-        // Use a free API (ip-api.com is free for non-commercial/low rate)
-        const response = await axios.get(`http://ip-api.com/json/${cleanIp}?fields=status,message,country,city,isp`);
+        // Use a free API (ip-api.com is free for non-commercial/low rate) with an 800ms timeout to prevent hanging the login route
+        const response = await axios.get(`http://ip-api.com/json/${cleanIp}?fields=status,message,country,city,isp`, { timeout: 800 });
         if (response.data.status === 'success') {
             return `${response.data.city}, ${response.data.country}`;
         }
