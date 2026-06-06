@@ -1,5 +1,5 @@
 const path = require('path');
-const dotenv = require('dotenv');
+const dotenv = require('../backend/node_modules/dotenv');
 // Load production env variables
 dotenv.config({ path: path.join(__dirname, '../backend/.env.production') });
 
