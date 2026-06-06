@@ -230,22 +230,35 @@ const sendUniversalMessage = async (item) => {
             let processedMessage = '';
             
             // 1. Determine which RCS Config to use (Strict Routing)
-            let targetConfigId = item.rcs_config_id;
-            if (!targetConfigId) {
-                const [userProfile] = await query('SELECT rcs_config_id FROM users WHERE id = ?', [item.user_id]);
-                targetConfigId = userProfile[0]?.rcs_config_id;
-            }
+            let rcsConfig = null;
+            if (item.auth_url && item.client_id && item.client_secret && item.bot_id) {
+                rcsConfig = {
+                    id: item.rcs_config_id,
+                    provider: item.rcs_provider || 'dotgo',
+                    auth_url: item.auth_url,
+                    api_base_url: item.api_base_url,
+                    client_id: item.client_id,
+                    client_secret: item.client_secret,
+                    bot_id: item.bot_id
+                };
+            } else {
+                let targetConfigId = item.rcs_config_id;
+                if (!targetConfigId) {
+                    const [userProfile] = await query('SELECT rcs_config_id FROM users WHERE id = ?', [item.user_id]);
+                    targetConfigId = userProfile[0]?.rcs_config_id;
+                }
 
-            if (!targetConfigId) {
-                return { success: false, error: 'No RCS bot assigned to this user/campaign.' };
-            }
+                if (!targetConfigId) {
+                    return { success: false, error: 'No RCS bot assigned to this user/campaign.' };
+                }
 
-            const [assignedConfigs] = await query('SELECT * FROM rcs_configs WHERE id = ? AND is_active = 1', [targetConfigId]);
-            if (assignedConfigs.length === 0) {
-                return { success: false, error: 'Assigned RCS bot is inactive or not found.' };
-            }
+                const [assignedConfigs] = await query('SELECT * FROM rcs_configs WHERE id = ? AND is_active = 1', [targetConfigId]);
+                if (assignedConfigs.length === 0) {
+                    return { success: false, error: 'Assigned RCS bot is inactive or not found.' };
+                }
 
-            const rcsConfig = assignedConfigs[0];
+                rcsConfig = assignedConfigs[0];
+            }
             
             // 2. Send via RCS Service Helpers
             if (item.template_name && item.template_name.length > 2) {
@@ -293,34 +306,38 @@ const sendUniversalMessage = async (item) => {
         } 
         else if (channelParsed === 'whatsapp') {
             let processedMessage = item.template_body || '';
-            let waConfig = item.whatsapp_config_id ? {
-                provider: item.wa_provider, api_key: item.wa_api_key,
-                wa_token: item.wa_token, ph_no_id: item.wa_ph_no_id,
-                wa_biz_accnt_id: item.wa_biz_accnt_id
-            } : null;
-
-            // Fallback for older campaigns - Check user's assigned default bot
-            if (!item.whatsapp_config_id) {
-                const { query } = require('../config/db');
-                const [users] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [item.user_id]);
-                const effectiveConfigId = users[0]?.whatsapp_config_id;
+            let waConfig = null;
+            if (item.wa_provider && (item.wa_api_key || item.wa_token) && item.wa_ph_no_id) {
+                waConfig = {
+                    provider: item.wa_provider,
+                    api_key: item.wa_api_key,
+                    wa_token: item.wa_token,
+                    ph_no_id: item.wa_ph_no_id,
+                    wa_biz_accnt_id: item.wa_biz_accnt_id
+                };
+            } else {
+                let effectiveConfigId = item.whatsapp_config_id;
+                // Fallback for older campaigns - Check user's assigned default bot
+                if (!effectiveConfigId) {
+                    const { query } = require('../config/db');
+                    const [users] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [item.user_id]);
+                    effectiveConfigId = users[0]?.whatsapp_config_id;
+                }
                 
                 if (effectiveConfigId) {
                     const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id FROM whatsapp_configs WHERE id = ?', [effectiveConfigId]);
                     if (userBots.length > 0) {
                         waConfig = { ...userBots[0], wa_ph_no_id: userBots[0].ph_no_id };
-                        console.log(`[SendingService] Using User's assigned WhatsApp config: ${waConfig.ph_no_id}`);
                     }
                 }
-            }
 
-            // Final fallback if still null (not recommended)
-            if (!waConfig) {
-                const { query } = require('../config/db');
-                const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id FROM whatsapp_configs WHERE user_id = ? AND is_active = 1 LIMIT 1', [item.user_id]);
-                if (userBots.length > 0) {
-                    waConfig = { ...userBots[0], wa_ph_no_id: userBots[0].ph_no_id };
-                    console.log(`[SendingService] Using fallback WhatsApp config: ${waConfig.provider}`);
+                // Final fallback if still null (not recommended)
+                if (!waConfig) {
+                    const { query } = require('../config/db');
+                    const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id FROM whatsapp_configs WHERE user_id = ? AND is_active = 1 LIMIT 1', [item.user_id]);
+                    if (userBots.length > 0) {
+                        waConfig = { ...userBots[0], wa_ph_no_id: userBots[0].ph_no_id };
+                    }
                 }
             }
 
@@ -619,7 +636,9 @@ const sendUniversalMessage = async (item) => {
         }
 
         // --- NEW: Sync Outbound Message to Chat History (Conversations) ---
-        if (result.success && ['whatsapp', 'rcs', 'sms'].includes(channelParsed)) {
+        // Avoid duplicate logging for bulk campaign sends since the worker already writes to webhook_logs
+        const isBulkCampaign = item.campaign_id && !String(item.campaign_id).startsWith('CAMP_API_') && item.campaign_id !== 'API_SINGLE_WA';
+        if (result.success && ['whatsapp', 'rcs', 'sms'].includes(channelParsed) && !isBulkCampaign) {
             // Background sync so it doesn't slow down the main sending loop
             logToChatHistory(
                 item.user_id, 
