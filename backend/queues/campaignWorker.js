@@ -62,24 +62,30 @@ async function decrementAndCheckCompletion(campId, envSuffix, campaignTable) {
     try {
         const remains = await redis.decr(`${envSuffix}:camp_progress:${campId}`);
         if (remains === 0) {
-            const finalStats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
-            if (Object.keys(finalStats).length > 0) {
-                const finalTotalSent = parseInt(finalStats.sent || 0);
-                const finalTotalFailed = parseInt(finalStats.failed || 0);
-                await query(
-                    `UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
-                    [finalTotalSent, finalTotalFailed, campId]
-                );
-                
-                // Cleanup Redis
-                await redis.del(`${envSuffix}:camp_progress:${campId}`);
-                await redis.del(`${envSuffix}:stats:${campId}`);
-                await redis.del(`${envSuffix}:tracked:${campId}`);
-                await redis.del(`${envSuffix}:tracked_fail:${campId}`);
-            } else {
-                await query(`UPDATE ${campaignTable} SET status = "sent" WHERE id = ?`, [campId]);
-                await redis.del(`${envSuffix}:camp_progress:${campId}`);
-            }
+            const logsTable = campaignTable === 'campaigns' ? 'message_logs' : 'api_message_logs';
+            
+            // Query message_logs to get the true total sent and failed counts!
+            const [dbStats] = await query(`
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+                FROM ${logsTable}
+                WHERE campaign_id = ?
+            `, [campId]);
+
+            const finalTotalSent = dbStats[0]?.total || 0;
+            const finalTotalFailed = dbStats[0]?.failed || 0;
+
+            await query(
+                `UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
+                [finalTotalSent, finalTotalFailed, campId]
+            );
+            
+            // Cleanup Redis
+            await redis.del(`${envSuffix}:camp_progress:${campId}`);
+            await redis.del(`${envSuffix}:stats:${campId}`);
+            await redis.del(`${envSuffix}:tracked:${campId}`);
+            await redis.del(`${envSuffix}:tracked_fail:${campId}`);
         } else if (remains < 0) {
             await redis.del(`${envSuffix}:camp_progress:${campId}`); // Safeguard
         }
@@ -202,9 +208,20 @@ const campaignWorker = new Worker(queueName, async (job) => {
         // DYNAMIC SYNC: Sync every 10 for small campaigns, every 500 for large ones
         const syncInterval = (processedTotal < 100) ? 10 : 500;
         if (processedTotal % syncInterval === 0) {
-            const stats = await redis.hgetall(`${envSuffix}:stats:${campId}`);
-            const totalSent = parseInt(stats.sent || 0);
-            await query(`UPDATE ${campaignTable} SET sent_count = ?, failed_count = ? WHERE id = ?`, [totalSent, parseInt(stats.failed || 0), campId]);
+            const [dbStats] = await query(`
+                SELECT 
+                    COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+                    COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+                FROM ${queueTable}
+                WHERE campaign_id = ?
+            `, [campId]);
+            
+            const totalSent = dbStats[0]?.sent || 0;
+            const totalFailed = dbStats[0]?.failed || 0;
+            const totalProcessed = totalSent + totalFailed;
+            
+            // Only update sent_count! Do NOT update failed_count to avoid wiping out webhook callbacks!
+            await query(`UPDATE ${campaignTable} SET sent_count = ? WHERE id = ?`, [totalProcessed, campId]);
         }
 
         // 4. COMPLETION CHECK
