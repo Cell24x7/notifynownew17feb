@@ -120,19 +120,21 @@ async function fix2() {
     }
     console.log('');
 
-    // ── STEP 4: Delete OLD webhook_logs (> 60 days) ───────────────────────────
-    console.log('🗑️  STEP 4: Archive OLD webhook_logs (> 60 days) — 2.8 GB SAVER\n');
+    // ── STEP 4: Delete OLD webhook_logs (> 30 days, non-chat types) ─────────────
+    console.log('🗑️  STEP 4: Archive OLD webhook_logs (> 30 days) — 2.8 GB SAVER\n');
     const before4 = await getTableSize('webhook_logs');
     console.log(`  Before: ${Number(before4.row_count).toLocaleString()} rows, ${before4.size_mb} MB`);
     
-    // Delete in batches to avoid locking
+    // Delete in batches to avoid locking — MariaDB compatible single-table DELETE
     let totalDeleted4 = 0;
     let batchDeleted = 0;
     do {
         try {
+            // Delete DLR/status webhook logs older than 30 days (not chat messages)
             [result] = await query(`
                 DELETE FROM webhook_logs 
-                WHERE created_at < DATE_SUB(NOW(), INTERVAL 60 DAY)
+                WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+                AND status IN ('delivered', 'failed', 'sent', 'read', 'undelivered')
                 LIMIT 50000
             `);
             batchDeleted = result?.affectedRows || 0;
@@ -146,47 +148,76 @@ async function fix2() {
         }
     } while (batchDeleted === 50000);
     
-    console.log(`\n  ✅ Deleted ${totalDeleted4.toLocaleString()} old webhook_logs (> 60 days)`);
+    console.log(`\n  ✅ Deleted ${totalDeleted4.toLocaleString()} old webhook_logs (DLR status, > 30 days)`);
     console.log('');
 
     // ── STEP 5: Delete old message_logs for DONE campaigns (> 30 days) ────────
+    // Uses MariaDB-compatible subquery (no JOIN+LIMIT which is unsupported)
     console.log('🗑️  STEP 5: Archive OLD message_logs (done campaigns, > 30 days)\n');
     const before5 = await getTableSize('message_logs');
     console.log(`  Before: ${Number(before5.row_count).toLocaleString()} rows, ${before5.size_mb} MB`);
 
+    // Step 5a: Get list of done campaign IDs (done more than 30 days ago)
+    let doneCampIds = [];
+    try {
+        const [doneRows] = await query(`
+            SELECT id FROM campaigns
+            WHERE status IN ('sent', 'completed', 'failed')
+            AND updated_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+        `);
+        doneCampIds = doneRows.map(r => r.id);
+        console.log(`  Found ${doneCampIds.length} done campaigns (> 30 days old)`);
+    } catch (e) {
+        console.log('  ⚠️ Could not fetch done campaigns:', e.message);
+    }
+
     let totalDeleted5 = 0;
-    do {
-        try {
-            [result] = await query(`
-                DELETE ml FROM message_logs ml
-                JOIN campaigns c ON ml.campaign_id = c.id
-                WHERE c.status IN ('sent', 'completed', 'failed')
-                AND ml.created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
-                LIMIT 50000
-            `);
-            batchDeleted = result?.affectedRows || 0;
-            totalDeleted5 += batchDeleted;
-            if (batchDeleted > 0) {
-                process.stdout.write(`\r  ⏳ Deleted ${totalDeleted5.toLocaleString()} message_logs so far...`);
-            }
-        } catch (e) {
-            console.log('\n  ⚠️ message_logs delete error:', e.message);
-            break;
+    if (doneCampIds.length > 0) {
+        // Process in chunks of 50 campaign IDs to avoid huge IN() clauses
+        const chunkSize = 50;
+        for (let i = 0; i < doneCampIds.length; i += chunkSize) {
+            const chunk = doneCampIds.slice(i, i + chunkSize);
+            let chunkBatch = 0;
+            do {
+                try {
+                    // MariaDB-compatible: single-table DELETE with IN() — no JOIN+LIMIT
+                    [result] = await query(
+                        `DELETE FROM message_logs
+                         WHERE campaign_id IN (?)
+                         AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+                         LIMIT 50000`,
+                        [chunk]
+                    );
+                    chunkBatch = result?.affectedRows || 0;
+                    totalDeleted5 += chunkBatch;
+                    if (totalDeleted5 > 0) {
+                        process.stdout.write(`\r  ⏳ Deleted ${totalDeleted5.toLocaleString()} message_logs so far...`);
+                    }
+                } catch (e) {
+                    console.log('\n  ⚠️ message_logs chunk delete error:', e.message);
+                    chunkBatch = 0;
+                }
+            } while (chunkBatch === 50000);
         }
-    } while (batchDeleted === 50000);
+    }
     console.log(`\n  ✅ Deleted ${totalDeleted5.toLocaleString()} old message_logs (done campaigns, > 30 days)`);
     console.log('');
 
     // ── STEP 6: OPTIMIZE big tables to reclaim disk ───────────────────────────
+    // OPTIMIZE TABLE rebuilds the table and reclaims deleted space.
+    // On large tables this can take 5-20 minutes — it's normal, don't Ctrl+C.
     console.log('⚡ STEP 6: OPTIMIZE Tables to Reclaim Disk Space\n');
     for (const t of ['webhook_logs', 'message_logs']) {
-        process.stdout.write(`  ⏳ OPTIMIZE TABLE ${t}... `);
+        const sizeBefore = await getTableSize(t);
+        console.log(`  ⏳ OPTIMIZE TABLE ${t} (${sizeBefore.size_mb} MB — may take 5-20 min, do NOT Ctrl+C)...`);
         try {
+            // Set a long timeout for this operation
+            await query(`SET SESSION wait_timeout = 28800`);
             await query(`OPTIMIZE TABLE ${t}`);
             const s = await getTableSize(t);
-            console.log(`✅  now: ${Number(s.row_count).toLocaleString()} rows, ${s.size_mb} MB`);
+            console.log(`  ✅ ${t}: ${sizeBefore.size_mb} MB → ${s.size_mb} MB (saved ${(sizeBefore.size_mb - s.size_mb).toFixed(1)} MB)`);
         } catch (e) {
-            console.log(`⚠️ ${e.message}`);
+            console.log(`  ⚠️ OPTIMIZE ${t}: ${e.message}`);
         }
     }
     console.log('');
