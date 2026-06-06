@@ -83,16 +83,24 @@ async function forceComplete() {
     for (const camp of stuckCampaigns) {
         console.log(`  🔄 Processing: ${camp.name}`);
 
-        // Get true counts from message_logs
+        // Get true counts from message_logs (consistent with recalculate_all_reports.js)
         const [logStats] = await query(`
-            SELECT
-                COUNT(*) as total_logged,
-                COUNT(CASE WHEN status IN ('sent', 'submitted', 'success', 'delivered', 'read', 'displayed') THEN 1 END) as sent_count,
-                COUNT(CASE WHEN status IN ('delivered', 'read', 'displayed') THEN 1 END) as delivered_count,
-                COUNT(CASE WHEN status IN ('read', 'displayed', 'read_receipt') THEN 1 END) as read_count,
-                COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count
-            FROM message_logs
-            WHERE campaign_id = ?
+            SELECT 
+                COALESCE(SUM(is_sent), 0) as total_logged,
+                COALESCE(SUM(is_sent), 0) as sent_count,
+                COALESCE(SUM(is_delivered), 0) as delivered_count,
+                COALESCE(SUM(is_read), 0) as read_count,
+                COALESCE(SUM(CASE WHEN is_delivered = 0 AND is_failed = 1 THEN 1 ELSE 0 END), 0) as failed_count
+            FROM (
+                SELECT recipient,
+                       MAX(1) as is_sent,
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt', 'delivered') THEN 1 ELSE 0 END) as is_delivered,
+                       MAX(CASE WHEN status IN ('read', 'displayed', 'read_receipt') THEN 1 ELSE 0 END) as is_read,
+                       MAX(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as is_failed
+                FROM message_logs
+                WHERE campaign_id = ?
+                GROUP BY recipient
+            ) as t
         `, [camp.id]);
 
         const stats = logStats[0] || {};
