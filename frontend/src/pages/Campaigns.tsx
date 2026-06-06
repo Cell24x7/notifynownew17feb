@@ -50,6 +50,13 @@ import { useClient } from '@/contexts/ClientContext';
 // Date range presets for analytics
 const dateRangePresets = ['Today', 'Last 7 Days', 'Last 30 Days', 'This Month', 'Last Month', 'Custom Range'];
 
+// Frontend Cache variables to make tab navigation instant
+let campaignsCacheOwnerId: string | null = null;
+let cachedCampaigns: any[] | null = null;
+let cachedTemplates: any[] | null = null;
+let cachedTotalPages = 1;
+let cachedTotalItems = 0;
+
 export default function Campaigns() {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
@@ -58,16 +65,25 @@ export default function Campaigns() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const enabledChannels = user?.channels_enabled || [];
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  // Invalidate cache if user changes
+  if (campaignsCacheOwnerId !== user?.id) {
+    cachedCampaigns = null;
+    cachedTemplates = null;
+    cachedTotalPages = 1;
+    cachedTotalItems = 0;
+    campaignsCacheOwnerId = user?.id || null;
+  }
+
+  const [campaigns, setCampaigns] = useState<Campaign[]>(cachedCampaigns || []);
+  const [templates, setTemplates] = useState<MessageTemplate[]>(cachedTemplates || []);
   const [whatsappError, setWhatsappError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedCampaigns);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(cachedTotalPages);
+  const [totalItems, setTotalItems] = useState(cachedTotalItems);
 
   useEffect(() => {
     fetchData();
@@ -79,7 +95,9 @@ export default function Campaigns() {
   }, [user?.id, page, selectedClientId]); // Added selectedClientId dependency
 
   const fetchData = async () => {
-    setLoading(true);
+    if (campaigns.length === 0) {
+      setLoading(true);
+    }
     try {
       // Refresh user to get latest wallet balance and custom pricing
       await refreshUser();
@@ -96,6 +114,10 @@ export default function Campaigns() {
       setCampaigns(campaignsRes.campaigns);
       setTotalPages(campaignsRes.pagination.totalPages);
       setTotalItems(campaignsRes.pagination.total);
+      
+      cachedCampaigns = campaignsRes.campaigns;
+      cachedTotalPages = campaignsRes.pagination.totalPages;
+      cachedTotalItems = campaignsRes.pagination.total;
       
       const templatesData = templatesRes.templates;
 

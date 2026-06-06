@@ -46,11 +46,19 @@ const categoryFilters = [
   { id: 'vip', label: 'VIP', color: 'bg-purple-500' },
 ];
 
-// channelFilters is now dynamic inside the component
+// Frontend Cache variables to make tab navigation instant
+let contactsCacheOwnerId: string | null = null;
+let cachedContactsList: Contact[] | null = null;
 
 export default function Contacts() {
   const { user } = useAuth();
   const enabledChannels = user?.channels_enabled || [];
+
+  // Invalidate cache if user changes
+  if (contactsCacheOwnerId !== user?.id) {
+    cachedContactsList = null;
+    contactsCacheOwnerId = user?.id || null;
+  }
 
   const dynamicChannelFilters = enabledChannels.map(id => {
     const config = (channelConfig as any)[id.toLowerCase()] || { 
@@ -66,8 +74,8 @@ export default function Contacts() {
     };
   });
 
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [contacts, setContacts] = useState<Contact[]>(cachedContactsList || []);
+  const [loading, setLoading] = useState(!cachedContactsList);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedView, setSelectedView] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -103,13 +111,16 @@ export default function Contacts() {
 
   const fetchContacts = async () => {
     try {
-      setLoading(true);
+      if (!cachedContactsList) {
+        setLoading(true);
+      }
       const data = await contactService.getContacts({
         view: selectedView === 'all' ? undefined : selectedView,
         category: selectedCategory,
         channel: selectedChannel,
       });
       setContacts(data);
+      cachedContactsList = data;
     } catch (error) {
       console.error('Error fetching contacts:', error);
       toast({

@@ -74,22 +74,49 @@ const downloadCsv = (content: string, filename: string) => {
     document.body.removeChild(link);
 };
 
+// Frontend Cache variables to make tab navigation instant
+let reportsCacheOwnerId: string | null = null;
+let cachedReportsList: Report[] | null = null;
+let cachedWebhookLogs: WebhookLog[] | null = null;
+let cachedEngagementReports: EngagementReport[] | null = null;
+let cachedSummaryStats: any = null;
+let cachedSummaryTotal = 0;
+let cachedDetailedTotal = 0;
+let cachedScheduledTotal = 0;
+let cachedApiTotal = 0;
+let cachedEngagementTotal = 0;
+
 export default function Reports() {
     const { user } = useAuth();
     const { selectedClientId } = useClient();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [reports, setReports] = useState<Report[]>([]);
-    const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
+
+    // Invalidate cache if user changes
+    if (reportsCacheOwnerId !== user?.id) {
+        cachedReportsList = null;
+        cachedWebhookLogs = null;
+        cachedEngagementReports = null;
+        cachedSummaryStats = null;
+        cachedSummaryTotal = 0;
+        cachedDetailedTotal = 0;
+        cachedScheduledTotal = 0;
+        cachedApiTotal = 0;
+        cachedEngagementTotal = 0;
+        reportsCacheOwnerId = user?.id || null;
+    }
+
+    const [reports, setReports] = useState<Report[]>(cachedReportsList || []);
+    const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>(cachedWebhookLogs || []);
     const [summaryPage, setSummaryPage] = useState(1);
-    const [summaryTotal, setSummaryTotal] = useState(0);
+    const [summaryTotal, setSummaryTotal] = useState(cachedSummaryTotal);
     const [detailedPage, setDetailedPage] = useState(1);
-    const [detailedTotal, setDetailedTotal] = useState(0);
+    const [detailedTotal, setDetailedTotal] = useState(cachedDetailedTotal);
     const [scheduledPage, setScheduledPage] = useState(1);
-    const [scheduledTotal, setScheduledTotal] = useState(0);
+    const [scheduledTotal, setScheduledTotal] = useState(cachedScheduledTotal);
     const ITEMS_PER_PAGE = 20;
 
-    const [loading, setLoading] = useState(true);
-    const [loadingLogs, setLoadingLogs] = useState(false);
+    const [loading, setLoading] = useState(!cachedReportsList);
+    const [loadingLogs, setLoadingLogs] = useState(!cachedWebhookLogs);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState('all');
@@ -103,12 +130,12 @@ export default function Reports() {
     }, [selectedClientId]);
     const [users, setUsers] = useState<any[]>([]);
     const [apiPage, setApiPage] = useState(1);
-    const [apiTotal, setApiTotal] = useState(0);
-    const [engagementReports, setEngagementReports] = useState<EngagementReport[]>([]);
+    const [apiTotal, setApiTotal] = useState(cachedApiTotal);
+    const [engagementReports, setEngagementReports] = useState<EngagementReport[]>(cachedEngagementReports || []);
     const [engagementPage, setEngagementPage] = useState(1);
-    const [engagementTotal, setEngagementTotal] = useState(0);
-    const [loadingEngagement, setLoadingEngagement] = useState(false);
-    const [summaryStats, setSummaryStats] = useState<any>(null);
+    const [engagementTotal, setEngagementTotal] = useState(cachedEngagementTotal);
+    const [loadingEngagement, setLoadingEngagement] = useState(!cachedEngagementReports);
+    const [summaryStats, setSummaryStats] = useState<any>(cachedSummaryStats);
     
     // Read from URL
     const activeTab = searchParams.get('tab') || 'summary';
@@ -175,7 +202,7 @@ export default function Reports() {
     }, [detailedPage, apiPage, engagementPage, targetUserId]);
 
     const fetchReports = async (page: number = 1, fetchForTab: string = activeTab, silent: boolean = false) => {
-        if (!silent) setLoading(true);
+        if (!cachedReportsList && !silent) setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -203,10 +230,13 @@ export default function Reports() {
             const data = await response.json();
             if (data.success) {
                 setReports(data.reports);
+                cachedReportsList = data.reports;
                 if (fetchForTab === 'scheduled') {
                     setScheduledTotal(data.pagination?.total || 0);
+                    cachedScheduledTotal = data.pagination?.total || 0;
                 } else {
                     setSummaryTotal(data.pagination?.total || 0);
+                    cachedSummaryTotal = data.pagination?.total || 0;
                 }
             }
         } catch (error) {
@@ -217,7 +247,7 @@ export default function Reports() {
     };
 
     const fetchWebhookLogs = async (page: number = 1, currentTab: string = activeTab, silent: boolean = false) => {
-        if (!silent) setLoadingLogs(true);
+        if (!cachedWebhookLogs && !silent) setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -240,10 +270,13 @@ export default function Reports() {
             const data = await res.json();
             if (data.success) {
                 setWebhookLogs(data.data);
+                cachedWebhookLogs = data.data;
                 if (currentTab === 'api') {
                     setApiTotal(data.pagination?.total || 0);
+                    cachedApiTotal = data.pagination?.total || 0;
                 } else {
                     setDetailedTotal(data.pagination?.total || 0);
+                    cachedDetailedTotal = data.pagination?.total || 0;
                 }
             }
         } catch (error) {
@@ -266,6 +299,7 @@ export default function Reports() {
             const data = await res.json();
             if (data.success) {
                 setSummaryStats(data.summary);
+                cachedSummaryStats = data.summary;
             }
         } catch (error) {
             console.error('Error fetching summary stats:', error);
@@ -273,7 +307,7 @@ export default function Reports() {
     };
 
     const fetchEngagementReports = async (page: number = 1) => {
-        setLoadingEngagement(true);
+        if (!cachedEngagementReports) setLoadingEngagement(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/reports/engagement?page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -285,7 +319,9 @@ export default function Reports() {
             const data = await res.json();
             if (data.success) {
                 setEngagementReports(data.reports);
+                cachedEngagementReports = data.reports;
                 setEngagementTotal(data.reports.length); // Assuming limit for now
+                cachedEngagementTotal = data.reports.length;
             }
         } catch (error) {
             console.error('Error fetching engagement:', error);

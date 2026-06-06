@@ -35,6 +35,12 @@ import { EmailTemplateForm } from '@/components/campaigns/EmailTemplateForm';
 import { EmailPreview } from '@/components/campaigns/EmailPreview';
 import { VoiceTemplateForm } from '@/components/campaigns/VoiceTemplateForm';
 
+// Frontend Cache variables to make tab navigation instant
+let templatesCacheOwnerId: string | null = null;
+let cachedTemplatesList: MessageTemplate[] | null = null;
+let cachedTemplatesTotalPages = 1;
+let cachedTemplatesTotalItems = 0;
+
 export default function Templates() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -43,8 +49,16 @@ export default function Templates() {
   const { selectedClientId } = useClient();
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Invalidate cache if user changes
+  if (templatesCacheOwnerId !== user?.id) {
+    cachedTemplatesList = null;
+    cachedTemplatesTotalPages = 1;
+    cachedTemplatesTotalItems = 0;
+    templatesCacheOwnerId = user?.id || null;
+  }
+
+  const [templates, setTemplates] = useState<MessageTemplate[]>(cachedTemplatesList || []);
+  const [loading, setLoading] = useState(!cachedTemplatesList);
   const [searchQuery, setSearchQuery] = useState('');
   const [templateSubTab, setTemplateSubTab] = useState<'all' | 'pending'>('all');
   const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'rcs' | 'sms' | 'email' | 'voicebot'>('all');
@@ -52,8 +66,8 @@ export default function Templates() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingTemplateId, setRefreshingTemplateId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(cachedTemplatesTotalPages);
+  const [totalItems, setTotalItems] = useState(cachedTemplatesTotalItems);
 
   // File states for RCS uploads
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -83,16 +97,21 @@ export default function Templates() {
   }, [user?.id, user?.rcs_config_id, user?.whatsapp_config_id, page, templateSubTab, selectedClientId]); // Added selectedClientId
 
   const fetchTemplates = async () => {
-    setLoading(true);
+    if (!cachedTemplatesList) {
+      setLoading(true);
+    }
     try {
       const templatesRes = isAdmin
         ? await templateService.getAdminTemplates(page, 20, selectedClientId)
         : await templateService.getTemplates(page);
       
-      const templatesData = templatesRes.templates;
+      let templatesData = templatesRes.templates;
       setTotalPages(templatesRes.pagination.totalPages);
       setTotalItems(templatesRes.pagination.total);
-      setTemplates(templatesData);
+      
+      cachedTemplatesTotalPages = templatesRes.pagination.totalPages;
+      cachedTemplatesTotalItems = templatesRes.pagination.total;
+      cachedTemplatesList = templatesData;
 
       // Fetch external RCS templates
       const rcsConfigId = (user as any)?.rcs_config_id;
@@ -136,37 +155,36 @@ export default function Templates() {
               };
             });
 
-            setTemplates(prev => {
-              const other = prev.filter(p => p.channel !== 'rcs');
-              const localRcs = prev.filter(p => p.channel === 'rcs');
-              const reconciled: MessageTemplate[] = [];
+            const other = templatesData.filter(p => p.channel !== 'rcs');
+            const localRcs = templatesData.filter(p => p.channel === 'rcs');
+            const reconciled: MessageTemplate[] = [];
 
-              localRcs.forEach(local => {
-                const live = externalTemplates.find(t => t.name === local.name);
-                if (live) {
-                  const useLocalBody = local.body && local.body !== 'External Template';
-                  const liveHasBody = live.body && live.body !== 'External Template';
+            localRcs.forEach(local => {
+              const live = externalTemplates.find(t => t.name === local.name);
+              if (live) {
+                const useLocalBody = local.body && local.body !== 'External Template';
+                const liveHasBody = live.body && live.body !== 'External Template';
 
-                  reconciled.push({
-                    ...local,
-                    ...live,
-                    id: local.id,
-                    body: (useLocalBody && !liveHasBody) ? local.body : live.body,
-                    metadata: (local.metadata && Object.keys(local.metadata).length > 0 && (!live.metadata || Object.keys(live.metadata).length === 0)) ? local.metadata : live.metadata
-                  });
-                } else {
-                  reconciled.push(local);
-                }
-              });
-
-              externalTemplates.forEach(external => {
-                if (!localRcs.some(l => l.name === external.name)) {
-                  reconciled.push(external);
-                }
-              });
-
-              return [...other, ...reconciled];
+                reconciled.push({
+                  ...local,
+                  ...live,
+                  id: local.id,
+                  body: (useLocalBody && !liveHasBody) ? local.body : live.body,
+                  metadata: (local.metadata && Object.keys(local.metadata).length > 0 && (!live.metadata || Object.keys(live.metadata).length === 0)) ? local.metadata : live.metadata
+                });
+              } else {
+                reconciled.push(local);
+              }
             });
+
+            externalTemplates.forEach(external => {
+              if (!localRcs.some(l => l.name === external.name)) {
+                reconciled.push(external);
+              }
+            });
+
+            templatesData = [...other, ...reconciled];
+            cachedTemplatesList = templatesData;
           }
         } catch (rcsErr) {
           console.warn('RCS template fetch failed:', rcsErr);
@@ -199,28 +217,27 @@ export default function Templates() {
               };
             });
 
-            setTemplates(prev => {
-              const other = prev.filter(p => p.channel !== 'whatsapp');
-              const localWa = prev.filter(p => p.channel === 'whatsapp');
-              const reconciled: MessageTemplate[] = [];
+            const other = templatesData.filter(p => p.channel !== 'whatsapp');
+            const localWa = templatesData.filter(p => p.channel === 'whatsapp');
+            const reconciled: MessageTemplate[] = [];
 
-              localWa.forEach(local => {
-                const live = externalWaTemplates.find(t => t.name === local.name);
-                if (live) {
-                  reconciled.push({ ...local, ...live, id: local.id });
-                } else {
-                  reconciled.push(local);
-                }
-              });
-
-              externalWaTemplates.forEach(external => {
-                if (!localWa.some(l => l.name === external.name)) {
-                  reconciled.push(external);
-                }
-              });
-
-              return [...other, ...reconciled];
+            localWa.forEach(local => {
+              const live = externalWaTemplates.find(t => t.name === local.name);
+              if (live) {
+                reconciled.push({ ...local, ...live, id: local.id });
+              } else {
+                reconciled.push(local);
+              }
             });
+
+            externalWaTemplates.forEach(external => {
+              if (!localWa.some(l => l.name === external.name)) {
+                reconciled.push(external);
+              }
+            });
+
+            templatesData = [...other, ...reconciled];
+            cachedTemplatesList = templatesData;
           }
         } catch (waErr: any) {
           console.warn('WhatsApp template fetch failed:', waErr);
@@ -235,6 +252,8 @@ export default function Templates() {
           });
         }
       }
+
+      setTemplates(templatesData);
     } catch (err) {
       console.error('Error fetching templates:', err);
       toast({

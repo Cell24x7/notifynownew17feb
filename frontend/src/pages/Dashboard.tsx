@@ -53,9 +53,20 @@ const agentsData = [
 
 const PIE_COLORS = ['#34d399', '#3b82f6', '#ec4899', '#6366f1', '#a855f7'];
 
+// Frontend Cache variables to make tab navigation instant
+let statsCacheOwnerId: string | null = null;
+let cachedStats: any = null;
+
 export default function Dashboard() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
+  
+  // Invalidate cache if user changes
+  if (statsCacheOwnerId !== user?.id) {
+    cachedStats = null;
+    statsCacheOwnerId = user?.id || null;
+  }
+
+  const [stats, setStats] = useState<any>(cachedStats);
   const [activeTab, setActiveTab] = useState('All');
 
   const fetchStats = async () => {
@@ -72,6 +83,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
+        cachedStats = data.stats; // Update cache
       } else {
         console.error('Dashboard Stats API Error:', data.message);
       }
