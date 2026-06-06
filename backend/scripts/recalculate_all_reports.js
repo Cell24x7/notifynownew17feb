@@ -58,8 +58,8 @@ async function recalculateManualCampaign(camp) {
 
         const stats = statsResult[0];
         
-        let sent = stats.sent_count;
-        let failed = stats.failed_count;
+        let sent = Number(stats.sent_count || 0);
+        let failed = Number(stats.failed_count || 0);
         const isCompleted = ['sent', 'completed', 'failed'].includes(camp.status?.toLowerCase());
 
         if (isCompleted && total > 0) {
@@ -70,8 +70,8 @@ async function recalculateManualCampaign(camp) {
             sent = Math.min(sent, total);
             failed = Math.min(failed, total);
         }
-        let delivered = Math.min(stats.delivered_count, sent);
-        let read = Math.min(stats.read_count, delivered);
+        let delivered = Math.min(Number(stats.delivered_count || 0), sent);
+        let read = Math.min(Number(stats.read_count || 0), delivered);
 
         await query(
             'UPDATE campaigns SET sent_count = ?, delivered_count = ?, read_count = ?, failed_count = ? WHERE id = ?', 
@@ -121,8 +121,8 @@ async function recalculateApiCampaign(camp) {
 
         const stats = statsResult[0];
         
-        let sent = stats.sent_count;
-        let failed = stats.failed_count;
+        let sent = Number(stats.sent_count || 0);
+        let failed = Number(stats.failed_count || 0);
         const isCompleted = ['sent', 'completed', 'failed'].includes(camp.status?.toLowerCase());
 
         if (isCompleted && total > 0) {
@@ -133,8 +133,8 @@ async function recalculateApiCampaign(camp) {
             sent = Math.min(sent, total);
             failed = Math.min(failed, total);
         }
-        let delivered = Math.min(stats.delivered_count, sent);
-        let read = Math.min(stats.read_count, delivered);
+        let delivered = Math.min(Number(stats.delivered_count || 0), sent);
+        let read = Math.min(Number(stats.read_count || 0), delivered);
 
         await query(
             'UPDATE api_campaigns SET sent_count = ?, delivered_count = ?, read_count = ?, failed_count = ? WHERE id = ?', 

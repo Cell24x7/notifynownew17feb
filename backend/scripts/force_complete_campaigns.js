@@ -105,19 +105,19 @@ async function forceComplete() {
 
         const stats = logStats[0] || {};
         const trueTotal = Math.max(
-            camp.recipient_count || 0,
-            camp.audience_count || 0,
-            stats.total_logged || 0
+            Number(camp.recipient_count || 0),
+            Number(camp.audience_count || 0),
+            Number(stats.total_logged || 0)
         );
-        const attempted = stats.sent_count || 0;
+        const attempted = Number(stats.sent_count || 0);
         const unprocessed = Math.max(0, trueTotal - attempted);
         
         const trueSent = trueTotal; // Option B: sent_count always equals Total uploaded
-        const trueFailed = Math.max(stats.failed_count || 0, camp.failed_count || 0) + unprocessed; // skipped items counted as failed
-        const trueDelivered = Math.max(stats.delivered_count || 0, camp.delivered_count || 0);
-        const trueRead = Math.max(stats.read_count || 0, camp.read_count || 0);
+        const trueFailed = Math.max(Number(stats.failed_count || 0), Number(camp.failed_count || 0)) + unprocessed; // skipped items counted as failed
+        const trueDelivered = Math.max(Number(stats.delivered_count || 0), Number(camp.delivered_count || 0));
+        const trueRead = Math.max(Number(stats.read_count || 0), Number(camp.read_count || 0));
 
-        console.log(`     Logs: attempted=${attempted.toLocaleString()} processed_failed=${Math.max(stats.failed_count || 0, camp.failed_count || 0).toLocaleString()} unprocessed_skipped=${unprocessed.toLocaleString()}`);
+        console.log(`     Logs: attempted=${attempted.toLocaleString()} processed_failed=${Math.max(Number(stats.failed_count || 0), Number(camp.failed_count || 0)).toLocaleString()} unprocessed_skipped=${unprocessed.toLocaleString()}`);
         console.log(`     Updating DB to: sent_count (Total)=${trueSent.toLocaleString()} failed_count=${trueFailed.toLocaleString()} delivered_count=${trueDelivered.toLocaleString()}`);
 
         // Update campaign with true counts and mark as sent
