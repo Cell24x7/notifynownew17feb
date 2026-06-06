@@ -109,12 +109,16 @@ async function forceComplete() {
             camp.audience_count || 0,
             stats.total_logged || 0
         );
-        const trueSent = Math.max(stats.sent_count || 0, camp.sent_count || 0);
+        const attempted = stats.sent_count || 0;
+        const unprocessed = Math.max(0, trueTotal - attempted);
+        
+        const trueSent = trueTotal; // Option B: sent_count always equals Total uploaded
+        const trueFailed = Math.max(stats.failed_count || 0, camp.failed_count || 0) + unprocessed; // skipped items counted as failed
         const trueDelivered = Math.max(stats.delivered_count || 0, camp.delivered_count || 0);
         const trueRead = Math.max(stats.read_count || 0, camp.read_count || 0);
-        const trueFailed = Math.max(stats.failed_count || 0, camp.failed_count || 0);
 
-        console.log(`     Logs: sent=${trueSent.toLocaleString()} delivered=${trueDelivered.toLocaleString()} failed=${trueFailed.toLocaleString()}`);
+        console.log(`     Logs: attempted=${attempted.toLocaleString()} processed_failed=${Math.max(stats.failed_count || 0, camp.failed_count || 0).toLocaleString()} unprocessed_skipped=${unprocessed.toLocaleString()}`);
+        console.log(`     Updating DB to: sent_count (Total)=${trueSent.toLocaleString()} failed_count=${trueFailed.toLocaleString()} delivered_count=${trueDelivered.toLocaleString()}`);
 
         // Update campaign with true counts and mark as sent
         await query(`

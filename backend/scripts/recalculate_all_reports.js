@@ -60,7 +60,13 @@ async function recalculateManualCampaign(camp) {
         
         let sent = stats.sent_count;
         let failed = stats.failed_count;
-        if (total > 0) {
+        const isCompleted = ['sent', 'completed', 'failed'].includes(camp.status?.toLowerCase());
+
+        if (isCompleted && total > 0) {
+            const unprocessed = Math.max(0, total - sent);
+            sent = total;
+            failed = failed + unprocessed;
+        } else if (total > 0) {
             sent = Math.min(sent, total);
             failed = Math.min(failed, total);
         }
@@ -117,7 +123,13 @@ async function recalculateApiCampaign(camp) {
         
         let sent = stats.sent_count;
         let failed = stats.failed_count;
-        if (total > 0) {
+        const isCompleted = ['sent', 'completed', 'failed'].includes(camp.status?.toLowerCase());
+
+        if (isCompleted && total > 0) {
+            const unprocessed = Math.max(0, total - sent);
+            sent = total;
+            failed = failed + unprocessed;
+        } else if (total > 0) {
             sent = Math.min(sent, total);
             failed = Math.min(failed, total);
         }
@@ -139,11 +151,11 @@ async function recalculateReports() {
     if (singleCampaignId) {
         console.log(`🎯 Targeted Recalculation for Campaign ID: ${singleCampaignId}...`);
         
-        const [manualCamps] = await query('SELECT id, name, recipient_count, audience_count FROM campaigns WHERE id = ?', [singleCampaignId]);
+        const [manualCamps] = await query('SELECT id, name, recipient_count, audience_count, status FROM campaigns WHERE id = ?', [singleCampaignId]);
         if (manualCamps.length > 0) {
             await recalculateManualCampaign(manualCamps[0]);
         } else {
-            const [apiCamps] = await query('SELECT id, name, recipient_count, audience_count FROM api_campaigns WHERE id = ?', [singleCampaignId]);
+            const [apiCamps] = await query('SELECT id, name, recipient_count, audience_count, status FROM api_campaigns WHERE id = ?', [singleCampaignId]);
             if (apiCamps.length > 0) {
                 await recalculateApiCampaign(apiCamps[0]);
             } else {
@@ -155,7 +167,7 @@ async function recalculateReports() {
         
         console.log('--- Processing manual campaigns ---');
         const [manualCamps] = await query(`
-            SELECT id, name, recipient_count, audience_count 
+            SELECT id, name, recipient_count, audience_count, status 
             FROM campaigns 
             WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) OR status = 'running'
             ORDER BY created_at DESC
@@ -167,7 +179,7 @@ async function recalculateReports() {
 
         console.log('\n--- Processing API campaigns ---');
         const [apiCamps] = await query(`
-            SELECT id, name, recipient_count, audience_count 
+            SELECT id, name, recipient_count, audience_count, status 
             FROM api_campaigns 
             WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) OR status = 'running'
             ORDER BY created_at DESC
