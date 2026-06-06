@@ -16,6 +16,7 @@ redis.on('error', (err) => {
 });
 
 // AUTO-RECOVERY: Clean up stuck jobs and orphaned data on startup
+// CRITICAL: Only run on PM2 instance 0 to prevent MySQL lock contention across cluster instances
 async function rescueStuckJobsOnStartup() {
     try {
         // 0. Drain waiting jobs from BullMQ to prevent duplicate bloat after restarts
@@ -55,7 +56,20 @@ async function rescueStuckJobsOnStartup() {
         console.error('[Rescue] Startup recovery failed:', e.message);
     }
 }
-rescueStuckJobsOnStartup();
+
+// Only run startup rescue on instance 0 to prevent MySQL lock contention
+const isFirstInstance = process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === '0';
+if (isFirstInstance) {
+    rescueStuckJobsOnStartup();
+} else {
+    // Non-primary instances: just drain BullMQ queue (no MySQL writes)
+    setTimeout(async () => {
+        try {
+            const { campaignQueue } = require('./campaignQueue');
+            await campaignQueue.drain(true);
+        } catch (e) { /* ignore */ }
+    }, 3000); // 3s delay so instance 0 drains first
+}
 
 // Helper to safely decrement progress and mark campaign completed if remains === 0
 async function decrementAndCheckCompletion(campId, envSuffix, campaignTable) {
