@@ -421,13 +421,22 @@ router.post('/dotgo', async (req, res) => {
                 // 3. Update message_logs & Campaign counts
                 if (messageId || contactPhone) {
                     try {
-                        // Try matching by message_id first (checks both manual and API logs)
-                        let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                        // Try matching by message_id first with retry loop to prevent DLR race conditions
+                        let logs = [];
                         let isApiLog = false;
-                        
-                        if (logs.length === 0) {
-                            [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
-                            if (logs.length > 0) isApiLog = true;
+                        if (messageId) {
+                            let attempts = 0;
+                            while (attempts < 3) {
+                                const [dbResult] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                                logs = dbResult || [];
+                                if (logs.length === 0) {
+                                    const [apiDbResult] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                                    logs = apiDbResult || [];
+                                    if (logs.length > 0) { isApiLog = true; break; }
+                                } else { break; }
+                                attempts++;
+                                if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 150));
+                            }
                         }
 
                         // Fallback: Match by contactPhone (last 10 digits) if message_id not found

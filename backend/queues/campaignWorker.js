@@ -156,21 +156,96 @@ const campaignWorker = new Worker(queueName, async (job) => {
 
         if (result.success) {
             try {
+                // Check if this messageId was ALREADY received in webhook_logs (DLR Race Condition Fix!)
+                const [preReceived] = await query(
+                    'SELECT status, event_type, raw_payload FROM webhook_logs WHERE message_id = ? LIMIT 1',
+                    [result.messageId]
+                );
+
+                let finalStatus = 'sent';
+                if (preReceived.length > 0) {
+                    finalStatus = preReceived[0].status;
+                    console.log(`✨ DLR Race Condition Recovery: Found pre-received status [${finalStatus}] in webhook_logs for MsgID: ${result.messageId}`);
+                }
+
                 // Mandatory log to message_logs
                 await query(
                     `INSERT INTO ${effectiveLogsTable} (user_id, campaign_id, campaign_name, recipient, status, message_id, channel, template_name, message_content, send_time, is_failover_enabled, failover_sms_template, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, 'sent', result.messageId, chan, tName, result.processedMessage || msgContent, now, item.is_failover_enabled || 0, item.failover_sms_template || null, metadata]
+                    [item.user_id || job.data.item.user_id, campId, cName, item.mobile, finalStatus, result.messageId, chan, tName, result.processedMessage || msgContent, now, item.is_failover_enabled || 0, item.failover_sms_template || null, metadata]
                 );
 
-                // Secondary log to webhook_logs for Chat UI
-                await query(
-                    `INSERT INTO webhook_logs (user_id, recipient, message_id, status, event_type, type, channel, message_content, campaign_id, campaign_name, template_name, raw_payload, created_at) 
-                     VALUES (?, ?, ?, 'sent', 'SENT', ?, ?, ?, ?, ?, ?, ?, NOW())`,
-                    [item.user_id || job.data.item.user_id, item.mobile, result.messageId, chan, chan, msgContent, campId, cName, tName, JSON.stringify({ note: 'Campaign Message', item_id: item.id })]
-                ).catch(() => {});
+                // Secondary log to webhook_logs for Chat UI (Only insert if not already present)
+                if (preReceived.length === 0) {
+                    await query(
+                        `INSERT INTO webhook_logs (user_id, recipient, message_id, status, event_type, type, channel, message_content, campaign_id, campaign_name, template_name, raw_payload, created_at) 
+                         VALUES (?, ?, ?, 'sent', 'SENT', ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                        [item.user_id || job.data.item.user_id, item.mobile, result.messageId, chan, chan, msgContent, campId, cName, tName, JSON.stringify({ note: 'Campaign Message', item_id: item.id })]
+                    ).catch(() => {});
+                } else {
+                    // Update the webhook_log to link the campaign metadata
+                    await query(
+                        `UPDATE webhook_logs SET campaign_id = COALESCE(campaign_id, ?), campaign_name = COALESCE(campaign_name, ?), template_name = COALESCE(template_name, ?) WHERE message_id = ?`,
+                        [campId, cName, tName, result.messageId]
+                    ).catch(() => {});
+                }
+
+                // If it was pre-received with a status other than 'sent', update campaign counts and trigger failovers
+                if (preReceived.length > 0 && finalStatus !== 'sent' && campId) {
+                    const campaignsTable = String(campId).startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
+                    
+                    if (finalStatus === 'delivered') {
+                        await query(`UPDATE ${effectiveLogsTable} SET delivery_time = NOW() WHERE message_id = ?`, [result.messageId]);
+                        const key = `${campaignsTable}:${campId}:delivered_count`;
+                        global.campaignCountBuffer[key] = (global.campaignCountBuffer[key] || 0) + 1;
+                        console.log(`📈 Campaign ${campId} (DLR Recovery): Buffered Delivered count increment`);
+                    } else if (finalStatus === 'read') {
+                        await query(`UPDATE ${effectiveLogsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [result.messageId]);
+                        const delKey = `${campaignsTable}:${campId}:delivered_count`;
+                        const readKey = `${campaignsTable}:${campId}:read_count`;
+                        global.campaignCountBuffer[delKey] = (global.campaignCountBuffer[delKey] || 0) + 1;
+                        global.campaignCountBuffer[readKey] = (global.campaignCountBuffer[readKey] || 0) + 1;
+                        console.log(`📈 Campaign ${campId} (DLR Recovery): Buffered Delivered & Read count increment`);
+                    } else if (finalStatus === 'failed') {
+                        let reason = 'Provider rejected (DLR)';
+                        try {
+                            const payload = JSON.parse(preReceived[0].raw_payload || '{}');
+                            let decodedData = {};
+                            if (payload.message?.data) {
+                                const base64Data = payload.message.data;
+                                const decodedString = Buffer.from(base64Data, 'base64').toString('utf-8');
+                                decodedData = JSON.parse(decodedString);
+                            }
+                            reason = decodedData.reason || decodedData.description || decodedData.error || 'Provider rejected (DLR)';
+                        } catch(e) {}
+                        
+                        await query(`UPDATE ${effectiveLogsTable} SET failure_reason = ? WHERE message_id = ?`, [reason, result.messageId]);
+                        
+                        const key = `${campaignsTable}:${campId}:failed_count`;
+                        global.campaignCountBuffer[key] = (global.campaignCountBuffer[key] || 0) + 1;
+                        console.log(`📉 Campaign ${campId} (DLR Recovery): Buffered Failed count increment`);
+                        
+                        // Trigger failover automation!
+                        if (item.is_failover_enabled && item.failover_sms_template) {
+                            console.log(`[Worker DLR Recovery] ⚡ Failover Triggered for ${item.mobile} (Channel: ${chan})`);
+                            try {
+                                const { processAutomation } = require('../services/automationService');
+                                const automationPayload = {
+                                    ...item,
+                                    recipient: item.mobile,
+                                    original_channel: chan,
+                                    failover_template_id: item.failover_sms_template,
+                                    is_api: String(campId).startsWith('CAMP_API_'),
+                                    metadata: { variables: item.contact_variables || {} }
+                                };
+                                processAutomation(item.user_id || 1, 'message_failed', automationPayload, null).catch(e => console.error('[Worker DLR Recovery] Failover error:', e.message));
+                            } catch (failoverErr) {
+                                console.error('[Worker DLR Recovery] Failed to trigger automation failover:', failoverErr.message);
+                            }
+                        }
+                    }
+                }
             } catch (logErr) {
                 console.error(`[Worker] DB INSERT FAIL for ${item.mobile}: ${logErr.message}`);
-                // Continue to update queue even if log fail (better than sending twice on retry)
             }
 
             // 3. Update status in Queue & Redis stats
