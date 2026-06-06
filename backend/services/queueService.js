@@ -115,7 +115,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
     try {
         const tableConfig = { campaignTable, queueTable, logsTable };
         const workerId = `worker_${process.env.APP_NAME || 'notifynow'}_${process.pid}_${Date.now()}`;
-        const DRIP_BATCH_SIZE = 30000; // Increased for max throughput
+        const DRIP_BATCH_SIZE = 15000; // Optimal batch to prevent Redis OOM and keep memory low
         const envSuffix = (process.env.APP_NAME || 'notifynow').replace(/-developer|-production/g, '');
 
         // 0. Persistent Redis for this loop
@@ -142,6 +142,23 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             if (redisClient) {
                 redisClient.disconnect();
                 redisClient = null;
+            }
+        }
+
+        // Backlog check: Prevent queue bloat and Redis memory OOM under high volume
+        if (useRedis) {
+            try {
+                const waitingCount = await campaignQueue.getWaitingCount().catch(() => 0);
+                const activeCount = await campaignQueue.getActiveCount().catch(() => 0);
+                const totalQueueSize = waitingCount + activeCount;
+                
+                if (totalQueueSize > 15000) {
+                    console.log(`[Worker:${processorName}] 🚦 Queue backlog is high (${totalQueueSize} jobs). Pausing ingestion...`);
+                    if (redisClient) await redisClient.quit().catch(() => {});
+                    return;
+                }
+            } catch (err) {
+                console.error(`[Worker:${processorName}] Failed to check queue size:`, err.message);
             }
         }
 
@@ -346,6 +363,11 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                     await query(`UPDATE ${campaignTable} SET sent_count = sent_count + 1 WHERE id = ?`, [item.campaign_id]);
                 }
                 totalProcessed += validItems.length;
+            }
+
+            if (totalProcessed >= DRIP_BATCH_SIZE) {
+                console.log(`[Worker:${processorName}] 🚦 Reached batch limit of ${DRIP_BATCH_SIZE} items. Pausing ingestion until next cycle.`);
+                break;
             }
 
             // Only break when every campaign returned 0 rows (all exhausted).

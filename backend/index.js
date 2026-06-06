@@ -265,7 +265,18 @@ ensureChatFlowsTable().catch(err => console.error('ChatFlow table init error:', 
 ensureWhatsAppPricingColumns().catch(err => console.error('Pricing columns init error:', err));
 ensureAutomationsTable().catch(err => console.error('Automations table init error:', err));
 ensureEnquiryColumns().catch(err => console.error('Enquiry columns init error:', err));
-ensureFeedbacksTable().catch(err => console.error('Feedbacks table init error:', err));
+app.get('/api/temp-debug', async (req, res) => {
+  try {
+    const { query } = require('./config/db');
+    const users = await query("SELECT id, name, email, role, status FROM users WHERE name LIKE '%Jredeems%' OR email LIKE '%Jredeems%'");
+    const campaigns = await query("SELECT id, user_id, name, status, recipient_count, sent_count FROM campaigns WHERE name LIKE '%Jredeems%' OR user_id IN (SELECT id FROM users WHERE name LIKE '%Jredeems%')");
+    const allCampaignsCount = await query("SELECT COUNT(*) as count FROM campaigns");
+    const allUsersCount = await query("SELECT COUNT(*) as count FROM users");
+    res.json({ success: true, users: users[0], campaigns: campaigns[0], allCampaignsCount: allCampaignsCount[0], allUsersCount: allUsersCount[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 app.get('/api/turbo-diagnostics', async (req, res) => {
   const { execSync } = require('child_process');
