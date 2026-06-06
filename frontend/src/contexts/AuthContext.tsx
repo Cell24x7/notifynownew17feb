@@ -113,11 +113,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wa_unofficial_webhook_enabled: decoded.wa_unofficial_webhook_enabled,
         });
 
-        // Hydrate from DB to get the live wallet_balance immediately to prevent flashing
-        refreshUser().finally(() => {
-          setIsLoading(false);
-        });
-
+        // Set isLoading to false immediately so the page renders instantly
+        setIsLoading(false);
+        
+        // Hydrate from DB in the background to get latest wallet_balance and custom prices
+        refreshUser();
       } catch (err) {
         console.error('Invalid token on load:', err);
         localStorage.removeItem('authToken');

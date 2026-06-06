@@ -99,8 +99,8 @@ export default function Campaigns() {
       setLoading(true);
     }
     try {
-      // Refresh user to get latest wallet balance and custom pricing
-      await refreshUser();
+      // Refresh user in the background to get latest wallet balance and custom pricing
+      refreshUser();
 
       // Use Admin API if selectedClientId is present (for Admin) or fallback to standard
       const campaignsRes = isAdmin 
@@ -118,6 +118,9 @@ export default function Campaigns() {
       cachedCampaigns = campaignsRes.campaigns;
       cachedTotalPages = campaignsRes.pagination.totalPages;
       cachedTotalItems = campaignsRes.pagination.total;
+      
+      // Stop the main page loader immediately so campaigns list renders
+      setLoading(false);
       
       const templatesData = templatesRes.templates;
 

@@ -113,7 +113,11 @@ export default function Templates() {
       cachedTemplatesTotalItems = templatesRes.pagination.total;
       cachedTemplatesList = templatesData;
 
-      // Fetch external RCS templates
+      // Render local templates immediately and stop showing the loading screen
+      setTemplates(templatesData);
+      setLoading(false);
+
+      // Fetch external RCS templates in the background
       const rcsConfigId = (user as any)?.rcs_config_id;
       if (rcsConfigId) {
         try {
@@ -185,13 +189,14 @@ export default function Templates() {
 
             templatesData = [...other, ...reconciled];
             cachedTemplatesList = templatesData;
+            setTemplates(templatesData); // Update layout with merged RCS templates
           }
         } catch (rcsErr) {
           console.warn('RCS template fetch failed:', rcsErr);
         }
       }
 
-      // Fetch external WhatsApp templates
+      // Fetch external WhatsApp templates in the background
       const waConfigId = (user as any)?.whatsapp_config_id;
       if (waConfigId) {
         try {
@@ -238,6 +243,7 @@ export default function Templates() {
 
             templatesData = [...other, ...reconciled];
             cachedTemplatesList = templatesData;
+            setTemplates(templatesData); // Update layout with merged WhatsApp templates
           }
         } catch (waErr: any) {
           console.warn('WhatsApp template fetch failed:', waErr);
@@ -252,8 +258,6 @@ export default function Templates() {
           });
         }
       }
-
-      setTemplates(templatesData);
     } catch (err) {
       console.error('Error fetching templates:', err);
       toast({
