@@ -257,7 +257,13 @@ const runQueue = async () => {
   } catch (err) { console.error('Queue error:', err); }
   setTimeout(runQueue, 5000); // 5s — fast enough to keep BullMQ full, safe for DB
 };
-runQueue();
+
+const isFirstInstance = process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === '0';
+if (isFirstInstance) {
+  runQueue();
+} else {
+  console.log(`ℹ️ [Queue Processor] Skipping ingestion loop on PM2 instance ${process.env.NODE_APP_INSTANCE} to prevent duplicate processing.`);
+}
 
 // Start Unofficial WhatsApp status polling service
 const { startPolling } = require('./services/waUnofficialPollingService');

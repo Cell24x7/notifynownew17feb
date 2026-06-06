@@ -193,6 +193,56 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             console.error(`[Worker:${processorName}] Recovery error:`, recoverErr.message);
         }
 
+        // --- Auto-complete campaigns that are 'running' but have 0 pending/processing queue items ---
+        try {
+            const logsTable = campaignTable === 'campaigns' ? 'message_logs' : 'api_message_logs';
+            
+            // Find running campaigns that have no pending/processing queue items
+            const [campsToComplete] = await query(`
+                SELECT c.id 
+                FROM ${campaignTable} c
+                WHERE c.status = 'running'
+                AND NOT EXISTS (
+                    SELECT 1 
+                    FROM ${queueTable} q 
+                    WHERE q.campaign_id = c.id 
+                    AND q.status IN ('pending', 'processing')
+                )
+            `);
+
+            for (const camp of campsToComplete) {
+                const campId = camp.id;
+                console.log(`🧹 [Auto-Complete:${processorName}] Completing campaign ${campId} which has no remaining items in queue.`);
+                
+                // Get the true total sent and failed counts from message_logs
+                const [dbStats] = await query(`
+                    SELECT 
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+                    FROM ${logsTable}
+                    WHERE campaign_id = ?
+                `, [campId]);
+
+                const finalTotalSent = dbStats[0]?.total || 0;
+                const finalTotalFailed = dbStats[0]?.failed || 0;
+
+                await query(
+                    `UPDATE ${campaignTable} SET status = "sent", sent_count = ?, failed_count = ? WHERE id = ?`, 
+                    [finalTotalSent, finalTotalFailed, campId]
+                );
+                
+                // Cleanup Redis keys for this campaign
+                if (useRedis && redisClient) {
+                    await redisClient.del(`${envSuffix}:camp_progress:${campId}`);
+                    await redisClient.del(`${envSuffix}:stats:${campId}`);
+                    await redisClient.del(`${envSuffix}:tracked:${campId}`);
+                    await redisClient.del(`${envSuffix}:tracked_fail:${campId}`);
+                }
+            }
+        } catch (completeErr) {
+            console.error(`[Auto-Complete:${processorName}] Error auto-completing campaigns:`, completeErr.message);
+        }
+
         // --- 1.5. Check for IST DND regulatory window (9:00 PM to 10:00 AM) for manual campaigns ---
         if (campaignTable === 'campaigns') {
             const getISTHour = () => {
@@ -300,14 +350,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             if (validItems.length === 0) break;
 
             if (useRedis) {
-                // 5. Update Redis progress counters (Faster in pipeline)
-                const pipeline = redisClient.pipeline();
-                const countsByCamp = {};
-                validItems.forEach(item => countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1);
-                Object.keys(countsByCamp).forEach(cid => pipeline.incrby(`${envSuffix}:camp_progress:${cid}`, countsByCamp[cid]));
-                await pipeline.exec();
-
-                // 6. BullMQ Offloading — Interleave jobs across campaigns so BullMQ workers
+                // 5. BullMQ Offloading — Interleave jobs across campaigns so BullMQ workers
                 //    process all campaigns in parallel, not one-campaign-at-a-time FIFO.
                 //    Before: [A1,A2,...A1000, B1,B2,...B1000] → A finishes before B starts
                 //    After:  [A1,B1,C1, A2,B2,C2, ...] → all campaigns advance together
@@ -325,13 +368,38 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
                     }
                 }
 
-                const jobs = interleaved.map(item => ({
-                    name: `sending-${item.mobile}`,
-                    data: { item: item, tableConfig },
-                    opts: { removeOnComplete: true } // No jobId — prevents BullMQ silent dedup rejection on recovery
-                }));
-                await campaignQueue.addBulk(jobs);
-                totalProcessed += validItems.length;
+                // Chunk BullMQ offloading to prevent blocking Redis with huge Lua scripts
+                const CHUNK_SIZE = 1000;
+                for (let i = 0; i < interleaved.length; i += CHUNK_SIZE) {
+                    const chunk = interleaved.slice(i, i + CHUNK_SIZE);
+                    const jobs = chunk.map(item => ({
+                        name: `sending-${item.mobile}`,
+                        data: { item: item, tableConfig },
+                        opts: { removeOnComplete: true } // No jobId — prevents BullMQ silent dedup rejection on recovery
+                    }));
+
+                    try {
+                        await campaignQueue.addBulk(jobs);
+
+                        // Increment Redis progress counter ONLY for successfully queued jobs!
+                        const pipeline = redisClient.pipeline();
+                        const countsByCamp = {};
+                        chunk.forEach(item => countsByCamp[item.campaign_id] = (countsByCamp[item.campaign_id] || 0) + 1);
+                        Object.keys(countsByCamp).forEach(cid => pipeline.incrby(`${envSuffix}:camp_progress:${cid}`, countsByCamp[cid]));
+                        await pipeline.exec();
+
+                        totalProcessed += chunk.length;
+                    } catch (bulkErr) {
+                        console.error(`[Worker:${processorName}] Failed to add bulk chunk of size ${chunk.length} to Redis:`, bulkErr.message);
+
+                        // Mark this chunk's items back to 'pending' in MySQL so they can be retried in the next run
+                        const chunkIds = chunk.map(item => item.id);
+                        await query(
+                            `UPDATE ${queueTable} SET status = 'pending', worker_id = NULL, updated_at = NOW() WHERE id IN (?)`,
+                            [chunkIds]
+                        ).catch(dbErr => console.error(`[Worker:${processorName}] Failed to reset failed chunk status:`, dbErr.message));
+                    }
+                }
             } else {
                 // 🏎️ DIRECT PROCESSING (NO REDIS MODE - FOR LOCAL WINDOWS)
                 for (const item of validItems) {
