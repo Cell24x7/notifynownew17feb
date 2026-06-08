@@ -499,8 +499,8 @@ router.get('/channels/:id/chats', authenticateDeveloper, async (req, res) => {
                 FROM (
                     SELECT 
                         CASE 
-                            WHEN sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
-                            WHEN recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                            WHEN sender IS NULL OR sender = '' OR sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                            WHEN recipient IS NULL OR recipient = '' OR recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
                             ELSE sender 
                         END as contact_phone,
                         created_at,
