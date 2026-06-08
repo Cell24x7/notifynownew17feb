@@ -31,7 +31,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Optimized for Standard MySQL compatibility (removed ANY_VALUE for older versions)
+        // Optimized for Standard MySQL compatibility and Contact properties joining
         const sql = `
             SELECT 
                 contact_phone,
@@ -39,7 +39,9 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                 MAX(message_content) as last_message,
                 MAX(status) as status,
                 MAX(type) as channel,
-                contact_phone as name
+                COALESCE(MAX(c.name), contact_phone) as name,
+                MAX(c.assigned_agent) as assigned_agent,
+                COALESCE(MAX(c.auto_reply), 1) as auto_reply
             FROM (
                 SELECT 
                     CASE 
@@ -56,6 +58,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                 ORDER BY created_at DESC 
                 LIMIT 1000
             ) as recent_logs
+            LEFT JOIN contacts c ON c.phone = recent_logs.contact_phone AND c.user_id = ?
             WHERE contact_phone IS NOT NULL AND contact_phone != 'System'
             GROUP BY contact_phone 
             ORDER BY last_message_time DESC 
@@ -63,7 +66,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
         `;
 
         console.log(`🔍 Fetching fixed smart-optimized conversations for user: ${userId}`);
-        const [conversations] = await query(sql, [userId]);
+        const [conversations] = await query(sql, [userId, userId]);
         
         console.log(`✅ Loaded ${conversations.length} distinct chats.`);
         res.json({ success: true, data: conversations });
@@ -385,6 +388,114 @@ router.get('/export-all', authenticateToken, async (req, res) => {
     }
 });
 
+// ─── AGENT & AUTO-REPLY ASSIGNMENT ENDPOINTS ───────────────────────────────────
+
+/**
+ * @route GET /api/chats/agents
+ * @desc Get list of all users/agents for assignment
+ */
+router.get('/agents', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const userRole = (req.user.role || '').toLowerCase();
+        
+        let sql = '';
+        let params = [];
+        
+        if (userRole === 'superadmin' || userRole === 'admin') {
+            sql = 'SELECT id, name, email, role FROM users WHERE status = "active" ORDER BY name ASC';
+        } else if (userRole === 'reseller') {
+            sql = 'SELECT id, name, email, role FROM users WHERE status = "active" AND (id = ? OR reseller_id = ?) ORDER BY name ASC';
+            params = [userId, userId];
+        } else {
+            const [me] = await query('SELECT reseller_id FROM users WHERE id = ?', [userId]);
+            const resellerId = me[0]?.reseller_id;
+            if (resellerId) {
+                sql = 'SELECT id, name, email, role FROM users WHERE status = "active" AND (id = ? OR id = ? OR reseller_id = ?) ORDER BY name ASC';
+                params = [userId, resellerId, resellerId];
+            } else {
+                sql = 'SELECT id, name, email, role FROM users WHERE status = "active" AND id = ? ORDER BY name ASC';
+                params = [userId];
+            }
+        }
+        
+        const [agents] = await query(sql, params);
+        res.json({ success: true, agents });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to fetch agents' });
+    }
+});
+
+/**
+ * @route POST /api/chats/assign
+ * @desc Assign an agent to a contact chat
+ */
+router.post('/assign', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { contact_phone, agent_email } = req.body;
+        if (!contact_phone) {
+            return res.status(400).json({ success: false, message: 'contact_phone is required' });
+        }
+        
+        const cleanPhone = String(contact_phone).replace(/\D/g, '');
+        
+        const [existing] = await query('SELECT id FROM contacts WHERE phone = ? AND user_id = ?', [cleanPhone, userId]);
+        if (existing.length === 0) {
+            const contactId = `CONT${Date.now()}`;
+            await query(
+                `INSERT INTO contacts (id, user_id, name, phone, assigned_agent) VALUES (?, ?, ?, ?, ?)`,
+                [contactId, userId, cleanPhone, cleanPhone, agent_email || null]
+            );
+        } else {
+            await query(
+                'UPDATE contacts SET assigned_agent = ? WHERE phone = ? AND user_id = ?',
+                [agent_email || null, cleanPhone, userId]
+            );
+        }
+        res.json({ success: true, message: 'Agent assigned successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to assign agent' });
+    }
+});
+
+/**
+ * @route POST /api/chats/auto-reply
+ * @desc Toggle auto-reply status for a contact
+ */
+router.post('/auto-reply', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { contact_phone, auto_reply } = req.body;
+        if (!contact_phone) {
+            return res.status(400).json({ success: false, message: 'contact_phone is required' });
+        }
+        
+        const cleanPhone = String(contact_phone).replace(/\D/g, '');
+        const autoReplyVal = auto_reply ? 1 : 0;
+        
+        const [existing] = await query('SELECT id FROM contacts WHERE phone = ? AND user_id = ?', [cleanPhone, userId]);
+        if (existing.length === 0) {
+            const contactId = `CONT${Date.now()}`;
+            await query(
+                `INSERT INTO contacts (id, user_id, name, phone, auto_reply) VALUES (?, ?, ?, ?, ?)`,
+                [contactId, userId, cleanPhone, cleanPhone, autoReplyVal]
+            );
+        } else {
+            await query(
+                'UPDATE contacts SET auto_reply = ? WHERE phone = ? AND user_id = ?',
+                [autoReplyVal, cleanPhone, userId]
+            );
+        }
+        res.json({ success: true, message: 'Auto-reply status updated successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to update auto-reply status' });
+    }
+});
+
 // ─── TAGS ENDPOINTS ────────────────────────────────────────────────────────────
 
 /**
@@ -470,6 +581,129 @@ router.delete('/tags/:id', authenticateToken, async (req, res) => {
         res.json({ success: true, message: 'Tag removed successfully' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to remove tag' });
+    }
+});
+
+// ─── MANAGE TAGS GLOBAL OPERATIONS ──────────────────────────────────────────
+
+/**
+ * @route GET /api/chats/tags/manage
+ * @desc Get aggregated unique tags with domain, customer, creator info
+ */
+router.get('/tags/manage', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const sql = `
+            SELECT 
+                MIN(ct.id) as id,
+                ct.tag_name,
+                COALESCE(wc.domain, 'CreateYourOwn') as domain,
+                COALESCE(wc.customer_id, 'CPV001') as customer,
+                u.email as created_by,
+                MIN(ct.created_at) as created_on,
+                COALESCE(MIN(ct.status), 'active') as status
+            FROM contact_tags ct
+            JOIN users u ON ct.user_id = u.id
+            LEFT JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id
+            WHERE ct.user_id = ?
+            GROUP BY ct.tag_name, wc.domain, wc.customer_id, u.email
+            ORDER BY created_on DESC
+        `;
+        const [tags] = await query(sql, [userId]);
+        res.json({ success: true, tags });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to fetch tags for management' });
+    }
+});
+
+/**
+ * @route POST /api/chats/tags/toggle
+ * @desc Toggle active/inactive status of a tag
+ */
+router.post('/tags/toggle', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { tag_name, status } = req.body;
+        if (!tag_name || !status) {
+            return res.status(400).json({ success: false, message: 'tag_name and status are required' });
+        }
+        await query(
+            'UPDATE contact_tags SET status = ? WHERE tag_name = ? AND user_id = ?',
+            [status, tag_name, userId]
+        );
+        res.json({ success: true, message: `Tag status updated to ${status}` });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to update tag status' });
+    }
+});
+
+/**
+ * @route POST /api/chats/tags/delete-global
+ * @desc Delete a tag name globally for this user
+ */
+router.post('/tags/delete-global', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { tag_name } = req.body;
+        if (!tag_name) {
+            return res.status(400).json({ success: false, message: 'tag_name is required' });
+        }
+        await query(
+            'DELETE FROM contact_tags WHERE tag_name = ? AND user_id = ?',
+            [tag_name, userId]
+        );
+        res.json({ success: true, message: 'Tag deleted globally' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to delete tag globally' });
+    }
+});
+
+/**
+ * @route POST /api/chats/tags/edit-global
+ * @desc Rename a tag name globally for this user
+ */
+router.post('/tags/edit-global', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { old_tag_name, new_tag_name } = req.body;
+        if (!old_tag_name || !new_tag_name) {
+            return res.status(400).json({ success: false, message: 'old_tag_name and new_tag_name are required' });
+        }
+        const cleanNew = String(new_tag_name).trim().substring(0, 100);
+        await query(
+            'UPDATE contact_tags SET tag_name = ? WHERE tag_name = ? AND user_id = ?',
+            [cleanNew, old_tag_name, userId]
+        );
+        res.json({ success: true, message: 'Tag updated globally' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to update tag globally' });
+    }
+});
+
+/**
+ * @route POST /api/chats/tags/create-global
+ * @desc Create a tag without assigning it to a contact phone (uses 'global' placeholder)
+ */
+router.post('/tags/create-global', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { tag_name } = req.body;
+        if (!tag_name) {
+            return res.status(400).json({ success: false, message: 'tag_name is required' });
+        }
+        const cleanTag = String(tag_name).trim().substring(0, 100);
+        await query(
+            'INSERT IGNORE INTO contact_tags (user_id, contact_phone, tag_name, status) VALUES (?, "global", ?, "active")',
+            [userId, cleanTag]
+        );
+        res.json({ success: true, message: `Tag "${cleanTag}" created successfully` });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Failed to create global tag' });
     }
 });
 

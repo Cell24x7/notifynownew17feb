@@ -19,6 +19,7 @@ import Reports from "./pages/Reports";
 import Automations from "./pages/Automations";
 import Integrations from "./pages/Integrations";
 import Contacts from "./pages/Contacts";
+import ManageTags from "./pages/ManageTags";
 import Settings from "./pages/Settings";
 import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
@@ -100,6 +101,7 @@ const App = () => (
                       <Route path="/social-media" element={<SocialMedia />} />
                       <Route path="/chats" element={<Chats />} />
                       <Route path="/contacts" element={<Contacts />} />
+                      <Route path="/manage-tags" element={<ManageTags />} />
                       <Route path="/campaigns" element={<Campaigns />} />
                       <Route path="/dlt-templates" element={<DLTTemplates />} />
                       <Route path="/marketplace" element={<Marketplace />} />
