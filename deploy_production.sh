@@ -190,10 +190,18 @@ cd "$PROJECT_DIR"
 (NODE_ENV=production node "$BACKEND_DIR/scripts/auto_changelog.js" 2>&1 || true) &
 
 if pm2 list | grep -q "$APP_NAME"; then
-    pm2 start "$APP_NAME" --update-env || pm2 reload "$APP_NAME" --update-env
+    if [ -f "ecosystem.config.js" ]; then
+        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production || APP_NAME="$APP_NAME" pm2 reload ecosystem.config.js --env production
+    else
+        pm2 start "$APP_NAME" --update-env || pm2 reload "$APP_NAME" --update-env
+    fi
     ok "PM2 started/reloaded successfully."
 else
-    pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
+    if [ -f "ecosystem.config.js" ]; then
+        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production
+    else
+        pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
+    fi
     ok "PM2 started new instance."
 fi
 pm2 save --force
