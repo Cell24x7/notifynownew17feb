@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Send, X, Zap, FileText, Smile, Paperclip, Download, Check, CheckCheck, AlertCircle } from 'lucide-react';
+import { Search, Send, X, Zap, FileText, Smile, Paperclip, Download, Check, CheckCheck, AlertCircle, Tag, Plus, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +66,15 @@ export default function Chats() {
   const { toast } = useToast();
   const socketRef = useRef<Socket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ── Tags State ────────────────────────────────────────────────────────────
+  const [contactTags, setContactTags] = useState<{id: number, tag_name: string}[]>([]);
+  const [allUserTags, setAllUserTags] = useState<string[]>([]);
+  const [selectedTag, setSelectedTag] = useState('');
+  const [newTagInput, setNewTagInput] = useState('');
+  const [showNewTagInput, setShowNewTagInput] = useState(false);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const [showConversationList, setShowConversationList] = useState(true);
 
@@ -152,6 +161,65 @@ export default function Chats() {
     }
   };
 
+  // ── Tags Functions ──────────────────────────────────────────────────────────
+  const fetchContactTags = async (phone: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const cleaned = phone.replace(/\D/g, '');
+      const res = await axios.get(`${API_BASE_URL}/api/chats/tags/${cleaned}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) setContactTags(res.data.tags || []);
+    } catch { setContactTags([]); }
+  };
+
+  const fetchAllUserTags = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/chats/tags/list`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) setAllUserTags(res.data.tags || []);
+    } catch { setAllUserTags([]); }
+  };
+
+  const handleAddTag = async (tagName: string) => {
+    if (!tagName.trim() || !selectedConversation) return;
+    setTagsLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.post(`${API_BASE_URL}/api/chats/tags`, {
+        contact_phone: selectedConversation.contact_phone,
+        tag_name: tagName.trim()
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        toast({ title: '✔ Tag added', description: tagName });
+        await fetchContactTags(selectedConversation.contact_phone);
+        await fetchAllUserTags();
+        setSelectedTag('');
+        setNewTagInput('');
+        setShowNewTagInput(false);
+      }
+    } catch {
+      toast({ title: 'Failed to add tag', variant: 'destructive' });
+    } finally { setTagsLoading(false); }
+  };
+
+  const handleRemoveTag = async (tagId: number) => {
+    setTagsLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      await axios.delete(`${API_BASE_URL}/api/chats/tags/${tagId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast({ title: 'Tag removed' });
+      if (selectedConversation) await fetchContactTags(selectedConversation.contact_phone);
+    } catch {
+      toast({ title: 'Failed to remove tag', variant: 'destructive' });
+    } finally { setTagsLoading(false); }
+  };
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const selectedConvRef = useRef<Conversation | null>(null);
   useEffect(() => {
       selectedConvRef.current = selectedConversation;
@@ -194,11 +262,15 @@ export default function Chats() {
     fetchConversations();
     fetchQuickReplies();
     fetchTemplates();
+    fetchAllUserTags();
   }, []);
 
   useEffect(() => {
     if (selectedConversation) {
         fetchMessages(selectedConversation.contact_phone);
+        fetchContactTags(selectedConversation.contact_phone);
+        setSelectedTag('');
+        setShowNewTagInput(false);
     }
   }, [selectedConversation]);
 
@@ -671,9 +743,99 @@ export default function Chats() {
             </div>
 
               <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-hide">
+
+                {/* ── TAGS SECTION (WhatsApp style) ──────────────────────────── */}
                 <div>
-                  <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h3>
-                  <div className="flex gap-2">
+                  <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" /> Tags
+                  </h3>
+
+                  {/* Applied tags as colored badges */}
+                  {contactTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {contactTags.map((t) => (
+                        <span
+                          key={t.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-700"
+                        >
+                          {t.tag_name}
+                          <button
+                            onClick={() => handleRemoveTag(t.id)}
+                            className="ml-0.5 hover:text-red-600 transition-colors"
+                            title="Remove tag"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Select existing tag dropdown */}
+                  <div className="flex gap-2 mb-2">
+                    <select
+                      value={selectedTag}
+                      onChange={(e) => setSelectedTag(e.target.value)}
+                      className="flex-1 text-[12px] px-2 py-1.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-green-500"
+                    >
+                      <option value="">--Select Tag--</option>
+                      {allUserTags.filter(t => !contactTags.find(ct => ct.tag_name === t)).map(tag => (
+                        <option key={tag} value={tag}>{tag}</option>
+                      ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      onClick={() => { if (selectedTag) handleAddTag(selectedTag); }}
+                      disabled={!selectedTag || tagsLoading}
+                      className="h-8 px-3 text-[11px] bg-green-500 hover:bg-green-600 text-white shrink-0"
+                    >
+                      ADD TAG
+                    </Button>
+                  </div>
+
+                  {/* New tag input */}
+                  {!showNewTagInput ? (
+                    <button
+                      onClick={() => setShowNewTagInput(true)}
+                      className="text-[11px] text-green-600 hover:text-green-700 font-medium flex items-center gap-1 transition-colors"
+                    >
+                      <Plus className="h-3 w-3" /> Create new tag
+                    </button>
+                  ) : (
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(newTagInput); }}
+                        placeholder="New tag name..."
+                        className="flex-1 text-[12px] px-2 py-1.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-green-500"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleAddTag(newTagInput)}
+                        disabled={!newTagInput.trim() || tagsLoading}
+                        className="h-8 px-2 text-[11px] bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setShowNewTagInput(false); setNewTagInput(''); }}
+                        className="h-8 px-2"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {/* ─────────────────────────────────────────────────────────────────────── */}
+
+                <div>
+                  <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Quick Actions</h3>
+                  <div className="flex gap-2 mt-3">
                     <Button variant="outline" className="flex-1 text-[11px] h-9 shadow-sm hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all">
                       <Zap className="h-3 w-3 mr-1.5 text-yellow-500" /> Mark Resolved
                     </Button>

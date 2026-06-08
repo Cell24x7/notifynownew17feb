@@ -845,4 +845,158 @@ router.get('/engagement', authenticate, async (req, res) => {
     }
 });
 
+// POST /api/reports/recalculate/:campaignId
+// Recalculate and fix campaign counters from actual message_logs (Admin only)
+router.post('/recalculate/:campaignId', authenticate, async (req, res) => {
+    try {
+        const isAdmin = req.user.role === 'superadmin' || req.user.role === 'admin';
+        const { campaignId } = req.params;
+
+        // Determine table (manual vs API campaign)
+        let campaignRow = null;
+        let tableType = 'manual';
+
+        const [manualCamp] = await query('SELECT * FROM campaigns WHERE id = ?', [campaignId]);
+        if (manualCamp.length > 0) {
+            campaignRow = manualCamp[0];
+            tableType = 'manual';
+        } else {
+            const [apiCamp] = await query('SELECT * FROM api_campaigns WHERE id = ?', [campaignId]);
+            if (apiCamp.length > 0) {
+                campaignRow = apiCamp[0];
+                tableType = 'api';
+            }
+        }
+
+        // Check ownership
+        if (!campaignRow) return res.status(404).json({ success: false, message: 'Campaign not found' });
+        if (!isAdmin && campaignRow.user_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const logsTable = tableType === 'api' ? 'api_message_logs' : 'message_logs';
+        const campTable = tableType === 'api' ? 'api_campaigns' : 'campaigns';
+
+        // Count from logs
+        const [statusCounts] = await query(`
+            SELECT status, COUNT(*) as count, COUNT(DISTINCT recipient) as unique_recipients
+            FROM ${logsTable}
+            WHERE campaign_id = ?
+            GROUP BY status
+        `, [campaignId]);
+
+        let sent = 0, delivered = 0, read = 0, failed = 0, total = 0;
+        for (const row of statusCounts) {
+            const st = (row.status || '').toLowerCase();
+            const cnt = Number(row.count || 0);
+            total += cnt;
+            if (['sent', 'submitted', 'success', 'accepted'].includes(st)) sent += cnt;
+            if (st === 'delivered') { delivered += cnt; sent += cnt; }
+            if (['read', 'displayed', 'read_receipt', 'seen'].includes(st)) { read += cnt; delivered += cnt; sent += cnt; }
+            if (['failed', 'rejected', 'expired', 'undeliverable'].includes(st)) failed += cnt;
+        }
+
+        // Update the campaign table
+        await query(`
+            UPDATE ${campTable}
+            SET sent_count = ?, delivered_count = ?, read_count = ?, failed_count = ?
+            WHERE id = ?
+        `, [sent, delivered, read, failed, campaignId]);
+
+        res.json({
+            success: true,
+            message: `Campaign recalculated from ${logsTable}`,
+            campaign_id: campaignId,
+            old: {
+                sent: campaignRow.sent_count,
+                delivered: campaignRow.delivered_count,
+                read: campaignRow.read_count,
+                failed: campaignRow.failed_count
+            },
+            new: { sent, delivered, read, failed },
+            total_log_rows: total,
+            breakdown: statusCounts
+        });
+    } catch (error) {
+        console.error('Recalculate error:', error);
+        res.status(500).json({ success: false, message: 'Failed to recalculate campaign' });
+    }
+});
+
+// GET /api/reports/day-summary?date=2026-06-05&userId=optional
+// Full detailed report for a day - all campaigns with per-campaign stats
+router.get('/day-summary', authenticate, async (req, res) => {
+    try {
+        const isAdmin = req.user.role === 'superadmin' || req.user.role === 'admin';
+        const { date, userId } = req.query;
+
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        const dateFrom = targetDate + ' 00:00:00';
+        const dateTo   = targetDate + ' 23:59:59';
+
+        let userFilter = '';
+        let params = [dateFrom, dateTo];
+
+        if (isAdmin && userId && userId !== 'all') {
+            userFilter = 'AND c.user_id = ?';
+            params.push(userId);
+        } else if (!isAdmin) {
+            userFilter = 'AND c.user_id = ?';
+            params.push(req.user.id);
+        }
+
+        const [campaigns] = await query(`
+            SELECT 
+                c.id,
+                c.name,
+                c.channel,
+                c.status,
+                c.created_at,
+                COALESCE(c.recipient_count, c.audience_count, 0) as total,
+                COALESCE(c.sent_count, 0) as sent,
+                COALESCE(c.delivered_count, 0) as delivered,
+                COALESCE(c.read_count, 0) as read_count,
+                COALESCE(c.failed_count, 0) as failed,
+                u.email as user_email,
+                u.company
+            FROM campaigns c
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE c.created_at BETWEEN ? AND ? ${userFilter}
+            ORDER BY c.created_at DESC
+        `, params);
+
+        // Compute totals
+        const totals = campaigns.reduce((acc, c) => {
+            acc.total += Number(c.total);
+            acc.sent += Number(c.sent);
+            acc.delivered += Number(c.delivered);
+            acc.read += Number(c.read_count);
+            acc.failed += Number(c.failed);
+            return acc;
+        }, { total: 0, sent: 0, delivered: 0, read: 0, failed: 0 });
+
+        // Delivery rate
+        const deliveryRate = totals.sent > 0 ? ((totals.delivered / totals.sent) * 100).toFixed(1) : '0.0';
+        const readRate = totals.sent > 0 ? ((totals.read / totals.sent) * 100).toFixed(1) : '0.0';
+        const failRate = totals.sent > 0 ? ((totals.failed / totals.sent) * 100).toFixed(1) : '0.0';
+
+        res.json({
+            success: true,
+            date: targetDate,
+            summary: {
+                total_campaigns: campaigns.length,
+                totals,
+                delivery_rate: deliveryRate + '%',
+                read_rate: readRate + '%',
+                fail_rate: failRate + '%'
+            },
+            campaigns
+        });
+    } catch (error) {
+        console.error('Day summary error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch day summary' });
+    }
+});
+
 module.exports = router;
+

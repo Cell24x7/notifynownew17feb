@@ -3,6 +3,26 @@ const router = express.Router();
 const { query } = require('../config/db');
 const authenticateToken = require('../middleware/authMiddleware');
 
+// ─── ENSURE TAGS TABLE EXISTS ─────────────────────────────────────────────────
+(async () => {
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS contact_tags (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                contact_phone VARCHAR(50) NOT NULL,
+                tag_name VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_contact_tag (user_id, contact_phone, tag_name),
+                INDEX idx_user_phone (user_id, contact_phone)
+            )
+        `);
+    } catch (e) {
+        // Table may already exist, ignore
+    }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * @route GET /api/chats/conversations
  * @desc Get list of unique conversations for the logged in user
@@ -364,5 +384,95 @@ router.get('/export-all', authenticateToken, async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
+// ─── TAGS ENDPOINTS ────────────────────────────────────────────────────────────
+
+/**
+ * @route GET /api/chats/tags/list
+ * @desc Get all unique tag names for this user (for dropdown)
+ */
+router.get('/tags/list', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [tags] = await query(
+            'SELECT DISTINCT tag_name FROM contact_tags WHERE user_id = ? ORDER BY tag_name ASC',
+            [userId]
+        );
+        res.json({ success: true, tags: tags.map(t => t.tag_name) });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to fetch tags' });
+    }
+});
+
+/**
+ * @route GET /api/chats/tags/:phone
+ * @desc Get all tags for a specific contact
+ */
+router.get('/tags/:phone', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const phone = req.params.phone.replace(/\D/g, '');
+        const [tags] = await query(
+            'SELECT id, tag_name, created_at FROM contact_tags WHERE user_id = ? AND contact_phone = ? ORDER BY created_at DESC',
+            [userId, phone]
+        );
+        res.json({ success: true, tags });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to fetch tags' });
+    }
+});
+
+/**
+ * @route POST /api/chats/tags
+ * @desc Add a tag to a contact
+ */
+router.post('/tags', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { contact_phone, tag_name } = req.body;
+
+        if (!contact_phone || !tag_name) {
+            return res.status(400).json({ success: false, message: 'contact_phone and tag_name are required' });
+        }
+
+        const phone = String(contact_phone).replace(/\D/g, '');
+        const cleanTag = String(tag_name).trim().substring(0, 100);
+
+        await query(
+            'INSERT IGNORE INTO contact_tags (user_id, contact_phone, tag_name) VALUES (?, ?, ?)',
+            [userId, phone, cleanTag]
+        );
+
+        res.json({ success: true, message: `Tag "${cleanTag}" added successfully` });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to add tag' });
+    }
+});
+
+/**
+ * @route DELETE /api/chats/tags/:id
+ * @desc Remove a tag by its ID
+ */
+router.delete('/tags/:id', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const tagId = req.params.id;
+
+        const [result] = await query(
+            'DELETE FROM contact_tags WHERE id = ? AND user_id = ?',
+            [tagId, userId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Tag not found' });
+        }
+
+        res.json({ success: true, message: 'Tag removed successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to remove tag' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = router;
