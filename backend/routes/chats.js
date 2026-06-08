@@ -12,6 +12,7 @@ const authenticateToken = require('../middleware/authMiddleware');
                 user_id INT NOT NULL,
                 contact_phone VARCHAR(50) NOT NULL,
                 tag_name VARCHAR(100) NOT NULL,
+                status VARCHAR(20) DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE KEY uniq_contact_tag (user_id, contact_phone, tag_name),
                 INDEX idx_user_phone (user_id, contact_phone)
