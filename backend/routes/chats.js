@@ -42,7 +42,8 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                 MAX(recent_logs.type) as channel,
                 COALESCE(MAX(c.name), contact_phone) as name,
                 MAX(c.assigned_agent) as assigned_agent,
-                COALESCE(MAX(c.auto_reply), 1) as auto_reply
+                COALESCE(MAX(c.auto_reply), 1) as auto_reply,
+                COALESCE(MAX(wc.domain), 'CreateYourOwn') as domain
             FROM (
                 SELECT 
                     CASE 
@@ -60,6 +61,8 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                 LIMIT 1000
             ) as recent_logs
             LEFT JOIN contacts c ON c.phone = recent_logs.contact_phone AND c.user_id = ?
+            JOIN users u ON u.id = ?
+            LEFT JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id
             WHERE contact_phone IS NOT NULL AND contact_phone != 'System'
             GROUP BY contact_phone 
             ORDER BY last_message_time DESC 
@@ -67,13 +70,52 @@ router.get('/conversations', authenticateToken, async (req, res) => {
         `;
 
         console.log(`🔍 Fetching fixed smart-optimized conversations for user: ${userId}`);
-        const [conversations] = await query(sql, [userId, userId]);
+        const [conversations] = await query(sql, [userId, userId, userId]);
         
         console.log(`✅ Loaded ${conversations.length} distinct chats.`);
         res.json({ success: true, data: conversations });
     } catch (error) {
         console.error('❌ Error fetching conversations:', error);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+/**
+ * @route GET /api/chats/user-domains
+ * @desc Get all configured bot domains for the user
+ */
+router.get('/user-domains', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // 1. Domain of the active bot config assigned to the user
+        const [userConfigs] = await query(`
+            SELECT DISTINCT wc.domain 
+            FROM users u
+            JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id
+            WHERE u.id = ? AND wc.domain IS NOT NULL AND wc.domain != ''
+        `, [userId]);
+        
+        // 2. Domains of tags created by the user
+        const [tagDomains] = await query(`
+            SELECT DISTINCT COALESCE(wc.domain, 'CreateYourOwn') as domain
+            FROM contact_tags ct
+            JOIN users u ON ct.user_id = u.id
+            LEFT JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id
+            WHERE ct.user_id = ?
+        `, [userId]);
+
+        const domains = new Set();
+        userConfigs.forEach(c => domains.add(c.domain));
+        tagDomains.forEach(c => domains.add(c.domain));
+        
+        // Always ensure 'CreateYourOwn' is present as fallback option
+        domains.add('CreateYourOwn');
+
+        res.json({ success: true, domains: Array.from(domains) });
+    } catch (err) {
+        console.error('Error fetching user domains:', err);
+        res.status(500).json({ success: false, message: 'Failed to fetch user domains' });
     }
 });
 

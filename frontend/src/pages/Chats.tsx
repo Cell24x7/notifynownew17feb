@@ -80,6 +80,7 @@ export default function Chats() {
 
   // ── Smart filters & Sidebar states ──────────────────────────────────────────
   const [selectedDomainFilter, setSelectedDomainFilter] = useState('CreateYourOwn');
+  const [userDomains, setUserDomains] = useState<string[]>(['CreateYourOwn']);
   const [startDate, setStartDate] = useState('2024-02-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().substring(0, 10));
   const [agents, setAgents] = useState<{ id: number, name: string, email: string }[]>([]);
@@ -213,6 +214,22 @@ export default function Chats() {
     if (ch === 'sms') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
     if (ch === 'email') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
     return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+  };
+
+  const fetchUserDomains = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/chats/user-domains`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success && res.data.domains && res.data.domains.length > 0) {
+        setUserDomains(res.data.domains);
+        // Default to the first domain in the list
+        setSelectedDomainFilter(res.data.domains[0]);
+      }
+    } catch (err) {
+      console.error('Error fetching user domains:', err);
+    }
   };
 
   const fetchConversations = async () => {
@@ -369,6 +386,7 @@ export default function Chats() {
   }, [user]);
 
   useEffect(() => {
+    fetchUserDomains();
     fetchConversations();
     fetchQuickReplies();
     fetchTemplates();
@@ -417,8 +435,15 @@ export default function Chats() {
       if (startDate && msgDateStr < startDate) matchesDate = false;
       if (endDate && msgDateStr > endDate) matchesDate = false;
     }
+
+    // Filter by selected domain configuration
+    let matchesDomain = true;
+    if (selectedDomainFilter) {
+      const convDomain = ((conv as any).domain || '').toLowerCase();
+      matchesDomain = convDomain === selectedDomainFilter.toLowerCase();
+    }
     
-    return matchesSearch && matchesChannel && matchesDate;
+    return matchesSearch && matchesChannel && matchesDate && matchesDomain;
   });
 
   const handleSendMessage = async () => {
@@ -516,7 +541,9 @@ export default function Chats() {
               onChange={(e) => setSelectedDomainFilter(e.target.value)}
               className="text-xs font-semibold px-2 py-1.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500"
             >
-              <option value="CreateYourOwn">CreateYourOwn</option>
+              {userDomains.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
             </select>
           </div>
 
