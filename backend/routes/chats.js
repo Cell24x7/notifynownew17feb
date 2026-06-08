@@ -36,10 +36,10 @@ router.get('/conversations', authenticateToken, async (req, res) => {
         const sql = `
             SELECT 
                 contact_phone,
-                MAX(created_at) as last_message_time,
-                MAX(message_content) as last_message,
-                MAX(status) as status,
-                MAX(type) as channel,
+                MAX(recent_logs.created_at) as last_message_time,
+                MAX(recent_logs.message_content) as last_message,
+                MAX(recent_logs.status) as status,
+                MAX(recent_logs.type) as channel,
                 COALESCE(MAX(c.name), contact_phone) as name,
                 MAX(c.assigned_agent) as assigned_agent,
                 COALESCE(MAX(c.auto_reply), 1) as auto_reply
