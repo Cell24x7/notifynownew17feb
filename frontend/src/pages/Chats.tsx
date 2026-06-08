@@ -80,7 +80,8 @@ export default function Chats() {
 
   // ── Smart filters & Sidebar states ──────────────────────────────────────────
   const [selectedDomainFilter, setSelectedDomainFilter] = useState('CreateYourOwn');
-  const [dateRange, setDateRange] = useState('2024-02-01 to 2026-01-31');
+  const [startDate, setStartDate] = useState('2024-02-01');
+  const [endDate, setEndDate] = useState(new Date().toISOString().substring(0, 10));
   const [agents, setAgents] = useState<{ id: number, name: string, email: string }[]>([]);
   const [assignedAgentEmail, setAssignedAgentEmail] = useState('');
   const [autoReplyStatus, setAutoReplyStatus] = useState<number>(1);
@@ -408,8 +409,16 @@ export default function Chats() {
       const convChannel = (conv.channel || '').toLowerCase();
       matchesChannel = convChannel === selectedChannel.toLowerCase();
     }
+
+    // Filter by date range locally
+    let matchesDate = true;
+    if (conv.last_message_time) {
+      const msgDateStr = new Date(conv.last_message_time).toISOString().substring(0, 10);
+      if (startDate && msgDateStr < startDate) matchesDate = false;
+      if (endDate && msgDateStr > endDate) matchesDate = false;
+    }
     
-    return matchesSearch && matchesChannel;
+    return matchesSearch && matchesChannel && matchesDate;
   });
 
   const handleSendMessage = async () => {
@@ -512,12 +521,22 @@ export default function Chats() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Range :</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">From :</span>
             <input
-              type="text"
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="text-xs font-semibold px-3 py-1.5 border border-border rounded-lg bg-background text-foreground w-52 text-center focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="text-xs font-semibold px-3 py-1.5 border border-border rounded-lg bg-background text-foreground w-36 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">To :</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="text-xs font-semibold px-3 py-1.5 border border-border rounded-lg bg-background text-foreground w-36 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </div>
         </div>
