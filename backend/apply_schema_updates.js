@@ -287,7 +287,7 @@ async function updateSchema() {
             await connection.execute(`
                 CREATE TABLE IF NOT EXISTS webhook_logs (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id INT NOT NULL,
+                    user_id INT NULL DEFAULT NULL,
                     sender VARCHAR(100),
                     recipient VARCHAR(50) NOT NULL,
                     message_content TEXT,
@@ -300,8 +300,49 @@ async function updateSchema() {
                 )
             `);
             console.log('webhook_logs table ready.');
+
+            // Ensure all required columns exist in webhook_logs and make user_id nullable if it was NOT NULL
+            const [whCols] = await connection.execute('DESCRIBE webhook_logs');
+            const whFieldNames = whCols.map(c => c.Field);
+            
+            const userIdCol = whCols.find(c => c.Field === 'user_id');
+            if (userIdCol && userIdCol.Null === 'NO') {
+                console.log('Modifying user_id in webhook_logs to be nullable...');
+                await connection.execute('ALTER TABLE webhook_logs MODIFY COLUMN user_id INT NULL DEFAULT NULL');
+            }
+
+            const columnsToAdd = [
+                { name: 'sender', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'message_content', type: 'TEXT DEFAULT NULL' },
+                { name: 'media_url', type: 'TEXT DEFAULT NULL' },
+                { name: 'campaign_id', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'campaign_name', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'template_name', type: 'VARCHAR(255) DEFAULT NULL' },
+                { name: 'channel', type: 'VARCHAR(50) DEFAULT NULL' },
+                { name: 'message_id', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'message_id_envelope', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'received_time', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'subscription', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'message_data', type: 'TEXT DEFAULT NULL' },
+                { name: 'product', type: 'VARCHAR(50) DEFAULT NULL' },
+                { name: 'business_id', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'project_number', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'event_type', type: 'VARCHAR(50) DEFAULT NULL' },
+                { name: 'publish_time', type: 'VARCHAR(100) DEFAULT NULL' },
+                { name: 'raw_payload', type: 'LONGTEXT DEFAULT NULL' },
+                { name: 'status', type: 'VARCHAR(50) DEFAULT "received"' },
+                { name: 'updated_at', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' }
+            ];
+
+            for (const col of columnsToAdd) {
+                if (!whFieldNames.includes(col.name)) {
+                    console.log(`Adding missing column ${col.name} to webhook_logs table...`);
+                    await connection.execute(`ALTER TABLE webhook_logs ADD COLUMN ${col.name} ${col.type}`);
+                }
+            }
+            console.log('✅ Webhook logs columns synchronized.');
         } catch (e) {
-            console.log('Error creating webhook_logs table:', e.message);
+            console.log('Error creating/updating webhook_logs table:', e.message);
         }
 
         // 8. Create dlt_templates table if not exists & Add columns

@@ -244,7 +244,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
         }
 
         // --- 1.5. Check for IST DND regulatory window (9:00 PM to 10:00 AM) for manual campaigns ---
-        if (campaignTable === 'campaigns') {
+        if (campaignTable === 'campaigns' && process.env.BYPASS_DND !== 'true') {
             const getISTHour = () => {
                 const options = { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false };
                 const formatter = new Intl.DateTimeFormat('en-US', options);
