@@ -79,8 +79,8 @@ export default function Chats() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ── Smart filters & Sidebar states ──────────────────────────────────────────
-  const [selectedDomainFilter, setSelectedDomainFilter] = useState('CreateYourOwn');
-  const [userDomains, setUserDomains] = useState<string[]>(['CreateYourOwn']);
+  const [selectedDomainFilter, setSelectedDomainFilter] = useState('All Domains');
+  const [userDomains, setUserDomains] = useState<string[]>(['All Domains', 'CreateYourOwn']);
   const [startDate, setStartDate] = useState('2024-02-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().substring(0, 10));
   const [agents, setAgents] = useState<{ id: number, name: string, email: string }[]>([]);
@@ -222,10 +222,11 @@ export default function Chats() {
       const res = await axios.get(`${API_BASE_URL}/api/chats/user-domains`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.data.success && res.data.domains && res.data.domains.length > 0) {
-        setUserDomains(res.data.domains);
-        // Default to the first domain in the list
-        setSelectedDomainFilter(res.data.domains[0]);
+      if (res.data.success && res.data.domains) {
+        const fetched = res.data.domains;
+        const list = ['All Domains', ...fetched.filter((d: string) => d !== 'All Domains')];
+        setUserDomains(list);
+        setSelectedDomainFilter('All Domains');
       }
     } catch (err) {
       console.error('Error fetching user domains:', err);
@@ -438,7 +439,7 @@ export default function Chats() {
 
     // Filter by selected domain configuration
     let matchesDomain = true;
-    if (selectedDomainFilter) {
+    if (selectedDomainFilter && selectedDomainFilter !== 'All Domains') {
       const convDomain = ((conv as any).domain || '').toLowerCase();
       matchesDomain = convDomain === selectedDomainFilter.toLowerCase();
     }

@@ -32,20 +32,21 @@ router.get('/conversations', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Optimized for Standard MySQL compatibility and Contact properties joining
+        // Optimized for ROW_NUMBER() OVER partition matching, preventing GROUP BY sorting flaws and column ambiguity
         const sql = `
             SELECT 
-                contact_phone,
-                MAX(recent_logs.created_at) as last_message_time,
-                MAX(recent_logs.message_content) as last_message,
-                MAX(recent_logs.status) as status,
-                MAX(recent_logs.type) as channel,
-                COALESCE(MAX(c.name), contact_phone) as name,
-                MAX(c.assigned_agent) as assigned_agent,
-                COALESCE(MAX(c.auto_reply), 1) as auto_reply,
-                COALESCE(MAX(wc.domain), 'CreateYourOwn') as domain
+                t.contact_phone,
+                t.created_at as last_message_time,
+                t.message_content as last_message,
+                t.status as status,
+                t.type as channel,
+                COALESCE(c.name, t.contact_phone) as name,
+                c.assigned_agent as assigned_agent,
+                COALESCE(c.auto_reply, 1) as auto_reply,
+                COALESCE(wc.domain, 'CreateYourOwn') as domain
             FROM (
                 SELECT 
+                    user_id,
                     CASE 
                         WHEN sender IS NULL OR sender = '' OR sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
                         WHEN recipient IS NULL OR recipient = '' OR recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
@@ -54,23 +55,28 @@ router.get('/conversations', authenticateToken, async (req, res) => {
                     created_at,
                     message_content,
                     status,
-                    type
-                FROM webhook_logs 
-                WHERE user_id = ? 
-                ORDER BY created_at DESC 
-                LIMIT 1000
-            ) as recent_logs
-            LEFT JOIN contacts c ON c.phone = recent_logs.contact_phone AND c.user_id = ?
-            JOIN users u ON u.id = ?
+                    type,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY CASE 
+                            WHEN sender IS NULL OR sender = '' OR sender IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN recipient
+                            WHEN recipient IS NULL OR recipient = '' OR recipient IN ('System', 'Gateway', 'API', 'chatbot', 'System User') THEN sender
+                            ELSE sender 
+                        END
+                        ORDER BY created_at DESC
+                    ) as rn
+                FROM webhook_logs
+                WHERE user_id = ?
+            ) t
+            LEFT JOIN contacts c ON c.phone = t.contact_phone COLLATE utf8mb4_unicode_ci AND c.user_id = ?
+            LEFT JOIN users u ON u.id = t.user_id
             LEFT JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id
-            WHERE contact_phone IS NOT NULL AND contact_phone != 'System'
-            GROUP BY contact_phone 
-            ORDER BY last_message_time DESC 
+            WHERE t.rn = 1 AND t.contact_phone IS NOT NULL AND t.contact_phone != 'System'
+            ORDER BY last_message_time DESC
             LIMIT 50
         `;
 
         console.log(`🔍 Fetching fixed smart-optimized conversations for user: ${userId}`);
-        const [conversations] = await query(sql, [userId, userId, userId]);
+        const [conversations] = await query(sql, [userId, userId]);
         
         console.log(`✅ Loaded ${conversations.length} distinct chats.`);
         res.json({ success: true, data: conversations });
