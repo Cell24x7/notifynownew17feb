@@ -1325,7 +1325,11 @@ const handleSmsCallback = async (req, res) => {
         }
 
         let finalStatus = 'sent';
-        const s = String(status || '').toLowerCase();
+        let decodedStatus = String(status || '');
+        try {
+            decodedStatus = decodeURIComponent(decodedStatus);
+        } catch (e) {}
+        const s = decodedStatus.toLowerCase();
         
         // Smart SMS status parsing
         // If the string contains explicit SMPP 'stat:', parse it first
@@ -1463,9 +1467,9 @@ const handleSmsCallback = async (req, res) => {
                                 const errMatch = s.match(/err:([a-zA-Z0-9]+)/i);
                                 const statMatch = s.match(/stat:([a-zA-Z0-9]+)/i);
                                 
-                                if (errMatch && statMatch) reason = `${statMatch[1]} (Error: ${errMatch[1]})`;
+                                if (errMatch && statMatch) reason = `${statMatch[1].toUpperCase()} (Error: ${errMatch[1]})`;
                                 else if (errMatch) reason = `Gateway Error: ${errMatch[1]}`;
-                                else if (statMatch) reason = `Status: ${statMatch[1]}`;
+                                else if (statMatch) reason = `Status: ${statMatch[1].toUpperCase()}`;
                             }
                             
                             // Final Fallback: If still no reason, use the raw status string itself if it's short and useful
