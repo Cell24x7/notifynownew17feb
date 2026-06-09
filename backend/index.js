@@ -239,7 +239,8 @@ app.get('/api/debug-logs', async (req, res, next) => {
         const [logs] = await query('SELECT * FROM message_logs ORDER BY id DESC LIMIT 50');
         const [apiLogs] = await query('SELECT * FROM api_message_logs ORDER BY id DESC LIMIT 50');
         const [campaigns] = await query('SELECT id, name, status, recipient_count, sent_count, failed_count FROM campaigns ORDER BY created_at DESC LIMIT 10');
-        res.json({ success: true, message_logs: logs, api_message_logs: apiLogs, campaigns: campaigns });
+        const [gateways] = await query('SELECT id, name, status, primary_url FROM sms_gateways');
+        res.json({ success: true, message_logs: logs, api_message_logs: apiLogs, campaigns: campaigns, sms_gateways: gateways });
     } catch (err) {
         next(err);
     }
