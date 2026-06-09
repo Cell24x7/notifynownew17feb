@@ -1411,7 +1411,10 @@ const handleSmsCallback = async (req, res) => {
         }
 
         let finalStatus = 'sent';
-        let decodedStatus = String(status || '');
+        let decodedStatus = String(status || '')
+            .replace(/%3[aA]/g, ':')
+            .replace(/%20/g, ' ')
+            .replace(/\+/g, ' ');
         try {
             decodedStatus = decodeURIComponent(decodedStatus);
         } catch (e) {}
