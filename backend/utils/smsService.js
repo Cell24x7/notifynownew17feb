@@ -137,8 +137,8 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         // 4. Generate/Capture Message ID for tracking
         const msgId = options.msgId || `sms_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-        // Get system base URL for callback (Using passed callbackUrl or detecting from env)
-        const baseUrl = process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'https://notifynow.in';
+        // Get system base URL for callback (Prioritize DLR_BASE_URL for SMS DLR to avoid SSL issues)
+        const baseUrl = process.env.DLR_BASE_URL || process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'https://notifynow.in';
         const finalCallbackUrl = options.callbackUrl || `${baseUrl}/api/webhooks/sms/callback`;
 
         // 5. Format the data for placeholders
