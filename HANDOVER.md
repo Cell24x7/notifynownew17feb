@@ -1,6 +1,6 @@
-# 🚀 NotifyNow | Developer Handover & Technical Documentation
+# 🚀 NotifyNow | Developer Onboarding & Handover Report
 
-This document serves as the complete technical handover report for **NotifyNow** (Multi-Channel Notification Platform). It is structured to help incoming developers quickly understand the stack, system modules, architecture, database schemas, and deploy procedures.
+This document serves as the complete technical handover report for **NotifyNow** (Multi-Channel Notification Platform). It is designed to help incoming developers quickly understand the backend flow, system architecture, database schemas, local setup, and deploy procedures.
 
 ---
 
@@ -8,7 +8,7 @@ This document serves as the complete technical handover report for **NotifyNow**
 **NotifyNow** is an enterprise-grade multi-channel notification engine (SMS, WhatsApp, RCS, Email, and Voicebot) designed for marketing campaign dispatch, transactional alert routing, and interactive chat automation.
 
 ### Key Logic & Workflows:
-1. **Multi-Tenancy**: Isolated database structure using `user_id` filters in SQL.
+1. **Multi-Tenancy**: Isolated database structure using strict `user_id` filters in SQL.
 2. **Role-Based Access Control (RBAC)**:
    * **Admin (Super-Admin)**: Controls gateways, wallet recharge, plans, default templates, system logs, and reseller margins.
    * **Reseller**: Operates a sub-tenant business. Can create client accounts, assign credits, set custom pricing for channels, and view consolidated usage reports.
@@ -22,17 +22,17 @@ The system is built on a high-throughput **MEN** stack (MySQL, Express, Node.js)
 
 * **Frontend**:
   * React (Vite + TypeScript) SPA
-  * CSS Framework: Tailwind CSS (fully responsive, mobile-first layouts)
+  * Styling: Tailwind CSS (fully responsive, mobile-first layouts)
   * Icons: Lucide React
   * Routing: React Router DOM
 * **Backend**:
   * Node.js & Express.js REST API
   * Databases:
-    * **MySQL** (Primary relational storage for users, configs, campaigns, logs, and wallet)
+    * **MySQL / MariaDB** (Primary relational storage for users, configs, campaigns, logs, and wallet)
     * **Redis** (In-memory storage for BullMQ queue state & rate-limiting)
   * Websockets: Socket.io for live chat syncing.
 * **Campaign Processing Engine**:
-  * **BullMQ (Redis-based)**: High-scale message ingestion queue capable of executing 1Cr+ sends.
+  * **BullMQ (Redis-based)**: High-scale message ingestion queue capable of executing millions of sends.
   * **Classic SQL Worker (`queueService.js`)**: Runs a backup polling loop (every 15 seconds) to process messages directly via SQL if Redis is offline or during local development.
 * **Integrations**:
   * **RCS**: Dotgo API
@@ -45,157 +45,163 @@ The system is built on a high-throughput **MEN** stack (MySQL, Express, Node.js)
 
 ---
 
-## 📊 3. Core Modules & Features Implemented So Far
+## 📊 3. Database Blueprint & Core Schemas
 
-### 📲 Multi-Channel Template Builder
-* Unified visual template designer for **SMS, WhatsApp, RCS, Email, and Voice**.
-* Supports rich components: Headers (Image, Video, Document, Text links), body paragraphs with custom placeholders (`{{1}}`, `[var]`), and suggestion buttons (Call-to-Action/Quick Replies).
-* Live Interactive Phone Mockup preview panel on the UI showing real-time text/image rendering.
+Here are the schemas of the core tables that handle multi-tenant users, contact tags, and messaging histories.
 
-### 🗂️ Ingestion & Contact Variable Mapping
-* Allows CSV/Excel file uploads for bulk campaigns.
-* **Fuzzy Variables Mapping**: Replaces dynamic placeholders (like `{{name}}`, `[amount]`, `{#var#}`) with CSV row values millisecond before dispatching. Handles fallback mapping rules gracefully if headers mismatch.
-
-### 🔄 Intelligent WhatsApp-to-SMS / RCS-to-SMS Failover (v2.0)
-* Built-in fallback router. If a WhatsApp or RCS message fails to deliver, the backend automatically triggers a DLT-approved SMS template.
-* **Idempotency Locking**: Implements an atomic Redis/DB lock (`failover_triggered`) to guarantee that SMS fallbacks are sent exactly once per failure.
-
-### 💬 Live Chat Inbox & Support System
-* Real-time WebSocket support inbox showing active conversations.
-* Campaign replies from webhooks are automatically synced to the live chat logs (`webhook_logs` table) so clients can message back.
-
-### 🤖 Visual Chatflows & Automation Builder
-* Drag-and-drop node graph workspace. Clients can configure automated responses (e.g. if customer replies with keyword "HELP", auto-trigger support flow).
-
-### 💳 Reseller & Whitelabel Hub
-* Complete credit management system where resellers can add their clients, configure customized rate cards per channel, and view analytics.
-
----
-
-## 📂 4. Repository Structure & Key Files
-
-```bash
-📂 PROJECT ROOT
-├── 📂 backend/                      # Express.js Application
-│   ├── 📂 config/
-│   │   └── db.js                    # MySQL connection pooling (mysql2/promise)
-│   ├── 📂 middleware/
-│   │   └── authMiddleware.js        # JWT route guard
-│   ├── 📂 queues/
-│   │   ├── campaignQueue.js         # BullMQ queue definition
-│   │   └── campaignWorker.js        # BullMQ background worker (RCS, WhatsApp, SMS dispatch)
-│   ├── 📂 routes/
-│   │   ├── auth.js                  # Login/Register, OTP verification, Google/Microsoft OAuth
-│   │   ├── campaigns.js             # Campaign CRUD, CSV ingestion
-│   │   ├── proero.js                # Unofficial WhatsApp pairing API routes (proxied)
-│   │   ├── sendingService.js        # Core helper: builds template payloads & handles API requests
-│   │   └── rcs.js / whatsapp.js     # Messaging endpoints
-│   ├── 📂 services/
-│   │   ├── queueService.js          # Polling SQL Backup Queue processor
-│   │   └── walletService.js         # Transaction-safe wallet balance manager
-│   ├── apply_schema_updates.js      # Consolidated MySQL schema patching script
-│   └── index.js                     # Server entry point & Socket.io initiator
-│
-├── 📂 frontend/                     # React (Vite + TypeScript)
-│   ├── 📂 src/
-│   │   ├── 📂 pages/
-│   │   │   ├── Dashboard.tsx        # Analytics graphs & central metrics
-│   │   │   ├── Templates.tsx        # Visual template creator + preview phone frame
-│   │   │   ├── Campaigns.tsx        # Campaign wizard, variable mapping, schedule options
-│   │   │   ├── Chats.tsx            # Live support WebSocket inbox
-│   │   │   └── DLTTemplates.tsx     # SMS DLT approvals registry
-│   │   └── App.tsx                  # Root Routing configuration
-│   └── package.json                 # UI Build configuration
-│
-├── deploy_production.sh             # Zero-downtime shell deployment script (GitHub Pull -> Build -> PM2)
-├── ecosystem.config.js              # PM2 cluster configuration file
-└── Partners_API_V3_...json          # Postman collection for testing Meta APIs
+```mermaid
+erDiagram
+    USERS ||--o| WHATSAPP_CONFIGS : has
+    USERS ||--o{ CONTACTS : manages
+    USERS ||--o{ WEBHOOK_LOGS : records
+    CONTACTS ||--o{ CONTACT_TAGS : labeled_with
 ```
 
+### A. Users Table (`users`)
+Stores the profile, authentication, wallet balance, active gateway limits, and reseller hierarchy.
+* `id` (INT, Primary Key, Auto Increment): Unique user ID (Client, Reseller, or Admin).
+* `name` / `email` / `password`: Standard profile credentials.
+* `role`: Enum (`'user'`, `'admin'`, `'reseller'`).
+* `wallet_balance` (DECIMAL): Remaining currency in Rupees.
+* `whatsapp_config_id` (INT): Foreign key linking to active official WhatsApp configuration.
+* `rcs_config_id` (INT): Foreign key linking to active RCS configurations.
+* `rcs_text_price` / `rcs_rich_card_price` / `rcs_carousel_price`: Customized pricing overrides.
+
+### B. WhatsApp Configs Table (`whatsapp_configs`)
+Stores official Meta API business details.
+* `id` (INT, Primary Key, Auto Increment)
+* `chatbot_name` (VARCHAR): Display name of the active chatbot.
+* `domain` (VARCHAR): Dedicated domain link (e.g. `naafie.com`).
+* `customer_id` (VARCHAR): Registered customer profile ID.
+* `wa_token` (TEXT): Meta API permanent bearer token.
+* `ph_no_id` (VARCHAR): Meta Phone Number ID.
+* `wa_biz_accnt_id` (VARCHAR): Meta WhatsApp Business Account (WABA) ID.
+
+### C. Contacts Table (`contacts`)
+* `id` (VARCHAR, Primary Key)
+* `user_id` (INT): Owner of this contact.
+* `name` (VARCHAR)
+* `phone` (VARCHAR): Phone number in clean format (E.164, without '+' or spaces).
+* `assigned_agent` (VARCHAR): Email of the assigned support user.
+* `auto_reply` (TINYINT): Toggle (`1` = active chatbot, `0` = paused / manual takeover).
+
+### D. Webhook Logs Table (`webhook_logs`)
+Main log table storing all incoming/outgoing messages. This is the source for chats history.
+* `id` (INT, Primary Key, Auto Increment)
+* `user_id` (INT)
+* `sender` (VARCHAR): Sender's phone number or `'System'` if outgoing.
+* `recipient` (VARCHAR): Recipient's phone number or `'chatbot'`/`'System'` if incoming.
+* `message_content` (TEXT): Text content of the message.
+* `media_url` (VARCHAR): Relative server file path for image/pdf attachments.
+* `status` (VARCHAR): `'sent'`, `'delivered'`, `'received'`, or `'failed'`.
+* `type` (VARCHAR): Communication channel (`'whatsapp'`, `'rcs'`, `'sms'`).
+
 ---
 
-## 🛠️ 5. Deployment & Environment Setup
+## 🚀 4. End-to-End Chat & Messaging Flow
 
-### Local Run:
-1. **Database**: Setup a MySQL instance, create a database named `notifynow_db` (or custom name), and run migration:
-   ```bash
-   cd backend
-   node apply_schema_updates.js
-   ```
-2. **Environment**: Create `.env` in `backend/` and configure port, DB credentials, Redis connection, and API credentials.
-3. **Launch Server**:
-   ```bash
-   cd backend
-   npm install
-   npm run dev
-   ```
-4. **Launch Client**:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+```
+[Frontend UI] --(POST /send)--> [Express Router] --(API Call)--> [Meta/RCS Gateway]
+      ^                                                                 |
+      | (Socket.io Update)                                              v
+[Socket Server] <--------(Trigger Webhook)---------------------- [Meta/RCS Webhook]
+```
 
-### Production Deployment:
-The server uses **PM2** to run in cluster mode. To push updates live, execute:
+### Outgoing Message Flow
+1. **Trigger**: User types a reply on the **Chats Page** and hits send.
+2. **API Call**: Frontend calls `POST /api/chats/send` with `{ recipient, message, channel }`.
+3. **Dispatch**:
+   - If WhatsApp, queries the user's config and triggers Meta API.
+   - If RCS, routes payload via Dotgo API.
+4. **Logging**: Saves the outgoing message to the database table `webhook_logs` with `sender = 'System'`, `recipient = cleanPhone`, and `status = 'sent'`.
+5. **Real-time Sync**: Server triggers `req.io.to('user_userId').emit('new_message')` to update the active chat screen on other open tabs.
+
+### Incoming Webhook & Chatbot Flow
+1. **Trigger**: Customer responds on WhatsApp/RCS.
+2. **Endpoint**: Meta/Dotgo servers send a POST callback to `/api/webhooks/whatsapp` or `/api/webhooks/rcs`.
+3. **Logging**: Backend parses the incoming payload, matches the phone number with the appropriate `user_id`, and logs the message into `webhook_logs` with `sender = customer_phone`, `recipient = 'System'`, and `status = 'received'`.
+4. **WebSocket Sync**: Emits `new_message` to the socket room of the user so the chat list updates immediately.
+5. **Chatbot Reply**:
+   - Check if the contact has `auto_reply = 1` in the `contacts` table.
+   - If enabled, parses matched keywords in `chat_flows` table.
+   - If a matching node flow matches the keyword, compiles the response message and triggers a reply back to the customer.
+
+---
+
+## 💻 5. Local Database Setup & Initialization Guide
+
+To recreate the development database environment from scratch on your local machine, execute the following steps:
+
+### Step 1: Create Database
+Make sure MySQL (or XAMPP) is running. Log in to MySQL client and drop/create the database:
+```sql
+DROP DATABASE IF EXISTS notifynow_db;
+CREATE DATABASE notifynow_db;
+```
+
+### Step 2: Configure Environment File
+Configure database credentials in your local `.env` located in the `/backend` directory:
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=
+DB_NAME=notifynow_db
+```
+
+### Step 3: Run Database Creation and Seed Scripts
+Run the following scripts sequentially from the **project root directory** to build all schemas and seed test data:
+```bash
+# 1. Setup users, resellers tables and seed sandeep@gmail.com (admin)
+$env:NODE_PATH="backend/node_modules"; node backend/scripts/setup_users_resellers.js
+
+# 2. Run schema updater (Tickets, Webhook Logs, campaigns etc.)
+$env:NODE_ENV="development"; $env:NODE_PATH="backend/node_modules"; node backend/apply_schema_updates.js
+
+# 3. Initialize WhatsApp configs table
+$env:NODE_PATH="backend/node_modules"; node backend/scripts/create_whatsapp_configs_table.js
+
+# 4. Initialize Contacts table
+$env:NODE_PATH="backend/node_modules"; node backend/scripts/fix_contacts_table.js
+
+# 5. Initialize RCS bot tables
+$env:NODE_PATH="backend/node_modules"; node backend/scripts/init-database.js
+
+# 6. Seed dummy chats data (creates demo conversations, logs, and tags for local testing)
+$env:NODE_PATH="backend/node_modules"; node backend/scripts/seed_dummy_chats.js
+```
+
+### Step 4: Access Local Account
+Start the backend (`npm run dev` in `/backend`) and frontend (`npm run dev` in `/frontend`), and log in to the dashboard:
+* **Email**: `sandeep@gmail.com`
+* **Password**: `password123`
+
+---
+
+## ⚠️ 6. Key Coding Standards & SQL Warnings
+
+When modifying SQL queries or adding joins, incoming developers MUST strictly adhere to the following rules:
+
+### Rule 1: Always Qualify Ambiguous Columns in Joins
+When joining tables like `users` (which has a `contact_phone` column) with subqueries from `webhook_logs` (which also evaluates a `contact_phone` column), always prefix the select statement with `table_alias.column` (e.g. `t.contact_phone`). Failure to do so will result in an `ER_NON_UNIQ_ERROR` (Column is ambiguous) and crash the chats listing API.
+
+### Rule 2: Explicitly Resolve Collation Mismatches
+The database uses different collations for specific columns. For instance, the `contacts` table uses `utf8mb4_unicode_ci` while `webhook_logs` uses `utf8mb4_general_ci`. When joining these tables, you must append `COLLATE utf8mb4_unicode_ci` on string comparisons:
+```sql
+LEFT JOIN contacts c ON c.phone = t.contact_phone COLLATE utf8mb4_unicode_ci
+```
+Without this clause, joins will fail with the error: `Illegal mix of collations (utf8mb4_unicode_ci,IMPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation '='`.
+
+### Rule 3: Do Not Use GROUP BY for Chronological Status/Content
+Never use `GROUP BY contact_phone` with aggregate functions like `MAX(message_content)` or `MAX(status)` to find the latest chat preview. MySQL treats `MAX()` alphabetically (e.g. "Yes" is evaluated as higher than "Hello"), resulting in out-of-order chat previews.
+* **Standard Solution**: Always partition records using `ROW_NUMBER() OVER (PARTITION BY contact_phone ORDER BY created_at DESC)` and select rows where the row number is `1`.
+
+---
+
+## 🛠️ 7. Production Deployment
+
+The production environment is managed using **PM2** on the live server.
+To apply changes, SSH into the production server, navigate to the deployment folder, and execute:
 ```bash
 ./deploy_production.sh
 ```
-This script automates:
-1. Hard-fetching latest code from branch `main`.
-2. Running production node installs.
-3. Building frontend production bundle (`/dist`).
-4. Injecting secure credentials (CCAvenue, DB, ports) into `.env.production`.
-5. Running database schema migrations.
-6. Zero-downtime hot reloading of the PM2 process (`notifynow-live-prod`).
-
----
-
-## ✉️ 6. Email Template for Developer Handover
-
-Below is a professional email template. Replace the bracketed placeholders `[like this]` with your actual details before sending.
-
-```text
-Subject: Technical Handover: NotifyNow Multi-Channel Notification Platform
-
-Dear [Developer Name/Team],
-
-I hope this email finds you well. 
-
-As part of our transition, I am handing over the codebase and credentials for the "NotifyNow" platform. This is a multi-channel notification engine (supporting SMS, WhatsApp, RCS, Email, and Voice) built with a React (Vite/TS) frontend and an Express (Node.js) + MySQL backend.
-
-We have prepared a comprehensive handover directory for you. Here are the key details to get you started:
-
-1. Codebase Architecture:
-- Frontend: Single Page React App located in the /frontend directory, styled with Tailwind CSS. Production builds are compiled into the /dist directory.
-- Backend: RESTful API server located in the /backend directory.
-- Queuing: Implements BullMQ + Redis for high-scale campaign queuing (1Cr+ records) with a fallback polling system (queueService.js) built directly on MySQL for local/non-Redis development.
-- Database: MySQL database. The primary schema updates are handled via consolidated migration scripts.
-
-2. Access & Repository Details:
-- Git Repository URL: [Insert GitHub Repository Link, e.g., https://github.com/username/notifynow.git]
-- Active Production Server IP: [Insert Server IP Address]
-- Database Host: [Insert Database Host/Port details]
-- PM2 Process Name: notifynow-live-prod (running on port 5050)
-
-3. Key Configuration Files:
-- Local Config: /backend/.env
-- Production Config: /backend/.env.production
-- PM2 Configuration: /ecosystem.config.js
-- Deployment Automation: /deploy_production.sh (Run this shell script on the server for zero-downtime deployments)
-
-4. API Documentation:
-We have included comprehensive Markdown documentation inside the repository:
-- API_DOCUMENTATION.md (Covers authentication, contact, and template APIs)
-- UNOFFICIAL_WHATSAPP_API_GUIDE.md (Covers unofficial WhatsApp pairing, session sync, and sending via Proero gateway)
-- Postman Collection: Partners_API_V3_Postman_Collection.postman_collection.json (available in the root)
-
-Please review the attached "HANDOVER.md" file in the workspace directory. It contains the detailed directory hierarchy, list of database tables, features completed so far, and local environment setup instructions.
-
-Let me know your availability for a brief walkthrough call to address any initial questions you might have.
-
-Best regards,
-
-[Your Name]
-[Your Contact Information]
-```
+This zero-downtime deployment script will automatically execute git pulls, production builds for React frontend, trigger node packages updates, run migration patches (`apply_schema_updates.js`), and hot reload the PM2 cluster instance (`notifynow-live-prod`).
