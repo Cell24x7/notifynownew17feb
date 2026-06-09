@@ -102,6 +102,9 @@ cd "$BACKEND_DIR"
 ENV_FILE=".env.production"
 [ ! -f "$ENV_FILE" ] && touch "$ENV_FILE"
 
+# Keep DLR_BASE_URL as HTTP for Kannel compatibility
+DLR_HTTP_URL=$(echo "$APP_URL" | sed 's/^https:/http:/')
+
 # Write production environment keys
 cat <<EOF > "$ENV_FILE"
 PORT=$APP_PORT
@@ -112,7 +115,7 @@ DB_NAME=$APP_DB
 NODE_ENV=production
 APP_NAME=$APP_NAME
 API_BASE_URL=$APP_URL
-DLR_BASE_URL=$APP_URL
+DLR_BASE_URL=$DLR_HTTP_URL
 JWT_SECRET=notifynow_db_secret_key_production
 JWT_EXPIRES_IN=24h
 SMS_USER=testdemo

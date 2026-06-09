@@ -109,13 +109,16 @@ cd "$BACKEND_DIR"
 ENV_FILE=".env.production"
 [ ! -f "$BACKEND_DIR/$ENV_FILE" ] && touch "$BACKEND_DIR/$ENV_FILE"
 
+# Keep DLR_BASE_URL as HTTP for Kannel compatibility
+DLR_HTTP_URL=$(echo "$APP_URL" | sed 's/^https:/http:/')
+
 # Update env vars with single perl pass (fast)
 perl -i -pe "
     s|^PORT=.*|PORT=$APP_PORT|g;
     s|^DB_NAME=.*|DB_NAME=$APP_DB|g;
     s|^DB_PASS=.*|DB_PASS=0dgoldimagecf38532|g;
     s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g;
-    s|^DLR_BASE_URL=.*|DLR_BASE_URL=$APP_URL|g;
+    s|^DLR_BASE_URL=.*|DLR_BASE_URL=$DLR_HTTP_URL|g;
     s|^APP_NAME=.*|APP_NAME=$APP_NAME|g;
     s|^BACKEND_URL=.*|BACKEND_URL=$APP_URL/api|g;
     s|^FRONTEND_URL=.*|FRONTEND_URL=$APP_URL|g;
@@ -126,7 +129,7 @@ perl -i -pe "
 grep -q "^PORT="                    "$BACKEND_DIR/$ENV_FILE" || echo "PORT=$APP_PORT"                             >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^DB_NAME="                 "$BACKEND_DIR/$ENV_FILE" || echo "DB_NAME=$APP_DB"                           >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^API_BASE_URL="            "$BACKEND_DIR/$ENV_FILE" || echo "API_BASE_URL=$APP_URL"                     >> "$BACKEND_DIR/$ENV_FILE"
-grep -q "^DLR_BASE_URL="            "$BACKEND_DIR/$ENV_FILE" || echo "DLR_BASE_URL=$APP_URL"                      >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^DLR_BASE_URL="            "$BACKEND_DIR/$ENV_FILE" || echo "DLR_BASE_URL=$DLR_HTTP_URL"                  >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^APP_NAME="                "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME"                        >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^BACKEND_URL="             "$BACKEND_DIR/$ENV_FILE" || echo "BACKEND_URL=$APP_URL/api"                  >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^FRONTEND_URL="            "$BACKEND_DIR/$ENV_FILE" || echo "FRONTEND_URL=$APP_URL"                     >> "$BACKEND_DIR/$ENV_FILE"

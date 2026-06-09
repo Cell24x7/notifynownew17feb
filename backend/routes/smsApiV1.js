@@ -76,6 +76,16 @@ const handleSendSms = async (req, res) => {
     let peId = params.peId || params.pe_id;
     let hashId = params.hashId || params.hash_id;
 
+    // Optional Unicode Parameter Override
+    let userUnicode = undefined;
+    if (params.unicode !== undefined) {
+        userUnicode = params.unicode === 'true' || params.unicode === true || params.unicode === '1' || params.unicode === 1;
+    } else if (params.isUnicode !== undefined) {
+        userUnicode = params.isUnicode === 'true' || params.isUnicode === true || params.isUnicode === '1' || params.isUnicode === 1;
+    } else if (params.is_unicode !== undefined) {
+        userUnicode = params.is_unicode === 'true' || params.is_unicode === true || params.is_unicode === '1' || params.is_unicode === 1;
+    }
+
     if (!mobile) {
         return res.status(400).json({ success: false, message: 'Mobile number is required (mobile or to)' });
     }
@@ -205,7 +215,8 @@ const handleSendSms = async (req, res) => {
             sender: finalSenderId,
             peId: finalPeId,
             hashId: finalHashId,
-            callbackUrl: callbackUrl
+            callbackUrl: callbackUrl,
+            isUnicode: userUnicode
         });
         
         if (!smsResult.success) {
@@ -254,6 +265,16 @@ const handleSendOtp = async (req, res) => {
     let senderId = params.senderId || params.sender_id || params.sender || params.from;
     let peId = params.peId || params.pe_id;
     let hashId = params.hashId || params.hash_id;
+
+    // Optional Unicode Parameter Override
+    let userUnicode = undefined;
+    if (params.unicode !== undefined) {
+        userUnicode = params.unicode === 'true' || params.unicode === true || params.unicode === '1' || params.unicode === 1;
+    } else if (params.isUnicode !== undefined) {
+        userUnicode = params.isUnicode === 'true' || params.isUnicode === true || params.isUnicode === '1' || params.isUnicode === 1;
+    } else if (params.is_unicode !== undefined) {
+        userUnicode = params.is_unicode === 'true' || params.is_unicode === true || params.is_unicode === '1' || params.is_unicode === 1;
+    }
 
     if (!mobile) {
         return res.status(400).json({ success: false, message: 'Mobile number is required (mobile or to)' });
@@ -347,7 +368,8 @@ const handleSendOtp = async (req, res) => {
             sender: finalSenderId,
             peId: finalPeId,
             hashId: finalHashId,
-            callbackUrl: callbackUrl
+            callbackUrl: callbackUrl,
+            isUnicode: userUnicode
         });
 
         if (!smsResult.success) {

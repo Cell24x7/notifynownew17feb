@@ -148,6 +148,11 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
 
         // 5. Format the data for placeholders
         const detectedUnicode = isUnicodeMessage(message);
+        let isUnicodeVal = detectedUnicode;
+        if (options.isUnicode !== undefined && options.isUnicode !== null) {
+            isUnicodeVal = options.isUnicode === 'true' || options.isUnicode === true || options.isUnicode === '1' || options.isUnicode === 1;
+        }
+
         const data = {
             mobile: cleanMobile,
             message: message,
@@ -159,7 +164,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             msgId: msgId,
             callbackUrl: finalCallbackUrl,
             gatewayName: gateway?.name || 'NotifyNow',
-            isUnicode: options.isUnicode || detectedUnicode
+            isUnicode: isUnicodeVal
         };
 
         const finalUrl = replacePlaceholders(gateway.primary_url, data);
