@@ -295,11 +295,8 @@ ensureEnquiryColumns().catch(err => console.error('Enquiry columns init error:',
 app.get('/api/temp-debug', async (req, res) => {
   try {
     const { query } = require('./config/db');
-    const users = await query("SELECT id, name, email, role, status FROM users WHERE name LIKE '%Jredeems%' OR email LIKE '%Jredeems%'");
-    const campaigns = await query("SELECT id, user_id, name, status, recipient_count, sent_count FROM campaigns WHERE name LIKE '%Jredeems%' OR user_id IN (SELECT id FROM users WHERE name LIKE '%Jredeems%')");
-    const allCampaignsCount = await query("SELECT COUNT(*) as count FROM campaigns");
-    const allUsersCount = await query("SELECT COUNT(*) as count FROM users");
-    res.json({ success: true, users: users[0], campaigns: campaigns[0], allCampaignsCount: allCampaignsCount[0], allUsersCount: allUsersCount[0] });
+    const [user] = await query("SELECT id, name, email, api_key, api_password FROM users WHERE email = 'mfinance@gmail.com'");
+    res.json({ success: true, user: user[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
