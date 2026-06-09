@@ -91,6 +91,10 @@ step "Creating database '$APP_DB' if not exists..."
 mysql -u root -p"$DB_PASS" -e "CREATE DATABASE IF NOT EXISTS $APP_DB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ok "Database '$APP_DB' verified."
 
+step "Importing base schema and data from schema_backup.sql..."
+mysql -u root -p"$DB_PASS" "$APP_DB" < "$PROJECT_DIR/schema_backup.sql"
+ok "Base database schema imported successfully."
+
 # --- Step 3: Configure Environment Variables ---
 log "[3/7] Setting up secure production configurations..."
 
