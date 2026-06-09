@@ -25,7 +25,11 @@ APP_PORT="5050"
 APP_DB="notifynow_db"
 # Fetch target server IP dynamically (fallback to the new server IP)
 SERVER_IP=$(curl -s ifconfig.me || echo "64.227.183.240")
-APP_URL="http://$SERVER_IP"
+if [ "$SERVER_IP" == "64.227.183.240" ]; then
+    APP_URL="https://notifynow.in"
+else
+    APP_URL="http://$SERVER_IP"
+fi
 ENV_DESC="NEW SERVER PRODUCTION"
 
 # ─── Colors ────────────────────────────────────────────────
@@ -166,6 +170,8 @@ ok "Database migrations complete."
 step "Building frontend (Vite build)..."
 cd "$FRONTEND_DIR"
 rm -rf dist
+echo "VITE_API_URL=$APP_URL" > .env
+echo "VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com" >> .env
 NODE_OPTIONS="--max-old-space-size=1024" VITE_API_URL="$APP_URL" npm run build -- --logLevel warn
 chmod -R 755 "$FRONTEND_DIR/dist"
 chmod o+x "$PROJECT_DIR" || true
