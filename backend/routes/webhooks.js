@@ -9,6 +9,92 @@ const { triggerChatflow } = require('../services/chatflowService');
 const { processAutomation } = require('../services/automationService');
 const { downloadWAMedia } = require('../utils/whatsappMedia');
 
+// SMS Gateway DLR Error Code Mapping
+const SMS_ERROR_CODES = {
+    "000": "Delivered",
+    "001": "Unknown Subscriber",
+    "005": "Unidentified Subscriber",
+    "006": "Absent Subscriber SM",
+    "008": "FSM Time Out",
+    "009": "Illegal Subscriber",
+    "011": "Tele-Service not provisioned",
+    "012": "Illegal Equipment",
+    "013": "Call Barred",
+    "021": "Facility Not Supported",
+    "027": "Absent Subscriber",
+    "031": "Subscriber busy for MT",
+    "032": "SM delivery Fail",
+    "033": "Message List Full",
+    "034": "Network error",
+    "035": "Network error",
+    "036": "Network error",
+    "097": "Network error",
+    "098": "Network error",
+    "099": "Network error",
+    "600": "NETWORK_ERROR",
+    "601": "ENTITY_INACTIVE",
+    "603": "ENTITY_BLACKLISTED",
+    "604": "INVALID_ENTITY_ID",
+    "605": "ENTITY_ID_NOT_ALLOWED_FOR_TM",
+    "609": "ENTITY_NOT_FOUND",
+    "610": "TELEMARKETER_NOT_REGISTERED",
+    "611": "TELEMARKETER_INACTIVE",
+    "612": "TELEMARKETER_BLACKLISTED",
+    "620": "HEADER_NOT_FOUND",
+    "621": "HEADER_INACTIVE",
+    "622": "HEADER_BLACKLISTED",
+    "623": "PEID_NOT_MATCHED_WITH_HEADER",
+    "624": "NUMERIC_HEADER_NOT_ALLOWED",
+    "625": "HEADER_IN_SUSPENDED_USAGE",
+    "626": "T_HEADER_IN_SUSPENDED_VALIDITY",
+    "641": "P_HEADER_IN_SUSPENDED_VALIDITY",
+    "627": "HEADER_IN_SUSPENDED_CUSTOMER",
+    "628": "HEADER_AND_ACCOUNTTYPE_MISMATCH",
+    "629": "HEADER_IN_FREEPOOL",
+    "630": "TEMPLATE_NOT_FOUND",
+    "631": "TEMPLATE_INACTIVE",
+    "632": "TEMPLATE_BLACKLISTED",
+    "633": "TEMPLATE_NOT_MATCHED",
+    "634": "HEADER_NOT_REGISTERED_FOR_TEMPLATE",
+    "635": "TEMPLATE_FAILED_ON_DYNAMIC_PART",
+    "636": "ERROR_IDENTIFYING_TEMPLATE",
+    "637": "INVALID_TEMPLATE_ID",
+    "638": "TEMPLATE_IN_SUSPENDED_USAGE",
+    "639": "TEMPLATE_IN_SUSPENDED_VALIDITY",
+    "640": "TEMPLATE_IN_SUSPENDED_CUSTOMER",
+    "642": "TEMPLATETYPE_AND_ACCOUNTTYPE_MISMATCH",
+    "646": "UNSUPPORTED_DCS",
+    "647": "TEMPLATE_NOT_REGISTERED_TO_ENTITY",
+    "648": "TEMPLATE_AND_ACCOUNT_MISMATCHED",
+    "649": "INVALID_TEMPLATE_TYPE",
+    "650": "PREFERENCE_NOT_MATCHED",
+    "651": "INVALID_PROMO_TIME",
+    "660": "CONSENT_NOT_FOUND",
+    "661": "CONSENT_EXPIRED",
+    "670": "SCRUBBING_FAILED",
+    "671": "FAILED_TO_ASSEMBLE_PDUS",
+    "672": "UDH_HEADER_REUSED",
+    "673": "SMSC_SUBMIT_TIMEOUT",
+    "675": "Empty HASH/CHAIN provided",
+    "676": "HASH/CHAIN STATUS B",
+    "677": "HASH/CHAIN STATUS SC",
+    "678": "HASH/CHAIN STATUS SB",
+    "679": "HASH/CHAIN NOT MATCH",
+    "680": "SCRUB_CTA_URL_ERROR",
+    "681": "SCRUB_CTA_NUMBER_ERROR",
+    "682": "SCRUB_CTA_EMAIL_ERROR",
+    "698": "TLV_PEID_NOT_FOUND",
+    "674": "TLV_TMPID_NOT_FOUND",
+    "088": "SRI TIMEOUT",
+    "091": "PROVIDER-ABORT"
+};
+
+const getSmsErrorDescription = (code) => {
+    if (!code) return null;
+    const cleanCode = String(code).trim().padStart(3, '0');
+    return SMS_ERROR_CODES[cleanCode] || null;
+};
+
 // Global memory buffer for campaign counters to prevent row lock contention under high load
 global.campaignCountBuffer = global.campaignCountBuffer || {};
 
@@ -1467,9 +1553,35 @@ const handleSmsCallback = async (req, res) => {
                                 const errMatch = s.match(/err:([a-zA-Z0-9]+)/i);
                                 const statMatch = s.match(/stat:([a-zA-Z0-9]+)/i);
                                 
-                                if (errMatch && statMatch) reason = `${statMatch[1].toUpperCase()} (Error: ${errMatch[1]})`;
-                                else if (errMatch) reason = `Gateway Error: ${errMatch[1]}`;
-                                else if (statMatch) reason = `Status: ${statMatch[1].toUpperCase()}`;
+                                if (errMatch && statMatch) {
+                                    const errCode = errMatch[1];
+                                    const desc = getSmsErrorDescription(errCode);
+                                    let statusLabel = statMatch[1].toUpperCase();
+                                    if (statusLabel === 'REJECTD') statusLabel = 'REJECTED';
+                                    if (statusLabel === 'DELIVRD') statusLabel = 'DELIVERED';
+                                    if (statusLabel === 'UNDELIV') statusLabel = 'UNDELIVERED';
+                                    reason = desc ? `${statusLabel} - ${desc} (Error: ${errCode})` : `${statusLabel} (Error: ${errCode})`;
+                                }
+                                else if (errMatch) {
+                                    const errCode = errMatch[1];
+                                    const desc = getSmsErrorDescription(errCode);
+                                    reason = desc ? `${desc} (Error: ${errCode})` : `Gateway Error: ${errCode}`;
+                                }
+                                else if (statMatch) {
+                                    let statusLabel = statMatch[1].toUpperCase();
+                                    if (statusLabel === 'REJECTD') statusLabel = 'REJECTED';
+                                    if (statusLabel === 'DELIVRD') statusLabel = 'DELIVERED';
+                                    if (statusLabel === 'UNDELIV') statusLabel = 'UNDELIVERED';
+                                    reason = `Status: ${statusLabel}`;
+                                }
+                            }
+                            
+                            // If reason is just a numeric error code, translate it!
+                            if (reason && /^\d+$/.test(reason)) {
+                                const desc = getSmsErrorDescription(reason);
+                                if (desc) {
+                                    reason = `${desc} (Error: ${reason})`;
+                                }
                             }
                             
                             // Final Fallback: If still no reason, use the raw status string itself if it's short and useful
