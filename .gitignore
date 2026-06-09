@@ -21,4 +21,16 @@ frontend/.env*
 tmp/
 *.timestamp-*.mjs
 
+# Scratch & diagnostic scripts
+scratch/
+backend/check_*.js
+backend/fetch_*.js
+backend/fetch_diag.js
+backend/inspect_*.js
+backend/test_*.js
+backend/scripts/fix_*.js
+backend/scripts/inspect_*.js
+backend/scripts/seed_*.js
+backend/scripts/setup_*.js
+
 
