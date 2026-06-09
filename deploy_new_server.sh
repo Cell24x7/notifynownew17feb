@@ -24,6 +24,16 @@ APP_NAME="notifynow-live-prod"
 APP_PORT="5050"
 APP_DB="notifynow_db"
 DB_PASS="0dgoldimagecf38532"  # Identified remote MariaDB root password
+SUDO_PASS="0dgoldimagecf38532"
+
+# Wrapper for running sudo commands in non-interactive environments
+sudo() {
+    if [ -n "$SUDO_PASS" ]; then
+        echo "$SUDO_PASS" | command sudo -S "$@"
+    else
+        command sudo "$@"
+    fi
+}
 
 # Fetch target server IP dynamically (fallback to target IP)
 SERVER_IP=$(curl -s ifconfig.me || echo "64.227.183.240")
@@ -171,7 +181,7 @@ log "[7/7] Configuring Nginx reverse-proxy & SELinux permissions..."
 NGINX_CONF="/etc/nginx/conf.d/notifynow.conf"
 step "Writing Nginx config to $NGINX_CONF..."
 
-sudo bash -c "cat <<EOF > $NGINX_CONF
+cat <<EOF > /tmp/notifynow.conf
 server {
     listen 80;
     server_name _;
@@ -180,29 +190,30 @@ server {
     location / {
         root $FRONTEND_DIR/dist;
         index index.html;
-        try_files \\\$uri \\\$uri/ /index.html;
+        try_files \$uri \$uri/ /index.html;
     }
 
     # Node.js API gateway proxy
     location /api {
         proxy_pass http://localhost:$APP_PORT;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \\\$http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \\\$host;
-        proxy_cache_bypass \\\$http_upgrade;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
     }
 
     # WebSockets Sync endpoint
     location /socket.io/ {
         proxy_pass http://localhost:$APP_PORT/socket.io/;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \\\$http_upgrade;
-        proxy_set_header Connection \"upgrade\";
-        proxy_set_header Host \\\$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
     }
 }
-EOF"
+EOF
+sudo mv /tmp/notifynow.conf $NGINX_CONF
 
 # Enable SELinux HTTP content permissions to prevent 403 Forbidden errors
 step "Configuring SELinux policy constraints..."
