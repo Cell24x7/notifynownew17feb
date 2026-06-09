@@ -30,10 +30,7 @@ def main():
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(HOSTNAME, PORT, USERNAME, PASSWORD)
     
-    execute_remote_command(ssh, "ls -la /home")
-    execute_remote_command(ssh, "cat /etc/passwd | grep -i cell")
-    execute_remote_command(ssh, "pm2 status")
-    execute_remote_command(ssh, "ps -ef | grep node")
+    execute_remote_command(ssh, "git -C /home/veloxadmin/notifynow fetch origin")
 
     ssh.close()
 

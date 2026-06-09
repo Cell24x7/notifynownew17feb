@@ -49,7 +49,6 @@ warn() { echo -e "   ${YELLOW}⚠️  $1${NC}"; }
 err()  { echo -e "   ${RED}❌ $1${NC}"; }
 step() { echo -e "   ${BLUE}▶  $1${NC}"; }
 
-clear
 echo -e "${BOLD}${BLUE}======================================================"
 echo "      🚀 NotifyNow AUTO-DEPLOY & PROVISIONING SCRIPT  "
 echo "      Target IP: $SERVER_IP | Port: $APP_PORT         "
