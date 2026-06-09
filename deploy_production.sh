@@ -40,7 +40,6 @@ warn() { echo -e "   ${YELLOW}⚠️  $1${NC}"; }
 err()  { echo -e "   ${RED}❌ $1${NC}"; }
 step() { echo -e "   ${BLUE}▶  $1${NC}"; }
 
-clear
 echo -e "${BOLD}${BLUE}"
 echo "=========================================="
 echo "   🚀 NotifyNow TURBO DEPLOYMENT          "
