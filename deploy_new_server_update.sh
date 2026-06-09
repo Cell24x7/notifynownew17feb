@@ -186,7 +186,7 @@ cd "$PROJECT_DIR"
 
 if pm2 list | grep -q "$APP_NAME"; then
     if [ -f "ecosystem.config.js" ]; then
-        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production || APP_NAME="$APP_NAME" pm2 reload ecosystem.config.js --env production
+        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production --update-env || APP_NAME="$APP_NAME" pm2 reload ecosystem.config.js --env production --update-env
     else
         pm2 start "$APP_NAME" --update-env || pm2 reload "$APP_NAME" --update-env
     fi
