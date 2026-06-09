@@ -77,7 +77,8 @@ const downloadCsv = (content: string, filename: string) => {
 // Frontend Cache variables to make tab navigation instant
 let reportsCacheOwnerId: string | null = null;
 let cachedReportsList: Report[] | null = null;
-let cachedWebhookLogs: WebhookLog[] | null = null;
+let cachedDetailedLogs: WebhookLog[] | null = null;
+let cachedApiLogs: WebhookLog[] | null = null;
 let cachedEngagementReports: EngagementReport[] | null = null;
 let cachedSummaryStats: any = null;
 let cachedSummaryTotal = 0;
@@ -94,7 +95,8 @@ export default function Reports() {
     // Invalidate cache if user changes
     if (reportsCacheOwnerId !== user?.id) {
         cachedReportsList = null;
-        cachedWebhookLogs = null;
+        cachedDetailedLogs = null;
+        cachedApiLogs = null;
         cachedEngagementReports = null;
         cachedSummaryStats = null;
         cachedSummaryTotal = 0;
@@ -106,7 +108,8 @@ export default function Reports() {
     }
 
     const [reports, setReports] = useState<Report[]>(cachedReportsList || []);
-    const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>(cachedWebhookLogs || []);
+    const [detailedLogs, setDetailedLogs] = useState<WebhookLog[]>(cachedDetailedLogs || []);
+    const [apiLogs, setApiLogs] = useState<WebhookLog[]>(cachedApiLogs || []);
     const [summaryPage, setSummaryPage] = useState(1);
     const [summaryTotal, setSummaryTotal] = useState(cachedSummaryTotal);
     const [detailedPage, setDetailedPage] = useState(1);
@@ -116,7 +119,7 @@ export default function Reports() {
     const ITEMS_PER_PAGE = 20;
 
     const [loading, setLoading] = useState(!cachedReportsList);
-    const [loadingLogs, setLoadingLogs] = useState(!cachedWebhookLogs);
+    const [loadingLogs, setLoadingLogs] = useState(true);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState('all');
@@ -247,7 +250,8 @@ export default function Reports() {
     };
 
     const fetchWebhookLogs = async (page: number = 1, currentTab: string = activeTab, silent: boolean = false) => {
-        if (!cachedWebhookLogs && !silent) setLoadingLogs(true);
+        const cache = currentTab === 'api' ? cachedApiLogs : cachedDetailedLogs;
+        if (!cache && !silent) setLoadingLogs(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
@@ -269,12 +273,14 @@ export default function Reports() {
             });
             const data = await res.json();
             if (data.success) {
-                setWebhookLogs(data.data);
-                cachedWebhookLogs = data.data;
                 if (currentTab === 'api') {
+                    setApiLogs(data.data);
+                    cachedApiLogs = data.data;
                     setApiTotal(data.pagination?.total || 0);
                     cachedApiTotal = data.pagination?.total || 0;
                 } else {
+                    setDetailedLogs(data.data);
+                    cachedDetailedLogs = data.data;
                     setDetailedTotal(data.pagination?.total || 0);
                     cachedDetailedTotal = data.pagination?.total || 0;
                 }
@@ -825,7 +831,7 @@ export default function Reports() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
-                                        Total Messages: {webhookLogs.length}
+                                        Total Messages: {activeTab === 'api' ? apiTotal : detailedTotal}
                                     </Badge>
                                 </div>
                             </CardHeader>
@@ -850,10 +856,10 @@ export default function Reports() {
                                     <TableBody>
                                         {loadingLogs ? (
                                             <TableRow><TableCell colSpan={11} className="text-center py-10">Fetching logs...</TableCell></TableRow>
-                                        ) : webhookLogs.length === 0 ? (
+                                        ) : (activeTab === 'api' ? apiLogs : detailedLogs).length === 0 ? (
                                             <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
                                         ) : (
-                                            webhookLogs.map((log) => (
+                                            (activeTab === 'api' ? apiLogs : detailedLogs).map((log) => (
                                                 <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b border-border">
                                                     <TableCell className="text-[10px] font-medium text-muted-foreground border-r border-border px-3 py-2">
                                                         {log.id}

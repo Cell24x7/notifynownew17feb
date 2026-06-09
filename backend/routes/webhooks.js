@@ -694,6 +694,15 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
             params.push(`%${req.query.search}%`, `%${req.query.search}%`);
         }
 
+        if (req.query.startDate) {
+            conditions.push("ml.created_at >= ?");
+            params.push(req.query.startDate + ' 00:00:00');
+        }
+        if (req.query.endDate) {
+            conditions.push("ml.created_at <= ?");
+            params.push(req.query.endDate + ' 23:59:59');
+        }
+
         // Always exclude manual chat from detailed campaign reports
         conditions.push("(ml.campaign_name IS NULL OR ml.campaign_name != 'Manual Chat')");
         conditions.push("(ml.campaign_id IS NULL OR ml.campaign_id NOT LIKE 'CAMP_MANUAL_%')");
@@ -701,15 +710,15 @@ router.get('/message-logs', authenticateToken, async (req, res) => {
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
         // Get total count for pagination with 60-second caching
-        const cacheKey = `count:${req.user.role}:${req.user.id}:${source}:${userIdQuery}:${req.query.campaignId || ''}:${req.query.channel || ''}:${req.query.search || ''}`;
+        const cacheKey = `count:${req.user.role}:${req.user.id}:${source}:${userIdQuery}:${req.query.campaignId || ''}:${req.query.channel || ''}:${req.query.search || ''}:${req.query.startDate || ''}:${req.query.endDate || ''}`;
         let total;
         const cachedEntry = countCache[cacheKey];
         if (cachedEntry && (Date.now() - cachedEntry.timestamp < COUNT_CACHE_TTL)) {
             total = cachedEntry.total;
         } else {
-            // OPTIMIZATION: If user is admin/superadmin and querying 'all' (no campaign/search filter),
+            // OPTIMIZATION: If user is admin/superadmin and querying 'all' (no campaign/search/date filter),
             // use TABLE_ROWS estimate from INFORMATION_SCHEMA to avoid slow scanning of 1Cr+ rows!
-            const isAdminAllQuery = isAdminRole && userIdQuery === 'all' && !req.query.campaignId && !req.query.search && !req.query.channel;
+            const isAdminAllQuery = isAdminRole && userIdQuery === 'all' && !req.query.campaignId && !req.query.search && !req.query.channel && !req.query.startDate && !req.query.endDate;
             
             if (isAdminAllQuery) {
                 const cacheTTL = 600000; // 10 minutes cache for global admin count
