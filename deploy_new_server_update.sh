@@ -109,6 +109,7 @@ ENV_FILE=".env.production"
 perl -i -pe "
     s|^PORT=.*|PORT=$APP_PORT|g;
     s|^DB_NAME=.*|DB_NAME=$APP_DB|g;
+    s|^DB_PASS=.*|DB_PASS=0dgoldimagecf38532|g;
     s|^API_BASE_URL=.*|API_BASE_URL=$APP_URL|g;
     s|^DLR_BASE_URL=.*|DLR_BASE_URL=$APP_URL|g;
     s|^APP_NAME=.*|APP_NAME=$APP_NAME|g;
@@ -127,7 +128,7 @@ grep -q "^FRONTEND_URL="            "$BACKEND_DIR/$ENV_FILE" || echo "FRONTEND_U
 
 grep -q "^DB_HOST=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_HOST missing in $ENV_FILE!"
 grep -q "^DB_USER=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_USER missing in $ENV_FILE!"
-grep -q "^DB_PASS=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_PASS missing in $ENV_FILE!"
+grep -q "^DB_PASS=" "$BACKEND_DIR/$ENV_FILE" || echo "DB_PASS=0dgoldimagecf38532" >> "$BACKEND_DIR/$ENV_FILE"
 chmod 600 "$BACKEND_DIR/$ENV_FILE"
 ok "ENV configured."
 
