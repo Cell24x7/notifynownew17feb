@@ -67,10 +67,9 @@ async function runMaintenance() {
                 // Priority: 1. DLR_BASE_URL, 2. API_BASE_URL, 3. Fallback to Localhost
                 let baseUrlForDlr = process.env.DLR_BASE_URL || process.env.API_BASE_URL || 'http://localhost:5000';
                 
-                // CRITICAL: If Kannel doesn't support HTTPS, force HTTP for DLR
-                // This often happens when main app is https://notifynow.in but Kannel needs http://IP:PORT
-                if (baseUrlForDlr.startsWith('https://') && !process.env.DLR_BASE_URL) {
-                    // console.log(`⚠️  [Maintenance] HTTPS detected for API_BASE_URL. Kannel might fail. Suggesting DLR_BASE_URL in .env`);
+                // Force plain HTTP for live domain callbacks to prevent SSL negotiation failures on legacy gateways
+                if (baseUrlForDlr.startsWith('https://notifynow.in')) {
+                    baseUrlForDlr = baseUrlForDlr.replace('https://notifynow.in', 'http://notifynow.in');
                 }
                 
                 const finalDlrUrl = `${baseUrlForDlr}${coreEndpoint}?msgid=%MSGID&status=%a&err=%E&mobile=%p`;

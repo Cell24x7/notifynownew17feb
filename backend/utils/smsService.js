@@ -139,7 +139,12 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
 
         // Get system base URL for callback (Prioritize DLR_BASE_URL for SMS DLR to avoid SSL issues)
         const baseUrl = process.env.DLR_BASE_URL || process.env.API_BASE_URL || `https://${process.env.DOMAIN}` || 'https://notifynow.in';
-        const finalCallbackUrl = options.callbackUrl || `${baseUrl}/api/webhooks/sms/callback`;
+        let finalCallbackUrl = options.callbackUrl || `${baseUrl}/api/webhooks/sms/callback`;
+
+        // Force plain HTTP for live domain callbacks to prevent SSL negotiation failures on legacy gateways
+        if (finalCallbackUrl.startsWith('https://notifynow.in')) {
+            finalCallbackUrl = finalCallbackUrl.replace('https://notifynow.in', 'http://notifynow.in');
+        }
 
         // 5. Format the data for placeholders
         const detectedUnicode = isUnicodeMessage(message);
