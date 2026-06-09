@@ -30,7 +30,7 @@ def main():
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(HOSTNAME, PORT, USERNAME, PASSWORD)
     
-    execute_remote_command(ssh, "git -C /home/veloxadmin/notifynow fetch origin")
+    execute_remote_command(ssh, "cat /etc/nginx/nginx.conf")
 
     ssh.close()
 

@@ -223,9 +223,12 @@ step "Configuring SELinux policy constraints..."
 sudo chcon -Rt httpd_sys_content_t "$FRONTEND_DIR/dist" || true
 sudo setsebool -P httpd_enable_homedirs 1 || true
 
+step "Disabling default Nginx server block..."
+sudo python3 -c "import re; f=open('/etc/nginx/nginx.conf'); t=f.read(); f.close(); nt=re.sub(r'server\s*\{\s*listen\s*80;.*?\n\s*\}\n\n# Settings for a TLS enabled server\.', '# Settings for a TLS enabled server.', t, flags=re.DOTALL); f=open('/etc/nginx/nginx.conf', 'w'); f.write(nt); f.close()"
+
 step "Reloading Nginx service..."
 sudo nginx -t
-sudo systemctl reload nginx
+sudo systemctl restart nginx
 ok "Nginx configured and live."
 
 # --- Launch PM2 process ---
