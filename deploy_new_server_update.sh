@@ -119,6 +119,7 @@ perl -i -pe "
     s|^APP_NAME=.*|APP_NAME=$APP_NAME|g;
     s|^BACKEND_URL=.*|BACKEND_URL=$APP_URL/api|g;
     s|^FRONTEND_URL=.*|FRONTEND_URL=$APP_URL|g;
+    s|^BYPASS_DND=.*|BYPASS_DND=true|g;
 " "$BACKEND_DIR/$ENV_FILE"
 
 # Ensure keys exist if not present
@@ -129,6 +130,7 @@ grep -q "^DLR_BASE_URL="            "$BACKEND_DIR/$ENV_FILE" || echo "DLR_BASE_U
 grep -q "^APP_NAME="                "$BACKEND_DIR/$ENV_FILE" || echo "APP_NAME=$APP_NAME"                        >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^BACKEND_URL="             "$BACKEND_DIR/$ENV_FILE" || echo "BACKEND_URL=$APP_URL/api"                  >> "$BACKEND_DIR/$ENV_FILE"
 grep -q "^FRONTEND_URL="            "$BACKEND_DIR/$ENV_FILE" || echo "FRONTEND_URL=$APP_URL"                     >> "$BACKEND_DIR/$ENV_FILE"
+grep -q "^BYPASS_DND="              "$BACKEND_DIR/$ENV_FILE" || echo "BYPASS_DND=true"                            >> "$BACKEND_DIR/$ENV_FILE"
 
 grep -q "^DB_HOST=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_HOST missing in $ENV_FILE!"
 grep -q "^DB_USER=" "$BACKEND_DIR/$ENV_FILE" || warn "DB_USER missing in $ENV_FILE!"
