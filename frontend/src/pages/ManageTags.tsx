@@ -26,7 +26,7 @@ export default function ManageTags() {
   const [tags, setTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDomain, setSelectedDomain] = useState('CreateYourOwn');
+  const [selectedDomain, setSelectedDomain] = useState('all');
   const [domains, setDomains] = useState<string[]>(['CreateYourOwn']);
   
   // Modals state
@@ -42,6 +42,23 @@ export default function ManageTags() {
   
   const { toast } = useToast();
 
+  const fetchDomains = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/chats/user-domains`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        const list = (res.data.domains || []).filter(
+          (d: string) => d.toLowerCase() !== 'all' && d.toLowerCase() !== 'all domains'
+        );
+        setDomains(list.length > 0 ? list : ['CreateYourOwn']);
+      }
+    } catch (err) {
+      console.error('Error fetching user domains:', err);
+    }
+  };
+
   const fetchTags = async () => {
     setLoading(true);
     try {
@@ -51,14 +68,6 @@ export default function ManageTags() {
       });
       if (res.data.success) {
         setTags(res.data.tags || []);
-        
-        // Extract distinct domains for dropdown
-        const distinctDomains: string[] = Array.from(
-          new Set((res.data.tags || []).map((t: TagData) => t.domain))
-        );
-        if (distinctDomains.length > 0) {
-          setDomains(distinctDomains);
-        }
       }
     } catch (err) {
       console.error('Error fetching tags:', err);
@@ -74,6 +83,7 @@ export default function ManageTags() {
 
   useEffect(() => {
     fetchTags();
+    fetchDomains();
   }, []);
 
   const handleCreateTag = async () => {
@@ -92,6 +102,7 @@ export default function ManageTags() {
         setNewTagName('');
         setIsCreateOpen(false);
         fetchTags();
+        fetchDomains();
       }
     } catch (err: any) {
       toast({
@@ -138,6 +149,7 @@ export default function ManageTags() {
         setEditingTag(null);
         setEditTagName('');
         fetchTags();
+        fetchDomains();
       }
     } catch (err: any) {
       toast({
@@ -158,6 +170,7 @@ export default function ManageTags() {
       
       toast({ title: 'Deleted', description: `Tag "${tag.tag_name}" deleted globally.` });
       fetchTags();
+      fetchDomains();
     } catch (err) {
       toast({ title: 'Error', description: 'Failed to delete tag.', variant: 'destructive' });
     }
