@@ -128,7 +128,7 @@ export default function Channels() {
       });
       if (response.data.success) {
         setIsConnectOpen(false);
-        setStep(1);
+        setStep(2);
         setChannelName('');
         fetchChannels();
         toast.success("Channel created successfully");
@@ -179,8 +179,9 @@ export default function Channels() {
   );
 
   const handleConnectChannel = () => {
+    setSelectedProvider('Proero');
     setIsConnectOpen(true);
-    setStep(1);
+    setStep(2);
   };
 
   const handleProviderSelect = (provider: string) => {
@@ -471,7 +472,7 @@ export default function Channels() {
               </div>
 
               <DialogFooter className="pt-4 border-t">
-                <Button variant="ghost" onClick={() => setStep(1)} className="font-bold">Back</Button>
+                <Button variant="ghost" onClick={() => setIsConnectOpen(false)} className="font-bold">Cancel</Button>
                 <Button onClick={handleConfigSubmit} className="gradient-primary h-12 px-8 font-bold shadow-lg shadow-primary/20">
                   Connect Channel
                 </Button>
