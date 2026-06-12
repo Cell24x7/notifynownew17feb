@@ -1136,10 +1136,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   // RENDER UI
   // ════════════════════════════════════════════════════════════
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-1 max-h-[82vh] overflow-y-auto no-scrollbar">
+    <div className="flex flex-col gap-6 p-1 max-h-[82vh] overflow-y-auto no-scrollbar">
       
       {/* ══════════════ LEFT: Multi-Tab Console Panel ══════════════ */}
-      <div className="lg:col-span-8 flex flex-col space-y-4">
+      <div className="w-full flex flex-col space-y-4">
         
         {/* Global Active Campaign selector bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-muted/40 border rounded-xl shadow-inner">
@@ -2372,143 +2372,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
 
       </div>
 
-      {/* ══════════════ RIGHT: Live Phone Preview Panel ══════════════ */}
-      <div className="lg:col-span-4 flex flex-col items-center">
-        <div className="sticky top-0">
-          <div className="text-center mb-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1.5">
-              <Smartphone className="w-3.5 h-3.5" /> Interactive Phone Preview
-            </p>
-          </div>
 
-          {/* Phone Frame */}
-          <div className="w-[280px] h-[520px] bg-black rounded-[36px] p-[8px] shadow-2xl relative border-4 border-muted/80">
-            {/* Camera notch */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[100px] h-[22px] bg-black rounded-b-2xl z-20" />
-            
-            {/* WhatsApp Interface Screen */}
-            <div className="w-full h-full bg-[#0b141a] rounded-[28px] overflow-hidden flex flex-col">
-              
-              {/* Top notch icons */}
-              <div className="flex items-center justify-between px-5 pt-2.5 pb-1 text-white/70">
-                <span className="text-[10px] font-bold">{currentTime}</span>
-                <div className="flex items-center gap-1.5">
-                  <Signal className="w-3 h-3" />
-                  <Wifi className="w-3 h-3" />
-                  <Battery className="w-3.5 h-3.5" />
-                </div>
-              </div>
-
-              {/* Chat header banner */}
-              <div className="flex items-center gap-2.5 px-3 py-2 bg-[#1f2c34]">
-                <ChevronLeft className="w-5 h-5 text-[#00a884] shrink-0" />
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00a884] to-[#075e54] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {(channel.name || 'P')[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-bold text-white truncate">{channel.name || 'Proero WhatsApp'}</p>
-                  <p className="text-[10px] text-[#8696a0]">
-                    {activeStagingCount > 0 
-                      ? `${activeStagingCount} number${activeStagingCount > 1 ? 's' : ''} staging`
-                      : 'Active Connection'
-                    }
-                  </p>
-                </div>
-                <MoreVertical className="w-4 h-4 text-[#8696a0]" />
-              </div>
-
-              {/* Chat Messages flow body */}
-              <div 
-                className="flex-1 px-3 py-3 overflow-y-auto no-scrollbar"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-                }}
-              >
-                <div className="flex justify-center mb-3">
-                  <span className="px-3 py-1 rounded-lg bg-[#182229] text-[9px] text-[#8696a0] font-medium shadow-sm uppercase tracking-wider">
-                    Today
-                  </span>
-                </div>
-
-                {activeStagingCount > 0 && (
-                  <div className="flex justify-center mb-3">
-                    <div className="px-3 py-1.5 rounded-lg bg-[#182229]/90 text-[9.5px] text-[#ffd279] font-medium max-w-[200px] text-center border border-[#ffd279]/20 shadow-lg">
-                      📤 staging {activeStagingCount} number{activeStagingCount > 1 ? 's' : ''} to Campaign
-                    </div>
-                  </div>
-                )}
-
-                {/* Sent Bubble */}
-                <div className="flex justify-end mb-2">
-                  <div className={cn(
-                    "max-w-[85%] rounded-xl rounded-tr-sm px-3 py-2 shadow-sm relative",
-                    (messageContent || selectedTemplate) 
-                      ? "bg-[#005c4b]" 
-                      : "bg-[#1d2b33] border border-[#2a3942]"
-                  )}>
-                    <p className={cn(
-                      "text-[12.5px] leading-relaxed break-words whitespace-pre-wrap",
-                      (messageContent || selectedTemplate) ? "text-[#e9edef]" : "text-[#8696a0] italic"
-                    )}>
-                      {previewMessage}
-                    </p>
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <span className="text-[9px] text-[#ffffff99]">{currentTime}</span>
-                      <CheckCircle2 className="w-3 h-3 text-[#53bdeb]" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recipient list bubbles preview */}
-                {activePreviewRecipients.length > 0 && activePreviewRecipients.map((rec, i) => (
-                  <div key={i} className="flex justify-start mb-1.5 animate-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
-                    <div className="max-w-[70%] rounded-xl rounded-tl-sm px-3 py-1.5 bg-[#1f2c34] shadow-sm">
-                      <p className="text-[10px] text-[#8696a0] font-mono">
-                        📱 +{rec.phone}
-                      </p>
-                      {rec.variables && Object.keys(rec.variables).length > 0 && (
-                        <p className="text-[8.5px] text-[#ffd279] font-mono truncate mt-0.5">
-                          {Object.entries(rec.variables).map(([k, v]) => `${k}:${v}`).join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {activeStagingCount > 2 && (
-                  <div className="flex justify-start mb-2">
-                    <div className="px-3 py-1 rounded-xl bg-[#1f2c34] shadow-sm">
-                      <p className="text-[10px] text-[#8696a0]">+{activeStagingCount - 2} more recipients staged...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom typing bar */}
-              <div className="px-2 py-2 flex items-center gap-2 bg-[#1f2c34]">
-                <div className="flex-1 flex items-center gap-2 bg-[#2a3942] rounded-full px-3 py-2">
-                  <Smile className="w-4 h-4 text-[#8696a0] shrink-0" />
-                  <span className="text-[11px] text-[#8696a0] flex-1 truncate">
-                    {sendMode === 'template' ? '📋 Saved Template active' : (messageContent ? messageContent.slice(0, 30) + '...' : 'Type a message')}
-                  </span>
-                  <Paperclip className="w-4 h-4 text-[#8696a0] shrink-0" />
-                  <Camera className="w-4 h-4 text-[#8696a0] shrink-0" />
-                </div>
-                <div className="w-9 h-9 rounded-full bg-[#00a884] flex items-center justify-center shadow-md shrink-0">
-                  {activeStagingCount > 0 && (messageContent || selectedTemplate) 
-                    ? <Send className="w-4 h-4 text-white" />
-                    : <Mic className="w-4 h-4 text-white" />
-                  }
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 mt-3 opacity-40">
-            <Zap className="w-3 h-3" />
-            <span className="text-[9px] font-bold uppercase tracking-widest">Developer Console Interface</span>
-          </div>
-        </div>
-      </div>
 
       {/* ══════════════ DIALOG: Message Status Detail Inspector (Phase 8) ══════════════ */}
       <Dialog open={showMsgDetailsModal} onOpenChange={setShowMsgDetailsModal}>
