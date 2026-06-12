@@ -90,12 +90,8 @@ const ServiceLanding: React.FC = () => {
       <div className="bg-slate-900 text-white text-[11px] font-semibold py-2 px-4 flex flex-col sm:flex-row justify-between items-center z-50 relative gap-2 sm:gap-0">
         <div className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row justify-between items-center px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <a href="mailto:sales@cell24x7.com" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-              <span>✉ sales@cell24x7.com</span>
-            </a>
-            <span className="text-slate-700 hidden sm:inline">|</span>
-            <a href="tel:+918779721034" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-              <span>📞 +91 8779721034</span>
+            <a href="mailto:info@veloxaio.com" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+              <span>✉ info@veloxaio.com</span>
             </a>
           </div>
           <div className="hidden sm:block text-slate-400 font-medium">
@@ -777,13 +773,10 @@ const ServiceLanding: React.FC = () => {
               <Link to="/auth" className="inline-flex items-center justify-center px-7 py-4 text-sm font-bold text-slate-900 bg-white hover:bg-slate-50 rounded-xl shadow-md transition-all duration-300">
                 Get Started Free
               </Link>
-              <a href="mailto:sales@cell24x7.com" className="inline-flex items-center justify-center px-7 py-4 text-sm font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-300">
-                Contact Sales
+              <a href="mailto:info@veloxaio.com" className="inline-flex items-center justify-center px-7 py-4 text-sm font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-300">
+                Contact Support
               </a>
             </div>
-            <span className="text-white/80 text-xs font-bold mr-0 sm:mr-4">
-              Call Us: <a href="tel:+918779721034" className="hover:underline hover:text-white transition-colors">+91 8779721034</a>
-            </span>
           </div>
 
         </div>
@@ -792,12 +785,8 @@ const ServiceLanding: React.FC = () => {
       {/* ── FOOTER ── */}
       <footer className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 text-center text-xs font-semibold text-slate-400 border-t border-slate-200/50 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex flex-wrap items-center justify-center gap-6 text-slate-500">
-          <a href="mailto:sales@cell24x7.com" className="hover:text-blue-600 transition-colors">
-            sales@cell24x7.com
-          </a>
-          <span className="hidden md:inline text-slate-300">|</span>
-          <a href="tel:+918779721034" className="hover:text-blue-600 transition-colors">
-            +91 8779721034
+          <a href="mailto:info@veloxaio.com" className="hover:text-blue-600 transition-colors">
+            info@veloxaio.com
           </a>
         </div>
         <p>&copy; {new Date().getFullYear()} {brandName}. All rights reserved. | Powered by <a href="https://cell24x7.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors font-bold">Cell24x7</a></p>
