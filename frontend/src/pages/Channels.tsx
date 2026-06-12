@@ -94,6 +94,11 @@ export default function Channels() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [realQRCode, setRealQRCode] = useState<string | null>(null);
   const [isFetchingQR, setIsFetchingQR] = useState(false);
+  const [connectMethod, setConnectMethod] = useState<'qr' | 'pairing'>('qr');
+  const [pairingPhone, setPairingPhone] = useState('');
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [isFetchingPairing, setIsFetchingPairing] = useState(false);
+  const [activeTab, setActiveTab] = useState('qr');
 
   useEffect(() => {
     fetchChannels();
@@ -190,12 +195,56 @@ export default function Channels() {
     setActiveChannel(channel);
     setIsQRModalOpen(true);
     setRealQRCode(null); // Reset when opening
-    // Trigger auto-fetch after state update
-    setTimeout(() => {
-      if (channel.provider === 'Proero' || channel.provider === 'WAConnect') {
-         fetchRealQR(channel);
+    setConnectMethod('qr');
+    setPairingCode(null);
+    setPairingPhone(channel.phone_number ? channel.phone_number.replace(/\D/g, '') : '');
+    
+    // Auto redirect to developer (Bulk Campaign) tab if connected
+    if (channel.status === 'connected') {
+      setActiveTab('developer');
+    } else {
+      setActiveTab('qr');
+    }
+
+    // Trigger auto-fetch after state update if we default to QR tab
+    if (channel.status !== 'connected') {
+      setTimeout(() => {
+        if (channel.provider === 'Proero' || channel.provider === 'WAConnect') {
+           fetchRealQR(channel);
+        }
+      }, 100);
+    }
+  };
+
+  const fetchPairingCode = async () => {
+    if (!pairingPhone) {
+      toast.error("Please enter a phone number");
+      return;
+    }
+    const targetChannel = activeChannel;
+    if (!targetChannel) return;
+    try {
+      setIsFetchingPairing(true);
+      const sessionName = `session${targetChannel.id}`;
+      // Use Backend Proxy to bypass CORS
+      const response = await api.post('/api/proero/proxy/api/whatsapp/connect', { 
+        sessionName, 
+        phoneNumber: pairingPhone 
+      });
+      
+      const code = response.data.pairingCode || response.data.data?.pairingCode;
+      if (code) {
+        setPairingCode(code);
+        toast.success("Pairing code generated!");
+      } else {
+        toast.error("Failed to generate pairing code from API");
       }
-    }, 100);
+    } catch (err: any) {
+      console.error('Fetch Pairing Code error:', err);
+      toast.error(err.response?.data?.message || "Failed to generate pairing code");
+    } finally {
+      setIsFetchingPairing(false);
+    }
   };
 
   const fetchRealQR = async (channelOverride?: any) => {
@@ -463,13 +512,13 @@ export default function Channels() {
               <p className="text-sm font-mono text-muted-foreground">{activeChannel?.phone_number}</p>
             </div>
 
-            <Tabs defaultValue="qr" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="px-6 py-2 border-b">
                 <TabsList className="bg-muted h-10">
-                  <TabsTrigger value="qr" className="font-bold">QR Code</TabsTrigger>
+                  <TabsTrigger value="qr" className="font-bold">Connection Info</TabsTrigger>
                   <TabsTrigger value="overview" className="font-bold">Overview</TabsTrigger>
                   {(activeChannel?.provider === 'Proero' || activeChannel?.provider === 'WAConnect') && (
-                    <TabsTrigger value="developer" className="font-bold">⚡ Proero Console</TabsTrigger>
+                    <TabsTrigger value="developer" className="font-bold text-emerald-600">⚡ Bulk Campaign</TabsTrigger>
                   )}
                   <TabsTrigger value="settings" className="font-bold">Settings</TabsTrigger>
                 </TabsList>
@@ -477,35 +526,123 @@ export default function Channels() {
 
               <div className="p-8">
                 <TabsContent value="qr" className="m-0 flex flex-col items-center space-y-6">
-                  <div className="p-4 bg-white border-2 border-primary/20 rounded-2xl shadow-xl transition-all hover:scale-[1.02]">
-                    {realQRCode ? (
-                      <img 
-                        src={realQRCode.startsWith('data:') ? realQRCode : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(realQRCode)}`} 
-                        alt="Real QR Code" 
-                        className="w-64 h-64 object-contain"
-                      />
-                    ) : (
-                      <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted/50 rounded-xl gap-4">
-                        <QrCode className="w-16 h-16 text-muted-foreground/30" />
-                        <p className="text-xs text-muted-foreground font-bold px-4 text-center">Click below to fetch the real WhatsApp scanner</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-4 w-full">
-                    <Button 
-                      className="flex-1 font-bold h-11 gradient-primary" 
-                      onClick={fetchRealQR}
-                      disabled={isFetchingQR}
+                  {/* Connection Method Toggle */}
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted rounded-lg w-full max-w-md text-xs font-bold shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => setConnectMethod('qr')}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 py-2 rounded-md transition-all",
+                        connectMethod === 'qr' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
-                      {isFetchingQR ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <QrCode className="w-4 h-4 mr-2" />}
-                      {realQRCode ? 'Refresh QR' : 'Fetch Real QR'}
-                    </Button>
-                    <Button variant="outline" className="flex-1 font-bold h-11" disabled={!realQRCode}>
-                      <Download className="w-4 h-4 mr-2" /> Download
-                    </Button>
+                      <QrCode className="w-3.5 h-3.5" /> Scan QR Code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConnectMethod('pairing')}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 py-2 rounded-md transition-all",
+                        connectMethod === 'pairing' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" /> Link with Phone Code
+                    </button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest italic">
-                    * This scanner connects your device to the unofficial route
+
+                  {connectMethod === 'qr' ? (
+                    <div className="flex flex-col items-center space-y-6 w-full animate-in fade-in duration-200">
+                      <div className="p-4 bg-white border-2 border-primary/20 rounded-2xl shadow-xl transition-all hover:scale-[1.02]">
+                        {realQRCode ? (
+                          <img 
+                            src={realQRCode.startsWith('data:') ? realQRCode : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(realQRCode)}`} 
+                            alt="Real QR Code" 
+                            className="w-64 h-64 object-contain"
+                          />
+                        ) : (
+                          <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted/50 rounded-xl gap-4">
+                            <QrCode className="w-16 h-16 text-muted-foreground/30" />
+                            <p className="text-xs text-muted-foreground font-bold px-4 text-center">Click below to fetch the real WhatsApp scanner</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-4 w-full max-w-md">
+                        <Button 
+                          className="flex-1 font-bold h-11 gradient-primary" 
+                          onClick={() => fetchRealQR()}
+                          disabled={isFetchingQR}
+                        >
+                          {isFetchingQR ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <QrCode className="w-4 h-4 mr-2" />}
+                          {realQRCode ? 'Refresh QR' : 'Fetch Real QR'}
+                        </Button>
+                        <Button variant="outline" className="flex-1 font-bold h-11" disabled={!realQRCode}>
+                          <Download className="w-4 h-4 mr-2" /> Download
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center space-y-6 w-full max-w-md animate-in fade-in duration-200">
+                      <div className="w-full space-y-4 p-5 bg-card border rounded-2xl shadow-sm">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone Number (with Country Code)</label>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="e.g. 919876839965"
+                              value={pairingPhone}
+                              onChange={(e) => setPairingPhone(e.target.value.replace(/\D/g, ''))}
+                              className="h-11 font-mono focus-visible:ring-primary shadow-sm"
+                            />
+                            <Button 
+                              onClick={fetchPairingCode}
+                              disabled={isFetchingPairing || !pairingPhone}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 px-5 shadow-sm"
+                            >
+                              {isFetchingPairing ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Get Code'}
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">Always include the country code without spaces (e.g. 91 for India).</p>
+                        </div>
+
+                        {pairingCode && (
+                          <div className="pt-4 border-t border-dashed space-y-4 animate-in slide-in-from-top-2 duration-300">
+                            <div className="flex flex-col items-center p-4 bg-primary/5 border-2 border-primary/20 rounded-xl">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">WhatsApp Pairing Code</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-3xl font-black font-mono tracking-widest text-primary">
+                                  {pairingCode.length === 8 ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}` : pairingCode}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(pairingCode);
+                                    toast.success("Pairing code copied!");
+                                  }}
+                                >
+                                  <Copy className="w-4 h-4 text-primary" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="p-3 bg-muted/50 rounded-xl text-xs space-y-2">
+                              <p className="font-bold text-foreground">How to link your device:</p>
+                              <ol className="list-decimal pl-4 space-y-1 text-muted-foreground text-[11px]">
+                                <li>Open <strong>WhatsApp</strong> on your mobile phone.</li>
+                                <li>Tap <strong>Menu</strong> (Android) or <strong>Settings</strong> (iOS) &gt; <strong>Linked Devices</strong>.</li>
+                                <li>Tap <strong>Link a Device</strong>.</li>
+                                <li>Tap <strong>Link with phone number instead</strong> at the bottom.</li>
+                                <li>Enter the 8-character pairing code shown above on your phone.</li>
+                              </ol>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest italic text-center max-w-md">
+                    * Once connected, you can switch to the **Bulk Campaign** tab to start staging campaigns.
                   </p>
                 </TabsContent>
 

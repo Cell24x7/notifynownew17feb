@@ -117,6 +117,10 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
+  const [connectMethod, setConnectMethod] = useState<'qr' | 'pairing'>('qr');
+  const [pairingPhone, setPairingPhone] = useState(channel.phone_number ? channel.phone_number.replace(/\D/g, '') : '');
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [isFetchingPairing, setIsFetchingPairing] = useState(false);
 
   // State: User Management (Phase 2)
   const [users, setUsers] = useState<any[]>([]);
@@ -380,6 +384,32 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
     } finally {
       setIsLoading(false);
       setActiveAction(null);
+    }
+  };
+
+  const fetchPairingCode = async () => {
+    if (!pairingPhone) {
+      toast.error("Please enter a phone number");
+      return;
+    }
+    try {
+      setIsFetchingPairing(true);
+      const response = await api.post(`${PROXY_BASE}/api/whatsapp/connect`, { 
+        sessionName,
+        phoneNumber: pairingPhone 
+      });
+      const code = response.data.pairingCode || response.data.data?.pairingCode;
+      if (code) {
+        setPairingCode(code);
+        toast.success("Pairing code generated!");
+      } else {
+        toast.error("Failed to generate pairing code");
+      }
+    } catch (err: any) {
+      console.error('Fetch Pairing Code error:', err);
+      toast.error("Failed to generate pairing code from API");
+    } finally {
+      setIsFetchingPairing(false);
     }
   };
 
@@ -1146,11 +1176,11 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
         <Tabs defaultValue="session" className="w-full">
           <TabsList className="grid grid-cols-6 gap-1 bg-muted p-1 rounded-xl h-11 mb-4 shadow-sm">
             <TabsTrigger value="session" className="text-xs font-black rounded-lg gap-1.5 transition-all"><Zap className="w-3.5 h-3.5" /> Session</TabsTrigger>
-            <TabsTrigger value="users" className="text-xs font-black rounded-lg gap-1.5 transition-all"><Users className="w-3.5 h-3.5" /> Users</TabsTrigger>
-            <TabsTrigger value="templates" className="text-xs font-black rounded-lg gap-1.5 transition-all"><FileText className="w-3.5 h-3.5" /> Templates</TabsTrigger>
             <TabsTrigger value="campaigns" className="text-xs font-black rounded-lg gap-1.5 transition-all"><Plus className="w-3.5 h-3.5" /> Campaigns</TabsTrigger>
             <TabsTrigger value="contacts" className="text-xs font-black rounded-lg gap-1.5 transition-all"><UserCheck className="w-3.5 h-3.5" /> Contacts</TabsTrigger>
+            <TabsTrigger value="templates" className="text-xs font-black rounded-lg gap-1.5 transition-all"><FileText className="w-3.5 h-3.5" /> Templates & Send</TabsTrigger>
             <TabsTrigger value="reports" className="text-xs font-black rounded-lg gap-1.5 transition-all"><BarChart3 className="w-3.5 h-3.5" /> Reports</TabsTrigger>
+            <TabsTrigger value="users" className="text-xs font-black rounded-lg gap-1.5 transition-all"><Users className="w-3.5 h-3.5" /> Users</TabsTrigger>
           </TabsList>
 
           {/* ════════ TAB 1: SESSION & HEALTH (PHASES 0 & 1) ════════ */}
@@ -1204,7 +1234,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-black text-foreground">WhatsApp Connection Control</h3>
-                    <p className="text-[11px] text-muted-foreground">Scan the QR scanner below to register your device or logout.</p>
+                    <p className="text-[11px] text-muted-foreground">Scan the QR scanner or use pairing code to link your device.</p>
                   </div>
                   {connectionStatus === 'connected' ? (
                     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1.5 h-6">
@@ -1217,36 +1247,124 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   )}
                 </div>
 
-                {qrCode && (
-                  <div className="flex flex-col items-center py-4 bg-muted/20 border border-dashed rounded-xl animate-in slide-in-from-top-3 duration-300">
-                    <div className="p-3 bg-white rounded-2xl shadow-xl border mb-3">
-                      <img 
-                        src={qrCode.startsWith('data:') ? qrCode : `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCode)}`} 
-                        className="w-40 h-40 object-contain" alt="QR"
-                      />
+                {/* Connection Method Selector */}
+                <div className="grid grid-cols-2 gap-1 p-0.5 bg-muted rounded-lg text-xs font-bold w-full max-w-sm">
+                  <button
+                    type="button"
+                    onClick={() => setConnectMethod('qr')}
+                    className={cn(
+                      "py-1.5 rounded-md transition-all flex items-center justify-center gap-1",
+                      connectMethod === 'qr' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <QrCode className="w-3.5 h-3.5" /> QR Code Scan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConnectMethod('pairing')}
+                    className={cn(
+                      "py-1.5 rounded-md transition-all flex items-center justify-center gap-1",
+                      connectMethod === 'pairing' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" /> Pairing Code
+                  </button>
+                </div>
+
+                {connectMethod === 'qr' ? (
+                  <div className="space-y-4">
+                    {qrCode && (
+                      <div className="flex flex-col items-center py-4 bg-muted/20 border border-dashed rounded-xl animate-in slide-in-from-top-3 duration-300">
+                        <div className="p-3 bg-white rounded-2xl shadow-xl border mb-3">
+                          <img 
+                            src={qrCode.startsWith('data:') ? qrCode : `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCode)}`} 
+                            className="w-40 h-40 object-contain" alt="QR"
+                          />
+                        </div>
+                        <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 animate-spin" /> Scan QR with WhatsApp
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Settings → Linked Devices → Link Device</p>
+                        <Button variant="ghost" size="sm" onClick={() => setQrCode(null)} className="mt-2 text-[10px] text-muted-foreground h-6">Hide QR Code</Button>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <Button onClick={handleConnect} disabled={isLoading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 text-xs shadow-md transition-all hover:scale-[1.01] active:scale-[0.99]">
+                        {activeAction === 'connect' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <QrCode className="w-3.5 h-3.5 mr-2" />}
+                        {qrCode ? 'Refresh QR' : 'Get QR Code'}
+                      </Button>
+                      <Button onClick={handleSyncStatus} disabled={isLoading} variant="outline" className="font-bold h-11 text-xs border-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all hover:scale-[1.01]">
+                        {activeAction === 'sync' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                        Sync Session
+                      </Button>
+                      <Button onClick={handleLogout} disabled={isLoading} variant="outline" className="font-bold h-11 text-xs border-2 border-red-200 text-red-600 hover:bg-red-50 transition-all hover:scale-[1.01]">
+                        {activeAction === 'logout' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <LogOut className="w-3.5 h-3.5 mr-2" />}
+                        Logout Session
+                      </Button>
                     </div>
-                    <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 animate-spin" /> Scan QR with WhatsApp
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Settings → Linked Devices → Link Device</p>
-                    <Button variant="ghost" size="sm" onClick={() => setQrCode(null)} className="mt-2 text-[10px] text-muted-foreground h-6">Hide QR Code</Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="e.g. 919876839965"
+                        value={pairingPhone}
+                        onChange={(e) => setPairingPhone(e.target.value.replace(/\D/g, ''))}
+                        className="h-11 text-xs font-mono focus-visible:ring-primary shadow-sm"
+                      />
+                      <Button 
+                        onClick={fetchPairingCode}
+                        disabled={isFetchingPairing || !pairingPhone}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 px-5 text-xs shadow-sm animate-all"
+                      >
+                        {isFetchingPairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Get Pairing Code'}
+                      </Button>
+                    </div>
+
+                    {pairingCode && (
+                      <div className="p-4 bg-muted/20 border border-dashed rounded-xl space-y-4 animate-in slide-in-from-top-3 duration-300">
+                        <div className="flex flex-col items-center p-3 bg-white border rounded-xl shadow-sm max-w-xs mx-auto">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">WhatsApp Pairing Code</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-black font-mono tracking-widest text-primary">
+                              {pairingCode.length === 8 ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}` : pairingCode}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(pairingCode);
+                                toast.success("Code copied!");
+                              }}
+                            >
+                              <Copy className="w-3.5 h-3.5 text-primary" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-lg border text-[11px] space-y-1 text-muted-foreground max-w-md">
+                          <p className="font-bold text-foreground mb-1">Instructions:</p>
+                          <p>1. Open WhatsApp on your phone &gt; Settings &gt; Linked Devices.</p>
+                          <p>2. Tap Link a Device &gt; Link with phone number instead.</p>
+                          <p>3. Enter the code shown above.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button onClick={handleSyncStatus} disabled={isLoading} variant="outline" className="font-bold h-11 text-xs border-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all">
+                        {activeAction === 'sync' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                        Sync Session
+                      </Button>
+                      <Button onClick={handleLogout} disabled={isLoading} variant="outline" className="font-bold h-11 text-xs border-2 border-red-200 text-red-600 hover:bg-red-50 transition-all">
+                        {activeAction === 'logout' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <LogOut className="w-3.5 h-3.5 mr-2" />}
+                        Logout Session
+                      </Button>
+                    </div>
                   </div>
                 )}
-
-                <div className="grid grid-cols-3 gap-3">
-                  <Button onClick={handleConnect} disabled={isLoading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 text-xs shadow-md transition-all hover:scale-[1.01] active:scale-[0.99]">
-                    {activeAction === 'connect' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <QrCode className="w-3.5 h-3.5 mr-2" />}
-                    {qrCode ? 'Refresh QR' : 'Get QR Code'}
-                  </Button>
-                  <Button onClick={handleSyncStatus} disabled={isLoading} variant="outline" className="font-bold h-11 text-xs border-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all hover:scale-[1.01]">
-                    {activeAction === 'sync' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
-                    Sync Session
-                  </Button>
-                  <Button onClick={handleLogout} disabled={isLoading} variant="outline" className="font-bold h-11 text-xs border-2 border-red-200 text-red-600 hover:bg-red-50 transition-all hover:scale-[1.01]">
-                    {activeAction === 'logout' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <LogOut className="w-3.5 h-3.5 mr-2" />}
-                    Logout Session
-                  </Button>
-                </div>
 
                 <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-lg text-xs">
                   <span className="font-bold uppercase tracking-wider text-muted-foreground">Active Session ID</span>
@@ -1407,143 +1525,103 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
             </div>
           </TabsContent>
 
-          {/* ════════ TAB 3: MESSAGE TEMPLATES (PHASE 3) ════════ */}
+          {/* ════════ MESSAGE TEMPLATES & SEND (PHASE 3 & 6) ════════ */}
           <TabsContent value="templates" className="space-y-4 animate-in fade-in-50 duration-200">
-            <Card className="border border-border/60">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-black text-foreground">Message Templates Library</h3>
-                    <p className="text-[11px] text-muted-foreground">Configure dynamic messaging templates with custom variables.</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="h-9 text-xs font-bold text-primary gap-1" onClick={() => setShowCreateTemplate(!showCreateTemplate)}>
-                    <Plus className="w-3.5 h-3.5" /> {showCreateTemplate ? 'Cancel Editor' : 'Create New Template'}
-                  </Button>
-                </div>
-
-                {showCreateTemplate && (
-                  <div className="p-4 border-2 border-dashed border-primary/20 rounded-xl bg-primary/5 space-y-3 animate-in slide-in-from-top-2 duration-300">
-                    <h4 className="text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Save Template Builder</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-muted-foreground">Template Name</Label>
-                        <Input value={newTemplate.template_name} onChange={e => setNewTemplate(p => ({ ...p, template_name: e.target.value }))} placeholder="Welcome Message" className="h-9 text-xs focus-visible:ring-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-muted-foreground">Variables (Comma-separated)</Label>
-                        <Input value={newTemplate.variables.join(', ')} onChange={e => setNewTemplate(p => ({ ...p, variables: e.target.value.split(',').map(s => s.trim()) }))} placeholder="customer_name, discount_rate" className="h-9 text-xs font-mono focus-visible:ring-primary" />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-bold text-muted-foreground">Template Body Content</Label>
-                      <Textarea value={newTemplate.template_content} onChange={e => setNewTemplate(p => ({ ...p, template_content: e.target.value }))} placeholder="Hello {{customer_name}}, you have a discount of {{discount_rate}}% valid today! 🎉" className="min-h-[70px] text-xs focus-visible:ring-primary" />
-                    </div>
-                    <Button onClick={handleSaveTemplate} disabled={isLoading} size="sm" className="w-full h-9 text-xs font-bold bg-primary hover:bg-primary/95 shadow-md">
-                      {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-2" />} Save Template
-                    </Button>
-                  </div>
-                )}
-
-                {templates.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto no-scrollbar">
-                    {templates.map(tpl => {
-                      const tplId = String(tpl.id || tpl.template_id);
-                      const isSelected = selectedTemplateId === tplId;
-                      return (
-                        <div key={tplId} className={cn(
-                          "text-left p-3.5 rounded-xl border-2 transition-all flex flex-col justify-between gap-3 relative group",
-                          isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/50 hover:border-primary/30"
-                        )}>
-                          <div className="flex items-start justify-between gap-2.5">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-black truncate">{tpl.template_name}</span>
-                                <Badge variant="secondary" className="text-[8px] h-3.5 font-mono">ID:{tplId}</Badge>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground mt-1.5 bg-muted/40 p-2 rounded-lg font-mono line-clamp-3">{tpl.template_content}</p>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button 
-                                size="sm" 
-                                variant={isSelected ? "default" : "outline"} 
-                                className="h-7 text-[10px] font-bold"
-                                onClick={() => setSelectedTemplateId(tplId)}
-                              >
-                                {isSelected ? "Active" : "Select"}
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleDeleteTemplate(tpl.id || tpl.template_id || 0)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          {tpl.variables && tpl.variables.length > 0 && (
-                            <div className="flex items-center gap-1 flex-wrap pt-1.5 border-t border-dashed">
-                              <span className="text-[8px] font-bold text-muted-foreground uppercase mr-1">Variables:</span>
-                              {tpl.variables.map((v, i) => (
-                                <Badge key={i} variant="outline" className="text-[8px] h-3.5 bg-blue-50/50 text-blue-700 border-blue-200">
-                                  {`{{${v}}}`}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 text-muted-foreground border rounded-xl border-dashed">
-                    <FileText className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                    <p className="text-xs font-bold">No templates saved yet.</p>
-                    <p className="text-[10px]">Create a new message template in the form above.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* ════════ TAB 4: CAMPAIGNS (PHASES 4 & 6) ════════ */}
-          <TabsContent value="campaigns" className="space-y-4 animate-in fade-in-50 duration-200">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
-              {/* Create Campaign form (Phase 4) */}
+              {/* Message Templates Library (Phase 3) */}
               <Card className="border border-border/60 md:col-span-1">
                 <CardContent className="p-5 space-y-4">
-                  <div>
-                    <h3 className="text-sm font-black text-foreground">Create Campaign Setup</h3>
-                    <p className="text-[11px] text-muted-foreground">Setup a bulk broadcast list.</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-black text-foreground">Templates Library</h3>
+                      <p className="text-[11px] text-muted-foreground">Configure message templates.</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold text-primary px-2 gap-1" onClick={() => setShowCreateTemplate(!showCreateTemplate)}>
+                      <Plus className="w-3.5 h-3.5" /> {showCreateTemplate ? 'Hide' : 'New'}
+                    </Button>
                   </div>
 
-                  <form onSubmit={handleCreateCampaign} className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-muted-foreground">Campaign Name</Label>
-                      <Input
-                        value={newCampaignName}
-                        onChange={e => setNewCampaignName(e.target.value)}
-                        placeholder="Spring Sale 2026"
-                        className="h-10 text-xs focus-visible:ring-primary"
-                        required
-                      />
+                  {showCreateTemplate && (
+                    <div className="p-4 border-2 border-dashed border-primary/20 rounded-xl bg-primary/5 space-y-3 animate-in slide-in-from-top-2 duration-300">
+                      <h4 className="text-[10px] font-black text-primary uppercase tracking-wider flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Template Builder</h4>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground">Template Name</Label>
+                        <Input value={newTemplate.template_name} onChange={e => setNewTemplate(p => ({ ...p, template_name: e.target.value }))} placeholder="Welcome Message" className="h-8 text-xs focus-visible:ring-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground">Variables (Comma-separated)</Label>
+                        <Input value={newTemplate.variables.join(', ')} onChange={e => setNewTemplate(p => ({ ...p, variables: e.target.value.split(',').map(s => s.trim()) }))} placeholder="customer_name, discount" className="h-8 text-xs font-mono focus-visible:ring-primary" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground">Template Body Content</Label>
+                        <Textarea value={newTemplate.template_content} onChange={e => setNewTemplate(p => ({ ...p, template_content: e.target.value }))} placeholder="Hello {{customer_name}}, you get {{discount}}% off! 🎉" className="min-h-[60px] text-xs focus-visible:ring-primary resize-none" />
+                      </div>
+                      <Button onClick={handleSaveTemplate} disabled={isLoading} size="sm" className="w-full h-8 text-xs font-bold bg-primary hover:bg-primary/95 shadow-md">
+                        {isLoading ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-2" />} Save
+                      </Button>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-muted-foreground">Description</Label>
-                      <Textarea
-                        value={newCampaignDesc}
-                        onChange={e => setNewCampaignDesc(e.target.value)}
-                        placeholder="Get 30% discount on all store items"
-                        className="h-16 text-xs resize-none focus-visible:ring-primary"
-                      />
+                  )}
+
+                  {templates.length > 0 ? (
+                    <div className="space-y-2.5 max-h-[350px] overflow-y-auto no-scrollbar">
+                      {templates.map(tpl => {
+                        const tplId = String(tpl.id || tpl.template_id);
+                        const isSelected = selectedTemplateId === tplId;
+                        return (
+                          <div key={tplId} className={cn(
+                            "text-left p-3.5 rounded-xl border-2 transition-all flex flex-col justify-between gap-3 relative group",
+                            isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/50 hover:border-primary/30"
+                          )}>
+                            <div className="flex items-start justify-between gap-2.5">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-black truncate">{tpl.template_name}</span>
+                                  <Badge variant="secondary" className="text-[8px] h-3.5 font-mono">ID:{tplId}</Badge>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground mt-1.5 bg-muted/40 p-2 rounded-lg font-mono line-clamp-3">{tpl.template_content}</p>
+                              </div>
+                              <div className="flex flex-col gap-1 shrink-0">
+                                <Button 
+                                  size="sm" 
+                                  variant={isSelected ? "default" : "outline"} 
+                                  className="h-7 text-[10px] font-bold"
+                                  onClick={() => setSelectedTemplateId(tplId)}
+                                >
+                                  {isSelected ? "Active" : "Select"}
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto"
+                                  onClick={() => handleDeleteTemplate(tpl.id || tpl.template_id || 0)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {tpl.variables && tpl.variables.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap pt-1.5 border-t border-dashed">
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase mr-1">Variables:</span>
+                                {tpl.variables.map((v, i) => (
+                                  <Badge key={i} variant="outline" className="text-[8px] h-3.5 bg-blue-50/50 text-blue-700 border-blue-200">
+                                    {`{{${v}}}`}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <Button type="submit" disabled={isLoading} className="w-full h-10 text-xs font-bold bg-primary hover:bg-primary/95 shadow-md">
-                      {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-2" />}
-                      Create Campaign
-                    </Button>
-                  </form>
+                  ) : (
+                    <div className="text-center py-10 text-muted-foreground border rounded-xl border-dashed">
+                      <FileText className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                      <p className="text-xs font-bold">No templates saved yet.</p>
+                      <p className="text-[10px]">Create a template to start using dynamic messages.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -1553,7 +1631,7 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-black text-foreground">Start Campaign Dispatch</h3>
-                      <p className="text-[11px] text-muted-foreground">Execute campaign messages using plain text or a saved template.</p>
+                      <p className="text-[11px] text-muted-foreground">Select a plain text message or select from templates library on the left.</p>
                     </div>
                     <Badge variant="outline" className="font-mono text-[10px] border-amber-200 text-amber-700 bg-amber-50 h-5">
                       Active: #{campaignId}
@@ -1567,13 +1645,13 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                         "flex items-center justify-center gap-1.5 py-1.5 rounded-md transition-all",
                         sendMode === 'text' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                       )}>
-                        <MessageSquare className="w-3.5 h-3.5" /> Plain Text
+                        <MessageSquare className="w-3.5 h-3.5" /> Plain Text Message
                       </button>
                       <button onClick={() => setSendMode('template')} className={cn(
                         "flex items-center justify-center gap-1.5 py-1.5 rounded-md transition-all",
                         sendMode === 'template' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                       )}>
-                        <FileText className="w-3.5 h-3.5" /> Saved Template
+                        <FileText className="w-3.5 h-3.5" /> Saved Template (Selected on Left)
                       </button>
                     </div>
 
@@ -1593,36 +1671,14 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                       </div>
                     ) : (
                       <div className="space-y-2 animate-in fade-in-50 duration-200">
-                        <Label className="text-xs font-bold text-muted-foreground">Select Active Saved Template</Label>
-                        
-                        {templates.length > 0 ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[140px] overflow-y-auto no-scrollbar">
-                            {templates.map(tpl => {
-                              const tplId = String(tpl.id || tpl.template_id);
-                              const isSelected = selectedTemplateId === tplId;
-                              return (
-                                <button
-                                  key={tplId}
-                                  type="button"
-                                  onClick={() => setSelectedTemplateId(tplId)}
-                                  className={cn(
-                                    "p-2 rounded-lg border text-left flex items-start gap-2 text-xs",
-                                    isSelected ? "border-primary bg-primary/5 font-semibold" : "border-border/60 hover:bg-muted/10"
-                                  )}
-                                >
-                                  <div className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 mt-0.5", isSelected ? "border-primary bg-primary" : "border-muted-foreground/30")}>
-                                    {isSelected && <Check className="w-2 text-white" />}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="font-bold truncate">{tpl.template_name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{tpl.template_content}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
+                        <Label className="text-xs font-bold text-muted-foreground">Active Saved Template Summary</Label>
+                        {selectedTemplate ? (
+                          <div className="p-3.5 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
+                            <p className="font-bold text-xs text-primary">{selectedTemplate.template_name}</p>
+                            <p className="text-xs font-mono bg-white p-2 border rounded-lg break-words whitespace-pre-wrap">{selectedTemplate.template_content}</p>
                           </div>
                         ) : (
-                          <p className="text-xs text-muted-foreground italic p-3 text-center border rounded-lg">No templates saved yet. Create templates in the templates tab.</p>
+                          <p className="text-xs text-muted-foreground italic p-3 text-center border rounded-lg bg-muted/20">No active template selected. Please click 'Select' or 'Active' on a template card on the left library list.</p>
                         )}
                       </div>
                     )}
@@ -1690,70 +1746,111 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
                   </div>
                 </CardContent>
               </Card>
-
             </div>
+          </TabsContent>
 
-            {/* Campaigns database list (Phase 4.2) */}
-            <Card className="border border-border/60">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-foreground">Campaigns List History</h3>
-                  <Button variant="ghost" size="sm" className="h-8 font-bold gap-1" onClick={fetchCampaigns} disabled={isLoadingCampaigns}>
-                    <RefreshCw className={cn("w-3.5 h-3.5", isLoadingCampaigns && "animate-spin")} /> Refresh
-                  </Button>
-                </div>
+          {/* ════════ CAMPAIGNS (PHASE 4) ════════ */}
+          <TabsContent value="campaigns" className="space-y-4 animate-in fade-in-50 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* Create Campaign form (Phase 4) */}
+              <Card className="border border-border/60 md:col-span-1">
+                <CardContent className="p-5 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-black text-foreground">Create Campaign Setup</h3>
+                    <p className="text-[11px] text-muted-foreground">Setup a bulk broadcast list.</p>
+                  </div>
 
-                <div className="border rounded-xl overflow-hidden max-h-[250px] overflow-y-auto no-scrollbar">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-muted/50 border-b text-[10px] uppercase font-bold text-muted-foreground sticky top-0">
-                        <th className="p-3">Campaign ID</th>
-                        <th className="p-3">Name</th>
-                        <th className="p-3">Description</th>
-                        <th className="p-3">Status</th>
-                        <th className="p-3">Created</th>
-                        <th className="p-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y text-xs">
-                      {campaigns.length > 0 ? (
-                        campaigns.map((c, i) => (
-                          <tr key={i} className={cn("hover:bg-muted/10", String(c.campaign_id || c.id || c.campaignId) === campaignId && "bg-indigo-50/20")}>
-                            <td className="p-3 font-mono font-bold">#{c.campaign_id || c.id || c.campaignId}</td>
-                            <td className="p-3 font-semibold">{c.campaign_name}</td>
-                            <td className="p-3 text-muted-foreground max-w-[200px] truncate">{c.campaign_description || 'No description'}</td>
-                            <td className="p-3">
-                              <Badge className={cn("text-[9px] font-bold uppercase", 
-                                c.campaign_status === 'completed' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                c.campaign_status === 'in_progress' ? "bg-purple-50 text-purple-700 border-purple-200" :
-                                "bg-amber-50 text-amber-700 border-amber-200"
-                              )}>
-                                {c.campaign_status || 'draft'}
-                              </Badge>
-                            </td>
-                            <td className="p-3 text-muted-foreground">{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'N/A'}</td>
-                            <td className="p-3">
-                              <Button
-                                size="sm"
-                                variant={String(c.campaign_id || c.id || c.campaignId) === campaignId ? "default" : "outline"}
-                                className="h-6 text-[10px] font-bold"
-                                onClick={() => handleCampaignIdChange(String(c.campaign_id || c.id || c.campaignId))}
-                              >
-                                {String(c.campaign_id || c.id || c.campaignId) === campaignId ? 'Active' : 'Activate'}
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="p-10 text-center text-muted-foreground italic">No campaigns registered.</td>
+                  <form onSubmit={handleCreateCampaign} className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-muted-foreground">Campaign Name</Label>
+                      <Input
+                        value={newCampaignName}
+                        onChange={e => setNewCampaignName(e.target.value)}
+                        placeholder="Spring Sale 2026"
+                        className="h-10 text-xs focus-visible:ring-primary"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-muted-foreground">Description</Label>
+                      <Textarea
+                        value={newCampaignDesc}
+                        onChange={e => setNewCampaignDesc(e.target.value)}
+                        placeholder="Get 30% discount on all store items"
+                        className="h-16 text-xs resize-none focus-visible:ring-primary"
+                      />
+                    </div>
+                    <Button type="submit" disabled={isLoading} className="w-full h-10 text-xs font-bold bg-primary hover:bg-primary/95 shadow-md">
+                      {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-2" />}
+                      Create Campaign
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Campaigns database list (Phase 4.2) */}
+              <Card className="border border-border/60 md:col-span-2">
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-foreground">Campaigns List History</h3>
+                    <Button variant="ghost" size="sm" className="h-8 font-bold gap-1" onClick={fetchCampaigns} disabled={isLoadingCampaigns}>
+                      <RefreshCw className={cn("w-3.5 h-3.5", isLoadingCampaigns && "animate-spin")} /> Refresh
+                    </Button>
+                  </div>
+
+                  <div className="border rounded-xl overflow-hidden max-h-[350px] overflow-y-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-muted/50 border-b text-[10px] uppercase font-bold text-muted-foreground sticky top-0">
+                          <th className="p-3">Campaign ID</th>
+                          <th className="p-3">Name</th>
+                          <th className="p-3">Description</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3">Created</th>
+                          <th className="p-3">Actions</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+                      </thead>
+                      <tbody className="divide-y text-xs">
+                        {campaigns.length > 0 ? (
+                          campaigns.map((c, i) => (
+                            <tr key={i} className={cn("hover:bg-muted/10", String(c.campaign_id || c.id || c.campaignId) === campaignId && "bg-indigo-50/20")}>
+                              <td className="p-3 font-mono font-bold">#{c.campaign_id || c.id || c.campaignId}</td>
+                              <td className="p-3 font-semibold">{c.campaign_name}</td>
+                              <td className="p-3 text-muted-foreground max-w-[200px] truncate">{c.campaign_description || 'No description'}</td>
+                              <td className="p-3">
+                                <Badge className={cn("text-[9px] font-bold uppercase", 
+                                  c.campaign_status === 'completed' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                  c.campaign_status === 'in_progress' ? "bg-purple-50 text-purple-700 border-purple-200" :
+                                  "bg-amber-50 text-amber-700 border-amber-200"
+                                )}>
+                                  {c.campaign_status || 'draft'}
+                                </Badge>
+                              </td>
+                              <td className="p-3 text-muted-foreground">{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'N/A'}</td>
+                              <td className="p-3">
+                                <Button
+                                  size="sm"
+                                  variant={String(c.campaign_id || c.id || c.campaignId) === campaignId ? "default" : "outline"}
+                                  className="h-6 text-[10px] font-bold"
+                                  onClick={() => handleCampaignIdChange(String(c.campaign_id || c.id || c.campaignId))}
+                                >
+                                  {String(c.campaign_id || c.id || c.campaignId) === campaignId ? 'Active' : 'Activate'}
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="p-10 text-center text-muted-foreground italic">No campaigns registered.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* ════════ TAB 5: ADD CONTACTS (PHASE 5) ════════ */}

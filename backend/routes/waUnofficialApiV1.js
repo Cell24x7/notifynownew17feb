@@ -263,6 +263,7 @@ router.post('/channels', authenticateDeveloper, async (req, res) => {
 router.post('/channels/:id/connect', authenticateDeveloper, async (req, res) => {
     const channelId = req.params.id;
     const sessionName = `session${channelId}`;
+    const { phoneNumber } = req.body;
 
     try {
         // Verify channel ownership
@@ -276,13 +277,20 @@ router.post('/channels/:id/connect', authenticateDeveloper, async (req, res) => 
         }
 
         // Call connect endpoint on Baileys engine
-        const response = await axios.post(`${EXTERNAL_BASE_URL}/api/whatsapp/connect`, { sessionName });
+        const response = await axios.post(`${EXTERNAL_BASE_URL}/api/whatsapp/connect`, { 
+            sessionName,
+            phoneNumber 
+        });
         const qr = response.data.qr || response.data.data?.qr;
+        const pairingCode = response.data.pairingCode || response.data.data?.pairingCode;
 
         res.json({
             success: true,
-            message: 'Connection session initialized. Scan the QR code to connect.',
+            message: pairingCode 
+                ? 'Pairing code generated successfully. Enter the pairing code on your WhatsApp.' 
+                : 'Connection session initialized. Scan the QR code to connect.',
             qr: qr || null,
+            pairingCode: pairingCode || null,
             sessionName
         });
     } catch (err) {
