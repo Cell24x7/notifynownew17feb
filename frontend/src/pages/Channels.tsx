@@ -337,7 +337,7 @@ export default function Channels() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-lg truncate">{channel.name || 'Unnamed'}</h3>
                   <p className="text-xs text-muted-foreground font-medium">{channel.phone_number || 'No Number'}</p>
-                  <p className="text-xs text-muted-foreground">{channel.provider || 'Proero'}</p>
+                  <p className="text-xs text-muted-foreground">{channel.provider === 'Proero' ? 'WhatsApp Unofficial' : channel.provider || 'WhatsApp Unofficial'}</p>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 py-0">
                   QR Code
@@ -348,7 +348,7 @@ export default function Channels() {
               <div className="grid grid-cols-2 gap-4 py-3 border-y">
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground">Provider</p>
-                  <p className="text-sm font-semibold">{channel.provider || 'Proero'}</p>
+                  <p className="text-sm font-semibold">{channel.provider === 'Proero' ? 'WhatsApp Unofficial' : channel.provider || 'WhatsApp Unofficial'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground">Status</p>
@@ -451,10 +451,10 @@ export default function Channels() {
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold flex items-center gap-2">
                   <Smartphone className="w-6 h-6 text-primary" />
-                  {selectedProvider}
+                  WhatsApp Unofficial
                 </DialogTitle>
                 <DialogDescription>
-                  Configure your {selectedProvider} channel settings.
+                  Configure your WhatsApp Unofficial channel settings.
                 </DialogDescription>
               </DialogHeader>
 
