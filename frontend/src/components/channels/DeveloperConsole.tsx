@@ -399,9 +399,14 @@ export default function DeveloperConsole({ channel }: DeveloperConsoleProps) {
         phoneNumber: pairingPhone 
       });
       const code = response.data.pairingCode || response.data.data?.pairingCode;
+      const alreadyConnected = response.data.connected || response.data.data?.connected || response.data.message === "Session already connected";
       if (code) {
         setPairingCode(code);
         toast.success("Pairing code generated!");
+      } else if (alreadyConnected) {
+        setConnectionStatus('connected');
+        toast.success("WhatsApp session already connected!");
+        fetchActiveSessions();
       } else {
         toast.error("Failed to generate pairing code");
       }

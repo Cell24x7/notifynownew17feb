@@ -233,9 +233,17 @@ export default function Channels() {
       });
       
       const code = response.data.pairingCode || response.data.data?.pairingCode;
+      const alreadyConnected = response.data.connected || response.data.data?.connected || response.data.message === "Session already connected";
       if (code) {
         setPairingCode(code);
         toast.success("Pairing code generated!");
+      } else if (alreadyConnected) {
+        toast.success("WhatsApp is already connected!");
+        fetchChannels();
+        if (activeChannel) {
+          setActiveChannel({ ...activeChannel, status: 'connected' });
+          setActiveTab('developer');
+        }
       } else {
         toast.error("Failed to generate pairing code from API");
       }
