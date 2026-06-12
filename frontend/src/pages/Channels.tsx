@@ -22,7 +22,8 @@ import {
   Terminal,
   FileText,
   Activity,
-  Code
+  Code,
+  Copy
 } from 'lucide-react';
 import DeveloperConsole from '../components/channels/DeveloperConsole';
 import { cn } from '@/lib/utils';
