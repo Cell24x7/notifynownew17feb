@@ -370,7 +370,8 @@ export default function Campaigns() {
         voice_interval: campaignData.voiceInterval,
         ai_voice_config_id: (user as any)?.ai_voice_config_id,
         is_failover_enabled: campaignData.isFailoverEnabled ? 1 : 0,
-        failover_sms_template: campaignData.failoverSmsTemplate
+        failover_sms_template: campaignData.failoverSmsTemplate,
+        short_link_enabled: campaignData.enableTracking || campaignData.shortLinkEnabled
       };
 
       const createRes = await campaignService.createCampaign(campaignPayload);

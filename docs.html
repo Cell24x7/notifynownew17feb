@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotifyNow · API Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #111827; }
+        code { font-family: 'Fira Code', monospace; }
+        .sidebar-link { display: block; padding: 0.5rem 1rem; color: #4b5563; border-radius: 0.375rem; transition: all 0.2s; font-size: 0.9rem; font-weight: 500; }
+        .sidebar-link:hover, .sidebar-link.active { background-color: #e0e7ff; color: #4f46e5; }
+        .method-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-right: 0.75rem; }
+        .method-get { background-color: #dbeafe; color: #1d4ed8; }
+        .method-post { background-color: #dcfce3; color: #15803d; }
+        .method-put, .method-patch { background-color: #fef3c7; color: #b45309; }
+        .method-delete { background-color: #fee2e2; color: #b91c1c; }
+        .endpoint-card { background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
+        .endpoint-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: #fafafa; }
+        .endpoint-body { padding: 1.5rem; display: none; }
+        .endpoint-card.open .endpoint-body { display: block; }
+        .code-block { background-color: #1f2937; color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; font-size: 0.85rem; margin-top: 1rem; }
+        .param-table { width: 100%; text-align: left; border-collapse: collapse; margin-top: 1rem; }
+        .param-table th, .param-table td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem; }
+        .param-table th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+        
+        .section-title { font-size: 1.875rem; font-weight: 700; margin-bottom: 1rem; color: #111827; padding-top: 2rem; border-top: 1px solid #e5e7eb; margin-top: 2rem; }
+        .section-title:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+        
+        /* Architecture Note */
+        .arch-note { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .arch-note h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .arch-note p { font-size: 0.95rem; line-height: 1.6; opacity: 0.9; margin-bottom: 0.5rem;}
+        .arch-note ul { margin-left: 1.5rem; list-style-type: disc; margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-gray-200 h-full flex flex-col shadow-sm z-10 relative">
+        <div class="p-5 border-b border-gray-200">
+            <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                NotifyNow API
+            </h1>
+            <p class="text-xs text-gray-500 mt-1">Multi-Channel Communication</p>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-1">
+            <a href="#overview" class="sidebar-link active">Overview</a>
+            <a href="#architecture" class="sidebar-link">Architecture Updates</a>
+            <a href="#auth" class="sidebar-link">Authentication</a>
+            <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Channels</div>
+            <a href="#whatsapp" class="sidebar-link">WhatsApp API</a>
+            <a href="#rcs" class="sidebar-link">RCS API</a>
+            <a href="#sms" class="sidebar-link">SMS API</a>
+            <a href="#voice" class="sidebar-link">Voice API</a>
+            <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</div>
+            <a href="#contacts" class="sidebar-link">Contacts & Tags</a>
+            <a href="#campaigns" class="sidebar-link">Campaigns</a>
+            <a href="#reports" class="sidebar-link">Analytics & Reports</a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto bg-gray-50 p-8 scroll-smooth" id="main-content">
+        <div class="max-w-5xl mx-auto">
+
+            <!-- Overview -->
+            <section id="overview" class="mb-12">
+                <h2 class="section-title">Overview</h2>
+                <p class="text-gray-600 leading-relaxed mb-4">
+                    NotifyNow is an enterprise-grade multi-channel marketing API. It allows users to send promotional and transactional messages across <strong>WhatsApp, RCS, SMS, and Voice</strong> seamlessly. 
+                    The API provides robust mechanisms for managing contacts, scheduling campaigns, integrating webhooks, and tracking real-time delivery reports (DLR).
+                </p>
+                <div class="bg-gray-100 p-4 rounded-lg border border-gray-200 text-sm font-mono text-gray-700">
+                    Base URL: <span class="text-indigo-600 font-bold">https://api.notifynow.in/api/v1</span>
+                </div>
+            </section>
+
+            <!-- Architecture Updates -->
+            <section id="architecture" class="mb-12">
+                <h2 class="section-title">Architecture Updates (DB Normalization)</h2>
+                <div class="arch-note">
+                    <h3><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg> Scalability & Normalization Plan Implemented</h3>
+                    <p>To ensure zero downtime and lightning-fast panel reports during massive multi-million campaigns, the database schema and background queues have been deeply optimized:</p>
+                    <ul>
+                        <li><strong>Archival Strategy:</strong> Logs older than 90 days are now seamlessly offloaded to <code>message_logs_archive</code> and <code>api_message_logs_archive</code> tables. This keeps active tables lightweight and prevents panel timeout issues.</li>
+                        <li><strong>Queue Optimization:</strong> `campaign_queue` and `api_campaign_queue` now leverage composite indices <code>(status, campaign_id)</code>, eliminating table-locks during active background polling. Native integration with Redis / BullMQ handles ultra-high concurrency safely.</li>
+                        <li><strong>Report Acceleration:</strong> Real-time indexing (<code>idx_user_camp_status</code>) added to all logging tables. Added `campaign_daily_stats` summary table for instant analytics rendering without counting millions of rows.</li>
+                        <li><strong>Contact Tagging Normalization:</strong> Labels are now fully indexed on the `contact_tags` junction table (<code>idx_user_tag</code>), drastically speeding up segment targeting.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Authentication -->
+            <section id="auth" class="mb-12">
+                <h2 class="section-title">Authentication</h2>
+                <p class="text-gray-600 mb-4">NotifyNow uses two forms of authentication depending on your use case:</p>
+                <ul class="list-disc pl-5 text-gray-600 mb-6 space-y-2">
+                    <li><strong>JWT Bearer Token:</strong> For panel operations (Contacts, Campaigns, Reports). Provided in the <code>Authorization: Bearer &lt;token&gt;</code> header.</li>
+                    <li><strong>API Key (API Password):</strong> For server-to-server transactional messaging via Webhooks or standard API integration. Passed in the payload or headers depending on the route.</li>
+                </ul>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-post">POST</span>
+                            <span class="font-mono text-gray-800 font-medium">/auth/login</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Panel Login</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="text-sm text-gray-600 mb-4">Authenticate and retrieve your JWT access token.</p>
+                        <table class="param-table">
+                            <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                            <tr><td>email</td><td>string</td><td>Yes</td><td>Registered email</td></tr>
+                            <tr><td>password</td><td>string</td><td>Yes</td><td>Account password</td></tr>
+                        </table>
+                        <div class="code-block">
+curl -X POST https://api.notifynow.in/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "password123"}'
+
+// Response
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUz...",
+  "user": { "id": 1, "role": "user" }
+}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WhatsApp API -->
+            <section id="whatsapp" class="mb-12">
+                <h2 class="section-title">WhatsApp API</h2>
+                <p class="text-gray-600 mb-4">Send official template messages or unofficial dynamic messages via WhatsApp.</p>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-post">POST</span>
+                            <span class="font-mono text-gray-800 font-medium">/whatsapp/send</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Send WhatsApp Message</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <table class="param-table">
+                            <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                            <tr><td>api_key</td><td>string</td><td>Yes</td><td>Your API Password / Key</td></tr>
+                            <tr><td>mobile</td><td>string</td><td>Yes</td><td>Recipient number (with country code)</td></tr>
+                            <tr><td>template_name</td><td>string</td><td>Yes</td><td>Approved template name (if official)</td></tr>
+                            <tr><td>variables</td><td>array/object</td><td>No</td><td>Dynamic variables for placeholders</td></tr>
+                            <tr><td>provider</td><td>string</td><td>No</td><td>"official" or "unofficial"</td></tr>
+                        </table>
+                        <div class="code-block">
+curl -X POST https://api.notifynow.in/api/v1/whatsapp/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "api_key": "YOUR_API_SECRET",
+    "mobile": "919876543210",
+    "template_name": "welcome_alert",
+    "variables": {"1": "John", "2": "NotifyNow"}
+  }'
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RCS API -->
+            <section id="rcs" class="mb-12">
+                <h2 class="section-title">RCS API</h2>
+                <p class="text-gray-600 mb-4">Rich Communication Services. Send carousels, quick replies, and high-quality media directly to Android native messaging apps.</p>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-post">POST</span>
+                            <span class="font-mono text-gray-800 font-medium">/rcs/send-message</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Send RCS Rich Message</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <table class="param-table">
+                            <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                            <tr><td>api_key</td><td>string</td><td>Yes</td><td>Your API Key</td></tr>
+                            <tr><td>mobile</td><td>string</td><td>Yes</td><td>Recipient</td></tr>
+                            <tr><td>template_id</td><td>string</td><td>Yes</td><td>RCS Verified Template ID</td></tr>
+                            <tr><td>variables</td><td>object</td><td>No</td><td>Dynamic parameters</td></tr>
+                        </table>
+                        <div class="code-block">
+curl -X POST https://api.notifynow.in/api/v1/rcs/send-message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "api_key": "YOUR_SECRET",
+    "mobile": "919876543210",
+    "template_id": "RCS_TMPL_PROMO_01",
+    "variables": {"name": "Sandeep", "discount": "50%"}
+  }'
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SMS API -->
+            <section id="sms" class="mb-12">
+                <h2 class="section-title">SMS API</h2>
+                
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-post">POST</span>
+                            <span class="font-mono text-gray-800 font-medium">/sms/send</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Send DLT Verified SMS</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <table class="param-table">
+                            <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                            <tr><td>api_key</td><td>string</td><td>Yes</td><td>Your API Key</td></tr>
+                            <tr><td>mobile</td><td>string</td><td>Yes</td><td>Recipient</td></tr>
+                            <tr><td>sender_id</td><td>string</td><td>Yes</td><td>6-letter Approved Sender ID</td></tr>
+                            <tr><td>message</td><td>string</td><td>Yes</td><td>Message content matching DLT template</td></tr>
+                            <tr><td>template_id</td><td>string</td><td>Yes</td><td>DLT Template ID (PE ID)</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Voice API -->
+            <section id="voice" class="mb-12">
+                <h2 class="section-title">Voice Call API (OBD)</h2>
+                
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-post">POST</span>
+                            <span class="font-mono text-gray-800 font-medium">/voice/call</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Trigger Voice Call</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <table class="param-table">
+                            <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                            <tr><td>mobile</td><td>string</td><td>Yes</td><td>Recipient</td></tr>
+                            <tr><td>audio_url</td><td>string</td><td>No</td><td>URL of pre-recorded audio</td></tr>
+                            <tr><td>tts_text</td><td>string</td><td>No</td><td>Text-to-speech string</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Contacts -->
+            <section id="contacts" class="mb-12">
+                <h2 class="section-title">Contacts & Tags</h2>
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-get">GET</span>
+                            <span class="font-mono text-gray-800 font-medium">/contacts</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">List Contacts</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="text-sm text-gray-600 mb-4">Requires JWT. Supports pagination and filtering by tags.</p>
+                        <div class="code-block">
+curl -X GET "https://api.notifynow.in/api/v1/contacts?tag=Lead&page=1&limit=50" \
+  -H "Authorization: Bearer JWT_TOKEN"
+                        </div>
+                    </div>
+                </div>
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-post">POST</span>
+                            <span class="font-mono text-gray-800 font-medium">/contacts</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Create Contact</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <table class="param-table">
+                            <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                            <tr><td>name</td><td>string</td><td>Yes</td><td>Name</td></tr>
+                            <tr><td>phone</td><td>string</td><td>Yes</td><td>Phone</td></tr>
+                            <tr><td>tags</td><td>array</td><td>No</td><td>Array of tags for segmentation</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Campaigns -->
+            <section id="campaigns" class="mb-12">
+                <h2 class="section-title">Campaign Management</h2>
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-post">POST</span>
+                            <span class="font-mono text-gray-800 font-medium">/campaigns</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Create & Start Campaign</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="text-sm text-gray-600 mb-4">Trigger a bulk blast across a specific channel based on tags.</p>
+                        <div class="code-block">
+curl -X POST https://api.notifynow.in/api/v1/campaigns \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -d '{
+    "name": "Diwali Offer",
+    "channel": "whatsapp",
+    "tags": ["Customer_VIP"],
+    "template_id": "diwali_promo",
+    "scheduled_at": "2026-10-25 10:00:00"
+  }'
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics -->
+            <section id="reports" class="mb-12">
+                <h2 class="section-title">Analytics & Reports</h2>
+                <p class="text-gray-600 mb-4">Real-time statistics accelerated by the new Daily Stats summary engine.</p>
+                
+                <div class="endpoint-card">
+                    <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                        <div class="flex items-center">
+                            <span class="method-badge method-get">GET</span>
+                            <span class="font-mono text-gray-800 font-medium">/reports/dashboard</span>
+                        </div>
+                        <span class="text-gray-400 text-sm">Overview Stats</span>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="text-sm text-gray-600 mb-4">Returns lightning-fast aggregated totals of sent, delivered, read, and failed counts.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <script>
+        // Simple active link tracker
+        const links = document.querySelectorAll('.sidebar-link');
+        const sections = document.querySelectorAll('section');
+        const mainContent = document.getElementById('main-content');
+
+        mainContent.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (mainContent.scrollTop >= sectionTop - 60) {
+                    current = section.getAttribute('id');
+                }
+            });
+            links.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

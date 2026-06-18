@@ -1,19 +1,18 @@
 const db = require('../config/db');
 const crypto = require('crypto');
 
-class ShortLinkService {
-  /**
-   * Generates a random alphanumeric string
-   */
-  generateShortCode(length = 8) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    const randomBytes = crypto.randomBytes(length);
-    for (let i = 0; i < length; i++) {
-      result += chars[randomBytes[i] % chars.length];
-    }
-    return result;
+// Standalone function to avoid 'this' context issues
+function generateShortCode(length = 8) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  const randomBytes = crypto.randomBytes(length);
+  for (let i = 0; i < length; i++) {
+    result += chars[randomBytes[i] % chars.length];
   }
+  return result;
+}
+
+class ShortLinkService {
 
   /**
    * Replaces all URLs in a message with short links
@@ -45,15 +44,15 @@ class ShortLinkService {
         longUrl = 'http://' + longUrl;
       }
 
-      // Generate short code
-      let shortCode = this.generateShortCode(8); // Generates 8 char code
+      // Generate short code using standalone function
+      let shortCode = generateShortCode(8); // Generates 8 char code
       let isUnique = false;
       while (!isUnique) {
         const [rows] = await db.query('SELECT id FROM short_links WHERE short_code = ?', [shortCode]);
         if (rows.length === 0) {
           isUnique = true;
         } else {
-          shortCode = this.generateShortCode(8);
+          shortCode = generateShortCode(8);
         }
       }
 

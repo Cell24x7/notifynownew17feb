@@ -422,13 +422,13 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
 
         await query(
             `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, status, template_metadata, template_body, template_type, variable_mapping, is_failover_enabled, failover_sms_template)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, status, template_metadata, template_body, template_type, variable_mapping, is_failover_enabled, failover_sms_template, short_link_enabled)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 newId, userId, newName, c.channel, c.template_id, c.template_name,
                 c.audience_id, c.recipient_count, 'draft',
                 c.template_metadata, c.template_body, c.template_type, c.variable_mapping,
-                c.is_failover_enabled, c.failover_sms_template
+                c.is_failover_enabled, c.failover_sms_template, c.short_link_enabled
             ]
         );
 
@@ -462,15 +462,17 @@ router.post('/:id/resend', authenticate, async (req, res) => {
             `INSERT INTO campaigns 
       (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
        variable_mapping, template_metadata, template_body, template_type, 
-       schedule_type, scheduling_mode, next_run_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       schedule_type, scheduling_mode, next_run_at,
+       is_failover_enabled, failover_sms_template, short_link_enabled)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 newId, userId, newName, c.channel, c.template_id, c.template_name,
                 c.audience_id, c.recipient_count, c.recipient_count, 'running',
                 typeof c.variable_mapping === 'object' ? JSON.stringify(c.variable_mapping) : (c.variable_mapping || '{}'),
                 typeof c.template_metadata === 'object' ? JSON.stringify(c.template_metadata) : (c.template_metadata || '{}'),
                 c.template_body, c.template_type,
-                'now', 'one-time', (() => { const d = new Date(); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; })()
+                'now', 'one-time', (() => { const d = new Date(); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; })(),
+                c.is_failover_enabled, c.failover_sms_template, c.short_link_enabled
             ]
         );
 

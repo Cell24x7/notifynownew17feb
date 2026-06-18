@@ -3,7 +3,7 @@ const { query } = require('../config/db');
 const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
 const { sendSMS } = require('../utils/smsService');
 const { sendEmail } = require('./emailService');
-const { processMessage: processShortLinks } = require('./shortLinkService');
+const shortLinkService = require('./shortLinkService');
 const crypto = require('crypto');
 const https = require('https');
 
@@ -577,7 +577,7 @@ const sendUniversalMessage = async (item) => {
             
             // Apply Short Link logic if enabled for this campaign
             if (item.short_link_enabled) {
-                processedMessage = await processShortLinks(processedMessage, item.campaign_id, item.user_id, item.mobile);
+                processedMessage = await shortLinkService.processMessage(processedMessage, item.campaign_id, item.user_id, item.mobile);
             }
             
             // Extract DLT metadata from template metadata OR direct columns (via COALESCE in SQL)
