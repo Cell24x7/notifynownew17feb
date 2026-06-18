@@ -60,6 +60,7 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
     const [fieldMapping, setFieldMapping] = useState<Record<string, { type: 'field' | 'custom', value: string }>>({});
     const [isUploadingMedia, setIsUploadingMedia] = useState<Record<string, boolean>>({});
     const [showPreview, setShowPreview] = useState(false);
+    const [shortLinkEnabled, setShortLinkEnabled] = useState(false);
 
     // Fetch templates when dialog opens
     useEffect(() => {
@@ -213,7 +214,8 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                 template_body: selectedTemplate.components?.find((c: any) => c.type === 'BODY')?.text || '',
                 template_type: selectedTemplate.category,
                 status: 'draft' as const,
-                variable_mapping: fieldMapping
+                variable_mapping: fieldMapping,
+                short_link_enabled: shortLinkEnabled
             };
 
             const createRes = await campaignService.createCampaign(payload);
@@ -301,14 +303,36 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                             <div className="space-y-6">
                                 <Card className="border-none shadow-sm overflow-hidden">
                                     <div className="bg-white p-6 space-y-6">
-                                        <div className="space-y-2">
-                                            <Label className="text-sm font-bold text-gray-700">Campaign Name</Label>
-                                            <Input
-                                                placeholder="e.g. Festival Season Offer"
-                                                value={campaignName}
-                                                onChange={(e) => setCampaignName(e.target.value)}
-                                                className="border-gray-200 h-11"
-                                            />
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-bold text-gray-700">Campaign Name</Label>
+                                                <Input
+                                                    placeholder="e.g. Festival Season Offer"
+                                                    value={campaignName}
+                                                    onChange={(e) => setCampaignName(e.target.value)}
+                                                    className="border-gray-200 h-11"
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center space-x-2 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                                                <Checkbox 
+                                                    id="wa-short-link" 
+                                                    checked={shortLinkEnabled} 
+                                                    onCheckedChange={(c) => setShortLinkEnabled(c as boolean)} 
+                                                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                                />
+                                                <div className="grid gap-1.5 leading-none">
+                                                    <label
+                                                        htmlFor="wa-short-link"
+                                                        className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-blue-900 cursor-pointer"
+                                                    >
+                                                        Enable Short Links & Click Tracking
+                                                    </label>
+                                                    <p className="text-xs text-blue-700/70">
+                                                        Replaces URLs with cmtpl.in to track user clicks.
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="space-y-4 pt-2">
