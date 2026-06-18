@@ -921,6 +921,51 @@ async function updateSchema() {
             console.log('Error creating otp_verifications table:', e.message);
         }
 
+        // --- Archive Tables & Optimization Indices ---
+        try {
+            console.log('🔄 Creating archive tables and optimization indices...');
+            await query(`CREATE TABLE IF NOT EXISTS message_logs_archive LIKE message_logs`);
+            await query(`CREATE TABLE IF NOT EXISTS api_message_logs_archive LIKE api_message_logs`);
+            
+            await query(`
+                CREATE TABLE IF NOT EXISTS campaign_daily_stats (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    campaign_id VARCHAR(255) NOT NULL,
+                    channel VARCHAR(50) NOT NULL,
+                    date DATE NOT NULL,
+                    total_sent INT DEFAULT 0,
+                    total_delivered INT DEFAULT 0,
+                    total_read INT DEFAULT 0,
+                    total_failed INT DEFAULT 0,
+                    UNIQUE KEY unique_daily_camp (campaign_id, date),
+                    INDEX idx_user_date (user_id, date)
+                )
+            `);
+
+            const addIndexSafely = async (table, indexName, columns) => {
+                try {
+                    const [rows] = await query(`SHOW INDEX FROM ${table} WHERE Key_name = '${indexName}'`);
+                    if (rows.length === 0) {
+                        await query(`ALTER TABLE ${table} ADD INDEX ${indexName} (${columns})`);
+                        console.log(`   ✅ Added index ${indexName} to ${table}.`);
+                    }
+                } catch (err) {}
+            };
+
+            await addIndexSafely('message_logs', 'idx_camp_status', 'campaign_id, status');
+            await addIndexSafely('message_logs', 'idx_created_at', 'created_at');
+            await addIndexSafely('api_message_logs', 'idx_user_camp_status', 'user_id, campaign_id, status');
+            await addIndexSafely('api_message_logs', 'idx_created_at', 'created_at');
+            await addIndexSafely('campaign_queue', 'idx_status_camp', 'status, campaign_id');
+            await addIndexSafely('api_campaign_queue', 'idx_status_camp', 'status, campaign_id');
+            await addIndexSafely('contact_tags', 'idx_user_tag', 'user_id, tag_name');
+            
+            console.log('✅ Archive tables and optimization indices applied successfully.');
+        } catch (e) {
+            console.log('Error in optimization indices:', e.message);
+        }
+
         console.log('--- Schema updates finished ---');
 
 
