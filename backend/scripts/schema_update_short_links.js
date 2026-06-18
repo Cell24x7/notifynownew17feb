@@ -1,4 +1,7 @@
-require('dotenv').config({ path: __dirname + '/../.env' });
+const fs = require('fs');
+const path = require('path');
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: path.join(__dirname, '..', envFile) });
 const db = require('../config/db');
 
 async function run() {

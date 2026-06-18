@@ -3,7 +3,7 @@ const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
   console.log('Client :: ready');
-  conn.exec('cd notifynow && node backend/index.js', (err, stream) => {
+  conn.exec('cd notifynow && NODE_ENV=production node backend/scripts/schema_update_short_links.js', (err, stream) => {
     if (err) {
       console.log('Error executing command:');
       console.log(err);
