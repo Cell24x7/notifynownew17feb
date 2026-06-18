@@ -154,6 +154,15 @@ router.get('/:id', authenticate, async (req, res) => {
 
         c.channel_stats = channelStats;
 
+        if (c.short_link_enabled) {
+            const [linkStats] = await query(`
+                SELECT SUM(clicks) as total_clicks 
+                FROM short_links 
+                WHERE campaign_id = ?
+            `, [id]);
+            c.short_link_clicks = linkStats[0]?.total_clicks || 0;
+        }
+
         res.json({ success: true, campaign: c });
     } catch (error) {
         console.error('Get campaign error:', error);
@@ -172,7 +181,7 @@ router.post('/', authenticate, async (req, res) => {
             schedule_type, scheduling_mode, frequency, repeat_days, end_date,
             rcs_config_id, whatsapp_config_id, ai_voice_config_id,
             voice_audio_id, voice_retries, voice_interval,
-            is_failover_enabled, failover_sms_template
+            is_failover_enabled, failover_sms_template, short_link_enabled
         } = req.body;
 
         // Validate channel against user profile
@@ -292,8 +301,8 @@ router.post('/', authenticate, async (req, res) => {
        scheduled_at, variable_mapping, template_metadata, template_body, template_type,
        schedule_type, scheduling_mode, frequency, repeat_days, end_date, next_run_at,
        rcs_config_id, whatsapp_config_id, ai_voice_config_id,
-       is_failover_enabled, failover_sms_template)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       is_failover_enabled, failover_sms_template, short_link_enabled)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 campaignId, userId, name, channel, savedTemplateId, templateName,
                 audience_id || null, recipient_count || 0, recipient_count || 0, status || 'draft',
@@ -311,7 +320,8 @@ router.post('/', authenticate, async (req, res) => {
                 whatsapp_config_id || userWaConfigId,
                 ai_voice_config_id || userVoiceConfigId,
                 is_failover_enabled || 0,
-                failover_sms_template || null
+                failover_sms_template || null,
+                short_link_enabled ? 1 : 0
              ]
         );
 

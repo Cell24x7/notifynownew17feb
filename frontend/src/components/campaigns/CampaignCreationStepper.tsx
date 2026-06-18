@@ -69,6 +69,7 @@ export interface CampaignData {
    // Failover fields
    isFailoverEnabled?: boolean;
    failoverSmsTemplate?: string;
+   shortLinkEnabled?: boolean;
 }
 
 // Detect if text contains non-GSM characters (Unicode)
@@ -150,7 +151,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       emailSubject: '',
       emailAttachment: null,
       isFailoverEnabled: false,
-      failoverSmsTemplate: ''
+      failoverSmsTemplate: '',
+      shortLinkEnabled: false
    });
 
    const [selectedAudienceId, setSelectedAudienceId] = useState('');
@@ -1732,6 +1734,27 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        </div>
                                     </div>
                                  )}
+
+                                 <div className="border rounded-lg p-6 bg-muted/20 mb-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                       <Label className="text-base font-semibold">Advanced Options</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2 mt-4">
+                                       <Checkbox 
+                                          id="short-link-tracking" 
+                                          checked={campaignData.shortLinkEnabled} 
+                                          onCheckedChange={(checked) => setCampaignData({ ...campaignData, shortLinkEnabled: checked as boolean })}
+                                       />
+                                       <div className="grid gap-1.5 leading-none">
+                                          <Label htmlFor="short-link-tracking" className="font-semibold cursor-pointer">
+                                             Enable Short Link (Click Tracking)
+                                          </Label>
+                                          <p className="text-sm text-muted-foreground">
+                                             Replaces all URLs in your message with trackable short links. Allows you to track clicks per recipient.
+                                          </p>
+                                       </div>
+                                    </div>
+                                 </div>
 
                                  <div className="border rounded-lg p-6 bg-muted/20">
                                     <Label className="text-base font-semibold mb-4 block">Scheduling Options</Label>

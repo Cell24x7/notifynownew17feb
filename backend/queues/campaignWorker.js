@@ -2,6 +2,7 @@ const { Worker } = require('bullmq');
 const { redisConnection } = require('./campaignQueue');
 const { query } = require('../config/db');
 const Redis = require('ioredis');
+const shortLinkService = require('../services/shortLinkService');
 
 // CREATE REUSABLE REDIS FOR COUNTERS
 const redis = new Redis(redisConnection);
@@ -153,6 +154,16 @@ const campaignWorker = new Worker(queueName, async (job) => {
             }
         }
         
+        // --- SHORT LINK INJECTION ---
+        if (item.short_link_enabled && item.template_body) {
+            item.template_body = await shortLinkService.processMessage(
+                item.template_body, 
+                campId, 
+                item.user_id || job.data.item.user_id, 
+                item.mobile
+            );
+        }
+
         const { sendUniversalMessage } = require('../services/sendingService');
         result = await sendUniversalMessage(item);
 

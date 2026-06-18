@@ -283,7 +283,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
              COALESCE(mt.hash_id, c.hash_id, u.hash_id) as hash_id,
              COALESCE(mt.sender, c.sender) as sender,
              COALESCE(mt.template_id, c.template_id) as template_id,
-             c.variable_mapping, c.is_failover_enabled, c.failover_sms_template, u.sms_gateway_id,
+             c.variable_mapping, c.is_failover_enabled, c.failover_sms_template, c.short_link_enabled, u.sms_gateway_id,
              IFNULL(c.rcs_config_id, u.rcs_config_id) as rcs_config_id,
              rc.provider as rcs_provider, rc.auth_url, rc.api_base_url, rc.client_id, rc.client_secret, rc.bot_id,
              IFNULL(c.whatsapp_config_id, u.whatsapp_config_id) as whatsapp_config_id,

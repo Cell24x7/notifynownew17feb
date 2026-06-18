@@ -974,6 +974,16 @@ export default function Campaigns() {
                 </Card>
               </div>
 
+              {selectedCampaign.short_link_enabled && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                  <Card className="p-4 bg-blue-50 border-blue-200">
+                    <p className="text-sm text-blue-600 font-medium mb-1">Total Link Clicks</p>
+                    <p className="text-2xl font-bold text-blue-600">{selectedCampaign.short_link_clicks?.toLocaleString() || 0}</p>
+                    <p className="text-xs text-blue-500 mt-1">From all shortened links</p>
+                  </Card>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Delivery Success Rate</span>

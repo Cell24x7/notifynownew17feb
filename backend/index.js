@@ -417,6 +417,16 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+// Short Link Redirector Catch-All
+// Must be placed before the React frontend catch-all
+app.use('/', (req, res, next) => {
+    // Check if it's exactly an 8-character short code at the root path
+    if (/^\/[A-Za-z0-9]{8}$/.test(req.path)) {
+        return require('./routes/links')(req, res, next);
+    }
+    next();
+});
+
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendPath));
