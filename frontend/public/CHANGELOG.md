@@ -73,6 +73,11 @@ All API calls require an `api_key`. Include it in the header: `Authorization: Be
 <summary>📂 <b>View All Technical Git Logs (Historical Archive)</b></summary>
 <br>
 
+## [2026-06-18]
+- feat: 🚀 Database normalization, auto-archival for fast panel loads, and queue locking elimination
+- feat: 🔗 Short link click tracking for campaign URLs with real-time stats
+- docs: 📄 Created unified API documentation and added release notes
+
 ## [2026-06-01]
 - feat: 📡 10-second automatic background refresh and socket.io updates in reports dashboard
 - feat: 🛠️ Enable real-time status updates and channel filtering for Unofficial WhatsApp reports
