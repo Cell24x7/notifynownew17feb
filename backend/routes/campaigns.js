@@ -183,6 +183,8 @@ router.post('/', authenticate, async (req, res) => {
             voice_audio_id, voice_retries, voice_interval,
             is_failover_enabled, failover_sms_template, short_link_enabled
         } = req.body;
+        
+        console.log(`[CAMPAIGN CREATE] User: ${userId}, Channel: ${channel}, ShortLink: ${short_link_enabled}`);
 
         // Validate channel against user profile
         const [userRows] = await query('SELECT channels_enabled FROM users WHERE id = ?', [userId]);

@@ -431,6 +431,9 @@ app.use('/', (req, res, next) => {
 const frontendPath = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendPath));
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
     if (err) res.status(200).send("API Running. Frontend not built.");
   });
