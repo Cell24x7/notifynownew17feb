@@ -48,6 +48,7 @@
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-1">
             <a href="#overview" class="sidebar-link active">Overview</a>
+            <a href="#release-notes" class="sidebar-link" style="color: #059669; font-weight: 600;">✨ Release Notes</a>
             <a href="#architecture" class="sidebar-link">Architecture Updates</a>
             <a href="#auth" class="sidebar-link">Authentication</a>
             <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Channels</div>
@@ -75,6 +76,56 @@
                 </p>
                 <div class="bg-gray-100 p-4 rounded-lg border border-gray-200 text-sm font-mono text-gray-700">
                     Base URL: <span class="text-indigo-600 font-bold">https://api.notifynow.in/api/v1</span>
+                </div>
+            </section>
+
+            <!-- Release Notes -->
+            <section id="release-notes" class="mb-12">
+                <h2 class="section-title">✨ Release Notes (Latest Updates)</h2>
+                
+                <div class="bg-white border border-emerald-200 rounded-xl p-6 shadow-sm mb-6">
+                    <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                        <h3 class="text-lg font-bold text-gray-900">Version 2.4.0 — High-Volume Scalability & Link Tracking Update</h3>
+                        <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">June 18, 2026</span>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                                <span class="bg-blue-100 text-blue-700 w-6 h-6 rounded flex items-center justify-center text-xs">🚀</span> 
+                                Database Normalization & Panel Speed
+                            </h4>
+                            <ul class="list-disc pl-10 text-sm text-gray-600 mt-2 space-y-1">
+                                <li><strong>Auto-Archival System:</strong> `message_logs_archive` & `api_message_logs_archive` created. Background cron automatically moves records older than 90 days out of active tables, ensuring panel reports load instantly regardless of campaign sizes.</li>
+                                <li><strong>Queue Indexing:</strong> Critical composite indices <code>(status, campaign_id)</code> added to `campaign_queue` and `api_campaign_queue`. Eliminates "Row Locking" during multi-million sending.</li>
+                                <li><strong>Report Acceleration:</strong> Composite indices `idx_user_camp_status` added to message tables for lightning-fast delivery/read statistics generation.</li>
+                                <li><strong>Daily Stats Engine:</strong> New `campaign_daily_stats` table introduced to prevent re-counting millions of rows for dashboard graphs.</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="pt-2">
+                            <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                                <span class="bg-purple-100 text-purple-700 w-6 h-6 rounded flex items-center justify-center text-xs">🔗</span> 
+                                Short Link Click Tracking 
+                            </h4>
+                            <ul class="list-disc pl-10 text-sm text-gray-600 mt-2 space-y-1">
+                                <li><strong>Campaign Click Tracking:</strong> The sending engine now automatically replaces URLs inside your templates with trackable Short Links (e.g., `s.notifynow.in/xyz123`).</li>
+                                <li><strong>Real-time Analytics:</strong> When a user clicks the link, the click is logged against their specific `message_id` and `campaign_id` in the `short_link_clicks` table.</li>
+                                <li><strong>Automatic Redirection:</strong> Clicks are processed instantly and redirected to the original long URL without delay.</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="pt-2">
+                            <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                                <span class="bg-orange-100 text-orange-700 w-6 h-6 rounded flex items-center justify-center text-xs">🛠️</span> 
+                                Developer APIs & Core Updates
+                            </h4>
+                            <ul class="list-disc pl-10 text-sm text-gray-600 mt-2 space-y-1">
+                                <li>Contact Tags are now fully indexed on the `contact_tags` junction table (<code>idx_user_tag</code>), making segment querying 10x faster.</li>
+                                <li>Deployment script updated to run schema migrations sequentially to prevent MySQL out-of-memory errors on new servers.</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </section>
 
