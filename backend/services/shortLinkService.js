@@ -59,14 +59,14 @@ class ShortLinkService {
 
       // Insert into DB
       await db.query(
-        \`INSERT INTO short_links (short_code, long_url, campaign_id, user_id, msisdn) 
-         VALUES (?, ?, ?, ?, ?)\`,
+        `INSERT INTO short_links (short_code, long_url, campaign_id, user_id, msisdn) 
+         VALUES (?, ?, ?, ?, ?)`,
         [shortCode, longUrl, campaignId, userId, msisdn]
       );
 
       // Create the final short URL
       // Use the whitelisted domain the user requested: cmtpl.in
-      const shortUrl = \`cmtpl.in/\${shortCode}\`;
+      const shortUrl = `cmtpl.in/${shortCode}`;
 
       // Replace in message
       modifiedMessage = 
@@ -96,7 +96,7 @@ class ShortLinkService {
     // Log the click details
     try {
       await db.query(
-        \`INSERT INTO short_link_clicks (short_link_id, ip_address, user_agent) VALUES (?, ?, ?)\`,
+        `INSERT INTO short_link_clicks (short_link_id, ip_address, user_agent) VALUES (?, ?, ?)`,
         [link.id, reqInfo.ip, reqInfo.userAgent]
       );
     } catch (e) {
