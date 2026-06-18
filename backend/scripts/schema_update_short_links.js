@@ -41,7 +41,21 @@ async function run() {
       console.log('Added short_link_enabled column.');
     } catch (err) {
       if (err.code === 'ER_DUP_FIELDNAME') {
-        console.log('short_link_enabled column already exists.');
+        console.log('short_link_enabled column already exists in api_campaigns.');
+      } else {
+        throw err;
+      }
+    }
+
+    console.log('Adding short_link_enabled to campaigns table...');
+    try {
+      await db.query(`
+        ALTER TABLE campaigns ADD COLUMN short_link_enabled TINYINT(1) DEFAULT 0;
+      `);
+      console.log('Added short_link_enabled column to campaigns.');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('short_link_enabled column already exists in campaigns.');
       } else {
         throw err;
       }
