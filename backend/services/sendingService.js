@@ -3,6 +3,7 @@ const { query } = require('../config/db');
 const { sendRcsTemplate, sendRcsMessage } = require('./rcsService');
 const { sendSMS } = require('../utils/smsService');
 const { sendEmail } = require('./emailService');
+const { processMessage: processShortLinks } = require('./shortLinkService');
 const crypto = require('crypto');
 const https = require('https');
 
@@ -572,7 +573,12 @@ const sendUniversalMessage = async (item) => {
         }
         else if (channelParsed === 'sms') {
             const body = item.template_body || item.campaign_name;
-            const processedMessage = replaceVariables(body, resolvedVars);
+            let processedMessage = replaceVariables(body, resolvedVars);
+            
+            // Apply Short Link logic if enabled for this campaign
+            if (item.short_link_enabled) {
+                processedMessage = await processShortLinks(processedMessage, item.campaign_id, item.user_id, item.mobile);
+            }
             
             // Extract DLT metadata from template metadata OR direct columns (via COALESCE in SQL)
             let peId = item.pe_id || '';
@@ -592,8 +598,6 @@ const sendUniversalMessage = async (item) => {
                 isTrackLink = !!meta.is_track_link;
             } catch(e) {}
 
-            // Short URL link tracking replacement logic 
-            // In future: Replace real URLs with a short link server endpoint inside processedMessage if isTrackLink is true
             
             const smsResult = await sendSMS(item.mobile, processedMessage, { 
                 userId: item.user_id, 
