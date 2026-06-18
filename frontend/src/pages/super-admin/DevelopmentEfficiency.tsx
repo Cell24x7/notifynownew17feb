@@ -65,20 +65,20 @@ const dsaLogic = [
 ];
 
 const lifecycleData = [
-  { phase: "Commenced", date: "Feb 17", status: "Done" },
   { phase: "Messaging Core", date: "Mar 10", status: "Done" },
-  { phase: "RCS Hybrid", date: "Mar 25", status: "Done" },
-  { phase: "Enterprise Email", date: "Apr 10", status: "Done" },
+  { phase: "RCS & Email Hybrid", date: "Apr 10", status: "Done" },
   { phase: "Failover Engine v2", date: "Apr 16", status: "Done" },
-  { phase: "Scale Hardening", date: "Apr 16", status: "Active" },
+  { phase: "Unofficial WA API", date: "May 30", status: "Done" },
+  { phase: "DB Normalization", date: "Jun 18", status: "Done" },
+  { phase: "Short Link Engine", date: "Jun 18", status: "Active" },
 ];
 
 const dailySprints = [
-  { date: "Apr 16", task: "WA Failover API + Webhooks", time: "50m", saved: "12h", efficiency: "94%", impact: "High" },
-  { date: "Apr 16", task: "Turbo Indexing (1Cr+ Scalability)", time: "45m", saved: "15h", efficiency: "96%", impact: "Critical" },
-  { date: "Apr 16", task: "UTF8MB4 Emoji DB Migration", time: "1h", saved: "10h", efficiency: "90%", impact: "High" },
-  { date: "Apr 15", task: "RCS Variable CSV Mapping Fix", time: "45m", saved: "10h", efficiency: "92%", impact: "Medium" },
-  { date: "Apr 13", task: "Voice Bot Deployment script", time: "1.5h", saved: "12h", efficiency: "95%", impact: "High" },
+  { date: "Jun 18", task: "Database Normalization & Archival", time: "3h", saved: "24h", efficiency: "87%", impact: "Critical" },
+  { date: "Jun 18", task: "Short Link Click Tracking Engine", time: "2h", saved: "15h", efficiency: "86%", impact: "High" },
+  { date: "Jun 01", task: "Unofficial WA Sync & Sockets", time: "1h", saved: "12h", efficiency: "91%", impact: "High" },
+  { date: "May 30", task: "Developer API Platform Endpoints", time: "1.5h", saved: "10h", efficiency: "85%", impact: "Medium" },
+  { date: "May 15", task: "Multi-Gateway Payment Integration", time: "2h", saved: "18h", efficiency: "88%", impact: "High" },
 ];
 
 export default function CompactEngineeringConsole() {
@@ -92,17 +92,17 @@ export default function CompactEngineeringConsole() {
                 <Settings2 className="h-5 w-5 text-white" />
             </div>
             <div>
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Project Execution Console <span className="text-[10px] font-mono text-slate-400 ml-1">v4.8.2</span></h1>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Project Execution Console <span className="text-[10px] font-mono text-slate-400 ml-1">v5.0.0</span></h1>
                 <div className="flex items-center gap-2 mt-0.5">
                     <Badge className="h-4 text-[8px] bg-indigo-50 text-indigo-700 border-none px-1.5 uppercase font-black">Audit Verified</Badge>
                     <div className="h-1 w-1 rounded-full bg-slate-300" />
-                    <p className="text-[10px] text-slate-500 font-medium italic">"1-Year Benchmark achieved in 56 Work Days"</p>
+                    <p className="text-[10px] text-slate-500 font-medium italic">"1-Year Benchmark achieved in 120 Work Days"</p>
                 </div>
             </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
             {[
-                { label: "Intensity", val: "52D / 40N", icon: <Timer className="h-3 w-3" /> },
+                { label: "Intensity", val: "120D / 90N", icon: <Timer className="h-3 w-3" /> },
                 { label: "Stability", val: "100%", icon: <ShieldCheck className="h-3 w-3" /> },
                 { label: "Scale", val: "1Cr+", icon: <BarChart3 className="h-3 w-3" /> }
             ].map((stat, i) => (
@@ -120,10 +120,10 @@ export default function CompactEngineeringConsole() {
       {/* 📊 KPI SMALL CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {[
-            { l: "Core Logic", v: "14.8k Loc", i: <Code2 className="text-blue-600" />, b: "bg-blue-50" },
-            { l: "API Hooks", v: "22 Services", i: <Globe className="text-emerald-600" />, b: "bg-emerald-50" },
-            { l: "Work Hours", v: "890+ Hrs", i: <Clock className="text-amber-600" />, b: "bg-amber-50" },
-            { l: "Night Shifts", v: "45 Full", i: <Moon className="text-indigo-600" />, b: "bg-indigo-50" },
+            { l: "Core Logic", v: "18.5k Loc", i: <Code2 className="text-blue-600" />, b: "bg-blue-50" },
+            { l: "API Hooks", v: "28 Services", i: <Globe className="text-emerald-600" />, b: "bg-emerald-50" },
+            { l: "Work Hours", v: "1250+ Hrs", i: <Clock className="text-amber-600" />, b: "bg-amber-50" },
+            { l: "Night Shifts", v: "90 Full", i: <Moon className="text-indigo-600" />, b: "bg-indigo-50" },
             { l: "Algorithm", v: "O(1) Scale", i: <Zap className="text-rose-600" />, b: "bg-rose-50" },
             { l: "Platform", v: "Ent-Grade", i: <Award className="text-slate-600" />, b: "bg-slate-50" }
         ].map((kpi, idx) => (
