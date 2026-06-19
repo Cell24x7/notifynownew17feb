@@ -183,26 +183,28 @@ chmod o+x "$PROJECT_DIR" || true
 chmod o+x "$FRONTEND_DIR" || true
 ok "Frontend build complete."
 
-# ── Step 6: PM2 Zero-Downtime Reload ──────────────────────
-log "[6/7] PM2 Zero-Downtime Reload..."
+# ── Step 6: PM2 Restart Application ───────────────────────
+log "[6/7] PM2 Clean Restart..."
 cd "$PROJECT_DIR"
 
+# Clean up existing instance to prevent configuration/environment mismatch
 if pm2 list | grep -q "$APP_NAME"; then
-    if [ -f "ecosystem.config.js" ]; then
-        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production --update-env || APP_NAME="$APP_NAME" pm2 reload ecosystem.config.js --env production --update-env
-    else
-        pm2 start "$APP_NAME" --update-env || pm2 reload "$APP_NAME" --update-env
-    fi
-    ok "PM2 started/reloaded successfully."
-else
-    if [ -f "ecosystem.config.js" ]; then
-        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production
-    else
-        pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
-    fi
-    ok "PM2 started new instance."
+    step "Deleting old PM2 instance for a clean start..."
+    pm2 delete "$APP_NAME" || true
 fi
+
+# Start the application using the updated configuration
+if [ -f "ecosystem.config.js" ]; then
+    step "Starting PM2 application using ecosystem.config.js..."
+    APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production
+else
+    step "Starting PM2 application directly..."
+    pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
+fi
+
 pm2 save --force
+ok "PM2 processes restarted successfully."
+
 
 # ── Step 7: Health Check with Retry ───────────────────────
 log "[7/7] Health check..."

@@ -175,35 +175,38 @@ ok "Database migrations complete."
 step "Building frontend (Vite build)..."
 cd "$FRONTEND_DIR"
 rm -rf dist
+echo "VITE_API_URL=$APP_URL" > .env
+echo "VITE_GOOGLE_CLIENT_ID=387794158424-hrsujhlj0eiahvufcti0do80201oj79h.apps.googleusercontent.com" >> .env
 NODE_OPTIONS="--max-old-space-size=1024" VITE_API_URL="$APP_URL" npm run build -- --logLevel warn
 chmod -R 755 "$FRONTEND_DIR/dist"
 chmod o+x "$PROJECT_DIR" || true
 chmod o+x "$FRONTEND_DIR" || true
 ok "Frontend build complete."
 
-# ── Step 6: PM2 Zero-Downtime Reload ──────────────────────
-log "[6/7] PM2 Zero-Downtime Reload..."
+# ── Step 6: PM2 Restart Application ───────────────────────
+log "[6/7] PM2 Clean Restart..."
 cd "$PROJECT_DIR"
 
 # Update changelog in background (non-blocking)
 (NODE_ENV=production node "$BACKEND_DIR/scripts/auto_changelog.js" 2>&1 || true) &
 
+# Clean up existing instance to prevent configuration/environment mismatch
 if pm2 list | grep -q "$APP_NAME"; then
-    if [ -f "ecosystem.config.js" ]; then
-        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production || APP_NAME="$APP_NAME" pm2 reload ecosystem.config.js --env production
-    else
-        pm2 start "$APP_NAME" --update-env || pm2 reload "$APP_NAME" --update-env
-    fi
-    ok "PM2 started/reloaded successfully."
-else
-    if [ -f "ecosystem.config.js" ]; then
-        APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production
-    else
-        pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
-    fi
-    ok "PM2 started new instance."
+    step "Deleting old PM2 instance for a clean start..."
+    pm2 delete "$APP_NAME" || true
 fi
+
+# Start the application using the updated configuration
+if [ -f "ecosystem.config.js" ]; then
+    step "Starting PM2 application using ecosystem.config.js..."
+    APP_NAME="$APP_NAME" pm2 start ecosystem.config.js --env production
+else
+    step "Starting PM2 application directly..."
+    pm2 start "$BACKEND_DIR/index.js" --name "$APP_NAME" --env production
+fi
+
 pm2 save --force
+ok "PM2 processes restarted successfully."
 
 # Run heavy background jobs AFTER server is live (non-blocking)
 step "Scheduling background data-fix jobs..."
