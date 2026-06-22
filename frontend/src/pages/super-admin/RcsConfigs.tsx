@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { 
@@ -44,17 +45,8 @@ export default function RcsConfigs() {
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [resellers, setResellers] = useState<any[]>([]);
-  const [userRole, setUserRole] = useState<string>('user');
-
-  useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setUserRole(user.role);
-      } catch(e) {}
-    }
-  }, []);
+  const { user } = useAuth();
+  const userRole = user?.role || 'user';
 
   const [formData, setFormData] = useState({
     name: '',

@@ -36,6 +36,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { API_BASE_URL } from '@/config/api';
 import { cn } from '@/lib/utils';
@@ -89,17 +90,8 @@ export default function WhatsappConfigs() {
     const [webhookData, setWebhookData] = useState({ url: '', headers: '' });
     const [webhookLoading, setWebhookLoading] = useState(false);
     const [resellers, setResellers] = useState<any[]>([]);
-    const [userRole, setUserRole] = useState<string>('user');
-
-    useEffect(() => {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            try {
-                const user = JSON.parse(userStr);
-                setUserRole(user.role);
-            } catch(e) {}
-        }
-    }, []);
+    const { user } = useAuth();
+    const userRole = user?.role || 'user';
 
     const fetchConfigs = async () => {
         setLoading(true);

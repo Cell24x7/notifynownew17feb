@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { API_BASE_URL } from '@/config/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -53,17 +54,8 @@ export default function SmsGateways() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
   const [resellers, setResellers] = useState<any[]>([]);
-  const [userRole, setUserRole] = useState<string>('user');
-
-  useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setUserRole(user.role);
-      } catch(e) {}
-    }
-  }, []);
+  const { user } = useAuth();
+  const userRole = user?.role || 'user';
 
   const [formData, setFormData] = useState({
     name: '',
