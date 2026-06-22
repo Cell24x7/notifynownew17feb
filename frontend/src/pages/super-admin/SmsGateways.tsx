@@ -52,6 +52,18 @@ export default function SmsGateways() {
   // Assignment state
   const [assignments, setAssignments] = useState<any[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
+  const [resellers, setResellers] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<string>('user');
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUserRole(user.role);
+      } catch(e) {}
+    }
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -59,7 +71,8 @@ export default function SmsGateways() {
     secondary_url: '',
     status: 'active',
     routing: 'national',
-    priority: 'both'
+    priority: 'both',
+    reseller_id: 'none'
   });
 
   const fetchGateways = async () => {
@@ -97,10 +110,23 @@ export default function SmsGateways() {
     }
   };
 
+  const fetchResellers = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/resellers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) setResellers(res.data.resellers || []);
+    } catch (err) {}
+  };
+
   useEffect(() => {
     fetchGateways();
     fetchAssignments();
-  }, []);
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      fetchResellers();
+    }
+  }, [userRole]);
 
   const handleOpenDialog = (gateway: any = null) => {
     setSelectedGateway(gateway);
@@ -111,14 +137,16 @@ export default function SmsGateways() {
       secondary_url: gateway.secondary_url || '',
       status: gateway.status || 'active',
       routing: gateway.routing || 'national',
-      priority: gateway.priority || 'both'
+      priority: gateway.priority || 'both',
+      reseller_id: gateway.reseller_id ? String(gateway.reseller_id) : 'none'
     } : {
       name: '',
       primary_url: '',
       secondary_url: '',
       status: 'active',
       routing: 'national',
-      priority: 'both'
+      priority: 'both',
+      reseller_id: 'none'
     });
     setDialogOpen(true);
   };
@@ -137,12 +165,18 @@ export default function SmsGateways() {
     try {
       const token = localStorage.getItem('authToken');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      
+      const payload = {
+          ...formData,
+          reseller_id: formData.reseller_id === 'none' ? null : parseInt(formData.reseller_id)
+      };
+
       let res;
 
       if (selectedGateway) {
-        res = await axios.put(`${API_URL}/${selectedGateway.id}`, formData, config);
+        res = await axios.put(`${API_URL}/${selectedGateway.id}`, payload, config);
       } else {
-        res = await axios.post(API_URL, formData, config);
+        res = await axios.post(API_URL, payload, config);
       }
 
       if (res.data.success) {
@@ -505,6 +539,29 @@ export default function SmsGateways() {
                 </Select>
               </div>
             </div>
+
+            {/* Reseller Assignment */}
+            {(userRole === 'admin' || userRole === 'superadmin') && (
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Assign to Reseller</Label>
+                        <Select
+                            value={formData.reseller_id}
+                            onValueChange={(val) => setFormData({ ...formData, reseller_id: val })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Global Config (No Reseller)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Global Config (No Reseller)</SelectItem>
+                                {resellers.map((r) => (
+                                    <SelectItem key={r.id} value={String(r.id)}>{r.name} ({r.email})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            )}
 
             {/* Placeholder Guide */}
             <div className="bg-muted/50 rounded-lg p-3 border">

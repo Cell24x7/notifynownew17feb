@@ -15,6 +15,13 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -81,6 +88,18 @@ export default function WhatsappConfigs() {
     const [webhookDialogOpen, setWebhookDialogOpen] = useState(false);
     const [webhookData, setWebhookData] = useState({ url: '', headers: '' });
     const [webhookLoading, setWebhookLoading] = useState(false);
+    const [resellers, setResellers] = useState<any[]>([]);
+    const [userRole, setUserRole] = useState<string>('user');
+
+    useEffect(() => {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                setUserRole(user.role);
+            } catch(e) {}
+        }
+    }, []);
 
     const fetchConfigs = async () => {
         setLoading(true);
@@ -97,7 +116,22 @@ export default function WhatsappConfigs() {
         }
     };
 
-    useEffect(() => { fetchConfigs(); }, []);
+    const fetchResellers = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await axios.get(`${API_BASE_URL}/api/resellers`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data.success) setResellers(res.data.resellers || []);
+        } catch (err) {}
+    };
+
+    useEffect(() => { 
+        fetchConfigs(); 
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            fetchResellers();
+        }
+    }, [userRole]);
 
     const handleOpenDialog = (config: any = null) => {
         setSelectedConfig(config);
@@ -111,6 +145,7 @@ export default function WhatsappConfigs() {
             api_key: config.api_key || '',
             ph_no_id: config.ph_no_id || '',
             wa_biz_accnt_id: config.wa_biz_accnt_id || '',
+            reseller_id: config.reseller_id ? String(config.reseller_id) : 'none',
             is_active: config.is_active !== undefined ? config.is_active : true,
         } : { ...emptyForm });
         setDialogOpen(true);
@@ -141,11 +176,15 @@ export default function WhatsappConfigs() {
         try {
             const token = localStorage.getItem('authToken');
             const headers = { Authorization: `Bearer ${token}` };
-            let res;
+            const payload = {
+                ...formData,
+                reseller_id: formData.reseller_id === 'none' ? null : parseInt(formData.reseller_id)
+            };
+
             if (selectedConfig) {
-                res = await axios.put(`${API_URL}/${selectedConfig.id}`, formData, { headers });
+                res = await axios.put(`${API_URL}/${selectedConfig.id}`, payload, { headers });
             } else {
-                res = await axios.post(API_URL, formData, { headers });
+                res = await axios.post(API_URL, payload, { headers });
             }
             if (res.data.success) {
                 toast({ title: '✅ Success', description: selectedConfig ? 'Configuration updated' : 'New WhatsApp configuration added' });
@@ -540,6 +579,29 @@ export default function WhatsappConfigs() {
                                         </Button>
                                     </div>
                                 </div>
+                                
+                                {/* Reseller Assignment */}
+                                {(userRole === 'admin' || userRole === 'superadmin') && (
+                                    <div className="grid sm:grid-cols-4 items-center gap-2">
+                                        <Label className="sm:text-right text-sm">Assign to Reseller</Label>
+                                        <div className="col-span-3">
+                                            <Select
+                                                value={formData.reseller_id}
+                                                onValueChange={(val) => setFormData({ ...formData, reseller_id: val })}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Global Config (No Reseller)" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Global Config (No Reseller)</SelectItem>
+                                                    {resellers.map((r) => (
+                                                        <SelectItem key={r.id} value={String(r.id)}>{r.name} ({r.email})</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

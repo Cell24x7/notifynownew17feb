@@ -43,6 +43,18 @@ export default function RcsConfigs() {
   const [selectedConfig, setSelectedConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
+  const [resellers, setResellers] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<string>('user');
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUserRole(user.role);
+      } catch(e) {}
+    }
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -52,6 +64,7 @@ export default function RcsConfigs() {
     client_id: '',
     client_secret: '',
     bot_id: '',
+    reseller_id: 'none',
     is_active: true
   });
 
@@ -76,9 +89,22 @@ export default function RcsConfigs() {
     }
   };
 
+  const fetchResellers = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/resellers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) setResellers(res.data.resellers || []);
+    } catch (err) {}
+  };
+
   useEffect(() => {
     fetchConfigs();
-  }, []);
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      fetchResellers();
+    }
+  }, [userRole]);
 
   const handleOpenDialog = (config: any = null) => {
     setSelectedConfig(config);
@@ -90,6 +116,7 @@ export default function RcsConfigs() {
       client_id: config.client_id || '',
       client_secret: config.client_secret || '',
       bot_id: config.bot_id || '',
+      reseller_id: config.reseller_id ? String(config.reseller_id) : 'none',
       is_active: config.is_active !== undefined ? config.is_active : true
     } : {
       name: '',
@@ -99,6 +126,7 @@ export default function RcsConfigs() {
       client_id: '',
       client_secret: '',
       bot_id: '',
+      reseller_id: 'none',
       is_active: true
     });
     setDialogOpen(true);
@@ -133,11 +161,17 @@ export default function RcsConfigs() {
       const config = {
           headers: { Authorization: `Bearer ${token}` }
       };
+      
+      const payload = {
+          ...formData,
+          reseller_id: formData.reseller_id === 'none' ? null : parseInt(formData.reseller_id)
+      };
+
       let res;
       if (selectedConfig) {
-        res = await axios.put(`${API_URL}/${selectedConfig.id}`, formData, config);
+        res = await axios.put(`${API_URL}/${selectedConfig.id}`, payload, config);
       } else {
-        res = await axios.post(API_URL, formData, config);
+        res = await axios.post(API_URL, payload, config);
       }
 
       if (res.data.success) {
@@ -412,6 +446,29 @@ export default function RcsConfigs() {
                 </Button>
               </div>
             </div>
+
+            {/* Reseller Assignment */}
+            {(userRole === 'admin' || userRole === 'superadmin') && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Assign to Reseller</Label>
+                    <div className="col-span-3">
+                        <Select
+                            value={formData.reseller_id}
+                            onValueChange={(val) => setFormData({ ...formData, reseller_id: val })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Global Config (No Reseller)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Global Config (No Reseller)</SelectItem>
+                                {resellers.map((r) => (
+                                    <SelectItem key={r.id} value={String(r.id)}>{r.name} ({r.email})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            )}
           </div>
 
           <DialogFooter>
