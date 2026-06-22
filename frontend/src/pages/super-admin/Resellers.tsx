@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Pencil, Users, Percent, MoreVertical, Loader2, CreditCard, LogIn } from 'lucide-react';
+import { Search, Plus, Eye, EyeOff, Pencil, Users, Percent, MoreVertical, Loader2, CreditCard, LogIn, Ban, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ export default function SuperAdminResellers() {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
+  const [showPassword, setShowPassword] = useState(false);
   const [currentReseller, setCurrentReseller] = useState({
     id: null as number | null,
     name: '',
@@ -313,6 +314,54 @@ export default function SuperAdminResellers() {
     }
   };
 
+  const handleSuspend = async (reseller: any) => {
+    try {
+      const newStatus = reseller.status === 'suspended' ? 'active' : 'suspended';
+      const token = localStorage.getItem('authToken');
+      await axios.put(`${API_URL}/resellers/${reseller.id}`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast({
+        title: 'Success',
+        description: `Reseller ${newStatus === 'active' ? 'activated' : 'suspended'}`,
+      });
+      fetchResellers();
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteReseller = async (reseller: any) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE reseller "${reseller.name}" (${reseller.email})? This action cannot be undone.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.delete(`${API_URL}/resellers/${reseller.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        toast({
+          title: 'Deleted',
+          description: `Reseller ${reseller.name} has been removed.`,
+        });
+        fetchResellers();
+      } else {
+        toast({ title: 'Failed', description: res.data.message || 'Could not delete reseller', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to delete reseller',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setCurrentReseller({
       id: null,
@@ -538,6 +587,14 @@ export default function SuperAdminResellers() {
                         <DropdownMenuItem onClick={() => handleLoginAsReseller(reseller.id)} className="text-blue-600 font-medium">
                           <LogIn className="w-4 h-4 mr-2" />
                           Login as Reseller
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSuspend(reseller)} className="text-orange-600 focus:text-orange-600">
+                          <Ban className="w-4 h-4 mr-2" />
+                          {reseller.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDeleteReseller(reseller)} className="text-red-600 focus:text-red-600">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Account
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -799,12 +856,22 @@ export default function SuperAdminResellers() {
                     Change Password {modalMode === 'add' && <span className="text-destructive">*</span>}
                     {modalMode === 'edit' && <span className="text-xs text-muted-foreground ml-2">(Only if you want to reset it)</span>}
                   </Label>
-                  <Input
-                    type="password"
-                    placeholder={modalMode === 'add' ? "Enter password" : "Enter new password"}
-                    value={currentReseller.password || ''}
-                    onChange={(e) => setCurrentReseller(prev => ({ ...prev, password: e.target.value }))}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder={modalMode === 'add' ? "Enter password" : "Enter new password"}
+                      value={currentReseller.password || ''}
+                      onChange={(e) => setCurrentReseller(prev => ({ ...prev, password: e.target.value }))}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </>
             )}
