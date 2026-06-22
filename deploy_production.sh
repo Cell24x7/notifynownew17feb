@@ -158,7 +158,7 @@ step "Running database migrations sequentially (OOM protection)..."
 NODE_ENV=production node apply_schema_updates.js 2>&1 | grep -v "already exists\|Skipping\|^$" || true
 
 # Run all other migration scripts one by one to avoid CPU/RAM spikes
-for script in scripts/fix_truncation.js migrate_reports.js scripts/fix_pricing_precision.js scripts/fix_emojis.js scripts/fix_collation_crash.js scripts/fix_api_campaigns_schema.js scripts/add_failover_lock.js scripts/enable_email_for_all.js scripts/fix_sent_counts.js scripts/add_failover_cols.js scripts/voice_bot_infrastructure.js update_smm_schema.js update_rcs_multi_provider.js scripts/add_media_support.js migrate_api_flag.js migration_reseller_payment.js migration_reseller_paypal.js scripts/migrate_chats_meta.js; do
+for script in scripts/add_reseller_to_configs.js scripts/fix_truncation.js migrate_reports.js scripts/fix_pricing_precision.js scripts/fix_emojis.js scripts/fix_collation_crash.js scripts/fix_api_campaigns_schema.js scripts/add_failover_lock.js scripts/enable_email_for_all.js scripts/fix_sent_counts.js scripts/add_failover_cols.js scripts/voice_bot_infrastructure.js update_smm_schema.js update_rcs_multi_provider.js scripts/add_media_support.js migrate_api_flag.js migration_reseller_payment.js migration_reseller_paypal.js scripts/migrate_chats_meta.js; do
     if [ -f "$BACKEND_DIR/$script" ]; then
         NODE_ENV=production node "$BACKEND_DIR/$script" 2>&1 | grep -v "already exists\|Skipping\|already utf8mb4\|^$" || true
     fi

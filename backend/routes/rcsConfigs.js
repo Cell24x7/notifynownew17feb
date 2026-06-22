@@ -40,7 +40,16 @@ const isAdmin = (req, res, next) => {
  */
 router.get('/', authenticate, isAdmin, async (req, res) => {
     try {
-        const [configs] = await query('SELECT * FROM rcs_configs ORDER BY created_at DESC');
+        let sql = 'SELECT * FROM rcs_configs';
+        const params = [];
+
+        if (req.user.role === 'reseller') {
+            sql += ' WHERE reseller_id = ?';
+            params.push(req.user.actual_reseller_id || req.user.id);
+        }
+        sql += ' ORDER BY created_at DESC';
+
+        const [configs] = await query(sql, params);
         res.json({ success: true, configs });
     } catch (error) {
         console.error('❌ Error fetching RCS configs:', error.message);
@@ -54,15 +63,15 @@ router.get('/', authenticate, isAdmin, async (req, res) => {
  */
 router.post('/', authenticate, isAdmin, async (req, res) => {
     try {
-        const { name, provider = 'dotgo', auth_url, api_base_url, client_id, client_secret, bot_id } = req.body;
+        const { name, provider = 'dotgo', auth_url, api_base_url, client_id, client_secret, bot_id, reseller_id } = req.body;
 
         if (!name || !auth_url || !api_base_url || !client_id || !client_secret || !bot_id) {
             return res.status(400).json({ success: false, message: 'All fields are required' });
         }
 
         const [result] = await query(
-            'INSERT INTO rcs_configs (name, provider, auth_url, api_base_url, client_id, client_secret, bot_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [name, provider, auth_url, api_base_url, client_id, client_secret, bot_id]
+            'INSERT INTO rcs_configs (name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, reseller_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, reseller_id || null]
         );
 
         res.status(201).json({
@@ -83,7 +92,7 @@ router.post('/', authenticate, isAdmin, async (req, res) => {
 router.put('/:id', authenticate, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, is_active } = req.body;
+        const { name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, is_active, reseller_id } = req.body;
 
         const [existing] = await query('SELECT id FROM rcs_configs WHERE id = ?', [id]);
         if (existing.length === 0) {
@@ -94,9 +103,9 @@ router.put('/:id', authenticate, isAdmin, async (req, res) => {
             `UPDATE rcs_configs SET 
                 name = ?, provider = ?, auth_url = ?, api_base_url = ?, 
                 client_id = ?, client_secret = ?, bot_id = ?, 
-                is_active = ? 
+                is_active = ?, reseller_id = ? 
              WHERE id = ?`,
-            [name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, is_active === undefined ? true : is_active, id]
+            [name, provider, auth_url, api_base_url, client_id, client_secret, bot_id, is_active === undefined ? true : is_active, reseller_id || null, id]
         );
 
         res.json({ success: true, message: 'RCS Configuration updated successfully' });

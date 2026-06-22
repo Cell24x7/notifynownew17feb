@@ -122,7 +122,16 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
-        const [gateways] = await query('SELECT * FROM sms_gateways ORDER BY name ASC');
+        let sql = 'SELECT * FROM sms_gateways';
+        const params = [];
+
+        if (req.user.role === 'reseller') {
+            sql += ' WHERE reseller_id = ?';
+            params.push(req.user.actual_reseller_id || req.user.id);
+        }
+        sql += ' ORDER BY name ASC';
+
+        const [gateways] = await query(sql, params);
         res.json({ success: true, data: gateways });
     } catch (error) {
         console.error('Error fetching SMS gateways:', error.message);
@@ -136,15 +145,15 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
  */
 router.post('/', authenticate, requireAdmin, async (req, res) => {
     try {
-        const { name, sender_id, primary_url, secondary_url, status, routing, priority } = req.body;
+        const { name, sender_id, primary_url, secondary_url, status, routing, priority, reseller_id } = req.body;
 
         if (!name || !primary_url) {
             return res.status(400).json({ success: false, message: 'Gateway name and primary URL are required' });
         }
 
         const [result] = await query(
-            'INSERT INTO sms_gateways (name, sender_id, primary_url, secondary_url, status, routing, priority) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [name, sender_id || 'NOTIFY', primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both']
+            'INSERT INTO sms_gateways (name, sender_id, primary_url, secondary_url, status, routing, priority, reseller_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [name, sender_id || 'NOTIFY', primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both', reseller_id || null]
         );
 
         res.json({ success: true, message: 'Gateway created successfully', data: { id: result.insertId } });
@@ -174,12 +183,12 @@ router.get('/:id', authenticate, requireAdmin, async (req, res) => {
  */
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     try {
-        const { name, sender_id, primary_url, secondary_url, status, routing, priority } = req.body;
+        const { name, sender_id, primary_url, secondary_url, status, routing, priority, reseller_id } = req.body;
         const id = req.params.id;
 
         await query(
-            'UPDATE sms_gateways SET name = ?, sender_id = ?, primary_url = ?, secondary_url = ?, status = ?, routing = ?, priority = ? WHERE id = ?',
-            [name, sender_id || 'NOTIFY', primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both', id]
+            'UPDATE sms_gateways SET name = ?, sender_id = ?, primary_url = ?, secondary_url = ?, status = ?, routing = ?, priority = ?, reseller_id = ? WHERE id = ?',
+            [name, sender_id || 'NOTIFY', primary_url, secondary_url || null, status || 'active', routing || 'national', priority || 'both', reseller_id || null, id]
         );
 
         res.json({ success: true, message: 'Gateway updated successfully' });
