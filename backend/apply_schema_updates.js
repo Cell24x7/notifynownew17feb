@@ -953,6 +953,7 @@ async function updateSchema() {
                 } catch (err) {}
             };
 
+            await addIndexSafely('message_logs', 'idx_status_channel', 'status, channel');
             await addIndexSafely('message_logs', 'idx_camp_status', 'campaign_id, status');
             await addIndexSafely('message_logs', 'idx_created_at', 'created_at');
             await addIndexSafely('api_message_logs', 'idx_user_camp_status', 'user_id, campaign_id, status');

@@ -19,7 +19,7 @@ const pollDinstarDLRs = async () => {
         const [pendingLogs] = await query(`
             SELECT id, recipient AS mobile, message_id 
             FROM message_logs 
-            WHERE LOWER(status) = 'sent' AND (LOWER(channel) = 'sms' OR channel IS NULL OR LOWER(channel) = 'gsm')
+            WHERE status = 'sent' AND (channel = 'sms' OR channel = 'SMS' OR channel IS NULL OR channel = 'gsm' OR channel = 'GSM')
             ORDER BY id DESC LIMIT 500
         `);
 
@@ -68,7 +68,7 @@ const pollDinstarDLRs = async () => {
 
                         // Find the specific pending logs for this number to update them accurately (OLDEST first)
                         try {
-                            const [logRows] = await query(`SELECT id, campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND LOWER(status) = 'sent' ORDER BY id ASC`, [possibleNum1, possibleNum2]);
+                            const [logRows] = await query(`SELECT id, campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND status = 'sent' ORDER BY id ASC`, [possibleNum1, possibleNum2]);
                             
                             if (logRows.length > 0) {
                                 console.log(`[Dinstar Polling] Found ${logRows.length} pending logs for ${localNum}. Dinstar has ${history.length} total history records.`);
@@ -94,7 +94,7 @@ const pollDinstarDLRs = async () => {
                                             await query(`UPDATE message_logs SET status = ? WHERE id = ?`, [newStatus, log.id]);
 
                                             // Update campaign_queue accurately by finding the oldest pending for this number
-                                            const [cqRows] = await query(`SELECT id FROM campaign_queue WHERE (mobile = ? OR mobile = ?) AND LOWER(status) = 'sent' ORDER BY id ASC LIMIT 1`, [possibleNum1, possibleNum2]);
+                                            const [cqRows] = await query(`SELECT id FROM campaign_queue WHERE (mobile = ? OR mobile = ?) AND status = 'sent' ORDER BY id ASC LIMIT 1`, [possibleNum1, possibleNum2]);
                                             if (cqRows.length > 0) {
                                                 await query(`UPDATE campaign_queue SET status = ? WHERE id = ?`, [newStatus, cqRows[0].id]);
                                             }
