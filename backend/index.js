@@ -281,6 +281,10 @@ if (isFirstInstance) {
 const { startPolling } = require('./services/waUnofficialPollingService');
 startPolling();
 
+// Start Dinstar GSM Gateway DLR polling service
+const dinstarPolling = require('./services/dinstarPollingService');
+dinstarPolling.startPolling();
+
 // Auto-create chat_flows table if it doesn't exist
 const { ensureChatFlowsTable } = require('./services/chatflowService');
 const { ensureWhatsAppPricingColumns } = require('./services/pricingService');
