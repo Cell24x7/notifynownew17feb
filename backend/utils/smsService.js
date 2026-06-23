@@ -176,25 +176,40 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         if (isDinstar) {
             // Strip any query parameters (like DLR URLs) from the primary URL
             const baseUrl = gateway.primary_url.split('?')[0];
-            console.log(`📡 [SMS] Sending via Dinstar GSM Gateway: ${gateway.name} | URL: ${baseUrl}`);
+            
+            // Dinstar might require exactly the local number without 91 prefix
+            const dinstarMobile = cleanMobile.length === 12 && cleanMobile.startsWith('91') 
+                ? cleanMobile.substring(2) 
+                : cleanMobile;
+
+            console.log(`📡 [SMS] Sending via Dinstar GSM Gateway: ${gateway.name} | URL: ${baseUrl} | Mobile: ${dinstarMobile}`);
+            
             const payload = {
                 text: message,
-                param: [{ number: cleanMobile }],
+                param: [{ number: dinstarMobile }],
                 port: [0],
-                encoding: data.isUnicode ? "unicode" : "ascii",
+                encoding: "unicode", // Force unicode as per user's curl which worked
                 request_status_report: true
             };
 
-            const response = await axios.post(baseUrl, payload, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 15000
-            });
-            
-            const result = response.data;
-            if (result && result.error) {
-                return { success: false, error: result, messageId: data.msgId };
+            try {
+                const response = await axios.post(baseUrl, payload, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 15000
+                });
+                
+                const result = response.data;
+                if (result && result.error) {
+                    return { success: false, error: result, messageId: data.msgId };
+                }
+                return { success: true, response: result, messageId: data.msgId };
+            } catch (dinstarErr) {
+                console.error('[SMS] Dinstar Send Error:', dinstarErr.message);
+                if (dinstarErr.response && dinstarErr.response.data) {
+                    console.error('[SMS] Dinstar Error Response:', JSON.stringify(dinstarErr.response.data));
+                }
+                throw dinstarErr; // throw to be caught by the outer catch
             }
-            return { success: true, response: result, messageId: data.msgId };
         }
         // ------------------------------------------
 
