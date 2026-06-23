@@ -49,53 +49,66 @@ const pollDinstarDLRs = async () => {
                 }, { timeout: 10000 });
 
                 const resultData = response.data;
-                if (resultData && resultData.success && resultData.data && resultData.data.result) {
-                    const results = resultData.data.result;
-                    
-                    // Dinstar returns history chronologically. Group by number to get the latest status.
-                    const numberStatuses = {};
+                    // Dinstar returns history chronologically. Group by number to get all statuses.
+                    const numberHistory = {};
                     for (const res of results) {
                         const localNum = res.number.startsWith('91') ? res.number.substring(2) : res.number;
-                        numberStatuses[localNum] = res.status;
+                        if (!numberHistory[localNum]) numberHistory[localNum] = [];
+                        numberHistory[localNum].push(res.status);
                     }
-                    console.log('[Dinstar Polling] Fetched statuses from Dinstar:', JSON.stringify(numberStatuses));
+                    console.log('[Dinstar Polling] Fetched history counts:', Object.keys(numberHistory).reduce((acc, num) => { acc[num] = numberHistory[num].length; return acc; }, {}));
 
-                    for (const localNum in numberStatuses) {
-                        const finalStatus = numberStatuses[localNum];
-                        let newStatus = 'sent';
-                        // GSM Gateways often use SENT_OK as the final success state if handset DLR is unavailable
-                        if (finalStatus === 'DELIVERED' || finalStatus === 'SENT_OK') newStatus = 'delivered';
-                        else if (finalStatus === 'FAILED' || finalStatus === 'UNDELIVERED') newStatus = 'failed';
-                        
-                        if (newStatus !== 'sent') {
-                            const possibleNum1 = localNum;
-                            const possibleNum2 = `91${localNum}`;
-                            console.log(`[Dinstar Polling] Number ${localNum} mapped to status ${newStatus}. Updating DB...`);
+                    for (const localNum in numberHistory) {
+                        const history = numberHistory[localNum]; // Array of chronological statuses
+                        const possibleNum1 = localNum;
+                        const possibleNum2 = `91${localNum}`;
 
-                            // Find the specific pending logs for this number to update them accurately
-                            try {
-                                const [logRows] = await query(`SELECT id, campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND LOWER(status) = 'sent'`, [possibleNum1, possibleNum2]);
-                                console.log(`[Dinstar Polling] Found ${logRows.length} pending logs for ${localNum}`);
+                        // Find the specific pending logs for this number to update them accurately (OLDEST first)
+                        try {
+                            const [logRows] = await query(`SELECT id, campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND LOWER(status) = 'sent' ORDER BY id ASC`, [possibleNum1, possibleNum2]);
+                            
+                            if (logRows.length > 0) {
+                                console.log(`[Dinstar Polling] Found ${logRows.length} pending logs for ${localNum}. Dinstar has ${history.length} total history records.`);
+                                
+                                // Map the pending logs to the LAST N history records
+                                // For example, if there are 2 pending logs and 5 history records, we use history records at index 3 and 4.
+                                let historyIndex = Math.max(0, history.length - logRows.length);
                                 
                                 for (const log of logRows) {
-                                    console.log(`[Dinstar Polling] Updating message_logs ID ${log.id} to ${newStatus}`);
-                                    await query(`UPDATE message_logs SET status = ?, delivered_at = NOW() WHERE id = ?`, [newStatus, log.id]);
+                                    if (historyIndex < history.length) {
+                                        const finalStatus = history[historyIndex];
+                                        historyIndex++;
 
-                                    await query(`UPDATE campaign_queue SET status = ? WHERE (mobile = ? OR mobile = ?) AND LOWER(status) = 'sent'`, [newStatus, possibleNum1, possibleNum2]);
-                                    
-                                    const campaignId = log.campaign_id;
-                                    if (campaignId) {
-                                        if (newStatus === 'delivered') {
-                                            await query(`UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [campaignId]);
-                                        } else if (newStatus === 'failed') {
-                                            await query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?`, [campaignId]);
+                                        let newStatus = 'sent';
+                                        // GSM Gateways often use SENT_OK as the final success state if handset DLR is unavailable
+                                        if (finalStatus === 'DELIVERED' || finalStatus === 'SENT_OK') newStatus = 'delivered';
+                                        else if (finalStatus === 'FAILED' || finalStatus === 'UNDELIVERED') newStatus = 'failed';
+                                        // If 'SENDING', newStatus remains 'sent'
+                                        
+                                        if (newStatus !== 'sent') {
+                                            console.log(`[Dinstar Polling] Updating message_logs ID ${log.id} to ${newStatus} (Dinstar status: ${finalStatus})`);
+                                            await query(`UPDATE message_logs SET status = ?, delivered_at = NOW() WHERE id = ?`, [newStatus, log.id]);
+
+                                            // Update campaign_queue accurately by finding the oldest pending for this number
+                                            const [cqRows] = await query(`SELECT id FROM campaign_queue WHERE (mobile = ? OR mobile = ?) AND LOWER(status) = 'sent' ORDER BY id ASC LIMIT 1`, [possibleNum1, possibleNum2]);
+                                            if (cqRows.length > 0) {
+                                                await query(`UPDATE campaign_queue SET status = ? WHERE id = ?`, [newStatus, cqRows[0].id]);
+                                            }
+                                            
+                                            const campaignId = log.campaign_id;
+                                            if (campaignId) {
+                                                if (newStatus === 'delivered') {
+                                                    await query(`UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [campaignId]);
+                                                } else if (newStatus === 'failed') {
+                                                    await query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?`, [campaignId]);
+                                                }
+                                            }
                                         }
-                                        console.log(`[Dinstar Polling] Updated campaigns counters for ID ${campaignId}`);
                                     }
                                 }
-                            } catch (dbErr) {
-                                console.error(`[Dinstar Polling] Database Update Error for ${localNum}:`, dbErr.message);
                             }
+                        } catch (dbErr) {
+                            console.error(`[Dinstar Polling] Database Update Error for ${localNum}:`, dbErr.message);
                         }
                     }
                 } else {
