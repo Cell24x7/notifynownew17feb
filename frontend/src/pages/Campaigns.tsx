@@ -342,18 +342,17 @@ export default function Campaigns() {
         name: campaignData.name,
         channel: campaignData.channel,
         template_id: campaignData.templateId,
-        template_name: selectedTpl?.name, // Send the name!
-        template_metadata: selectedTpl?.metadata, // New snapshot
-        template_body: selectedTpl?.body, // New snapshot
-        template_type: selectedTpl?.template_type, // New snapshot
+        template_name: campaignData.messageMode === 'custom' ? 'Custom GSM Message' : selectedTpl?.name,
+        template_metadata: selectedTpl?.metadata,
+        template_body: campaignData.messageMode === 'custom' ? campaignData.customMessage : selectedTpl?.body,
+        template_type: campaignData.messageMode === 'custom' ? 'custom' as any : selectedTpl?.template_type,
         audience_id: campaignData.audienceId || undefined,
-        recipient_count: 0, // uploadContacts will accurately increment this later
-        status: 'draft' as any, // Start as draft, update later to scheduled or start if 'now' to prevent race condition during upload
+        recipient_count: 0,
+        status: 'draft' as any,
         scheduled_at: campaignData.scheduleType === 'scheduled'
           ? `${campaignData.scheduledDate}T${campaignData.scheduledTime}`
           : undefined,
-        variable_mapping: campaignData.fieldMapping, // Map field mapping to backend
-        // Recurring scheduling fields
+        variable_mapping: campaignData.fieldMapping,
         schedule_type: campaignData.scheduleType,
         scheduling_mode: campaignData.schedulingMode,
         frequency: campaignData.frequency,
@@ -363,7 +362,12 @@ export default function Campaigns() {
           : undefined,
         is_unicode: campaignData.isUnicode,
         is_track_link: campaignData.enableTracking,
-        sms_parts: calculateSMSParts(selectedTpl?.body || '', !!campaignData.isUnicode, !!campaignData.enableTracking, Object.keys(campaignData.fieldMapping || {}).length),
+        sms_parts: calculateSMSParts(
+           campaignData.messageMode === 'custom' ? (campaignData.customMessage || '') : (selectedTpl?.body || ''), 
+           !!campaignData.isUnicode, 
+           !!campaignData.enableTracking, 
+           Object.keys(campaignData.fieldMapping || {}).length
+        ),
         // AI Voice specific fields
         voice_audio_id: campaignData.voiceAudioId,
         voice_retries: campaignData.voiceRetries,

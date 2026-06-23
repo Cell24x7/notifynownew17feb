@@ -53,6 +53,8 @@ export interface CampaignData {
    endTime: string;
    estimatedCost: number;
    recipientCount: number;
+   messageMode?: 'dlt' | 'custom';
+   customMessage?: string;
    isUnicode?: boolean;
    enableTracking?: boolean;
    smsParts?: number;
@@ -139,6 +141,8 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       endTime: '',
       estimatedCost: 0,
       recipientCount: 0,
+      messageMode: 'dlt',
+      customMessage: '',
       isUnicode: false,
       enableTracking: false,
       smsParts: 1,
@@ -421,9 +425,10 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    // Calculate estimated cost
    const calculateCost = () => {
       let multiplier = 1;
-      if (campaignData.channel === 'sms' && selectedTemplate) {
-         const hasUnicode = campaignData.isUnicode || isUnicodeText(selectedTemplate.body || '');
-         const parts = calculateSMSParts(selectedTemplate.body || '', hasUnicode, !!campaignData.enableTracking, templateVariables.length);
+      if (campaignData.channel === 'sms' && (selectedTemplate || campaignData.messageMode === 'custom')) {
+         const messageBody = campaignData.messageMode === 'custom' ? campaignData.customMessage : selectedTemplate?.body;
+         const hasUnicode = campaignData.isUnicode || isUnicodeText(messageBody || '');
+         const parts = calculateSMSParts(messageBody || '', hasUnicode, !!campaignData.enableTracking, templateVariables.length);
          multiplier = Number(parts) || 1;
       }
       const count = Number(campaignData.recipientCount) || 0;
@@ -434,9 +439,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
    // Detect if the actual template text contains Unicode characters
    const templateIsUnicode = useMemo(() => {
-      if (campaignData.channel !== 'sms' || !selectedTemplate) return false;
+      if (campaignData.channel !== 'sms') return false;
+      if (campaignData.messageMode === 'custom') return isUnicodeText(campaignData.customMessage || '');
+      if (!selectedTemplate) return false;
       return isUnicodeText(selectedTemplate.body || '');
-   }, [selectedTemplate, campaignData.channel]);
+   }, [selectedTemplate, campaignData.channel, campaignData.messageMode, campaignData.customMessage]);
 
    // Auto detect Unicode when template changes (set isUnicode flag once on template select)
    const prevTemplateIdRef = { current: '' };
@@ -911,8 +918,76 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
                            <div className="space-y-4">
                               <div className="space-y-2">
-                                 <Label>Template *</Label>
-                                 {campaignData.channel === 'voicebot' ? (
+                                 {campaignData.channel === 'sms' && (
+                                    <div className="space-y-3 mb-6 p-4 border rounded-xl bg-muted/20">
+                                       <Label className="text-base">Message Strategy</Label>
+                                       <RadioGroup
+                                          value={campaignData.messageMode || 'dlt'}
+                                          onValueChange={(val: 'dlt' | 'custom') => {
+                                             setCampaignData(prev => ({
+                                                ...prev,
+                                                messageMode: val,
+                                                templateId: val === 'custom' ? 'GSM_CUSTOM' : '',
+                                                customMessage: val === 'custom' ? prev.customMessage : '',
+                                             }));
+                                          }}
+                                          className="grid grid-cols-2 gap-4"
+                                       >
+                                          <div>
+                                             <RadioGroupItem value="dlt" id="dlt" className="peer sr-only" />
+                                             <Label
+                                                htmlFor="dlt"
+                                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary cursor-pointer"
+                                             >
+                                                <span className="font-semibold mb-1">Approved DLT Template</span>
+                                                <span className="text-xs text-muted-foreground text-center">Use pre-approved templates (Promotional/Transactional)</span>
+                                             </Label>
+                                          </div>
+                                          <div>
+                                             <RadioGroupItem value="custom" id="custom" className="peer sr-only" />
+                                             <Label
+                                                htmlFor="custom"
+                                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary cursor-pointer"
+                                             >
+                                                <span className="font-semibold mb-1 flex items-center gap-2">Custom GSM Message <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Beta</Badge></span>
+                                                <span className="text-xs text-muted-foreground text-center">Type any custom message (Requires physical GSM Gateway)</span>
+                                             </Label>
+                                          </div>
+                                       </RadioGroup>
+                                    </div>
+                                 )}
+
+                                 {campaignData.channel === 'sms' && campaignData.messageMode === 'custom' ? (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                       <div className="space-y-2">
+                                          <Label>Custom Message Body *</Label>
+                                          <Textarea
+                                             placeholder="Type your custom SMS message here..."
+                                             className="min-h-[150px] resize-none"
+                                             value={campaignData.customMessage || ''}
+                                             onChange={(e) => {
+                                                const text = e.target.value;
+                                                setCampaignData(prev => ({ 
+                                                   ...prev, 
+                                                   customMessage: text,
+                                                   isUnicode: isUnicodeText(text)
+                                                }));
+                                             }}
+                                          />
+                                          <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                             <span>
+                                                {campaignData.customMessage?.length || 0} characters
+                                             </span>
+                                             <span className={cn("px-2 py-0.5 rounded-full font-medium", isUnicodeText(campaignData.customMessage || '') ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400" : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400")}>
+                                                {isUnicodeText(campaignData.customMessage || '') ? '🌐 Unicode detected' : '🔤 Standard GSM-7'}
+                                             </span>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 ) : (
+                                    <>
+                                       <Label>Template *</Label>
+                                       {campaignData.channel === 'voicebot' ? (
                                     <div className="p-4 border border-blue-200 bg-blue-50/50 rounded-lg text-sm text-blue-700 flex items-center gap-2">
                                        <Sparkles className="h-4 w-4" />
                                        <span>Static Voice campaign selected. Configure your audio in the settings below.</span>
@@ -964,9 +1039,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        )}
                                     </div>
                                  )}
+                                    </>
+                                 )}
                               </div>
 
-                              {campaignData.channel === 'sms' && selectedTemplate && (
+                              {campaignData.channel === 'sms' && (selectedTemplate || campaignData.messageMode === 'custom') && (
                                  <div className="p-4 border rounded-xl bg-card space-y-4 animate-in fade-in slide-in-from-bottom-2">
                                     <div className="flex items-center justify-between">
                                        <h3 className="font-medium text-sm">SMS Delivery Settings</h3>
@@ -1054,11 +1131,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
                                     <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex -mx-2 items-center justify-between text-xs sm:text-sm">
                                        <div>
-                                          <span className="text-muted-foreground">Estimated SMS parts based on template:</span>
+                                          <span className="text-muted-foreground">Estimated SMS parts based on message:</span>
                                           <div className="font-semibold text-primary mt-1">
-                                             {calculateSMSParts(selectedTemplate?.body || '', !!campaignData.isUnicode, !!campaignData.enableTracking, templateVariables.length)} Credit(s) per User
+                                             {calculateSMSParts((selectedTemplate?.body || campaignData.customMessage) || '', !!campaignData.isUnicode, !!campaignData.enableTracking, templateVariables.length)} Credit(s) per User
                                              <span className="text-muted-foreground font-normal ml-2 text-xs">
-                                                ({selectedTemplate.body?.length || 0} chars · {campaignData.isUnicode ? 'Unicode: 70/part' : 'GSM-7: 160/part'})
+                                                ({((selectedTemplate?.body || campaignData.customMessage) || '').length} chars · {campaignData.isUnicode ? 'Unicode: 70/part' : 'GSM-7: 160/part'})
                                              </span>
                                           </div>
                                        </div>
