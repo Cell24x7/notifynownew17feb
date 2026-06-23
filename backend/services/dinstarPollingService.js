@@ -93,6 +93,14 @@ const pollDinstarDLRs = async () => {
                 }
             } catch (err) {
                 console.error('[Dinstar Polling] Error querying chunk:', err.message);
+                if (err.response && err.response.data) {
+                    console.error('[Dinstar Polling] Error Response Data:', JSON.stringify(err.response.data));
+                }
+                // Log the payload we sent
+                console.error('[Dinstar Polling] Sent Payload:', JSON.stringify({
+                    number: formattedChunk,
+                    port: [0]
+                }));
             }
         }
 
