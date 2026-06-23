@@ -74,13 +74,14 @@ const pollDinstarDLRs = async () => {
                                 console.log(`[Dinstar Polling] Found ${logRows.length} pending logs for ${localNum}. Dinstar has ${history.length} total history records.`);
                                 
                                 // Map the pending logs to the LAST N history records
-                                // For example, if there are 2 pending logs and 5 history records, we use history records at index 3 and 4.
+                                // Dinstar returns recent history, so it should map to the NEWEST pending logs.
+                                let logIndex = Math.max(0, logRows.length - history.length);
                                 let historyIndex = Math.max(0, history.length - logRows.length);
                                 
-                                for (const log of logRows) {
+                                for (; logIndex < logRows.length; logIndex++, historyIndex++) {
+                                    const log = logRows[logIndex];
                                     if (historyIndex < history.length) {
                                         const finalStatus = history[historyIndex];
-                                        historyIndex++;
 
                                         let newStatus = 'sent';
                                         // GSM Gateways often use SENT_OK as the final success state if handset DLR is unavailable
