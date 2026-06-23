@@ -62,6 +62,7 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
     const [submitting, setSubmitting] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [fieldMapping, setFieldMapping] = useState<Record<string, { type: 'field' | 'custom', value: string }>>({}); 
+    const [messageMode, setMessageMode] = useState<'dlt' | 'custom'>('dlt');
 
     // Fetch templates when dialog opens
     useEffect(() => {
@@ -337,19 +338,28 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
 
                                         <div className="space-y-2">
                                             <Label className="text-sm font-bold text-gray-700">Sender Name</Label>
-                                            <Select value={senderName} onValueChange={setSenderName}>
-                                                <SelectTrigger className="border-gray-200 h-11">
-                                                    <SelectValue placeholder="Select Sender Name" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {Array.from(new Set(templates.map(t => t.sender))).map(sender => (
-                                                        <SelectItem key={sender} value={sender}>{sender}</SelectItem>
-                                                    ))}
-                                                    {templates.length === 0 && (
-                                                        <SelectItem disabled value="none">No senders found</SelectItem>
-                                                    )}
-                                                </SelectContent>
-                                            </Select>
+                                            {messageMode === 'custom' ? (
+                                                <Input 
+                                                    placeholder="Enter Sender ID or Name (e.g. NOTIFY)"
+                                                    value={senderName}
+                                                    onChange={(e) => setSenderName(e.target.value)}
+                                                    className="border-gray-200 h-11"
+                                                />
+                                            ) : (
+                                                <Select value={senderName} onValueChange={setSenderName}>
+                                                    <SelectTrigger className="border-gray-200 h-11">
+                                                        <SelectValue placeholder="Select Sender Name" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {Array.from(new Set(templates.map(t => t.sender))).map(sender => (
+                                                            <SelectItem key={sender} value={sender}>{sender}</SelectItem>
+                                                        ))}
+                                                        {templates.length === 0 && (
+                                                            <SelectItem disabled value="none">No senders found</SelectItem>
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
                                         </div>
 
                                         <div className="space-y-4 pt-2">
@@ -411,17 +421,46 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                             <div className="space-y-6">
                                 <Card className="border-none shadow-sm overflow-hidden">
                                     <div className="bg-white p-6 space-y-6">
+                                        <div className="space-y-3 pb-2 border-b border-gray-100">
+                                            <Label className="text-sm font-bold text-gray-700">Message Strategy</Label>
+                                            <RadioGroup 
+                                                value={messageMode} 
+                                                onValueChange={(v) => {
+                                                    setMessageMode(v as 'dlt' | 'custom');
+                                                    if (v === 'custom') {
+                                                        setDltTemplateId('GSM_CUSTOM');
+                                                        setSenderName('');
+                                                    } else {
+                                                        setDltTemplateId('');
+                                                        setSenderName('');
+                                                    }
+                                                }}
+                                                className="flex gap-6"
+                                            >
+                                                <div className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-gray-50 hover:border-gray-200 transition-all">
+                                                    <RadioGroupItem value="dlt" id="mode-dlt" />
+                                                    <Label htmlFor="mode-dlt" className="cursor-pointer font-medium text-sm">DLT Template</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-gray-50 hover:border-gray-200 transition-all">
+                                                    <RadioGroupItem value="custom" id="mode-custom" />
+                                                    <Label htmlFor="mode-custom" className="cursor-pointer font-medium text-sm">Custom GSM Message</Label>
+                                                </div>
+                                            </RadioGroup>
+                                        </div>
+
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2 text-primary">
-                                                <Label className="text-sm font-bold text-gray-700">DLT template ID</Label>
-                                                <Input
-                                                    placeholder="Enter dlt template id"
-                                                    value={dltTemplateId}
-                                                    onChange={(e) => setDltTemplateId(e.target.value)}
-                                                    className="border-gray-200 h-11 font-mono text-sm"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
+                                            {messageMode === 'dlt' && (
+                                                <div className="space-y-2 text-primary">
+                                                    <Label className="text-sm font-bold text-gray-700">DLT template ID</Label>
+                                                    <Input
+                                                        placeholder="Enter dlt template id"
+                                                        value={dltTemplateId}
+                                                        onChange={(e) => setDltTemplateId(e.target.value)}
+                                                        className="border-gray-200 h-11 font-mono text-sm"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className={cn("space-y-2", messageMode === 'custom' && "col-span-2")}>
                                                 <Label className="text-sm font-bold text-gray-700">Routing Type</Label>
                                                 <Select value={routingType} onValueChange={setRoutingType}>
                                                     <SelectTrigger className="border-gray-200 h-11">

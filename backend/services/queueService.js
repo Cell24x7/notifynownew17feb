@@ -253,7 +253,7 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
             const currentIstHour = getISTHour();
             if (currentIstHour >= 21 || currentIstHour < 10) {
                 // Restricted time window - exit early to leave items pending in queue
-                return;
+                // return; // Temporarily bypassed to allow testing GSM gateways at night
             }
         }
 

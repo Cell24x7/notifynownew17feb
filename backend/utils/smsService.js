@@ -167,6 +167,35 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             isUnicode: isUnicodeVal
         };
 
+        // --- NEW: Intercept Dinstar GSM Gateway ---
+        const isDinstar = gateway && (
+            (gateway.name && gateway.name.toLowerCase().includes('dinstar')) ||
+            (gateway.primary_url && gateway.primary_url.includes('dinstar/api/sms/send'))
+        );
+
+        if (isDinstar) {
+            console.log(`📡 [SMS] Sending via Dinstar GSM Gateway: ${gateway.name} | URL: ${gateway.primary_url}`);
+            const payload = {
+                text: message,
+                param: [{ number: cleanMobile }],
+                port: [0],
+                encoding: data.isUnicode ? "unicode" : "text",
+                request_status_report: true
+            };
+
+            const response = await axios.post(gateway.primary_url, payload, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 15000
+            });
+            
+            const result = response.data;
+            if (result && result.error) {
+                return { success: false, error: result, messageId: data.msgId };
+            }
+            return { success: true, response: result, messageId: data.msgId };
+        }
+        // ------------------------------------------
+
         const finalUrl = replacePlaceholders(gateway.primary_url, data);
         
         // Log the outgoing URL (masking sensitive keys)
