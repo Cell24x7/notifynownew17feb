@@ -35,7 +35,7 @@ const pollDinstarDLRs = async () => {
         // Extract unique numbers to query
         const numbersToQuery = [...new Set(pendingLogs.map(log => log.mobile))];
         
-        const chunkSize = 50;
+        const chunkSize = 30; // Dinstar max limit is 32 items per query
         for (let i = 0; i < numbersToQuery.length; i += chunkSize) {
             const chunk = numbersToQuery.slice(i, i + chunkSize);
             
@@ -92,15 +92,11 @@ const pollDinstarDLRs = async () => {
                     }
                 }
             } catch (err) {
-                console.error('[Dinstar Polling] Error querying chunk:', err.message);
                 if (err.response && err.response.data) {
-                    console.error('[Dinstar Polling] Error Response Data:', JSON.stringify(err.response.data));
+                    console.error('[Dinstar Polling] Error Response:', JSON.stringify(err.response.data));
+                } else {
+                    console.error('[Dinstar Polling] Error:', err.message);
                 }
-                // Log the payload we sent
-                console.error('[Dinstar Polling] Sent Payload:', JSON.stringify({
-                    number: formattedChunk,
-                    port: [0]
-                }));
             }
         }
 
