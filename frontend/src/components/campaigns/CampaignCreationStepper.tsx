@@ -932,7 +932,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                 customMessage: val === 'custom' ? prev.customMessage : '',
                                              }));
                                           }}
-                                          className="grid grid-cols-2 gap-4"
+                                          className={cn("grid gap-4", (user as any)?.is_dinstar_enabled ? "grid-cols-2" : "grid-cols-1")}
                                        >
                                           <div>
                                              <RadioGroupItem value="dlt" id="dlt" className="peer sr-only" />
@@ -944,16 +944,18 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                 <span className="text-xs text-muted-foreground text-center">Use pre-approved templates (Promotional/Transactional)</span>
                                              </Label>
                                           </div>
-                                          <div>
-                                             <RadioGroupItem value="custom" id="custom" className="peer sr-only" />
-                                             <Label
-                                                htmlFor="custom"
-                                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary cursor-pointer"
-                                             >
-                                                <span className="font-semibold mb-1 flex items-center gap-2">Custom GSM Message <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Beta</Badge></span>
-                                                <span className="text-xs text-muted-foreground text-center">Type any custom message (Requires physical GSM Gateway)</span>
-                                             </Label>
-                                          </div>
+                                          {(user as any)?.is_dinstar_enabled && (
+                                             <div>
+                                                <RadioGroupItem value="custom" id="custom" className="peer sr-only" />
+                                                <Label
+                                                   htmlFor="custom"
+                                                   className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary cursor-pointer"
+                                                >
+                                                   <span className="font-semibold mb-1 flex items-center gap-2">Custom GSM Message <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Beta</Badge></span>
+                                                   <span className="text-xs text-muted-foreground text-center">Type any custom message (Requires physical GSM Gateway)</span>
+                                                </Label>
+                                             </div>
+                                          )}
                                        </RadioGroup>
                                     </div>
                                  )}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
+import { useAuth } from '@/contexts/AuthContext';
 import {
     X, Search, Send, Clock,
     MessageSquare, FileText,
@@ -39,6 +40,7 @@ interface SMSCampaignDialogProps {
 
 export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaignDialogProps) {
     const { toast } = useToast();
+    const { user } = useAuth();
 
     // Data State
     const [templates, setTemplates] = useState<DLTTemplate[]>([]);
@@ -441,10 +443,12 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                                                     <RadioGroupItem value="dlt" id="mode-dlt" />
                                                     <Label htmlFor="mode-dlt" className="cursor-pointer font-medium text-sm">DLT Template</Label>
                                                 </div>
-                                                <div className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-gray-50 hover:border-gray-200 transition-all">
-                                                    <RadioGroupItem value="custom" id="mode-custom" />
-                                                    <Label htmlFor="mode-custom" className="cursor-pointer font-medium text-sm">Custom GSM Message</Label>
-                                                </div>
+                                                {user?.is_dinstar_enabled && (
+                                                    <div className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-gray-50 hover:border-gray-200 transition-all">
+                                                        <RadioGroupItem value="custom" id="mode-custom" />
+                                                        <Label htmlFor="mode-custom" className="cursor-pointer font-medium text-sm">Custom GSM Message</Label>
+                                                    </div>
+                                                )}
                                             </RadioGroup>
                                         </div>
 

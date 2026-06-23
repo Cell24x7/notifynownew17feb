@@ -73,6 +73,7 @@ export default function SuperAdminClients() {
     hash_id: '',
     is_api_allowed: false,
     is_proero_enabled: false,
+    is_dinstar_enabled: false,
     is_smm_enabled: false,
     dlr_webhook_url: '',
     wa_unofficial_webhook_enabled: false,
@@ -383,6 +384,7 @@ export default function SuperAdminClients() {
       hash_id: '',
       is_api_allowed: false,
       is_proero_enabled: false,
+      is_dinstar_enabled: false,
       is_smm_enabled: false,
       dlr_webhook_url: '',
       wa_unofficial_webhook_enabled: false,
@@ -445,6 +447,7 @@ export default function SuperAdminClients() {
       hash_id: client.hash_id || '',
       is_api_allowed: !!client.is_api_allowed,
       is_proero_enabled: !!client.is_proero_enabled,
+      is_dinstar_enabled: !!client.is_dinstar_enabled,
       is_smm_enabled: !!client.is_smm_enabled,
       dlr_webhook_url: client.dlr_webhook_url || '',
       wa_unofficial_webhook_enabled: !!client.wa_unofficial_webhook_enabled,
@@ -488,6 +491,7 @@ export default function SuperAdminClients() {
       hash_id: client.hash_id || '',
       is_api_allowed: !!client.is_api_allowed,
       is_proero_enabled: !!client.is_proero_enabled,
+      is_dinstar_enabled: !!client.is_dinstar_enabled,
       is_smm_enabled: !!client.is_smm_enabled,
       dlr_webhook_url: client.dlr_webhook_url || '',
       wa_unofficial_webhook_enabled: !!client.wa_unofficial_webhook_enabled,
@@ -1253,6 +1257,17 @@ export default function SuperAdminClients() {
                   <Checkbox 
                     checked={currentClient.is_smm_enabled}
                     onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_smm_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-teal-600 font-bold">Enable Dinstar GSM (SIM Gateway)</Label>
+                    <p className="text-xs text-muted-foreground">Show "Custom GSM Message" option in SMS campaigns</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentClient.is_dinstar_enabled}
+                    onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_dinstar_enabled: !!checked }))}
                     disabled={modalMode === 'view'}
                   />
                 </div>

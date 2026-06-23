@@ -50,7 +50,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
         rcs_limit, wa_limit, sms_limit, voice_limit,
-        reseller_id, is_read, is_social_signup, pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled, dlr_webhook_url, wa_unofficial_webhook_enabled
+        reseller_id, is_read, is_social_signup, pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled, dlr_webhook_url, wa_unofficial_webhook_enabled, is_dinstar_enabled
       FROM users
       WHERE role IN ('client', 'user')
     `;
@@ -94,7 +94,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     wa_marketing_price = 0.80, wa_utility_price = 0.40, wa_authentication_price = 0.30,
     sms_promotional_price = 1.00, sms_transactional_price = 1.00, sms_service_price = 1.00,
     rcs_limit = null, wa_limit = null, sms_limit = null, voice_limit = null,
-    pe_id = null, hash_id = null, is_api_allowed = false, is_proero_enabled = 0, is_smm_enabled = 0,
+    pe_id = null, hash_id = null, is_api_allowed = false, is_proero_enabled = 0, is_smm_enabled = 0, is_dinstar_enabled = 0,
     dlr_webhook_url = null, wa_unofficial_webhook_enabled = 0
   } = req.body;
 
@@ -149,7 +149,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
         rcs_limit, wa_limit, sms_limit, voice_limit,
-        reseller_id, pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled,
+        reseller_id, pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled, is_dinstar_enabled,
         dlr_webhook_url, wa_unofficial_webhook_enabled
       ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
@@ -161,7 +161,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       sms_promotional_price, sms_transactional_price, sms_service_price,
       rcs_limit || null, wa_limit || null, sms_limit || null, voice_limit || null,
       req.user.role === 'reseller' ? (req.user.actual_reseller_id || req.user.id) : (req.body.reseller_id || null),
-      pe_id || null, hash_id || null, is_api_allowed || false, is_proero_enabled || 0, is_smm_enabled || 0,
+      pe_id || null, hash_id || null, is_api_allowed || false, is_proero_enabled || 0, is_smm_enabled || 0, is_dinstar_enabled || 0,
       dlr_webhook_url || null, wa_unofficial_webhook_enabled || 0
     ]);
 
@@ -191,7 +191,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
     wa_marketing_price, wa_utility_price, wa_authentication_price,
     sms_promotional_price, sms_transactional_price, sms_service_price,
     rcs_limit, wa_limit, sms_limit, voice_limit,
-    pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled,
+    pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled, is_dinstar_enabled,
     dlr_webhook_url, wa_unofficial_webhook_enabled
   } = req.body;
 
@@ -247,6 +247,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   if (hash_id !== undefined) { fields.push('hash_id = ?'); values.push(hash_id); }
   if (is_api_allowed !== undefined) { fields.push('is_api_allowed = ?'); values.push(is_api_allowed); }
   if (is_proero_enabled !== undefined) { fields.push('is_proero_enabled = ?'); values.push(is_proero_enabled); }
+  if (is_dinstar_enabled !== undefined) { fields.push('is_dinstar_enabled = ?'); values.push(is_dinstar_enabled); }
   if (is_smm_enabled !== undefined) { fields.push('is_smm_enabled = ?'); values.push(is_smm_enabled); }
   if (dlr_webhook_url !== undefined) { fields.push('dlr_webhook_url = ?'); values.push(dlr_webhook_url || null); }
   if (wa_unofficial_webhook_enabled !== undefined) { fields.push('wa_unofficial_webhook_enabled = ?'); values.push(wa_unofficial_webhook_enabled); }
@@ -376,7 +377,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
              u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit,
              u.whatsapp_config_id, u.rcs_config_id, u.sms_gateway_id,
-             u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled,
+             u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_dinstar_enabled,
              p.permissions as plan_permissions, u.reseller_id
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
@@ -458,6 +459,7 @@ router.post('/:id/impersonate', authenticateToken, isResellerOrAdmin, async (req
       hash_id: client.hash_id,
       is_api_allowed: client.is_api_allowed,
       is_proero_enabled: client.is_proero_enabled,
+      is_dinstar_enabled: client.is_dinstar_enabled,
       impersonatedBy: 'superadmin',
       iat: Math.floor(Date.now() / 1000)
     };

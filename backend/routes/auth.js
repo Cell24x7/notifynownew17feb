@@ -251,7 +251,7 @@ router.post('/login', async (req, res) => {
     // Check email or phone with Plan Permissions and User Permissions
     const [rows] = await query(`
       SELECT u.*, p.permissions as plan_permissions, p.name as plan_name, 
-             COALESCE(r.id, u.reseller_id) as actual_reseller_id, u.is_proero_enabled
+             COALESCE(r.id, u.reseller_id) as actual_reseller_id, u.is_proero_enabled, u.is_dinstar_enabled
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
       LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
@@ -339,7 +339,7 @@ router.post('/login', async (req, res) => {
         sms_transactional_price: user.sms_transactional_price,
         sms_service_price: user.sms_service_price,
         is_api_allowed: user.is_api_allowed,
-        is_proero_enabled: user.is_proero_enabled,
+        is_proero_enabled: user.is_proero_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         is_smm_enabled: user.is_smm_enabled
       },
       JWT_SECRET,
@@ -392,7 +392,7 @@ router.post('/login', async (req, res) => {
         sms_transactional_price: user.sms_transactional_price,
         sms_service_price: user.sms_service_price,
         is_api_allowed: user.is_api_allowed,
-        is_proero_enabled: user.is_proero_enabled,
+        is_proero_enabled: user.is_proero_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         is_smm_enabled: user.is_smm_enabled
       }
     });
@@ -478,7 +478,7 @@ router.post('/google', async (req, res) => {
         permissions: compressPermissions(finalPermissions), wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         is_api_allowed: user.is_api_allowed,
-        is_proero_enabled: user.is_proero_enabled,
+        is_proero_enabled: user.is_proero_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         is_smm_enabled: user.is_smm_enabled,
         whatsapp_config_id: user.whatsapp_config_id,
         rcs_config_id: user.rcs_config_id,
@@ -498,7 +498,7 @@ router.post('/google', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressPermissions(finalPermissions), plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled,
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         whatsapp_config_id: user.whatsapp_config_id, rcs_config_id: user.rcs_config_id
       }
     });
@@ -606,7 +606,7 @@ router.post('/linkedin', async (req, res) => {
         permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         is_api_allowed: user.is_api_allowed,
-        is_proero_enabled: user.is_proero_enabled,
+        is_proero_enabled: user.is_proero_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         is_smm_enabled: user.is_smm_enabled,
         whatsapp_config_id: user.whatsapp_config_id,
         rcs_config_id: user.rcs_config_id,
@@ -626,7 +626,7 @@ router.post('/linkedin', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled,
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         whatsapp_config_id: user.whatsapp_config_id, rcs_config_id: user.rcs_config_id
       }
     });
@@ -714,7 +714,7 @@ router.post('/facebook', async (req, res) => {
         permissions: compressed, wallet_balance: user.wallet_balance,
         credits_available: user.credits_available,
         is_api_allowed: user.is_api_allowed,
-        is_proero_enabled: user.is_proero_enabled,
+        is_proero_enabled: user.is_proero_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         is_smm_enabled: user.is_smm_enabled,
         whatsapp_config_id: user.whatsapp_config_id,
         rcs_config_id: user.rcs_config_id,
@@ -734,7 +734,7 @@ router.post('/facebook', async (req, res) => {
       user: {
         id: user.id, name: user.name, email: user.email, role: user.role,
         channels_enabled: user.channels_enabled, permissions: compressed, plan_name: user.plan_name,
-        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled,
+        is_api_allowed: user.is_api_allowed, is_proero_enabled: user.is_proero_enabled, is_smm_enabled: user.is_smm_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
         whatsapp_config_id: user.whatsapp_config_id, rcs_config_id: user.rcs_config_id
       }
     });
