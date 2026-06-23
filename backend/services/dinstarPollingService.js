@@ -49,6 +49,9 @@ const pollDinstarDLRs = async () => {
                 }, { timeout: 10000 });
 
                 const resultData = response.data;
+                if (resultData && resultData.success && resultData.data && resultData.data.result) {
+                    const results = resultData.data.result;
+
                     // Dinstar returns history chronologically. Group by number to get all statuses.
                     const numberHistory = {};
                     for (const res of results) {
