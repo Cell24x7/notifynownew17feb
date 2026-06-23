@@ -174,16 +174,18 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         );
 
         if (isDinstar) {
-            console.log(`📡 [SMS] Sending via Dinstar GSM Gateway: ${gateway.name} | URL: ${gateway.primary_url}`);
+            // Strip any query parameters (like DLR URLs) from the primary URL
+            const baseUrl = gateway.primary_url.split('?')[0];
+            console.log(`📡 [SMS] Sending via Dinstar GSM Gateway: ${gateway.name} | URL: ${baseUrl}`);
             const payload = {
                 text: message,
                 param: [{ number: cleanMobile }],
                 port: [0],
-                encoding: data.isUnicode ? "unicode" : "gsm-7bit",
+                encoding: data.isUnicode ? "unicode" : "ascii",
                 request_status_report: true
             };
 
-            const response = await axios.post(gateway.primary_url, payload, {
+            const response = await axios.post(baseUrl, payload, {
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 15000
             });
