@@ -19,7 +19,7 @@ const pollDinstarDLRs = async () => {
         const [pendingLogs] = await query(`
             SELECT id, recipient AS mobile, message_id 
             FROM message_logs 
-            WHERE status = 'sent' AND channel = 'sms'
+            WHERE LOWER(status) = 'sent' AND (LOWER(channel) = 'sms' OR channel IS NULL OR LOWER(channel) = 'gsm')
             ORDER BY id DESC LIMIT 500
         `);
 
@@ -51,35 +51,37 @@ const pollDinstarDLRs = async () => {
                 const resultData = response.data;
                 if (resultData && resultData.success && resultData.data && resultData.data.result) {
                     const results = resultData.data.result;
+                    
+                    // Dinstar returns history chronologically. Group by number to get the latest status.
+                    const numberStatuses = {};
                     for (const res of results) {
+                        const localNum = res.number.startsWith('91') ? res.number.substring(2) : res.number;
+                        numberStatuses[localNum] = res.status;
+                    }
+
+                    for (const localNum in numberStatuses) {
+                        const finalStatus = numberStatuses[localNum];
                         let newStatus = 'sent';
-                        if (res.status === 'DELIVERED') newStatus = 'delivered';
-                        else if (res.status === 'FAILED' || res.status === 'UNDELIVERED') newStatus = 'failed';
+                        // GSM Gateways often use SENT_OK as the final success state if handset DLR is unavailable
+                        if (finalStatus === 'DELIVERED' || finalStatus === 'SENT_OK') newStatus = 'delivered';
+                        else if (finalStatus === 'FAILED' || finalStatus === 'UNDELIVERED') newStatus = 'failed';
                         
                         if (newStatus !== 'sent') {
-                            const possibleNum1 = res.number;
-                            const possibleNum2 = `91${res.number}`;
+                            const possibleNum1 = localNum;
+                            const possibleNum2 = `91${localNum}`;
 
-                            // Need to get the campaign_id for this log to update campaigns table
-                            const [logRows] = await query(`SELECT campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND status = 'sent'`, [possibleNum1, possibleNum2]);
+                            // Find the specific pending logs for this number to update them accurately
+                            const [logRows] = await query(`SELECT id, campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND LOWER(status) = 'sent'`, [possibleNum1, possibleNum2]);
                             
-                            if (logRows.length > 0) {
-                                // Update message_logs
-                                await query(`
-                                    UPDATE message_logs 
-                                    SET status = ?, delivered_at = NOW() 
-                                    WHERE (recipient = ? OR recipient = ?) AND status = 'sent'
-                                `, [newStatus, possibleNum1, possibleNum2]);
+                            for (const log of logRows) {
+                                // Update message_logs by ID
+                                await query(`UPDATE message_logs SET status = ?, delivered_at = NOW() WHERE id = ?`, [newStatus, log.id]);
 
                                 // Update campaign_queue
-                                await query(`
-                                    UPDATE campaign_queue 
-                                    SET status = ? 
-                                    WHERE (mobile = ? OR mobile = ?) AND status = 'sent'
-                                `, [newStatus, possibleNum1, possibleNum2]);
+                                await query(`UPDATE campaign_queue SET status = ? WHERE (mobile = ? OR mobile = ?) AND LOWER(status) = 'sent'`, [newStatus, possibleNum1, possibleNum2]);
                                 
                                 // Update campaigns table counters
-                                const campaignId = logRows[0].campaign_id;
+                                const campaignId = log.campaign_id;
                                 if (campaignId) {
                                     if (newStatus === 'delivered') {
                                         await query(`UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [campaignId]);
