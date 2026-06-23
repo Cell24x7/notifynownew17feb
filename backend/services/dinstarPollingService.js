@@ -90,7 +90,7 @@ const pollDinstarDLRs = async () => {
                                         
                                         if (newStatus !== 'sent') {
                                             console.log(`[Dinstar Polling] Updating message_logs ID ${log.id} to ${newStatus} (Dinstar status: ${finalStatus})`);
-                                            await query(`UPDATE message_logs SET status = ?, delivered_at = NOW() WHERE id = ?`, [newStatus, log.id]);
+                                            await query(`UPDATE message_logs SET status = ? WHERE id = ?`, [newStatus, log.id]);
 
                                             // Update campaign_queue accurately by finding the oldest pending for this number
                                             const [cqRows] = await query(`SELECT id FROM campaign_queue WHERE (mobile = ? OR mobile = ?) AND LOWER(status) = 'sent' ORDER BY id ASC LIMIT 1`, [possibleNum1, possibleNum2]);
