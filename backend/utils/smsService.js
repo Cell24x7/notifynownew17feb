@@ -179,7 +179,7 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                 text: message,
                 param: [{ number: cleanMobile }],
                 port: [0],
-                encoding: data.isUnicode ? "unicode" : "text",
+                encoding: data.isUnicode ? "unicode" : "gsm-7bit",
                 request_status_report: true
             };
 
