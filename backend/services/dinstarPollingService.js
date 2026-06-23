@@ -17,7 +17,7 @@ const pollDinstarDLRs = async () => {
 
         // Find sent messages that haven't been delivered or failed yet (limit to prevent memory issues)
         const [pendingLogs] = await query(`
-            SELECT id, mobile, message_id 
+            SELECT id, recipient AS mobile, message_id 
             FROM message_logs 
             WHERE status = 'sent' AND channel = 'sms'
             ORDER BY id DESC LIMIT 500
@@ -61,14 +61,14 @@ const pollDinstarDLRs = async () => {
                             const possibleNum2 = `91${res.number}`;
 
                             // Need to get the campaign_id for this log to update campaigns table
-                            const [logRows] = await query(`SELECT campaign_id FROM message_logs WHERE (mobile = ? OR mobile = ?) AND status = 'sent'`, [possibleNum1, possibleNum2]);
+                            const [logRows] = await query(`SELECT campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND status = 'sent'`, [possibleNum1, possibleNum2]);
                             
                             if (logRows.length > 0) {
                                 // Update message_logs
                                 await query(`
                                     UPDATE message_logs 
                                     SET status = ?, delivered_at = NOW() 
-                                    WHERE (mobile = ? OR mobile = ?) AND status = 'sent'
+                                    WHERE (recipient = ? OR recipient = ?) AND status = 'sent'
                                 `, [newStatus, possibleNum1, possibleNum2]);
 
                                 // Update campaign_queue
