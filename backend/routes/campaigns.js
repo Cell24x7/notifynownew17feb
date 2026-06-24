@@ -642,96 +642,25 @@ router.post('/:id/upload-contacts', authenticate, upload.single('file'), async (
         };
 
         if (req.file) {
-            const ext = path.extname(req.file.originalname).toLowerCase();
+            const { csvParserQueue } = require('../queues/csvParserQueue');
             
-            if (ext === '.xlsx' || ext === '.xls') {
-                const workbook = new ExcelJS.Workbook();
-                await workbook.xlsx.readFile(req.file.path);
-                const worksheet = workbook.getWorksheet(1);
-                const headers = [];
+            // Send the job to the BullMQ Background Parser
+            await csvParserQueue.add('parse-csv', {
+                filePath: req.file.path,
+                originalName: req.file.originalname,
+                campaignId: campaignId,
+                userId: userId,
+                channel: channel
+            });
 
-                worksheet.getRow(1).eachCell((cell, colNumber) => {
-                    const val = String(cell.value || '').trim();
-                    if (val) headers[colNumber] = val;
-                });
+            // Set campaign status
+            await query('UPDATE campaigns SET status = "scheduled" WHERE id = ?', [campaignId]);
 
-                const totalRows = worksheet.rowCount;
-                for (let i = 2; i <= totalRows; i++) {
-                    const row = worksheet.getRow(i);
-                    const rowData = {};
-                    let mobile = null;
-
-                    row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-                        const header = headers[colNumber];
-                        if (header) {
-                            rowData[header] = cell.value;
-                            const lowerH = header.toLowerCase().replace(/\s/g, '').replace(/_/g, '');
-                            const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
-                            if (commonKeys.includes(lowerH)) {
-                                const m = String(cell.value || '').replace(/\D/g, '');
-                                if (m.length >= 10) mobile = m;
-                            }
-                        }
-                    });
-
-                    if (!mobile) {
-                       const first = String(row.getCell(1).value || '').replace(/\D/g, '');
-                       if (first.length >= 10) mobile = first;
-                    }
-
-                    if (mobile) {
-                        batch.push({ mobile, variables: rowData });
-                        contactCount++;
-                        if (batch.length >= 1000) {
-                            await processBatch(batch);
-                            batch = [];
-                        }
-                    }
-                }
-            } else {
-                // Sequential CSV Processing (Stream-based)
-                const stream = fs.createReadStream(req.file.path).pipe(csv());
-                for await (const row of stream) {
-                    let mobile = null;
-                    const commonKeys = ['phone', 'mobile', 'number', 'recipient', 'contact', 'destination'];
-                    const rowData = row;
-                    
-                    // Case-insensitive lookup for mobile
-                    const keys = Object.keys(row);
-                    for (const k of keys) {
-                        const lowK = k.toLowerCase().replace(/\s/g, '').replace(/_/g, '');
-                        if (commonKeys.includes(lowK)) {
-                            const m = String(row[k] || '').replace(/\D/g, '');
-                            if (m.length >= 10) { mobile = m; break; }
-                        }
-                    }
-
-                    if (!mobile) {
-                        const first = String(Object.values(row)[0] || '').replace(/\D/g, '');
-                        if (first.length >= 10) mobile = first;
-                    }
-
-                    if (mobile) {
-                        batch.push({ mobile, variables: rowData });
-                        contactCount++;
-                        if (batch.length >= 1000) {
-                            await processBatch(batch);
-                            batch = [];
-                        }
-                    }
-                }
-            }
-
-            if (batch.length > 0) await processBatch(batch);
-            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-
-            await query('UPDATE campaigns SET recipient_count = COALESCE(recipient_count, 0) + ? WHERE id = ?', [contactCount, campaignId]);
-            
-            // Trigger Queue Immediately
-            const { processQueue } = require('../services/queueService');
-            processQueue().catch(e => console.error('Auto-trigger queue failed:', e.message));
-
-            return res.json({ success: true, message: `Uploaded ${contactCount} contacts`, count: contactCount });
+            return res.json({ 
+                success: true, 
+                message: 'Contacts are being processed in the background. Your campaign will start automatically once processing completes.',
+                count: 0 // Will be updated by the worker
+            });
 
         } else if (req.body.manualNumbers) {
             let numbers = [];

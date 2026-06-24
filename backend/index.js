@@ -257,8 +257,9 @@ app.get('/api/debug-logs', async (req, res, next) => {
     }
 });
 
-// High-Volume Queue Processor (BullMQ 1Cr+ Engine)
+// Start Queues & Workers
 require('./queues/campaignWorker');
+require('./queues/csvParserWorker');
 
 // Classic Queue Processor (Backup/SQL)
 const { processQueue, processApiQueue } = require('./services/queueService');
