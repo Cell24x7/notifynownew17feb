@@ -150,7 +150,11 @@ app.use('/api/dlt-templates', require('./routes/dltTemplates'));
 app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/logs', require('./routes/logs'));
-app.use('/api/webhooks', require('./routes/webhooks'));
+const webhooksRouter = require('./routes/webhooks');
+if (typeof webhooksRouter.setIo === 'function') {
+  webhooksRouter.setIo(io);
+}
+app.use('/api/webhooks', webhooksRouter);
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/whatsapp-configs', require('./routes/whatsappConfigs'));
 app.use('/api/whatsapp-pinbot', require('./routes/whatsappPinbot'));

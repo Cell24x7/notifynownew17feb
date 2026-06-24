@@ -1,5 +1,5 @@
 const { Worker } = require('bullmq');
-const { query } = require('../utils/db');
+const { query } = require('../config/db');
 const { redisConnection } = require('./csvParserQueue');
 const fs = require('fs');
 const path = require('path');

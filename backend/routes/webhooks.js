@@ -8,6 +8,10 @@ const COUNT_CACHE_TTL = 60000; // 60 seconds
 const { triggerChatflow } = require('../services/chatflowService');
 const { processAutomation } = require('../services/automationService');
 const { downloadWAMedia } = require('../utils/whatsappMedia');
+const pLimit = require('p-limit').default;
+
+// Prevent MySQL deadlocks and row lock timeouts by throttling concurrent queries
+const webhookDbLimiter = pLimit(20);
 
 // SMS Gateway DLR Error Code Mapping
 const SMS_ERROR_CODES = {
@@ -151,7 +155,7 @@ router.post('/rcs/callback', async (req, res) => {
 
         const io = req.io; // Capture local reference to req.io
 
-        setImmediate(async () => {
+        setImmediate(() => { webhookDbLimiter(async () => {
             try {
                 // 1. DELIVERY REPORTS (DLR)
                 if (payload.status && (payload.messageId || (payload.message && payload.message.name))) {
@@ -273,7 +277,7 @@ router.post('/rcs/callback', async (req, res) => {
             } catch (bgErr) {
                 console.error('❌ RCS Callback Background Processing Error:', bgErr.message);
             }
-        });
+        }).catch(console.error); });
     } catch (error) {
         console.error('❌ RCS Callback Error:', error.message);
         if (!res.headersSent) {
@@ -317,7 +321,7 @@ router.post('/dotgo', async (req, res) => {
 
         const io = req.io; // Capture local reference to req.io
 
-        setImmediate(async () => {
+        setImmediate(() => { webhookDbLimiter(async () => {
             try {
                 // 1. Decode Base64 data
                 let decodedData = {};
@@ -693,7 +697,7 @@ router.post('/dotgo', async (req, res) => {
             } catch (bgErr) {
                 console.error('❌ Dotgo Background Processing Error:', bgErr.message);
             }
-        });
+        }).catch(console.error); });
     } catch (error) {
         console.error('❌ Dotgo Webhook Error:', error.message);
         if (!res.headersSent) {
@@ -1084,7 +1088,7 @@ router.post('/whatsapp/callback', async (req, res) => {
 
             const io = req.io; // Capture local reference to req.io
 
-            setImmediate(async () => {
+            setImmediate(() => { webhookDbLimiter(async () => {
                 try {
                     for (let entry of payload.entry) {
                         for (let change of entry.changes) {
@@ -1347,7 +1351,7 @@ router.post('/whatsapp/callback', async (req, res) => {
                 } catch (bgErr) {
                     console.error('❌ WhatsApp Webhook Background Processing Error:', bgErr.message);
                 }
-            });
+            }).catch(console.error); });
         } else {
             res.sendStatus(404);
         }
@@ -1369,6 +1373,8 @@ router.post('/whatsapp/callback', async (req, res) => {
 // GET or POST /api/webhooks/sms/callback
 // SMS Delivery Reports (DLR) from various gateways
 const handleSmsCallback = async (req, res) => {
+    res.status(200).send("OK");
+    setImmediate(() => { webhookDbLimiter(async () => {
     try {
         let payload = { ...req.query, ...req.body };
 
@@ -1618,12 +1624,10 @@ const handleSmsCallback = async (req, res) => {
                 console.error('❌ Failed to update SMS DLR in DB:', dbErr.message);
             }
         }
-
-        res.status(200).send("OK");
     } catch (error) {
         console.error('❌ Global SMS Callback Error:', error.message);
-        res.status(200).send("ERROR");
     }
+    }).catch(console.error); });
 };
 
 router.get('/sms/callback', handleSmsCallback);
