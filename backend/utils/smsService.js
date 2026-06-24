@@ -88,6 +88,8 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
         let gateway = null;
         const userId = options.userId || '0';
 
+        const isCustomGsmRequest = options.templateId === 'GSM_CUSTOM' || options.templateId === 'custom';
+
         // 1. Try to fetch user's assigned gateway and DLT defaults
         if (userId && userId !== '0') {
             const [users] = await query('SELECT sms_gateway_id, pe_id, hash_id FROM users WHERE id = ?', [userId]);
@@ -105,12 +107,32 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             }
         }
 
-        // 2. Fallback to first active gateway if no user-specific gateway
-        if (!gateway) {
-            const [gateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" ORDER BY id ASC LIMIT 1');
-            if (gateways.length > 0) {
-                gateway = gateways[0];
-                // console.log(`[SMS] Using global default gateway "${gateway.name}"`);
+        // 2. SMART ROUTING: Override gateway if it mismatches the campaign type
+        if (isCustomGsmRequest) {
+            // Must use Dinstar GSM Gateway
+            const isAssignedDinstar = gateway && ((gateway.name || '').toLowerCase().includes('dinstar') || (gateway.primary_url || '').includes('dinstar'));
+            if (!isAssignedDinstar) {
+                const [dinstarGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%") ORDER BY id ASC LIMIT 1');
+                if (dinstarGateways.length > 0) {
+                    gateway = dinstarGateways[0];
+                } else {
+                    throw new Error("No active Dinstar GSM gateway found for custom message.");
+                }
+            }
+        } else {
+            // Must use Official DLT Gateway (Not Dinstar)
+            const isAssignedDinstar = gateway && ((gateway.name || '').toLowerCase().includes('dinstar') || (gateway.primary_url || '').includes('dinstar'));
+            if (isAssignedDinstar || !gateway) {
+                const [officialGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" ORDER BY id ASC LIMIT 1');
+                if (officialGateways.length > 0) {
+                    gateway = officialGateways[0];
+                } else if (!gateway) {
+                    // Absolute fallback if no official gateway exists
+                    const [anyGateway] = await query('SELECT * FROM sms_gateways WHERE status = "active" ORDER BY id ASC LIMIT 1');
+                    if (anyGateway.length > 0) {
+                        gateway = anyGateway[0];
+                    }
+                }
             }
         }
 
