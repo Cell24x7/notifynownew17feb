@@ -16,12 +16,21 @@ const pollDinstarDLRs = async () => {
         }
 
         // Find sent messages that haven't been delivered or failed yet (limit to prevent memory issues)
-        const [pendingLogs] = await query(`
+        const [pendingLogs1] = await query(`
             SELECT id, recipient AS mobile, message_id 
             FROM message_logs 
             WHERE status = 'sent' AND (channel = 'sms' OR channel = 'SMS' OR channel IS NULL OR channel = 'gsm' OR channel = 'GSM')
-            ORDER BY id DESC LIMIT 500
+            ORDER BY id DESC LIMIT 250
         `);
+
+        const [pendingLogs2] = await query(`
+            SELECT id, recipient AS mobile, message_id 
+            FROM api_message_logs 
+            WHERE status = 'sent' AND (channel = 'sms' OR channel = 'SMS' OR channel IS NULL OR channel = 'gsm' OR channel = 'GSM')
+            ORDER BY id DESC LIMIT 250
+        `);
+
+        const pendingLogs = [...pendingLogs1, ...pendingLogs2];
 
         if (pendingLogs.length === 0) {
             isPolling = false;
@@ -68,18 +77,21 @@ const pollDinstarDLRs = async () => {
 
                         // Find the specific pending logs for this number to update them accurately (OLDEST first)
                         try {
-                            const [logRows] = await query(`SELECT id, campaign_id FROM message_logs WHERE (recipient = ? OR recipient = ?) AND status = 'sent' ORDER BY id ASC`, [possibleNum1, possibleNum2]);
+                            const [logRows] = await query(`SELECT id, campaign_id, created_at, 'message_logs' as table_name FROM message_logs WHERE (recipient = ? OR recipient = ?) AND status = 'sent'`, [possibleNum1, possibleNum2]);
+                            const [apiLogRows] = await query(`SELECT id, campaign_id, COALESCE(created_at, send_time) as created_at, 'api_message_logs' as table_name FROM api_message_logs WHERE (recipient = ? OR recipient = ?) AND status = 'sent'`, [possibleNum1, possibleNum2]);
                             
-                            if (logRows.length > 0) {
-                                console.log(`[Dinstar Polling] Found ${logRows.length} pending logs for ${localNum}. Dinstar has ${history.length} total history records.`);
+                            const combinedRows = [...logRows, ...apiLogRows].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+                            if (combinedRows.length > 0) {
+                                console.log(`[Dinstar Polling] Found ${combinedRows.length} pending logs for ${localNum}. Dinstar has ${history.length} total history records.`);
                                 
                                 // Map the pending logs to the LAST N history records
                                 // Dinstar returns recent history, so it should map to the NEWEST pending logs.
-                                let logIndex = Math.max(0, logRows.length - history.length);
-                                let historyIndex = Math.max(0, history.length - logRows.length);
+                                let logIndex = Math.max(0, combinedRows.length - history.length);
+                                let historyIndex = Math.max(0, history.length - combinedRows.length);
                                 
-                                for (; logIndex < logRows.length; logIndex++, historyIndex++) {
-                                    const log = logRows[logIndex];
+                                for (; logIndex < combinedRows.length; logIndex++, historyIndex++) {
+                                    const log = combinedRows[logIndex];
                                     if (historyIndex < history.length) {
                                         const finalStatus = history[historyIndex];
 
@@ -90,21 +102,23 @@ const pollDinstarDLRs = async () => {
                                         // If 'SENDING', newStatus remains 'sent'
                                         
                                         if (newStatus !== 'sent') {
-                                            console.log(`[Dinstar Polling] Updating message_logs ID ${log.id} to ${newStatus} (Dinstar status: ${finalStatus})`);
-                                            await query(`UPDATE message_logs SET status = ? WHERE id = ?`, [newStatus, log.id]);
+                                            console.log(`[Dinstar Polling] Updating ${log.table_name} ID ${log.id} to ${newStatus} (Dinstar status: ${finalStatus})`);
+                                            await query(`UPDATE ${log.table_name} SET status = ? WHERE id = ?`, [newStatus, log.id]);
 
-                                            // Update campaign_queue accurately by finding the oldest pending for this number
-                                            const [cqRows] = await query(`SELECT id FROM campaign_queue WHERE (mobile = ? OR mobile = ?) AND status = 'sent' ORDER BY id ASC LIMIT 1`, [possibleNum1, possibleNum2]);
-                                            if (cqRows.length > 0) {
-                                                await query(`UPDATE campaign_queue SET status = ? WHERE id = ?`, [newStatus, cqRows[0].id]);
-                                            }
-                                            
-                                            const campaignId = log.campaign_id;
-                                            if (campaignId) {
-                                                if (newStatus === 'delivered') {
-                                                    await query(`UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [campaignId]);
-                                                } else if (newStatus === 'failed') {
-                                                    await query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?`, [campaignId]);
+                                            if (log.table_name === 'message_logs') {
+                                                // Update campaign_queue accurately by finding the oldest pending for this number
+                                                const [cqRows] = await query(`SELECT id FROM campaign_queue WHERE (mobile = ? OR mobile = ?) AND status = 'sent' ORDER BY id ASC LIMIT 1`, [possibleNum1, possibleNum2]);
+                                                if (cqRows.length > 0) {
+                                                    await query(`UPDATE campaign_queue SET status = ? WHERE id = ?`, [newStatus, cqRows[0].id]);
+                                                }
+                                                
+                                                const campaignId = log.campaign_id;
+                                                if (campaignId) {
+                                                    if (newStatus === 'delivered') {
+                                                        await query(`UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [campaignId]);
+                                                    } else if (newStatus === 'failed') {
+                                                        await query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?`, [campaignId]);
+                                                    }
                                                 }
                                             }
                                         }
