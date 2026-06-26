@@ -230,7 +230,7 @@ const handleSendSms = async (req, res) => {
         // 5. Log to API usage
         const finalMsgId = smsResult.messageId;
         await query(
-            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
+            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, created_at, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)',
             [req.user.id, 'API_V1', 'Direct SMS API', finalTemplateId || 'Direct SMS', finalMsgId, mobile, 'sent', 'SMS']
         );
 
@@ -383,7 +383,7 @@ const handleSendOtp = async (req, res) => {
         // Log to API usage
         const finalMsgId = smsResult.messageId;
         await query(
-            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)',
+            'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, created_at, send_time, channel) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)',
             [req.user.id, 'API_OTP_V1', 'OTP SMS API', finalTemplateId || 'OTP SMS', finalMsgId, cleanMobile, 'sent', 'SMS']
         );
 
