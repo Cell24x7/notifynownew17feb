@@ -51,11 +51,18 @@ const pollDinstarDLRs = async () => {
             // Dinstar gateway might apply translation rules and save history with '91'.
             // Query both 10-digit and 12-digit formats just to be safe.
             const formattedChunk = [];
-            chunk.forEach(num => {
-                const localNum = (num.length === 12 && num.startsWith('91')) ? num.substring(2) : num;
+            chunk.forEach(rawNum => {
+                if (!rawNum) return;
+                // Clean the number to remove spaces, +, -, x, etc.
+                const cleanNum = String(rawNum).replace(/[^0-9]/g, '');
+                if (!cleanNum) return; // Skip if no digits left
+                
+                const localNum = (cleanNum.length === 12 && cleanNum.startsWith('91')) ? cleanNum.substring(2) : cleanNum;
                 if (!formattedChunk.includes(localNum)) formattedChunk.push(localNum);
                 if (!formattedChunk.includes(`91${localNum}`)) formattedChunk.push(`91${localNum}`);
             });
+
+            if (formattedChunk.length === 0) continue;
 
             try {
                 const response = await axios.post(baseUrl, {
