@@ -191,10 +191,10 @@ const handleSendSms = async (req, res) => {
             }
         }
 
-        // 2. Final Guard: In India, TemplateId and PEID are mandatory for DLT gateways
+        // 2. Final Guard / Routing: If no DLT template matched, treat as Custom GSM
         if (!finalTemplateId || !finalPeId) {
-            console.warn(`[SMS-API] Send attempted without DLT metadata. Resolving might have failed.`);
-            // We still proceed, but the gateway might reject it.
+            console.warn(`[SMS-API] No DLT metadata matched. Routing as GSM_CUSTOM.`);
+            finalTemplateId = 'GSM_CUSTOM';
         }
 
         // 3. Credit Check & Deduction
