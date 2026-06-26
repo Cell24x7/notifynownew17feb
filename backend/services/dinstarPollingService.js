@@ -44,12 +44,18 @@ const pollDinstarDLRs = async () => {
         // Extract unique numbers to query
         const numbersToQuery = [...new Set(pendingLogs.map(log => log.mobile))];
         
-        const chunkSize = 30; // Dinstar max limit is 32 items per query
+        const chunkSize = 15; // Dinstar max limit is 32 items per query. Reduced to 15 since we double the numbers.
         for (let i = 0; i < numbersToQuery.length; i += chunkSize) {
             const chunk = numbersToQuery.slice(i, i + chunkSize);
             
-            // Dinstar uses local format (strip 91 if length is 12)
-            const formattedChunk = chunk.map(num => (num.length === 12 && num.startsWith('91')) ? num.substring(2) : num);
+            // Dinstar gateway might apply translation rules and save history with '91'.
+            // Query both 10-digit and 12-digit formats just to be safe.
+            const formattedChunk = [];
+            chunk.forEach(num => {
+                const localNum = (num.length === 12 && num.startsWith('91')) ? num.substring(2) : num;
+                if (!formattedChunk.includes(localNum)) formattedChunk.push(localNum);
+                if (!formattedChunk.includes(`91${localNum}`)) formattedChunk.push(`91${localNum}`);
+            });
 
             try {
                 const response = await axios.post(baseUrl, {
