@@ -140,9 +140,9 @@ router.post('/', async (req, res) => {
       ];
 
       const [userResult] = await query(`
-            INSERT INTO users (name, email, password, role, plan_id, status, wallet_balance, credits_available, permissions)
-            VALUES (?, ?, ?, 'reseller', ?, ?, ?, ?, ?)
-        `, [name, email, hashedPassword, plan_id, status, credits_available, credits_available, JSON.stringify(DEFAULT_RESELLER_PERMISSIONS)]);
+            INSERT INTO users (name, email, password, role, plan_id, status, wallet_balance, credits_available, permissions, channels_enabled)
+            VALUES (?, ?, ?, 'reseller', ?, ?, ?, ?, ?, ?)
+        `, [name, email, hashedPassword, plan_id, status, credits_available, credits_available, JSON.stringify(DEFAULT_RESELLER_PERMISSIONS), channelsJson]);
 
       userId = userResult.insertId;
       console.log('Created User for Reseller:', userId);
@@ -366,6 +366,11 @@ router.put('/:id', authenticate, async (req, res) => {
           if (email) { userFields.push('email = ?'); userValues.push(email); }
           if (status) { userFields.push('status = ?'); userValues.push(status); }
           if (plan_id) { userFields.push('plan_id = ?'); userValues.push(plan_id); }
+          if (channels_enabled !== undefined) {
+            const channelsJson = Array.isArray(channels_enabled) ? JSON.stringify(channels_enabled) : channels_enabled;
+            userFields.push('channels_enabled = ?');
+            userValues.push(channelsJson);
+          }
 
           if (credits_available !== undefined) {
             const [oldUser] = await query('SELECT credits_available FROM users WHERE id = ?', [existingUser[0].id]);
@@ -411,10 +416,14 @@ router.put('/:id', authenticate, async (req, res) => {
             // Check if new email is already taken by another user (edge case)
             const [emailCheck] = await query('SELECT id FROM users WHERE email = ?', [newEmail]);
             if (emailCheck.length === 0) {
+              const channelsJson = channels_enabled !== undefined 
+                ? (Array.isArray(channels_enabled) ? JSON.stringify(channels_enabled) : channels_enabled)
+                : (resellerData.channels_enabled || '[]');
+
               await query(`
-                            INSERT INTO users (name, email, password, role, plan_id, status)
-                            VALUES (?, ?, ?, 'reseller', ?, ?)
-                         `, [newName, newEmail, hashedPassword, newPlanId, newStatus]);
+                            INSERT INTO users (name, email, password, role, plan_id, status, channels_enabled)
+                            VALUES (?, ?, ?, 'reseller', ?, ?, ?)
+                         `, [newName, newEmail, hashedPassword, newPlanId, newStatus, channelsJson]);
               console.log('Created missing User account for Reseller');
             } else {
               console.log('Cannot create user: Email already exists (but not linked? confusing state).');
@@ -526,6 +535,32 @@ router.post('/:id/impersonate', authenticate, async (req, res) => {
   } catch (err) {
     console.error('IMPERSONATE RESELLER ERROR:', err.message);
     res.status(500).json({ success: false, message: 'Failed to impersonate reseller' });
+  }
+});
+
+// DELETE reseller (Admin only)
+router.delete('/:id', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+  }
+  const resellerId = req.params.id;
+  try {
+    const [resellers] = await query('SELECT email FROM resellers WHERE id = ?', [resellerId]);
+    if (resellers.length === 0) {
+      return res.status(404).json({ success: false, message: 'Reseller not found' });
+    }
+    const resellerEmail = resellers[0].email;
+
+    // Delete reseller profile
+    await query('DELETE FROM resellers WHERE id = ?', [resellerId]);
+    
+    // Delete associated user account
+    await query('DELETE FROM users WHERE email = ? AND role = "reseller"', [resellerEmail]);
+
+    res.json({ success: true, message: 'Reseller deleted successfully' });
+  } catch (err) {
+    console.error('DELETE RESELLER ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to delete reseller: ' + err.message });
   }
 });
 
