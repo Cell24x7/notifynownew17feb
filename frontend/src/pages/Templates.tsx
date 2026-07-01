@@ -982,12 +982,22 @@ export default function Templates() {
                     { id: 'sms', name: 'SMS', icon: Smartphone, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
                     { id: 'email', name: 'Email', icon: Mail, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10' },
                     { id: 'voicebot', name: 'AI VoiceBot', icon: Mic, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10' },
-                  ].map((chan) => (
+                  ]
+                  .filter(chan => {
+                     const enabled = (user?.channels_enabled || []).map((c: string) => c.toLowerCase());
+                     return enabled.includes(chan.id);
+                  })
+                  .map((chan) => (
                     <button key={chan.id} onClick={() => { setNewTemplate({ ...newTemplate, channel: chan.id as any }); setTemplateStep('form'); }} className="group flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-border bg-card hover:border-primary transition-all">
                         <div className={cn("p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-2 sm:mb-4", chan.bg)}><chan.icon className={cn("h-6 w-6 sm:h-8 sm:w-8", chan.color)} /></div>
                         <span className="font-bold text-sm sm:text-base">{chan.name}</span>
                     </button>
                   ))}
+                  {((user?.channels_enabled || []).length === 0) && (
+                     <div className="col-span-2 p-8 border-2 border-dashed rounded-lg text-center bg-muted/30">
+                        <p className="text-muted-foreground">No channels active in your profile.</p>
+                     </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
