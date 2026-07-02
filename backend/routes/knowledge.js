@@ -5,7 +5,7 @@ const authenticate = require('../middleware/authMiddleware');
 const { getGeminiResponse } = require('../utils/geminiHelper');
 
 // New AI Chat Endpoint (Safe Integration)
-router.post('/ai/chat', async (req, res) => {
+router.post('/ai/chat', authenticate, async (req, res) => {
     try {
         const { message } = req.body;
         if (!message) return res.status(400).json({ success: false, message: 'Message required' });
