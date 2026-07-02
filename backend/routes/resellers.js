@@ -82,7 +82,10 @@ router.get('/whitelabel', async (req, res) => {
 });
 
 // ADD reseller
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+  }
   console.log('RESELLER POST BODY:', req.body);
   const {
     name, email, phone, domain, api_base_url, commission_percent, status, plan_id,
