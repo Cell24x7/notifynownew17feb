@@ -271,11 +271,18 @@ router.post('/login', async (req, res) => {
 
     if (!user || !match) return res.status(401).json({ success: false, message: 'Invalid credentials' });
     
-    // Check if account is suspended
+    // Check if account is suspended or pending
     if (user.status === 'suspended') {
       return res.status(403).json({ 
         success: false, 
         message: 'Your account has been suspended. Please contact support.' 
+      });
+    }
+
+    if (user.status === 'pending') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Your account is pending verification or approval. Please verify your account or contact support.' 
       });
     }
 
