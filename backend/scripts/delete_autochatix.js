@@ -1,4 +1,8 @@
-require('dotenv').config({ path: __dirname + '/../.env' });
+const fs = require('fs');
+const envPath = fs.existsSync(__dirname + '/../.env.production') 
+  ? __dirname + '/../.env.production' 
+  : __dirname + '/../.env';
+require('dotenv').config({ path: envPath });
 const mysql = require('mysql2/promise');
 
 async function deleteUser() {
