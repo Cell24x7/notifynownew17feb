@@ -1,5 +1,6 @@
 const express = require('express');
 const { query } = require('../config/db');
+const authenticate = require('../middleware/authMiddleware');
 const router = express.Router();
 
 /**
@@ -22,7 +23,7 @@ router.get('/', async (req, res) => {
  * POST /api/feedbacks
  * Submit new feedback
  */
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
         const { name, designation, company, rating, message } = req.body;
 

@@ -3,6 +3,7 @@ const express = require('express');
 const { z } = require('zod');
 const { query } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const authenticate = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -95,7 +96,10 @@ router.get('/', async (req, res) => {
 });
 
 // CREATE new plan
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const data = planSchema.parse(req.body);
     const id = uuidv4();
@@ -137,7 +141,10 @@ router.post('/', async (req, res) => {
 });
 
 // UPDATE plan
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const { id } = req.params;
     const data = planSchema.parse(req.body);
@@ -179,7 +186,10 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE plan
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const { id } = req.params;
     const [result] = await query('DELETE FROM plans WHERE id = ?', [id]);
@@ -196,7 +206,10 @@ router.delete('/:id', async (req, res) => {
 });
 
 // TOGGLE plan status
-router.patch('/:id/toggle', async (req, res) => {
+router.patch('/:id/toggle', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const { id } = req.params;
     const [rows] = await query('SELECT status FROM plans WHERE id = ?', [id]);

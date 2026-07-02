@@ -2,7 +2,19 @@
 
 const express = require('express');
 const mysql = require('mysql2/promise');
+const authenticate = require('../middleware/authMiddleware');
 const router = express.Router();
+
+// Apply authentication to ALL routes in this file
+router.use(authenticate);
+
+// Middleware to check admin role for modifying operations
+const checkAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+  }
+  next();
+};
 
 require('dotenv').config();
 
@@ -54,7 +66,7 @@ router.get('/vmns', async (req, res) => {
   }
 });
 
-router.post('/vmns', async (req, res) => {
+router.post('/vmns', checkAdmin, async (req, res) => {
   const { number, type, userId, status } = req.body;
 
   if (!number || !type || !status) {
@@ -73,7 +85,7 @@ router.post('/vmns', async (req, res) => {
   }
 });
 
-router.put('/vmns/:id', async (req, res) => {
+router.put('/vmns/:id', checkAdmin, async (req, res) => {
   const { id } = req.params;
   const { number, type, userId, status } = req.body;
 
@@ -92,7 +104,7 @@ router.put('/vmns/:id', async (req, res) => {
   }
 });
 
-router.delete('/vmns/:id', async (req, res) => {
+router.delete('/vmns/:id', checkAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await pool.query('DELETE FROM vmns WHERE id = ?', [id]);
@@ -130,7 +142,7 @@ router.get('/msisdns', async (req, res) => {
   }
 });
 
-router.post('/msisdns', async (req, res) => {
+router.post('/msisdns', checkAdmin, async (req, res) => {
   const { msisdn, type, userId, reason } = req.body;
 
   if (!msisdn || !type || !reason) {
@@ -149,7 +161,7 @@ router.post('/msisdns', async (req, res) => {
   }
 });
 
-router.post('/msisdns/bulk', async (req, res) => {
+router.post('/msisdns/bulk', checkAdmin, async (req, res) => {
   const { msisdns } = req.body; // expect array of strings
 
   if (!Array.isArray(msisdns) || msisdns.length === 0) {
@@ -169,7 +181,7 @@ router.post('/msisdns/bulk', async (req, res) => {
   }
 });
 
-router.put('/msisdns/:id', async (req, res) => {
+router.put('/msisdns/:id', checkAdmin, async (req, res) => {
   const { id } = req.params;
   const { msisdn, type, userId, reason } = req.body;
 
@@ -188,7 +200,7 @@ router.put('/msisdns/:id', async (req, res) => {
   }
 });
 
-router.delete('/msisdns/:id', async (req, res) => {
+router.delete('/msisdns/:id', checkAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await pool.query('DELETE FROM msisdns WHERE id = ?', [id]);
@@ -226,7 +238,7 @@ router.get('/senders', async (req, res) => {
   }
 });
 
-router.post('/senders', async (req, res) => {
+router.post('/senders', checkAdmin, async (req, res) => {
   const { senderId, type, userId, status } = req.body;
 
   if (!senderId || !type || !status) {
@@ -245,7 +257,7 @@ router.post('/senders', async (req, res) => {
   }
 });
 
-router.put('/senders/:id', async (req, res) => {
+router.put('/senders/:id', checkAdmin, async (req, res) => {
   const { id } = req.params;
   const { senderId, type, userId, status } = req.body;
 
@@ -264,7 +276,7 @@ router.put('/senders/:id', async (req, res) => {
   }
 });
 
-router.delete('/senders/:id', async (req, res) => {
+router.delete('/senders/:id', checkAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await pool.query('DELETE FROM senders WHERE id = ?', [id]);

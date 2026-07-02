@@ -2,6 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/db');
+const authenticate = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -17,7 +18,10 @@ const vendorSchema = z.object({
 });
 
 /// GET all vendors (safe version)
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const [vendors] = await query(`
       SELECT 
@@ -54,7 +58,10 @@ router.get('/', async (req, res) => {
 
 
 // ADD new vendor
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const data = vendorSchema.parse(req.body);
     const id = uuidv4();
@@ -86,7 +93,10 @@ router.post('/', async (req, res) => {
 });
 
 // UPDATE vendor
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const { id } = req.params;
     const data = vendorSchema.parse(req.body);
@@ -122,7 +132,10 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE vendor
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const { id } = req.params;
 
@@ -143,7 +156,10 @@ router.delete('/:id', async (req, res) => {
 });
 
 // GET all vendor-user mappings
-router.get('/mappings', async (req, res) => {
+router.get('/mappings', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const [mappings] = await query(`
       SELECT 
@@ -160,7 +176,10 @@ router.get('/mappings', async (req, res) => {
 });
 
 // SAVE/UPDATE vendor-user mappings (replace all for a vendor)
-router.post('/mappings', async (req, res) => {
+router.post('/mappings', authenticate, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
   try {
     const { vendor_id, user_ids } = req.body;
 

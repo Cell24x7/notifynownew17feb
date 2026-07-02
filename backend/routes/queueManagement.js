@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { campaignQueue } = require('../queues/campaignQueue');
-// We will use existing auth middleware logic (guessing based on common patterns)
-// Assuming authenticateToken exists in the project
+const authenticate = require('../middleware/authMiddleware');
 
-router.get('/status', async (req, res) => {
+router.get('/status', authenticate, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
     try {
         const counts = await campaignQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed');
         
@@ -41,7 +43,10 @@ router.get('/status', async (req, res) => {
 });
 
 // Control: Pause/Resume the engine
-router.post('/control', async (req, res) => {
+router.post('/control', authenticate, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
     const { action } = req.body;
     try {
         if (action === 'pause') await campaignQueue.pause();
