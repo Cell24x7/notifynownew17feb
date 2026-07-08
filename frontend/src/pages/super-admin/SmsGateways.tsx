@@ -415,7 +415,10 @@ export default function SmsGateways() {
                   <TableBody>
                     {assignments.map((user: any) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {user.name}
+                          {user.role && <span className="ml-2 text-[10px] uppercase bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{user.role}</span>}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">{user.email}</TableCell>
                         <TableCell>
                           {user.gateway_name ? (

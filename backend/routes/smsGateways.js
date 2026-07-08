@@ -61,11 +61,11 @@ router.post('/assign', authenticate, requireAdmin, async (req, res) => {
 router.get('/assignments/list', authenticate, requireAdmin, async (req, res) => {
     try {
         const [users] = await query(`
-            SELECT u.id, u.name, u.email, u.sms_gateway_id, sg.name as gateway_name
+            SELECT u.id, u.name, u.email, u.sms_gateway_id, sg.name as gateway_name, u.role
             FROM users u
             LEFT JOIN sms_gateways sg ON u.sms_gateway_id = sg.id
-            WHERE u.role IN ('client', 'user')
-            ORDER BY u.name
+            WHERE u.role IN ('client', 'user', 'reseller')
+            ORDER BY u.role, u.name
         `);
         res.json({ success: true, data: users });
     } catch (error) {
