@@ -260,8 +260,14 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             params.append('message', message);
 
             try {
+                // Use token from dashboard if saved, otherwise use the hardcoded one provided by client
+                const nukeToken = gateway.api_key || gateway.password || "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODM1MDcyMDYsInZlciI6MiwiZGF0YSI6eyJ1c2VybmFtZSI6ImNlbGwyNHg3IiwibmFtZSI6ImNlbGwyNHg3In19.OpnWZbZFh5hq9_OGDD4n-biElZr5PqHNai4NINUsLaw";
+                
                 const response = await axios.post(baseUrl, params, {
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Bearer ${nukeToken}`
+                    },
                     timeout: 15000
                 });
                 
