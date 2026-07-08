@@ -116,11 +116,19 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             );
             
             if (!isAssignedCustomGw) {
-                const [customGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY id ASC LIMIT 1');
-                if (customGateways.length > 0) {
-                    gateway = customGateways[0];
+                // Check if reseller owns a custom gateway
+                const [ownedCustom] = await query('SELECT * FROM sms_gateways WHERE reseller_id = ? AND status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY id ASC LIMIT 1', [userId]);
+                
+                if (ownedCustom.length > 0) {
+                    gateway = ownedCustom[0];
                 } else {
-                    throw new Error("No active Dinstar or Nuke GSM gateway found for custom message.");
+                    // Fallback to global custom gateway
+                    const [customGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY id ASC LIMIT 1');
+                    if (customGateways.length > 0) {
+                        gateway = customGateways[0];
+                    } else {
+                        throw new Error("No active Dinstar or Nuke GSM gateway found for custom message.");
+                    }
                 }
             }
         } else {
@@ -130,14 +138,22 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                 (gateway.name && gateway.name.toLowerCase().includes('nuke')) || (gateway.primary_url && gateway.primary_url.includes('nuke.co.in'))
             );
             if (isAssignedCustomGw || !gateway) {
-                const [officialGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" AND LOWER(name) NOT LIKE "%nuke%" AND primary_url NOT LIKE "%nuke.co.in%" ORDER BY id ASC LIMIT 1');
-                if (officialGateways.length > 0) {
-                    gateway = officialGateways[0];
-                } else if (!gateway) {
-                    // Absolute fallback if no official gateway exists
-                    const [anyGateway] = await query('SELECT * FROM sms_gateways WHERE status = "active" ORDER BY id ASC LIMIT 1');
-                    if (anyGateway.length > 0) {
-                        gateway = anyGateway[0];
+                // Check if reseller owns an official gateway
+                const [ownedOfficial] = await query('SELECT * FROM sms_gateways WHERE reseller_id = ? AND status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" AND LOWER(name) NOT LIKE "%nuke%" AND primary_url NOT LIKE "%nuke.co.in%" ORDER BY id ASC LIMIT 1', [userId]);
+                
+                if (ownedOfficial.length > 0) {
+                    gateway = ownedOfficial[0];
+                } else {
+                    // Fallback to global official gateway
+                    const [officialGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" AND LOWER(name) NOT LIKE "%nuke%" AND primary_url NOT LIKE "%nuke.co.in%" ORDER BY id ASC LIMIT 1');
+                    if (officialGateways.length > 0) {
+                        gateway = officialGateways[0];
+                    } else if (!gateway) {
+                        // Absolute fallback if no official gateway exists
+                        const [anyGateway] = await query('SELECT * FROM sms_gateways WHERE status = "active" ORDER BY id ASC LIMIT 1');
+                        if (anyGateway.length > 0) {
+                            gateway = anyGateway[0];
+                        }
                     }
                 }
             }
