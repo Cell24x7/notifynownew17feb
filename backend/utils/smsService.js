@@ -109,21 +109,28 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
 
         // 2. SMART ROUTING: Override gateway if it mismatches the campaign type
         if (isCustomGsmRequest) {
-            // Must use Dinstar GSM Gateway
-            const isAssignedDinstar = gateway && ((gateway.name || '').toLowerCase().includes('dinstar') || (gateway.primary_url || '').includes('dinstar'));
-            if (!isAssignedDinstar) {
-                const [dinstarGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%") ORDER BY id ASC LIMIT 1');
-                if (dinstarGateways.length > 0) {
-                    gateway = dinstarGateways[0];
+            // Must use Dinstar OR Nuke Custom GSM Gateway
+            const isAssignedCustomGw = gateway && (
+                (gateway.name && gateway.name.toLowerCase().includes('dinstar')) || (gateway.primary_url && gateway.primary_url.includes('dinstar')) ||
+                (gateway.name && gateway.name.toLowerCase().includes('nuke')) || (gateway.primary_url && gateway.primary_url.includes('nuke.co.in'))
+            );
+            
+            if (!isAssignedCustomGw) {
+                const [customGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY id ASC LIMIT 1');
+                if (customGateways.length > 0) {
+                    gateway = customGateways[0];
                 } else {
-                    throw new Error("No active Dinstar GSM gateway found for custom message.");
+                    throw new Error("No active Dinstar or Nuke GSM gateway found for custom message.");
                 }
             }
         } else {
-            // Must use Official DLT Gateway (Not Dinstar)
-            const isAssignedDinstar = gateway && ((gateway.name || '').toLowerCase().includes('dinstar') || (gateway.primary_url || '').includes('dinstar'));
-            if (isAssignedDinstar || !gateway) {
-                const [officialGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" ORDER BY id ASC LIMIT 1');
+            // Must use Official DLT Gateway (Not Dinstar, Not Nuke)
+            const isAssignedCustomGw = gateway && (
+                (gateway.name && gateway.name.toLowerCase().includes('dinstar')) || (gateway.primary_url && gateway.primary_url.includes('dinstar')) ||
+                (gateway.name && gateway.name.toLowerCase().includes('nuke')) || (gateway.primary_url && gateway.primary_url.includes('nuke.co.in'))
+            );
+            if (isAssignedCustomGw || !gateway) {
+                const [officialGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" AND LOWER(name) NOT LIKE "%nuke%" AND primary_url NOT LIKE "%nuke.co.in%" ORDER BY id ASC LIMIT 1');
                 if (officialGateways.length > 0) {
                     gateway = officialGateways[0];
                 } else if (!gateway) {
@@ -231,6 +238,44 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                     console.error('[SMS] Dinstar Error Response:', JSON.stringify(dinstarErr.response.data));
                 }
                 throw dinstarErr; // throw to be caught by the outer catch
+            }
+        }
+        // ------------------------------------------
+
+        // --- NEW: Intercept Nuke GSM Gateway ---
+        const isNuke = gateway && (
+            (gateway.name && gateway.name.toLowerCase().includes('nuke')) ||
+            (gateway.primary_url && gateway.primary_url.includes('nuke.co.in'))
+        );
+
+        if (isNuke) {
+            const baseUrl = gateway.primary_url.split('?')[0]; // Typically: https://wa20.nuke.co.in/webhook/api/addbroadcastgsm.php
+            
+            console.log(`📡 [SMS] Sending via Nuke GSM Gateway: ${gateway.name} | URL: ${baseUrl} | Mobile: ${cleanMobile}`);
+            
+            const params = new URLSearchParams();
+            params.append('broadcast_name', 'NotifyNow API');
+            params.append('brodcast_service', 'sms_credits');
+            params.append('contacts', cleanMobile);
+            params.append('message', message);
+
+            try {
+                const response = await axios.post(baseUrl, params, {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    timeout: 15000
+                });
+                
+                const result = response.data;
+                if (result && (result.status === 'false' || result.status === false)) {
+                    return { success: false, error: result, messageId: data.msgId };
+                }
+                return { success: true, response: result, messageId: data.msgId };
+            } catch (nukeErr) {
+                console.error('[SMS] Nuke Send Error:', nukeErr.message);
+                if (nukeErr.response && nukeErr.response.data) {
+                    console.error('[SMS] Nuke Error Response:', JSON.stringify(nukeErr.response.data));
+                }
+                throw nukeErr; 
             }
         }
         // ------------------------------------------
