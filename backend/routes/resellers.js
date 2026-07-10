@@ -10,8 +10,32 @@ router.get('/cleanup-zombies', async (req, res) => {
   try {
     const searchEmail = req.query.email;
     if (searchEmail) {
-      const [result] = await query('DELETE FROM users WHERE email = ?', [searchEmail]);
-      return res.json({ success: true, message: `Attempted to delete ${searchEmail}`, affectedRows: result.affectedRows });
+      const [userRows] = await query('SELECT id FROM users WHERE email = ?', [searchEmail]);
+      if (userRows.length === 0) {
+        return res.json({ success: false, message: `No user found with email ${searchEmail}` });
+      }
+      const userId = userRows[0].id;
+      
+      // Try to nullify foreign keys first
+      try { await query('UPDATE users SET reseller_id = NULL WHERE reseller_id = ?', [userId]); } catch(e){}
+      try { await query('DELETE FROM campaigns WHERE user_id = ?', [userId]); } catch(e){}
+      try { await query('DELETE FROM templates WHERE user_id = ?', [userId]); } catch(e){}
+      try { await query('DELETE FROM audiences WHERE user_id = ?', [userId]); } catch(e){}
+      try { await query('DELETE FROM contacts WHERE user_id = ?', [userId]); } catch(e){}
+      try { await query('DELETE FROM transactions WHERE user_id = ?', [userId]); } catch(e){}
+      try { await query('DELETE FROM user_channels WHERE user_id = ?', [userId]); } catch(e){}
+      
+      // If it still fails, just suspend the user
+      let deleted = false;
+      try {
+        const [result] = await query('DELETE FROM users WHERE id = ?', [userId]);
+        deleted = true;
+      } catch (e) {
+        console.error("Hard delete failed, suspending instead:", e.message);
+        await query("UPDATE users SET status = 'suspended', role = 'deleted' WHERE id = ?", [userId]);
+      }
+      
+      return res.json({ success: true, message: `Attempted to delete or suspend ${searchEmail}`, hardDeleted: deleted });
     }
     // Agar direct URL hit kiya, to list dikhayega
     const [users] = await query('SELECT id, email, role, status FROM users WHERE email LIKE "%dgmlb%" OR email LIKE "%idgmlb%" OR email LIKE "%ldgmlb%"');
@@ -626,8 +650,21 @@ router.delete('/:id', authenticate, async (req, res) => {
       // Unlink clients from this reseller to prevent dangling references
       await query('UPDATE users SET reseller_id = NULL WHERE reseller_id = ?', [resellerUserId]);
 
+      // Delete dependent records for this user first
+      try { await query('DELETE FROM campaigns WHERE user_id = ?', [resellerUserId]); } catch(e){}
+      try { await query('DELETE FROM templates WHERE user_id = ?', [resellerUserId]); } catch(e){}
+      try { await query('DELETE FROM audiences WHERE user_id = ?', [resellerUserId]); } catch(e){}
+      try { await query('DELETE FROM contacts WHERE user_id = ?', [resellerUserId]); } catch(e){}
+      try { await query('DELETE FROM transactions WHERE user_id = ?', [resellerUserId]); } catch(e){}
+      try { await query('DELETE FROM user_channels WHERE user_id = ?', [resellerUserId]); } catch(e){}
+
       // Delete associated user account FIRST so if it fails, reseller profile isn't deleted
-      await query('DELETE FROM users WHERE id = ?', [resellerUserId]);
+      try {
+        await query('DELETE FROM users WHERE id = ?', [resellerUserId]);
+      } catch (err) {
+        console.error("Hard delete for reseller user failed, suspending instead:", err.message);
+        await query("UPDATE users SET status = 'suspended', role = 'deleted' WHERE id = ?", [resellerUserId]);
+      }
     }
 
     // Delete reseller profile LAST
