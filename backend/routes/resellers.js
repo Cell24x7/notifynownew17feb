@@ -8,8 +8,18 @@ const router = express.Router();
 
 router.get('/cleanup-zombies', async (req, res) => {
   try {
-    const [result] = await query('DELETE FROM users WHERE email = ?', ['idgmlb@gmail.com']);
-    res.json({ success: true, message: 'Zombie user deleted successfully', affectedRows: result.affectedRows });
+    const searchEmail = req.query.email;
+    if (searchEmail) {
+      const [result] = await query('DELETE FROM users WHERE email = ?', [searchEmail]);
+      return res.json({ success: true, message: `Attempted to delete ${searchEmail}`, affectedRows: result.affectedRows });
+    }
+    // Agar direct URL hit kiya, to list dikhayega
+    const [users] = await query('SELECT id, email, role, status FROM users WHERE email LIKE "%dgmlb%" OR email LIKE "%idgmlb%" OR email LIKE "%ldgmlb%"');
+    res.json({ 
+      success: true, 
+      matchingUsers: users, 
+      message: "Please add ?email=EXACT_EMAIL to the URL to delete. Example: /api/resellers/cleanup-zombies?email=idgmlb@gmail.com" 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: err.message });
