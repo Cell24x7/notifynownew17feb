@@ -6,6 +6,16 @@ const authenticate = require('../middleware/authMiddleware'); // Moved to top
 
 const router = express.Router();
 
+router.get('/cleanup-zombies', async (req, res) => {
+  try {
+    const [result] = await query('DELETE FROM users WHERE email = ?', ['idgmlb@gmail.com']);
+    res.json({ success: true, message: 'Zombie user deleted successfully', affectedRows: result.affectedRows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // GET all resellers (Admin only)
 router.get('/', authenticate, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
