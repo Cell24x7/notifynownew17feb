@@ -45,11 +45,21 @@ router.get('/cleanup-zombies', async (req, res) => {
       message: "Please add ?email=EXACT_EMAIL to the URL to delete. Example: /api/resellers/cleanup-zombies?email=idgmlb@gmail.com" 
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
+router.get('/debug-gateway', async (req, res) => {
+  try {
+    const [user] = await query('SELECT id, email, sms_gateway_id, pe_id, hash_id FROM users WHERE email = ?', ['autochatix@gmail.com']);
+    const [gateways] = await query('SELECT id, name, primary_url FROM sms_gateways');
+    res.json({ user: user[0], gateways });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Protect subsequent routes with authentication
 // GET all resellers (Admin only)
 router.get('/', authenticate, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
