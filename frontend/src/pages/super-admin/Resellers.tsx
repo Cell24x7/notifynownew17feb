@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Eye, EyeOff, Pencil, Users, Percent, MoreVertical, Loader2, CreditCard, LogIn, Ban, Trash2, Globe } from 'lucide-react';
+import { Search, Plus, Eye, EyeOff, Pencil, Users, Percent, MoreVertical, Loader2, CreditCard, LogIn, Ban, Trash2, Globe, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { DialogDescription } from '@/components/ui/dialog'; // Added
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { ChannelIcon } from '@/components/ui/channel-icon';
 
@@ -63,6 +64,12 @@ export default function SuperAdminResellers() {
     sms_promotional_price: 1.00,
     sms_transactional_price: 1.00,
     sms_service_price: 1.00,
+    is_dinstar_enabled: false,
+    is_api_allowed: false,
+    is_proero_enabled: false,
+    is_smm_enabled: false,
+    dlr_webhook_url: '',
+    wa_unofficial_webhook_enabled: false,
   });
 
   const cleanNumber = (val: any) => {
@@ -266,6 +273,12 @@ export default function SuperAdminResellers() {
       sms_promotional_price: reseller.sms_promotional_price || 1.00,
       sms_transactional_price: reseller.sms_transactional_price || 1.00,
       sms_service_price: reseller.sms_service_price || 1.00,
+      is_dinstar_enabled: !!reseller.is_dinstar_enabled,
+      is_api_allowed: !!reseller.is_api_allowed,
+      is_proero_enabled: !!reseller.is_proero_enabled,
+      is_smm_enabled: !!reseller.is_smm_enabled,
+      dlr_webhook_url: reseller.dlr_webhook_url || '',
+      wa_unofficial_webhook_enabled: !!reseller.wa_unofficial_webhook_enabled,
       password: '',
     });
     setModalMode('view');
@@ -310,6 +323,12 @@ export default function SuperAdminResellers() {
       sms_promotional_price: reseller.sms_promotional_price || 1.00,
       sms_transactional_price: reseller.sms_transactional_price || 1.00,
       sms_service_price: reseller.sms_service_price || 1.00,
+      is_dinstar_enabled: !!reseller.is_dinstar_enabled,
+      is_api_allowed: !!reseller.is_api_allowed,
+      is_proero_enabled: !!reseller.is_proero_enabled,
+      is_smm_enabled: !!reseller.is_smm_enabled,
+      dlr_webhook_url: reseller.dlr_webhook_url || '',
+      wa_unofficial_webhook_enabled: !!reseller.wa_unofficial_webhook_enabled,
       password: '', 
     });
     setModalMode('edit');
@@ -1015,6 +1034,94 @@ export default function SuperAdminResellers() {
                 </div>
               </div>
             </div>
+
+            {/* Section: Feature Permissions */}
+            <div className="space-y-4 pt-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Zap className="w-4 h-4" /> Feature Permissions
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/20 p-4 rounded-xl border border-dashed border-border">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Allow Bulk API Access</Label>
+                    <p className="text-xs text-muted-foreground">Enable developer API and secret keys</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentReseller.is_api_allowed}
+                    onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, is_api_allowed: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-primary font-bold">Enable Proero (Unofficial WA)</Label>
+                    <p className="text-xs text-muted-foreground">Show "Channels" tab and enable QR scan flow</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentReseller.is_proero_enabled}
+                    onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, is_proero_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-indigo-600 font-bold">Enable SMM Hub (Social Media)</Label>
+                    <p className="text-xs text-muted-foreground">Show "Social Media" tab for FB/Insta/LinkedIn</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentReseller.is_smm_enabled}
+                    onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, is_smm_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-teal-600 font-bold">Enable Dinstar GSM (SIM Gateway)</Label>
+                    <p className="text-xs text-muted-foreground">Show "Custom GSM Message" option in SMS campaigns</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentReseller.is_dinstar_enabled}
+                    onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, is_dinstar_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Section: Developer Webhook Settings */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> Developer Webhook Forwarding
+              </h3>
+              <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-dashed border-border">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base font-semibold">Enable Unofficial WhatsApp Webhook</Label>
+                    <p className="text-xs text-muted-foreground">Forward real-time DLR callbacks for unofficial WhatsApp campaigns</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentReseller.wa_unofficial_webhook_enabled}
+                    onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, wa_unofficial_webhook_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Custom DLR Webhook URL</Label>
+                  <Input
+                    type="url"
+                    placeholder="https://your-domain.com/webhook/dlr"
+                    value={currentReseller.dlr_webhook_url || ''}
+                    onChange={e => setCurrentReseller(p => ({ ...p, dlr_webhook_url: e.target.value }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-xs text-muted-foreground">This URL will receive a POST request with real-time delivery statuses.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border mt-6" />
 
             {/* Password Section (Lowered priority) */}
             {(modalMode === 'add' || modalMode === 'edit') && (
