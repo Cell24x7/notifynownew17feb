@@ -42,6 +42,7 @@ interface User {
   is_api_allowed?: number | boolean;
   is_proero_enabled?: number | boolean;
   is_smm_enabled?: number | boolean;
+  is_dinstar_enabled?: number | boolean;
   api_key?: string;
   dlr_webhook_url?: string;
   wa_unofficial_webhook_enabled?: number | boolean;
@@ -110,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_api_allowed: decoded.is_api_allowed,
           is_proero_enabled: decoded.is_proero_enabled,
           is_smm_enabled: decoded.is_smm_enabled,
+          is_dinstar_enabled: decoded.is_dinstar_enabled,
           wa_unofficial_webhook_enabled: decoded.wa_unofficial_webhook_enabled,
         });
 
@@ -238,6 +240,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sms_limit: userData.sms_limit,
           voice_limit: userData.voice_limit,
           is_api_allowed: userData.is_api_allowed,
+          is_proero_enabled: userData.is_proero_enabled,
+          is_smm_enabled: userData.is_smm_enabled,
+          is_dinstar_enabled: userData.is_dinstar_enabled,
         });
         return true;
       }
@@ -293,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_api_allowed: userData.is_api_allowed,
           is_proero_enabled: userData.is_proero_enabled,
           is_smm_enabled: userData.is_smm_enabled,
+          is_dinstar_enabled: userData.is_dinstar_enabled,
         });
       }
     } catch (err) {
@@ -343,6 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       is_api_allowed: userData.is_api_allowed,
       is_proero_enabled: userData.is_proero_enabled,
       is_smm_enabled: userData.is_smm_enabled,
+      is_dinstar_enabled: userData.is_dinstar_enabled,
       api_key: userData.api_key,
       dlr_webhook_url: userData.dlr_webhook_url,
       wa_unofficial_webhook_enabled: userData.wa_unofficial_webhook_enabled,
