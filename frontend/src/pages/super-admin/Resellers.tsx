@@ -54,6 +54,15 @@ export default function SuperAdminResellers() {
     secondary_color: '#1d4ed8',
     support_email: '',
     support_phone: '',
+    rcs_text_price: 1.00,
+    rcs_rich_card_price: 1.00,
+    rcs_carousel_price: 1.00,
+    wa_marketing_price: 1.00,
+    wa_utility_price: 1.00,
+    wa_authentication_price: 1.00,
+    sms_promotional_price: 1.00,
+    sms_transactional_price: 1.00,
+    sms_service_price: 1.00,
   });
 
   const cleanNumber = (val: any) => {
@@ -248,6 +257,15 @@ export default function SuperAdminResellers() {
       support_phone: reseller.support_phone || '',
       api_base_url: reseller.api_base_url || '',
       domain: reseller.domain || '',
+      rcs_text_price: reseller.rcs_text_price || 1.00,
+      rcs_rich_card_price: reseller.rcs_rich_card_price || 1.00,
+      rcs_carousel_price: reseller.rcs_carousel_price || 1.00,
+      wa_marketing_price: reseller.wa_marketing_price || 1.00,
+      wa_utility_price: reseller.wa_utility_price || 1.00,
+      wa_authentication_price: reseller.wa_authentication_price || 1.00,
+      sms_promotional_price: reseller.sms_promotional_price || 1.00,
+      sms_transactional_price: reseller.sms_transactional_price || 1.00,
+      sms_service_price: reseller.sms_service_price || 1.00,
       password: '',
     });
     setModalMode('view');
@@ -283,6 +301,15 @@ export default function SuperAdminResellers() {
       support_phone: reseller.support_phone || '',
       api_base_url: reseller.api_base_url || '',
       domain: reseller.domain || '',
+      rcs_text_price: reseller.rcs_text_price || 1.00,
+      rcs_rich_card_price: reseller.rcs_rich_card_price || 1.00,
+      rcs_carousel_price: reseller.rcs_carousel_price || 1.00,
+      wa_marketing_price: reseller.wa_marketing_price || 1.00,
+      wa_utility_price: reseller.wa_utility_price || 1.00,
+      wa_authentication_price: reseller.wa_authentication_price || 1.00,
+      sms_promotional_price: reseller.sms_promotional_price || 1.00,
+      sms_transactional_price: reseller.sms_transactional_price || 1.00,
+      sms_service_price: reseller.sms_service_price || 1.00,
       password: '', 
     });
     setModalMode('edit');
@@ -844,6 +871,148 @@ export default function SuperAdminResellers() {
                   className="bg-muted"
                 />
                 <p className="text-[10px] text-muted-foreground">Read-only: Lifetime usage by clients.</p>
+              </div>
+            </div>
+
+            {/* Custom Pricing Section */}
+            <div className="h-px bg-border mt-6" />
+            
+            {/* RCS Custom Pricing */}
+            <div className="space-y-4 pt-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> RCS Custom Pricing (Per Message)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>Normal Message (₹)</Label>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={currentReseller.rcs_text_price}
+                      onChange={e => setCurrentReseller(prev => ({ ...prev, rcs_text_price: parseFloat(e.target.value) || 0 }))}
+                      disabled={modalMode === 'view'}
+                    />
+                  <p className="text-[10px] text-muted-foreground">Standard text templates</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rich Card (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={currentReseller.rcs_rich_card_price}
+                    onChange={e => setCurrentReseller(prev => ({ ...prev, rcs_rich_card_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Single rich cards</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Carousel (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={currentReseller.rcs_carousel_price}
+                    onChange={e => setCurrentReseller(prev => ({ ...prev, rcs_carousel_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Carousel/multi-card</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* WhatsApp Custom Pricing */}
+            <div className="space-y-4 pb-4 pt-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> WhatsApp Custom Pricing (Per Message)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>Marketing (₹)</Label>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={currentReseller.wa_marketing_price}
+                      onChange={e => setCurrentReseller(prev => ({ ...prev, wa_marketing_price: parseFloat(e.target.value) || 0 }))}
+                      disabled={modalMode === 'view'}
+                    />
+                  <p className="text-[10px] text-muted-foreground">Marketing templates</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Utility (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={currentReseller.wa_utility_price}
+                    onChange={e => setCurrentReseller(prev => ({ ...prev, wa_utility_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Utility/Operational</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Authentication (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={currentReseller.wa_authentication_price}
+                    onChange={e => setCurrentReseller(prev => ({ ...prev, wa_authentication_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">OTP/Auth templates</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+            
+            {/* SMS Custom Pricing */}
+            <div className="space-y-4 pb-4 pt-4">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4" /> SMS Custom Pricing (Per Message)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>Promotional (₹)</Label>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={currentReseller.sms_promotional_price}
+                      onChange={e => setCurrentReseller(prev => ({ ...prev, sms_promotional_price: parseFloat(e.target.value) || 0 }))}
+                      disabled={modalMode === 'view'}
+                    />
+                  <p className="text-[10px] text-muted-foreground">Bulk Marketing SMS</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Transactional (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={currentReseller.sms_transactional_price}
+                    onChange={e => setCurrentReseller(prev => ({ ...prev, sms_transactional_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">OTP/Auth templates</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Service (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={currentReseller.sms_service_price}
+                    onChange={e => setCurrentReseller(prev => ({ ...prev, sms_service_price: parseFloat(e.target.value) || 0 }))}
+                    disabled={modalMode === 'view'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Alerts/Operational</p>
+                </div>
               </div>
             </div>
 

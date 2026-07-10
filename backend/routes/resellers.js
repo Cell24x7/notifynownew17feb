@@ -22,7 +22,10 @@ router.get('/', authenticate, async (req, res) => {
         r.support_email, r.support_phone,
         r.payment_gateway_type, r.ccavenue_merchant_id, r.ccavenue_access_code, r.ccavenue_working_key,
         r.paypal_client_id, r.paypal_secret_key, r.paypal_mode,
-        u.wallet_balance as credits_available, u.credits_used as credits_spent
+        u.wallet_balance as credits_available, u.credits_used as credits_spent,
+        u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
+        u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
+        u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price
       FROM resellers r
       LEFT JOIN users u ON r.email = u.email
       ORDER BY r.created_at DESC
@@ -91,7 +94,10 @@ router.post('/', authenticate, async (req, res) => {
     name, email, phone, domain, api_base_url, commission_percent, status, plan_id,
     password, channels_enabled,
     brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
-    credits_available = 0
+    credits_available = 0,
+    rcs_text_price = 1.00, rcs_rich_card_price = 1.00, rcs_carousel_price = 1.00,
+    wa_marketing_price = 1.00, wa_utility_price = 1.00, wa_authentication_price = 1.00,
+    sms_promotional_price = 1.00, sms_transactional_price = 1.00, sms_service_price = 1.00
   } = req.body;
 
   if (!name || !email) {
@@ -143,9 +149,19 @@ router.post('/', authenticate, async (req, res) => {
       ];
 
       const [userResult] = await query(`
-            INSERT INTO users (name, email, password, role, plan_id, status, wallet_balance, credits_available, permissions, channels_enabled)
-            VALUES (?, ?, ?, 'reseller', ?, ?, ?, ?, ?, ?)
-        `, [name, email, hashedPassword, plan_id, status, credits_available, credits_available, JSON.stringify(DEFAULT_RESELLER_PERMISSIONS), channelsJson]);
+            INSERT INTO users (
+              name, email, password, role, plan_id, status, wallet_balance, credits_available, permissions, channels_enabled,
+              rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
+              wa_marketing_price, wa_utility_price, wa_authentication_price,
+              sms_promotional_price, sms_transactional_price, sms_service_price
+            )
+            VALUES (?, ?, ?, 'reseller', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          name, email, hashedPassword, plan_id, status, credits_available, credits_available, JSON.stringify(DEFAULT_RESELLER_PERMISSIONS), channelsJson,
+          rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
+          wa_marketing_price, wa_utility_price, wa_authentication_price,
+          sms_promotional_price, sms_transactional_price, sms_service_price
+        ]);
 
       userId = userResult.insertId;
       console.log('Created User for Reseller:', userId);
@@ -278,7 +294,10 @@ router.put('/:id', authenticate, async (req, res) => {
     brand_name, logo_url, favicon_url, primary_color, secondary_color, support_email, support_phone,
     credits_available,
     payment_gateway_type, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key,
-    paypal_client_id, paypal_secret_key, paypal_mode
+    paypal_client_id, paypal_secret_key, paypal_mode,
+    rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
+    wa_marketing_price, wa_utility_price, wa_authentication_price,
+    sms_promotional_price, sms_transactional_price, sms_service_price
   } = req.body;
  
   const fields = [];
@@ -334,7 +353,7 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 
     // Handle Password / User Account Update
-    if (password || name || email || status || permissions) {
+    if (password || name || email || status || permissions || rcs_text_price !== undefined || wa_marketing_price !== undefined || sms_promotional_price !== undefined) {
       // Need to find which user corresponds to this reseller.
       // Usually checked by email. 
       // Note: If email is being changed, we need the OLD email to find the user, or we assume the frontend sends the *original* email if it hasn't changed.
@@ -369,6 +388,17 @@ router.put('/:id', authenticate, async (req, res) => {
           if (email) { userFields.push('email = ?'); userValues.push(email); }
           if (status) { userFields.push('status = ?'); userValues.push(status); }
           if (plan_id) { userFields.push('plan_id = ?'); userValues.push(plan_id); }
+          
+          if (rcs_text_price !== undefined) { userFields.push('rcs_text_price = ?'); userValues.push(rcs_text_price); }
+          if (rcs_rich_card_price !== undefined) { userFields.push('rcs_rich_card_price = ?'); userValues.push(rcs_rich_card_price); }
+          if (rcs_carousel_price !== undefined) { userFields.push('rcs_carousel_price = ?'); userValues.push(rcs_carousel_price); }
+          if (wa_marketing_price !== undefined) { userFields.push('wa_marketing_price = ?'); userValues.push(wa_marketing_price); }
+          if (wa_utility_price !== undefined) { userFields.push('wa_utility_price = ?'); userValues.push(wa_utility_price); }
+          if (wa_authentication_price !== undefined) { userFields.push('wa_authentication_price = ?'); userValues.push(wa_authentication_price); }
+          if (sms_promotional_price !== undefined) { userFields.push('sms_promotional_price = ?'); userValues.push(sms_promotional_price); }
+          if (sms_transactional_price !== undefined) { userFields.push('sms_transactional_price = ?'); userValues.push(sms_transactional_price); }
+          if (sms_service_price !== undefined) { userFields.push('sms_service_price = ?'); userValues.push(sms_service_price); }
+
           if (channels_enabled !== undefined) {
             const channelsJson = Array.isArray(channels_enabled) ? JSON.stringify(channels_enabled) : channels_enabled;
             userFields.push('channels_enabled = ?');
