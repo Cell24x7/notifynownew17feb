@@ -598,11 +598,20 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
     const resellerEmail = resellers[0].email;
 
-    // Delete reseller profile
+    // Get the User ID of the reseller
+    const [userRows] = await query('SELECT id FROM users WHERE email = ? AND role = "reseller"', [resellerEmail]);
+    if (userRows.length > 0) {
+      const resellerUserId = userRows[0].id;
+
+      // Unlink clients from this reseller to prevent dangling references
+      await query('UPDATE users SET reseller_id = NULL WHERE reseller_id = ?', [resellerUserId]);
+
+      // Delete associated user account FIRST so if it fails, reseller profile isn't deleted
+      await query('DELETE FROM users WHERE id = ?', [resellerUserId]);
+    }
+
+    // Delete reseller profile LAST
     await query('DELETE FROM resellers WHERE id = ?', [resellerId]);
-    
-    // Delete associated user account
-    await query('DELETE FROM users WHERE email = ? AND role = "reseller"', [resellerEmail]);
 
     res.json({ success: true, message: 'Reseller deleted successfully' });
   } catch (err) {
