@@ -107,7 +107,9 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             }
         }
 
-        // 2. SMART ROUTING: Override gateway if it mismatches the campaign type
+        // 2. SMART ROUTING: Override gateway only if it mismatches the campaign type in a fatal way.
+        // A Custom Message CANNOT go through an Official DLT Gateway (it will be rejected).
+        // However, a DLT Template CAN go through a Custom GSM Gateway (it will just be sent via SIM).
         if (isCustomGsmRequest) {
             // Must use Dinstar OR Nuke Custom GSM Gateway
             const isAssignedCustomGw = gateway && (
@@ -128,32 +130,6 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                         gateway = customGateways[0];
                     } else {
                         throw new Error("No active Dinstar or Nuke GSM gateway found for custom message.");
-                    }
-                }
-            }
-        } else {
-            // Must use Official DLT Gateway (Not Dinstar, Not Nuke)
-            const isAssignedCustomGw = gateway && (
-                (gateway.name && gateway.name.toLowerCase().includes('dinstar')) || (gateway.primary_url && gateway.primary_url.includes('dinstar')) ||
-                (gateway.name && gateway.name.toLowerCase().includes('nuke')) || (gateway.primary_url && gateway.primary_url.includes('nuke.co.in'))
-            );
-            if (isAssignedCustomGw || !gateway) {
-                // Check if reseller owns an official gateway
-                const [ownedOfficial] = await query('SELECT * FROM sms_gateways WHERE reseller_id = ? AND status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" AND LOWER(name) NOT LIKE "%nuke%" AND primary_url NOT LIKE "%nuke.co.in%" ORDER BY id ASC LIMIT 1', [userId]);
-                
-                if (ownedOfficial.length > 0) {
-                    gateway = ownedOfficial[0];
-                } else {
-                    // Fallback to global official gateway
-                    const [officialGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND LOWER(name) NOT LIKE "%dinstar%" AND primary_url NOT LIKE "%dinstar%" AND LOWER(name) NOT LIKE "%nuke%" AND primary_url NOT LIKE "%nuke.co.in%" ORDER BY id ASC LIMIT 1');
-                    if (officialGateways.length > 0) {
-                        gateway = officialGateways[0];
-                    } else if (!gateway) {
-                        // Absolute fallback if no official gateway exists
-                        const [anyGateway] = await query('SELECT * FROM sms_gateways WHERE status = "active" ORDER BY id ASC LIMIT 1');
-                        if (anyGateway.length > 0) {
-                            gateway = anyGateway[0];
-                        }
                     }
                 }
             }
