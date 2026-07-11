@@ -1507,7 +1507,7 @@ const handleSmsCallback = async (req, res) => {
                     const last10 = String(mobile).slice(-10);
                     // Match manual log
                     const [rows] = await query(
-                        'SELECT * FROM message_logs WHERE (recipient LIKE ?) AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) ORDER BY id DESC LIMIT 1',
+                        'SELECT * FROM message_logs WHERE (recipient LIKE ?) AND status = "sent" AND channel = "SMS" AND created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) AND message_id NOT LIKE "nuke_%" ORDER BY id DESC LIMIT 1',
                         [`%${last10}`]
                     );
                     if (rows.length > 0) log = rows[0];
@@ -1515,7 +1515,7 @@ const handleSmsCallback = async (req, res) => {
                     // Match api log if manual still not found
                     if (!log) {
                         const [apiRows] = await query(
-                            'SELECT * FROM api_message_logs WHERE (recipient LIKE ?) AND status = "sent" AND channel = "SMS" AND (created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) OR send_time > DATE_SUB(NOW(), INTERVAL 72 HOUR)) ORDER BY id DESC LIMIT 1',
+                            'SELECT * FROM api_message_logs WHERE (recipient LIKE ?) AND status = "sent" AND channel = "SMS" AND (created_at > DATE_SUB(NOW(), INTERVAL 72 HOUR) OR send_time > DATE_SUB(NOW(), INTERVAL 72 HOUR)) AND message_id NOT LIKE "nuke_%" ORDER BY id DESC LIMIT 1',
                             [`%${last10}`]
                         );
                         if (apiRows.length > 0) { log = apiRows[0]; isApiTable = true; }

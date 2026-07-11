@@ -265,9 +265,9 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                 
                 const result = response.data;
                 if (result && (result.status === 'false' || result.status === false)) {
-                    return { success: false, error: result, messageId: data.msgId };
+                    return { success: false, error: result, messageId: 'nuke_' + data.msgId };
                 }
-                return { success: true, response: result, messageId: data.msgId };
+                return { success: true, response: result, messageId: 'nuke_' + data.msgId };
             } catch (nukeErr) {
                 console.error('[SMS] Nuke Send Error:', nukeErr.message);
                 if (nukeErr.response && nukeErr.response.data) {
