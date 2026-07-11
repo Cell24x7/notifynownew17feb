@@ -220,10 +220,13 @@ const handleSendSms = async (req, res) => {
         });
         
         if (!smsResult.success) {
+            const errorMsg = smsResult.error ? (typeof smsResult.error === 'string' ? smsResult.error : JSON.stringify(smsResult.error)) : 'Unknown error';
+            const isGsmError = finalTemplateId === 'GSM_CUSTOM' || errorMsg.includes('Nuke') || errorMsg.includes('Dinstar');
+            
             return res.status(502).json({ 
                 success: false, 
-                message: 'Gateway Rejection: ' + smsResult.error,
-                details: 'Ensure your message matches the DLT template exactly and provides valid Template ID.'
+                message: 'Gateway Rejection: ' + errorMsg,
+                details: isGsmError ? 'Check your GSM gateway configuration, credits, or mobile number format.' : 'Ensure your message matches the DLT template exactly and provides valid Template ID.'
             });
         }
 
@@ -248,7 +251,12 @@ const handleSendSms = async (req, res) => {
 
     } catch (err) {
         console.error('SMS API v1 error:', err);
-        res.status(500).json({ success: false, message: 'Internal Server Error: ' + err.message });
+        const errorMsg = err.message || 'Unknown error';
+        const isGsmError = errorMsg.includes('Nuke API Error') || errorMsg.includes('Dinstar');
+        res.status(isGsmError ? 400 : 500).json({ 
+            success: false, 
+            message: isGsmError ? errorMsg : 'Internal Server Error: ' + errorMsg 
+        });
     }
 };
 
