@@ -119,13 +119,13 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
             
             if (!isAssignedCustomGw) {
                 // Check if reseller owns a custom gateway
-                const [ownedCustom] = await query('SELECT * FROM sms_gateways WHERE reseller_id = ? AND status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY id ASC LIMIT 1', [userId]);
+                const [ownedCustom] = await query('SELECT * FROM sms_gateways WHERE reseller_id = ? AND status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY LOWER(name) LIKE "%nuke%" DESC, id ASC LIMIT 1', [userId]);
                 
                 if (ownedCustom.length > 0) {
                     gateway = ownedCustom[0];
                 } else {
                     // Fallback to global custom gateway
-                    const [customGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY id ASC LIMIT 1');
+                    const [customGateways] = await query('SELECT * FROM sms_gateways WHERE status = "active" AND (LOWER(name) LIKE "%dinstar%" OR primary_url LIKE "%dinstar%" OR LOWER(name) LIKE "%nuke%" OR primary_url LIKE "%nuke.co.in%") ORDER BY LOWER(name) LIKE "%nuke%" DESC, id ASC LIMIT 1');
                     if (customGateways.length > 0) {
                         gateway = customGateways[0];
                     } else {
