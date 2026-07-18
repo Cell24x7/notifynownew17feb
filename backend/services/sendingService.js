@@ -308,13 +308,14 @@ const sendUniversalMessage = async (item) => {
         else if (channelParsed === 'whatsapp') {
             let processedMessage = item.template_body || '';
             let waConfig = null;
-            if (item.wa_provider && (item.wa_api_key || item.wa_token) && item.wa_ph_no_id) {
+            if (item.wa_provider && (item.wa_api_key || item.wa_token) && (item.wa_ph_no_id || item.wa_provider === 'wa20')) {
                 waConfig = {
                     provider: item.wa_provider,
                     api_key: item.wa_api_key,
                     wa_token: item.wa_token,
                     ph_no_id: item.wa_ph_no_id,
-                    wa_biz_accnt_id: item.wa_biz_accnt_id
+                    wa_biz_accnt_id: item.wa_biz_accnt_id,
+                    customer_id: item.customer_id // if available
                 };
             } else {
                 let effectiveConfigId = item.whatsapp_config_id;
@@ -326,7 +327,7 @@ const sendUniversalMessage = async (item) => {
                 }
                 
                 if (effectiveConfigId) {
-                    const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id FROM whatsapp_configs WHERE id = ?', [effectiveConfigId]);
+                    const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id, customer_id FROM whatsapp_configs WHERE id = ?', [effectiveConfigId]);
                     if (userBots.length > 0) {
                         waConfig = { ...userBots[0], wa_ph_no_id: userBots[0].ph_no_id };
                     }
@@ -335,7 +336,7 @@ const sendUniversalMessage = async (item) => {
                 // Final fallback if still null (not recommended)
                 if (!waConfig) {
                     const { query } = require('../config/db');
-                    const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id FROM whatsapp_configs WHERE user_id = ? AND is_active = 1 LIMIT 1', [item.user_id]);
+                    const [userBots] = await query('SELECT provider, api_key, wa_token, ph_no_id, wa_biz_accnt_id, customer_id FROM whatsapp_configs WHERE user_id = ? AND is_active = 1 LIMIT 1', [item.user_id]);
                     if (userBots.length > 0) {
                         waConfig = { ...userBots[0], wa_ph_no_id: userBots[0].ph_no_id };
                     }
@@ -345,15 +346,23 @@ const sendUniversalMessage = async (item) => {
             if (!waConfig) return { success: false, error: 'No WhatsApp configuration available' };
 
             const isPinbot = waConfig.provider === 'vendor2';
-            const headers = isPinbot 
-                ? { apikey: waConfig.api_key, 'Content-Type': 'application/json' }
-                : { Authorization: `Bearer ${waConfig.wa_token}`, 'Content-Type': 'application/json' };
+            const isWa20 = waConfig.provider === 'wa20';
+            
+            const headers = { 'Content-Type': 'application/json' };
+            if (isPinbot) headers.apikey = waConfig.api_key;
+            else headers.Authorization = `Bearer ${waConfig.wa_token}`;
             
             const PINBOT_BASE = 'https://partnersv1.pinbot.ai/v3';
             const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
-            const msgUrl = isPinbot 
-                ? `${PINBOT_BASE}/${waConfig.ph_no_id}/messages`
-                : `${GRAPH_BASE}/${waConfig.ph_no_id}/messages`;
+            let msgUrl = '';
+            
+            if (isPinbot) {
+                msgUrl = `${PINBOT_BASE}/${waConfig.ph_no_id}/messages`;
+            } else if (isWa20) {
+                msgUrl = `https://wa20.nuke.co.in/v6/api/whatsappTemplate/24/${waConfig.customer_id}/messages`;
+            } else {
+                msgUrl = `${GRAPH_BASE}/${waConfig.ph_no_id}/messages`;
+            }
 
             // Extract language from metadata if available, fallback to template language
             let langCode = item.language || 'en_US';
