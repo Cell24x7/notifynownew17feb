@@ -272,6 +272,8 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                 console.error('[SMS] Nuke Send Error:', nukeErr.message);
                 if (nukeErr.response && nukeErr.response.data) {
                     console.error('[SMS] Nuke Error Response:', JSON.stringify(nukeErr.response.data));
+                    const errorDetail = nukeErr.response.data.message || (typeof nukeErr.response.data === 'string' ? nukeErr.response.data : JSON.stringify(nukeErr.response.data));
+                    throw new Error(`Nuke API Error: ${errorDetail}`);
                 }
                 throw nukeErr; 
             }

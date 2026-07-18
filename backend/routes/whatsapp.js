@@ -49,6 +49,7 @@ const getWhatsAppConfig = async (userId) => {
 
     const config = configs[0];
     config.isPinbot = config.provider === 'vendor2';
+    config.isWa20 = config.provider === 'wa20';
     return config;
 };
 
@@ -66,6 +67,7 @@ const getHeaders = (config) => {
  * Helper: Build base URL for templates
  */
 const getTemplatesUrl = (config) => {
+    if (config.isWa20) return `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`;
     if (config.isPinbot) return `${PINBOT_BASE}/${config.wa_biz_accnt_id}/message_templates`;
     return `${GRAPH_BASE}/${config.wa_biz_accnt_id}/message_templates`;
 };
@@ -73,7 +75,12 @@ const getTemplatesUrl = (config) => {
 /**
  * Helper: Build base URL for messages
  */
-const getMessagesUrl = (config) => {
+const getMessagesUrl = (config, isTemplate = false) => {
+    if (config.isWa20) {
+        return isTemplate 
+            ? `https://wa20.nuke.co.in/v6/api/whatsappTemplate/24/${config.customer_id}/messages`
+            : `https://wa20.nuke.co.in/v6/api/whatsapp/24/${config.customer_id}/messages`;
+    }
     if (config.isPinbot) return `${PINBOT_BASE}/${config.ph_no_id}/messages`;
     return `${GRAPH_BASE}/${config.ph_no_id}/messages`;
 };
@@ -215,6 +222,50 @@ router.post('/templates', authenticate, async (req, res) => {
         // Meta requirement: Lowercase and underscores only
         const sanitizedName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
         
+        if (config.isWa20) {
+            let bodyText = "";
+            let footerText = "";
+            let buttons = [];
+            
+            components.forEach(comp => {
+                const typeUC = (comp.type || '').toUpperCase();
+                if (typeUC === 'BODY') bodyText = comp.text || "";
+                if (typeUC === 'FOOTER') footerText = comp.text || "";
+                if (typeUC === 'BUTTONS' && comp.buttons) {
+                    comp.buttons.forEach(b => {
+                        if ((b.type || '').toUpperCase() === 'QUICK_REPLY') {
+                            buttons.push({ type: "QUICK_REPLY", text: b.text });
+                        }
+                    });
+                }
+            });
+
+            const wa20Payload = {
+                template_name: sanitizedName,
+                category: (category || 'utility').toLowerCase(),
+                language: 14, // Assuming 14 is English for WA20
+                header_area_type: "none",
+                header_media_type: "",
+                template_body: bodyText,
+                template_footer: footerText
+            };
+            
+            if (buttons.length > 0) {
+                wa20Payload.quick_reply_buttons = buttons;
+            }
+
+            const response = await axios.post('https://wa20.nuke.co.in/webhook/api/createTemplates.php', wa20Payload, {
+                headers: getHeaders(config)
+            });
+
+            return res.json({
+                success: true,
+                message: 'Template created successfully',
+                data: response.data,
+                provider: 'wa20'
+            });
+        }
+
         // Meta/Pinbot requirement: Media headers and variable body text MUST have an example/sample
         const processedComponents = components.map(comp => {
             const normalizedComp = { ...comp };
@@ -391,11 +442,12 @@ router.post('/send', authenticate, async (req, res) => {
             return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
         }
 
-        const response = await axios.post(getMessagesUrl(config), payload, {
+        const isTemplateMsg = payload.type === 'template';
+        const response = await axios.post(getMessagesUrl(config, isTemplateMsg), payload, {
             headers: getHeaders(config)
         });
 
-        res.json({ success: true, message: 'Message sent', data: response.data, provider: config.isPinbot ? 'pinbot' : 'graph' });
+        res.json({ success: true, message: 'Message sent', data: response.data, provider: config.isPinbot ? 'pinbot' : (config.isWa20 ? 'wa20' : 'graph') });
     } catch (error) {
         console.error('❌ Error sending WA message:', error.response?.data || error.message);
         res.status(500).json({
@@ -437,7 +489,7 @@ router.post('/send-template', authenticate, async (req, res) => {
             return res.status(402).json({ success: false, message: deduction.message || 'Insufficient wallet balance' });
         }
 
-        const response = await axios.post(getMessagesUrl(config), data, {
+        const response = await axios.post(getMessagesUrl(config, true), data, {
             headers: getHeaders(config)
         });
 
@@ -445,7 +497,7 @@ router.post('/send-template', authenticate, async (req, res) => {
             success: true,
             message: 'Template message sent successfully',
             data: response.data,
-            provider: config.isPinbot ? 'pinbot' : 'graph'
+            provider: config.isPinbot ? 'pinbot' : (config.isWa20 ? 'wa20' : 'graph')
         });
     } catch (error) {
         console.error('❌ Error sending WA template:', error.response?.data || error.message);

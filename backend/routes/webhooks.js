@@ -1902,6 +1902,27 @@ router.post('/wa-unofficial/poll/:campaignId', async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// POST /api/webhooks/wa20/callback
+// Standard endpoint for WA20 Delivery Reports & Incoming Messages
+router.post('/wa20/callback', async (req, res) => {
+    try {
+        const payload = req.body;
+        console.log('==============================================');
+        console.log('📨 RECEIVED WA20 WEBHOOK');
+        console.log('Payload:', JSON.stringify(payload, null, 2));
+        
+        // Return 200 immediately to acknowledge receipt
+        res.status(200).send('EVENT_RECEIVED');
+        
+        // TODO: Implement WA20 webhook mapping to internal DB once payload structure is confirmed.
+    } catch (error) {
+        console.error('[WA20-WEBHOOK] Error processing webhook:', error.message);
+        // We still send 200 to prevent retries of bad payloads, or 500 if it's our fault
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Self-healing database migration
 async function ensureMediaUrlColumn() {
     try {

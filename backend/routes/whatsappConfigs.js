@@ -65,7 +65,10 @@ router.post('/', authenticate, isAdmin, async (req, res) => {
     try {
         const { chatbot_name, provider, wanumber, domain, customer_id, wa_token, api_key, ph_no_id, wa_biz_accnt_id, reseller_id } = req.body;
 
-        if (!chatbot_name || (provider === 'vendor1' && (!wa_token || !ph_no_id || !wa_biz_accnt_id)) || (provider === 'vendor2' && (!api_key || !ph_no_id || !wa_biz_accnt_id))) {
+        if (!chatbot_name || 
+            (provider === 'vendor1' && (!wa_token || !ph_no_id || !wa_biz_accnt_id)) || 
+            (provider === 'vendor2' && (!api_key || !ph_no_id || !wa_biz_accnt_id)) ||
+            (provider === 'wa20' && (!wa_token || !customer_id))) {
             return res.status(400).json({ success: false, message: 'Required fields are missing' });
         }
 

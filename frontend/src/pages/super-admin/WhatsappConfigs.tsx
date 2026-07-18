@@ -61,6 +61,14 @@ const PROVIDERS = {
         badgeClass: 'bg-orange-600',
         icon: '🟠',
     },
+    wa20: {
+        id: 'wa20',
+        label: 'WA20 (Nuke)',
+        description: 'WA20 Nuke WhatsApp API Integration',
+        color: 'border-purple-200 text-purple-700 bg-purple-50',
+        badgeClass: 'bg-purple-600',
+        icon: '🟣',
+    },
 };
 
 const emptyForm = {
@@ -153,12 +161,19 @@ export default function WhatsappConfigs() {
         if (formData.provider === 'vendor2' && !formData.api_key.trim()) {
             toast({ variant: 'destructive', title: 'API Key is required for Pinbot (Pinnacle)' }); return false;
         }
-        if (!formData.ph_no_id.trim()) {
-            toast({ variant: 'destructive', title: 'Phone Number ID is required' }); return false;
+        if (formData.provider === 'wa20' && (!formData.customer_id.trim() || !formData.wa_token.trim())) {
+            toast({ variant: 'destructive', title: 'Username and JWT Token are required for WA20' }); return false;
         }
-        if (!formData.wa_biz_accnt_id.trim()) {
-            toast({ variant: 'destructive', title: 'Business Account ID (WABA ID) is required' }); return false;
+        
+        if (formData.provider !== 'wa20') {
+            if (!formData.ph_no_id.trim()) {
+                toast({ variant: 'destructive', title: 'Phone Number ID is required' }); return false;
+            }
+            if (!formData.wa_biz_accnt_id.trim()) {
+                toast({ variant: 'destructive', title: 'Business Account ID (WABA ID) is required' }); return false;
+            }
         }
+        
         return true;
     };
 
@@ -470,33 +485,37 @@ export default function WhatsappConfigs() {
                                         placeholder="+917208195276" />
                                 </div>
 
-                                {/* Phone Number ID — required for both */}
-                                <div className="grid sm:grid-cols-4 items-center gap-2">
-                                    <div className="sm:text-right flex sm:justify-end items-center gap-1">
-                                        <Label htmlFor="ph_no_id" className="text-sm font-medium">Phone No ID *</Label>
-                                        <Tooltip>
-                                            <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground" /></TooltipTrigger>
-                                            <TooltipContent>15-digit Phone Number ID from Meta / Pinbot dashboard</TooltipContent>
-                                        </Tooltip>
+                                {/* Phone Number ID — required for Meta/Pinbot */}
+                                {formData.provider !== 'wa20' && (
+                                    <div className="grid sm:grid-cols-4 items-center gap-2">
+                                        <div className="sm:text-right flex sm:justify-end items-center gap-1">
+                                            <Label htmlFor="ph_no_id" className="text-sm font-medium">Phone No ID *</Label>
+                                            <Tooltip>
+                                                <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground" /></TooltipTrigger>
+                                                <TooltipContent>15-digit Phone Number ID from Meta / Pinbot dashboard</TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                        <Input id="ph_no_id" className="col-span-3" value={formData.ph_no_id}
+                                            onChange={(e) => setFormData({ ...formData, ph_no_id: e.target.value })}
+                                            placeholder="e.g. 110212648672931" />
                                     </div>
-                                    <Input id="ph_no_id" className="col-span-3" value={formData.ph_no_id}
-                                        onChange={(e) => setFormData({ ...formData, ph_no_id: e.target.value })}
-                                        placeholder="e.g. 110212648672931" />
-                                </div>
+                                )}
 
-                                {/* WABA ID — required for both */}
-                                <div className="grid sm:grid-cols-4 items-center gap-2">
-                                    <div className="sm:text-right flex sm:justify-end items-center gap-1">
-                                        <Label htmlFor="wa_biz_accnt_id" className="text-sm font-medium">WABA ID *</Label>
-                                        <Tooltip>
-                                            <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground" /></TooltipTrigger>
-                                            <TooltipContent>WhatsApp Business Account ID (e.g. 110044651693467)</TooltipContent>
-                                        </Tooltip>
+                                {/* WABA ID — required for Meta/Pinbot */}
+                                {formData.provider !== 'wa20' && (
+                                    <div className="grid sm:grid-cols-4 items-center gap-2">
+                                        <div className="sm:text-right flex sm:justify-end items-center gap-1">
+                                            <Label htmlFor="wa_biz_accnt_id" className="text-sm font-medium">WABA ID *</Label>
+                                            <Tooltip>
+                                                <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground" /></TooltipTrigger>
+                                                <TooltipContent>WhatsApp Business Account ID (e.g. 110044651693467)</TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                        <Input id="wa_biz_accnt_id" className="col-span-3" value={formData.wa_biz_accnt_id}
+                                            onChange={(e) => setFormData({ ...formData, wa_biz_accnt_id: e.target.value })}
+                                            placeholder="e.g. 110044651693467" />
                                     </div>
-                                    <Input id="wa_biz_accnt_id" className="col-span-3" value={formData.wa_biz_accnt_id}
-                                        onChange={(e) => setFormData({ ...formData, wa_biz_accnt_id: e.target.value })}
-                                        placeholder="e.g. 110044651693467" />
-                                </div>
+                                )}
 
                                 {/* ── VENDOR 1 (Meta Graph) specific fields ── */}
                                 {formData.provider === 'vendor1' && (
@@ -552,6 +571,29 @@ export default function WhatsappConfigs() {
                                             <Input id="customer_id" className="col-span-3" value={formData.customer_id}
                                                 onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
                                                 placeholder="Optional customer reference ID" />
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* ── VENDOR 3 (WA20 / Nuke) specific fields ── */}
+                                {formData.provider === 'wa20' && (
+                                    <>
+                                        <div className="col-span-full">
+                                            <div className="rounded-md bg-purple-50 dark:bg-purple-950 border border-purple-200 p-3 text-xs text-purple-700 dark:text-purple-300">
+                                                🟣 <strong>WA20 (Nuke):</strong> Provide the Username and JWT Token supplied by your WA20 provider.
+                                            </div>
+                                        </div>
+                                        <div className="grid sm:grid-cols-4 items-center gap-2">
+                                            <Label htmlFor="wa20_username" className="sm:text-right text-sm font-medium">Username *</Label>
+                                            <Input id="wa20_username" className="col-span-3" value={formData.customer_id}
+                                                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                                                placeholder="e.g. demo_official" />
+                                        </div>
+                                        <div className="grid sm:grid-cols-4 items-center gap-2">
+                                            <Label htmlFor="wa20_token" className="sm:text-right text-sm font-medium">JWT Token *</Label>
+                                            <Textarea id="wa20_token" className="col-span-3 text-xs font-mono min-h-[80px]" value={formData.wa_token}
+                                                onChange={(e) => setFormData({ ...formData, wa_token: e.target.value })}
+                                                placeholder="eyJhbG..." />
                                         </div>
                                     </>
                                 )}
