@@ -1914,7 +1914,36 @@ router.post('/wa20/callback', async (req, res) => {
         // Return 200 immediately to acknowledge receipt
         res.status(200).send('EVENT_RECEIVED');
         
-        // TODO: Implement WA20 webhook mapping to internal DB once payload structure is confirmed.
+        // Template Status Update mapping
+        const { query } = require('../config/db');
+        if (payload.template_name && payload.username && payload.status) {
+            console.log(`📊 WA20 Template Update: ${payload.template_name} -> ${payload.status}`);
+            let finalStatus = payload.status.toLowerCase();
+            if (finalStatus === 'failed') finalStatus = 'rejected';
+            
+            // Find config by username (customer_id)
+            const [configs] = await query('SELECT id FROM whatsapp_configs WHERE customer_id = ? LIMIT 1', [payload.username]);
+            if (configs.length > 0) {
+                const configId = configs[0].id;
+                // Find user by config
+                const [users] = await query('SELECT id FROM users WHERE whatsapp_config_id = ? LIMIT 1', [configId]);
+                if (users.length > 0) {
+                    const userId = users[0].id;
+                    const reason = payload.reason === 'NONE' ? '' : (payload.reason || '');
+                    
+                    // Update the template
+                    const [updateRes] = await query(
+                        'UPDATE message_templates SET status = ?, rejected_reason = ? WHERE name = ? AND user_id = ?',
+                        [finalStatus, reason, payload.template_name, userId]
+                    );
+                    if (updateRes.affectedRows > 0) {
+                        console.log(`✅ Template ${payload.template_name} updated successfully in DB for user ${userId}.`);
+                    } else {
+                        console.log(`⚠️ Template ${payload.template_name} not found in DB for user ${userId}.`);
+                    }
+                }
+            }
+        }
     } catch (error) {
         console.error('[WA20-WEBHOOK] Error processing webhook:', error.message);
         // We still send 200 to prevent retries of bad payloads, or 500 if it's our fault
