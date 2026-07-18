@@ -159,7 +159,7 @@ router.get('/templates', authenticate, async (req, res) => {
         const config = await getWhatsAppConfig(req.user.id);
 
         // Safety: If no config found, return empty list gracefully
-        if (!config || !config.wa_biz_accnt_id) {
+        if (!config || (!config.wa_biz_accnt_id && !config.isWa20)) {
             return res.json({ success: true, templates: [], message: 'WhatsApp not configured for this account' });
         }
 
@@ -174,11 +174,47 @@ router.get('/templates', authenticate, async (req, res) => {
         });
 
         // Pinbot returns { data: [...] } same as Graph
-        const templates = response.data.data || response.data || [];
+        let templates = response.data.data || response.data || [];
+        
+        if (config.isWa20 && Array.isArray(templates)) {
+            templates = templates.map(t => {
+                const components = [];
+                if (t.header_area_type && t.header_area_type !== 'none') {
+                    components.push({ type: 'HEADER', format: (t.header_media_type || t.header_area_type).toUpperCase(), text: t.header_text });
+                }
+                if (t.template_body) {
+                    components.push({ type: 'BODY', text: t.template_body });
+                }
+                if (t.template_footer) {
+                    components.push({ type: 'FOOTER', text: t.template_footer });
+                }
+                if (t.quick_replies && t.quick_replies !== '[]') {
+                    try {
+                        const btns = JSON.parse(t.quick_replies);
+                        components.push({ type: 'BUTTONS', buttons: btns });
+                    } catch (e) {}
+                }
+                
+                // Map WA20 status (1=approved, 0=pending, 2=rejected/failed) to Meta status
+                let metaStatus = 'PENDING';
+                if (t.status === 1) metaStatus = 'APPROVED';
+                else if (t.status === 2) metaStatus = 'REJECTED';
+                
+                return {
+                    id: t.id,
+                    name: t.template_name,
+                    status: metaStatus,
+                    language: 'en_US', // WA20 language 14 -> en_US
+                    category: 'UTILITY', // Defaulting since WA20 uses int category
+                    components
+                };
+            });
+        }
+
         res.json({
             success: true,
             templates,
-            provider: config.isPinbot ? 'pinbot' : 'graph',
+            provider: config.isPinbot ? 'pinbot' : (config.isWa20 ? 'wa20' : 'graph'),
             paging: response.data.paging
         });
     } catch (error) {
