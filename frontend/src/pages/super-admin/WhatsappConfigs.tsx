@@ -188,6 +188,7 @@ export default function WhatsappConfigs() {
                 reseller_id: formData.reseller_id === 'none' ? null : parseInt(formData.reseller_id)
             };
 
+            let res;
             if (selectedConfig) {
                 res = await axios.put(`${API_URL}/${selectedConfig.id}`, payload, { headers });
             } else {
