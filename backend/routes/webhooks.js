@@ -1984,7 +1984,56 @@ router.post('/gsm/callback', async (req, res) => {
         // Return 200 immediately to acknowledge receipt
         res.status(200).send('EVENT_RECEIVED');
         
-        // TODO: Implement GSM webhook mapping to internal DB once payload structure is confirmed.
+        // Process GSM DLR payload
+        if (payload.event === 'gsm.status.update' && payload.providerMessageId && payload.status) {
+            const messageId = payload.providerMessageId;
+            let finalStatus = payload.status.toLowerCase();
+            
+            // Map status
+            if (finalStatus === 'delivered' || finalStatus === 'sent_ok') finalStatus = 'delivered';
+            else if (finalStatus === 'failed' || finalStatus === 'undelivered') finalStatus = 'failed';
+            else if (finalStatus === 'sending') finalStatus = 'sent';
+            
+            const { query } = require('../config/db');
+            
+            // 1. Check message_logs
+            let isApiLog = false;
+            let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
+            let table = 'message_logs';
+            
+            // 2. Check api_message_logs
+            if (logs.length === 0) {
+                [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ? LIMIT 1', [messageId]);
+                table = 'api_message_logs';
+                isApiLog = true;
+            }
+            
+            if (logs.length > 0) {
+                const log = logs[0];
+                const oldStatus = (log.status || 'sent').toLowerCase();
+                
+                if (finalStatus !== oldStatus) {
+                    console.log(`[GSM Webhook] Updating ${table} ID ${log.id} to ${finalStatus}`);
+                    await query(`UPDATE ${table} SET status = ? WHERE id = ?`, [finalStatus, log.id]);
+                    
+                    // Update campaign_queue
+                    const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
+                    await query(`UPDATE ${queueTable} SET status = ? WHERE message_id = ?`, [finalStatus, messageId]);
+                    
+                    // Update Campaigns stats if campaign_id exists
+                    if (log.campaign_id && !isApiLog) {
+                        if (finalStatus === 'delivered' && oldStatus !== 'delivered') {
+                            await query(`UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
+                        } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                            await query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = ?`, [log.campaign_id]);
+                        }
+                    }
+                }
+            } else {
+                console.log(`⚠️ [GSM Webhook] No message log found for providerMessageId: ${messageId}`);
+            }
+        }
+        
     } catch (error) {
         console.error('[GSM-WEBHOOK] Error processing webhook:', error.message);
     }
