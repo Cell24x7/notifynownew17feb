@@ -1942,4 +1942,21 @@ ensureMediaUrlColumn();
 
 module.exports = router;
 
-
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/webhooks/gsm/callback
+// Standard endpoint for GSM Delivery Reports & Incoming Messages
+router.post('/gsm/callback', async (req, res) => {
+    try {
+        const payload = req.body;
+        console.log('==============================================');
+        console.log('📨 RECEIVED GSM WEBHOOK');
+        console.log('Payload:', JSON.stringify(payload, null, 2));
+        
+        // Return 200 immediately to acknowledge receipt
+        res.status(200).send('EVENT_RECEIVED');
+        
+        // TODO: Implement GSM webhook mapping to internal DB once payload structure is confirmed.
+    } catch (error) {
+        console.error('[GSM-WEBHOOK] Error processing webhook:', error.message);
+    }
+});
