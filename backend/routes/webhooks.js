@@ -1135,11 +1135,12 @@ router.post('/whatsapp/callback', async (req, res) => {
                                         // 🧠 SMART MATCHING: Fallback for WA20 Temporary IDs
                                         if (logs.length === 0 && status === 'sent' && messageId.startsWith('wamid.')) {
                                             const cleanRecipient = String(recipientId).replace(/\D/g, '').slice(-10);
+                                            const possibleRecipients = [cleanRecipient, `91${cleanRecipient}`, `+91${cleanRecipient}`];
                                             
-                                            // Search api_message_logs
+                                            // Search api_message_logs (Indexed on recipient)
                                             let [recentLogs] = await query(
-                                                'SELECT id, message_id FROM api_message_logs WHERE recipient LIKE ? AND status = "sent" AND channel = "whatsapp" AND message_id LIKE "wa_%" ORDER BY send_time DESC LIMIT 1',
-                                                [`%${cleanRecipient}`]
+                                                'SELECT id, message_id FROM api_message_logs WHERE recipient IN (?, ?, ?) AND status = "sent" AND channel = "whatsapp" AND message_id LIKE "wa_%" ORDER BY send_time DESC LIMIT 1',
+                                                possibleRecipients
                                             );
                                             
                                             if (recentLogs.length > 0) {
@@ -1148,10 +1149,10 @@ router.post('/whatsapp/callback', async (req, res) => {
                                                 isApiLog = true;
                                                 [logs] = await query('SELECT * FROM api_message_logs WHERE id = ?', [recentLogs[0].id]);
                                             } else {
-                                                // Search message_logs
+                                                // Search message_logs (Indexed on recipient)
                                                 [recentLogs] = await query(
-                                                    'SELECT id, message_id FROM message_logs WHERE recipient LIKE ? AND status = "sent" AND channel = "whatsapp" AND message_id LIKE "wa_%" ORDER BY created_at DESC LIMIT 1',
-                                                    [`%${cleanRecipient}`]
+                                                    'SELECT id, message_id FROM message_logs WHERE recipient IN (?, ?, ?) AND status = "sent" AND channel = "whatsapp" AND message_id LIKE "wa_%" ORDER BY created_at DESC LIMIT 1',
+                                                    possibleRecipients
                                                 );
                                                 if (recentLogs.length > 0) {
                                                     console.log(`🧠 Smart Match UI: Found temporary ID ${recentLogs[0].message_id} for ${recipientId}, updating to ${messageId}`);
