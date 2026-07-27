@@ -200,12 +200,23 @@ router.get('/templates', authenticate, async (req, res) => {
                 if (t.status === 1) metaStatus = 'APPROVED';
                 else if (t.status === 2) metaStatus = 'REJECTED';
                 
+                let metaCategory = 'UTILITY';
+                if (t.category) {
+                    if (typeof t.category === 'string') {
+                        metaCategory = t.category.toUpperCase();
+                    } else if (typeof t.category === 'number') {
+                        if (t.category === 1) metaCategory = 'MARKETING';
+                        else if (t.category === 2) metaCategory = 'UTILITY';
+                        else if (t.category === 3) metaCategory = 'AUTHENTICATION';
+                    }
+                }
+                
                 return {
                     id: t.id,
                     name: t.template_name,
                     status: metaStatus,
                     language: 'en_US', // WA20 language 14 -> en_US
-                    category: 'UTILITY', // Defaulting since WA20 uses int category
+                    category: metaCategory,
                     components
                 };
             });
