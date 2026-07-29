@@ -97,6 +97,7 @@ export default function Contacts() {
     category: 'lead' as Contact['category'],
     channel: (enabledChannels[0]?.toLowerCase() || 'whatsapp') as Contact['channel'],
     labels: '',
+    list_id: 'none',
   });
 
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -279,16 +280,16 @@ export default function Contacts() {
     try {
       await contactService.createContact({
           ...newContact,
-          list_id: addToListId !== 'none' ? addToListId : undefined
+          list_id: newContact.list_id !== 'none' ? newContact.list_id : (addToListId !== 'none' ? addToListId : undefined)
       });
       toast({
         title: 'Success',
         description: 'Contact created successfully.',
       });
       setIsAddOpen(false);
-      setNewContact({ name: '', phone: '', email: '', category: 'lead', channel: 'whatsapp', labels: '' });
+      setNewContact({ name: '', phone: '', email: '', category: 'lead', channel: 'whatsapp', labels: '', list_id: 'none' });
       fetchContacts();
-      if (addToListId !== 'none') fetchContactLists();
+      if (newContact.list_id !== 'none' || addToListId !== 'none') fetchContactLists();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -343,6 +344,22 @@ export default function Contacts() {
         description: 'Failed to delete contact.',
         variant: 'destructive',
       });
+    }
+  };
+  
+  const handleAssignToList = async () => {
+    if (addToListId === 'none') {
+        toast({ title: 'Error', description: 'Please select a list from the top dropdown first.', variant: 'destructive' });
+        return;
+    }
+    if (selectedContacts.length === 0) return;
+    try {
+        await contactService.assignToList(addToListId, selectedContacts);
+        toast({ title: 'Success', description: `Assigned ${selectedContacts.length} contacts to list.` });
+        setSelectedContacts([]);
+        fetchContactLists();
+    } catch (error: any) {
+        toast({ title: 'Error', description: error.response?.data?.message || 'Failed to assign contacts', variant: 'destructive' });
     }
   };
   
@@ -780,6 +797,25 @@ export default function Contacts() {
                         onChange={(e) => setNewContact({ ...newContact, labels: e.target.value })}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Assign to List (Optional)</Label>
+                      <Select
+                        value={newContact.list_id}
+                        onValueChange={(value: any) => setNewContact({ ...newContact, list_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a list..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No List (Default)</SelectItem>
+                          {contactLists.map(list => (
+                            <SelectItem key={list.id} value={list.id}>
+                              {list.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="flex justify-end gap-2 pt-4">
                       <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                         Cancel
@@ -919,6 +955,18 @@ export default function Contacts() {
               <span className="hidden sm:inline">Filters</span>
             </Button>
           </div>
+
+          {/* Bulk Actions */}
+          {selectedContacts.length > 0 && (
+            <div className="flex items-center gap-2 mt-4 p-3 bg-primary/10 text-primary border border-primary/20 rounded-lg">
+              <span className="text-sm font-semibold">{selectedContacts.length} contacts selected</span>
+              <div className="ml-auto flex items-center gap-2">
+                <Button size="sm" variant="default" onClick={handleAssignToList} className="h-8 text-xs px-3">
+                  Assign to Selected List
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}

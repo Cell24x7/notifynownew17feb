@@ -81,4 +81,41 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
 
+// POST /api/contact-lists/assign
+router.post('/assign', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { list_id, contact_ids } = req.body;
+
+        if (!list_id || !contact_ids || !Array.isArray(contact_ids) || contact_ids.length === 0) {
+            return res.status(400).json({ success: false, message: 'list_id and contact_ids array are required' });
+        }
+
+        // Verify list ownership
+        const [lists] = await query('SELECT id FROM contact_lists WHERE id = ? AND user_id = ?', [list_id, userId]);
+        if (lists.length === 0) {
+            return res.status(404).json({ success: false, message: 'List not found' });
+        }
+
+        // Verify contacts belong to user
+        const [contacts] = await query('SELECT id FROM contacts WHERE user_id = ? AND id IN (?)', [userId, contact_ids]);
+        const validContactIds = contacts.map(c => c.id);
+
+        if (validContactIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'No valid contacts found to assign' });
+        }
+
+        // Prepare bulk insert
+        const values = validContactIds.map(id => [list_id, id]);
+        
+        // Insert with IGNORE to avoid duplicate errors if already in list
+        await query('INSERT IGNORE INTO contact_list_members (list_id, contact_id) VALUES ?', [values]);
+
+        res.json({ success: true, message: `Assigned ${validContactIds.length} contacts to list successfully` });
+    } catch (error) {
+        console.error('Assign to list error:', error);
+        res.status(500).json({ success: false, message: 'Failed to assign contacts to list' });
+    }
+});
+
 module.exports = router;

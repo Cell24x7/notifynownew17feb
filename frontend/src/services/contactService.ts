@@ -74,5 +74,10 @@ export const contactService = {
     async importContacts(contacts: any[], list_id?: string) {
         const response = await axios.post(`${API_BASE_URL_CONTACTS}/bulk`, { contacts, list_id }, { headers: getAuthHeader() });
         return response.data;
+    },
+
+    assignToList: async (list_id: string, contact_ids: string[]) => {
+        const response = await axios.post(`${API_BASE_URL}/api/contact-lists/assign`, { list_id, contact_ids }, { headers: getAuthHeader() });
+        return response.data;
     }
 };
