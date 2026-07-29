@@ -148,6 +148,7 @@ app.use('/api/queue-manager', require('./routes/queueManagement'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/dlt-templates', require('./routes/dltTemplates'));
 app.use('/api/contacts', require('./routes/contacts'));
+app.use('/api/contact-lists', require('./routes/contact_lists'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/logs', require('./routes/logs'));
 const webhooksRouter = require('./routes/webhooks');
