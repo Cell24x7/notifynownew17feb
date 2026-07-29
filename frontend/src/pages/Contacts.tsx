@@ -124,7 +124,9 @@ export default function Contacts() {
         channel: selectedChannel,
       });
       setContacts(data);
-      cachedContactsList = data;
+      if (selectedView === 'all' && !selectedCategory && !selectedChannel) {
+        cachedContactsList = data;
+      }
     } catch (error) {
       console.error('Error fetching contacts:', error);
       toast({
@@ -428,7 +430,15 @@ export default function Contacts() {
             {viewFilters.map((view) => (
               <button
                 key={view.id}
-                onClick={() => { setSelectedView(view.id); setIsFilterOpen(false); }}
+                onClick={() => { 
+                  setSelectedView(view.id); 
+                  if (view.id === 'all') {
+                    setSelectedCategory(null);
+                    setSelectedChannel(null);
+                    setSearchQuery('');
+                  }
+                  setIsFilterOpen(false); 
+                }}
                 className={cn(
                   'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
                   selectedView === view.id
