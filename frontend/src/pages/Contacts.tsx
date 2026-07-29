@@ -30,7 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { contactService, Contact } from '@/services/contactService';
+import { contactService, Contact, ContactList } from '@/services/contactService';
 import { useAuth } from '@/contexts/AuthContext';
 import { channelConfig } from '@/components/ui/channel-icon';
 
@@ -100,18 +100,37 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
+  const [contactLists, setContactLists] = useState<ContactList[]>([]);
+  const [selectedList, setSelectedList] = useState<string | null>(null);
+  const [isListDialogOpen, setIsListDialogOpen] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [addToListId, setAddToListId] = useState<string>('none');
+
   const { toast } = useToast();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    fetchContactLists();
+  }, []);
+
+  const fetchContactLists = async () => {
+    try {
+      const lists = await contactService.getContactLists();
+      setContactLists(lists);
+    } catch (error) {
+      console.error('Error fetching contact lists:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchContacts();
-  }, [selectedView, selectedCategory, selectedChannel]);
+  }, [selectedView, selectedCategory, selectedChannel, selectedList]);
 
   // Reset selection when filters change
   useEffect(() => {
     setSelectedContacts([]);
-  }, [searchQuery, selectedView, selectedCategory, selectedChannel]);
+  }, [searchQuery, selectedView, selectedCategory, selectedChannel, selectedList]);
 
   const fetchContacts = async () => {
     try {
@@ -122,9 +141,10 @@ export default function Contacts() {
         view: selectedView === 'all' ? undefined : selectedView,
         category: selectedCategory,
         channel: selectedChannel,
+        list_id: selectedList,
       });
       setContacts(data);
-      if (selectedView === 'all' && !selectedCategory && !selectedChannel) {
+      if (selectedView === 'all' && !selectedCategory && !selectedChannel && !selectedList) {
         cachedContactsList = data;
       }
     } catch (error) {
@@ -172,9 +192,10 @@ export default function Contacts() {
         });
 
         if (contactsToImport.length > 0) {
-            await contactService.importContacts(contactsToImport);
+            await contactService.importContacts(contactsToImport, addToListId !== 'none' ? addToListId : undefined);
             toast({ title: 'Success', description: `Imported ${contactsToImport.length} contacts.` });
             fetchContacts();
+            if (addToListId !== 'none') fetchContactLists();
         } else {
              toast({ title: 'Error', description: 'No valid contacts found in CSV.', variant: 'destructive' });
         }
@@ -253,7 +274,10 @@ export default function Contacts() {
     }
 
     try {
-      await contactService.createContact(newContact);
+      await contactService.createContact({
+          ...newContact,
+          list_id: addToListId !== 'none' ? addToListId : undefined
+      });
       toast({
         title: 'Success',
         description: 'Contact created successfully.',
@@ -261,6 +285,7 @@ export default function Contacts() {
       setIsAddOpen(false);
       setNewContact({ name: '', phone: '', email: '', category: 'lead', channel: 'whatsapp', labels: '' });
       fetchContacts();
+      if (addToListId !== 'none') fetchContactLists();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -435,6 +460,7 @@ export default function Contacts() {
                   if (view.id === 'all') {
                     setSelectedCategory(null);
                     setSelectedChannel(null);
+                    setSelectedList(null);
                     setSearchQuery('');
                   }
                   setIsFilterOpen(false); 
@@ -502,6 +528,38 @@ export default function Contacts() {
             ))}
           </div>
         </div>
+        
+        {/* Contact Lists */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Lists</h3>
+            <Button variant="ghost" size="icon" className="h-4 w-4 rounded-full" onClick={() => setIsListDialogOpen(true)}>
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="space-y-1">
+            {contactLists.map((list) => (
+              <button
+                key={list.id}
+                onClick={() => { setSelectedList(selectedList === list.id ? null : list.id); setIsFilterOpen(false); }}
+                className={cn(
+                  'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
+                  selectedList === list.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted text-muted-foreground'
+                )}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="truncate">{list.name}</span>
+                </div>
+                <Badge variant="secondary" className={cn(selectedList === list.id ? 'bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20' : 'bg-muted-foreground/10')}>{list.contact_count}</Badge>
+              </button>
+            ))}
+            {contactLists.length === 0 && (
+              <div className="text-xs text-muted-foreground px-3 py-2 text-center border border-dashed rounded-lg">No lists created</div>
+            )}
+          </div>
+        </div>
       </div>
   );
 
@@ -534,6 +592,17 @@ export default function Contacts() {
                 </Badge>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <Select value={addToListId} onValueChange={setAddToListId}>
+                <SelectTrigger className="w-[150px] h-9 text-sm">
+                  <SelectValue placeholder="Add to List..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No List (Default)</SelectItem>
+                  {contactLists.map(list => (
+                    <SelectItem key={list.id} value={list.id}>{list.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="relative">
                 <input
                     type="file"
@@ -550,6 +619,46 @@ export default function Contacts() {
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Export</span>
               </Button>
+              <Dialog open={isListDialogOpen} onOpenChange={setIsListDialogOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Create New List</DialogTitle>
+                    <DialogDescription>
+                      Create a new list to group your contacts.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>List Name</Label>
+                      <Input
+                        placeholder="e.g. VIP Customers, Diwali Campaign"
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsListDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button className="gradient-primary" onClick={async () => {
+                        if (!newListName.trim()) return toast({title: 'Error', description: 'Name required', variant: 'destructive'});
+                        try {
+                          await contactService.createContactList(newListName);
+                          toast({title: 'Success', description: 'List created'});
+                          setNewListName('');
+                          setIsListDialogOpen(false);
+                          fetchContactLists();
+                        } catch (e: any) {
+                          toast({title: 'Error', description: e.response?.data?.message || 'Failed', variant: 'destructive'});
+                        }
+                      }}>
+                        Create List
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogTrigger asChild>
                   <Button className="gradient-primary gap-2" size="sm">

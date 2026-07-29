@@ -9,48 +9,52 @@ const authenticate = require('../middleware/authMiddleware');
 router.get('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { search, category, channel, status, view } = req.query;
+        const { search, category, channel, status, view, list_id } = req.query;
 
         // Base query
-        let sql = 'SELECT * FROM contacts WHERE user_id = ?';
+        let sql = 'SELECT c.* FROM contacts c ';
+        if (list_id) {
+            sql += 'JOIN contact_list_members m ON c.id = m.contact_id ';
+        }
+        sql += 'WHERE c.user_id = ?';
         let params = [userId];
+
+        if (list_id) {
+            sql += ' AND m.list_id = ?';
+            params.push(list_id);
+        }
 
         // Filters
         if (search) {
-            sql += ' AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)';
+            sql += ' AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)';
             const searchPattern = `%${search}%`;
             params.push(searchPattern, searchPattern, searchPattern);
         }
 
         if (category) {
-            sql += ' AND category = ?';
+            sql += ' AND c.category = ?';
             params.push(category);
         }
 
         if (channel) {
-            sql += ' AND channel = ?';
+            sql += ' AND c.channel = ?';
             params.push(channel);
         }
 
         if (status) {
-            sql += ' AND status = ?';
+            sql += ' AND c.status = ?';
             params.push(status);
         }
 
         // Views
         if (view === 'starred') {
-            sql += ' AND starred = TRUE';
+            sql += ' AND c.starred = TRUE';
         } else if (view === 'blacklisted') {
-            sql += " AND status = 'blocked'";
-        } else if (view === 'all') {
-            // Optional: If you want 'All Contacts' to NOT show blocked ones by default:
-            // sql += " AND status != 'blocked'";
-            // But usually 'All' means all. Sticking to standard behavior unless requested otherwise.
-            // User just said "jab blacklisted par click karu... vahi dikhe" (when I click blacklisted... only show those).
+            sql += " AND c.status = 'blocked'";
         }
 
         // Ordering
-        sql += ' ORDER BY created_at DESC';
+        sql += ' ORDER BY c.created_at DESC';
 
         const [contacts] = await query(sql, params);
         res.json({ success: true, contacts });
@@ -64,7 +68,7 @@ router.get('/', authenticate, async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { name, phone, email, category, channel, labels, starred, status } = req.body;
+        const { name, phone, email, category, channel, labels, starred, status, list_id } = req.body;
 
         if (!name || !phone) {
             return res.status(400).json({ success: false, message: 'Name and Phone are required' });
@@ -96,10 +100,17 @@ router.post('/', authenticate, async (req, res) => {
             ]
         );
 
+        if (list_id) {
+            await query(
+                'INSERT IGNORE INTO contact_list_members (list_id, contact_id) VALUES (?, ?)',
+                [list_id, contactId]
+            );
+        }
+
         res.status(201).json({
             success: true,
             message: 'Contact created successfully',
-            contact: { id: contactId, name, phone, email, category, channel, labels, starred, status }
+            contact: { id: contactId, name, phone, email, category, channel, labels, starred, status, list_id }
         });
     } catch (error) {
         console.error('Create contact error:', error);
@@ -169,7 +180,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 router.post('/bulk', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { contacts } = req.body; // Expects array of { name, phone, email, ... }
+        const { contacts, list_id } = req.body; // Expects array of { name, phone, email, ... }
 
         if (!Array.isArray(contacts) || contacts.length === 0) {
             return res.status(400).json({ success: false, message: 'No contacts provided' });
@@ -224,6 +235,27 @@ router.post('/bulk', authenticate, async (req, res) => {
                 );
                 insertedCount += batch.length;
                 console.log(`Submitted batch: ${insertedCount}/${allValues.length}`);
+            }
+        }
+
+        // Add to list if list_id is provided
+        if (list_id) {
+            const phones = contacts.map(c => c.phone).filter(Boolean);
+            for (let i = 0; i < phones.length; i += BATCH_SIZE) {
+                const phoneBatch = phones.slice(i, i + BATCH_SIZE);
+                if (phoneBatch.length > 0) {
+                    const [existingContacts] = await query(
+                        'SELECT id FROM contacts WHERE user_id = ? AND phone IN (?)',
+                        [userId, phoneBatch]
+                    );
+                    if (existingContacts.length > 0) {
+                        const memberValues = existingContacts.map(c => [list_id, c.id]);
+                        await query(
+                            'INSERT IGNORE INTO contact_list_members (list_id, contact_id) VALUES ?',
+                            [memberValues]
+                        );
+                    }
+                }
             }
         }
 

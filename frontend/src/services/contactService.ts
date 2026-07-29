@@ -27,13 +27,36 @@ export type CreateContactData = Omit<Contact, 'id' | 'created_at' | 'starred' | 
     status?: string;
 };
 
+export interface ContactList {
+    id: string;
+    user_id: string;
+    name: string;
+    contact_count: number;
+    created_at: string;
+}
+
 export const contactService = {
+    getContactLists: async () => {
+        const response = await axios.get(`${API_BASE_URL}/api/contact-lists`, { headers: getAuthHeader() });
+        return response.data.lists as ContactList[];
+    },
+
+    createContactList: async (name: string) => {
+        const response = await axios.post(`${API_BASE_URL}/api/contact-lists`, { name }, { headers: getAuthHeader() });
+        return response.data;
+    },
+
+    deleteContactList: async (id: string) => {
+        const response = await axios.delete(`${API_BASE_URL}/api/contact-lists/${id}`, { headers: getAuthHeader() });
+        return response.data;
+    },
+
     getContacts: async (params?: any) => {
         const response = await axios.get(API_BASE_URL_CONTACTS, { headers: getAuthHeader(), params });
         return response.data.contacts;
     },
 
-    createContact: async (data: CreateContactData) => {
+    createContact: async (data: CreateContactData & { list_id?: string }) => {
         const response = await axios.post(API_BASE_URL_CONTACTS, data, { headers: getAuthHeader() });
         return response.data;
     },
@@ -48,8 +71,8 @@ export const contactService = {
         return response.data;
     },
 
-    async importContacts(contacts: any[]) {
-        const response = await axios.post(`${API_BASE_URL_CONTACTS}/bulk`, { contacts }, { headers: getAuthHeader() });
+    async importContacts(contacts: any[], list_id?: string) {
+        const response = await axios.post(`${API_BASE_URL_CONTACTS}/bulk`, { contacts, list_id }, { headers: getAuthHeader() });
         return response.data;
     }
 };

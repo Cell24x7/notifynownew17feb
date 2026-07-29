@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { type Channel, type MessageTemplate, audienceSegments } from '@/lib/mockData';
-import { contactService, type Contact } from '@/services/contactService';
+import { contactService, type Contact, type ContactList } from '@/services/contactService';
 import { campaignService } from '@/services/campaignService';
 import { voiceService } from '@/services/voiceService';
 import { CampaignPreview } from './CampaignPreview';
@@ -165,6 +165,20 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    const [detectedColumns, setDetectedColumns] = useState<string[]>([]);
    const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
    const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+   const [listFilter, setListFilter] = useState('all');
+   const [contactLists, setContactLists] = useState<ContactList[]>([]);
+
+   useEffect(() => {
+      const fetchLists = async () => {
+         try {
+            const lists = await contactService.getContactLists();
+            setContactLists(lists);
+         } catch (error) {
+            console.error(error);
+         }
+      };
+      fetchLists();
+   }, []);
 
    const handleVoiceFileUpload = async (file: File) => {
       if (!file) return;
@@ -325,7 +339,9 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          const fetchContacts = async () => {
             setLoadingContacts(true);
             try {
-               const data = await contactService.getContacts();
+               const data = await contactService.getContacts({
+                   list_id: listFilter !== 'all' ? listFilter : undefined
+               });
                setContacts(data);
             } catch (error) {
                console.error("Failed to fetch contacts", error);
@@ -340,7 +356,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
          };
          fetchContacts();
       }
-   }, [currentStep, campaignData.contactSource]);
+   }, [currentStep, campaignData.contactSource, listFilter]);
 
    // Auto-mapping logic
    useEffect(() => {
