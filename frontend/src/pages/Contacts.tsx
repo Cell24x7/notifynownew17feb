@@ -338,7 +338,7 @@ export default function Contacts() {
   };
 
   const getChannelIcon = (channel: string) => {
-    const config = (channelConfig as any)[channel.toLowerCase()];
+    const config = (channelConfig as any)[(channel || '').toLowerCase()];
     if (config) {
       const Icon = config.icon;
       return <Icon className={cn("h-4 w-4", config.color)} />;
@@ -357,9 +357,14 @@ export default function Contacts() {
   };
 
   const filteredContacts = (contacts || []).filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.phone.includes(searchQuery) ||
-      (contact.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+    const nameStr = contact.name || '';
+    const phoneStr = contact.phone || '';
+    const emailStr = contact.email || '';
+    const search = (searchQuery || '').toLowerCase();
+    
+    const matchesSearch = nameStr.toLowerCase().includes(search) ||
+      phoneStr.includes(searchQuery) ||
+      emailStr.toLowerCase().includes(search);
     return matchesSearch;
   });
   
