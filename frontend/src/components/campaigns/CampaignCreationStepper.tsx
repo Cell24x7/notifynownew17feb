@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '@/contexts/AuthContext';
-import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter, Smile, Sparkles, Smartphone } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter, Smile, Sparkles, Smartphone, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -166,6 +166,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
    const [isUploadingVoice, setIsUploadingVoice] = useState(false);
    const [listFilter, setListFilter] = useState('all');
+   const [labelFilter, setLabelFilter] = useState('all');
    const [contactLists, setContactLists] = useState<ContactList[]>([]);
 
    useEffect(() => {
@@ -602,6 +603,20 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       });
    };
 
+   // Calculate unique labels for dropdown
+   const uniqueLabels = useMemo(() => {
+      const labels = new Set<string>();
+      contacts.forEach(c => {
+         if (c.labels) {
+            c.labels.split(',').forEach(l => {
+               const trimmed = l.trim();
+               if (trimmed) labels.add(trimmed);
+            });
+         }
+      });
+      return Array.from(labels).sort();
+   }, [contacts]);
+
    // Filtered contacts based on search and filters
    const filteredContacts = useMemo(() => {
       return contacts.filter(contact => {
@@ -626,9 +641,13 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
             else if (dateFilter === 'last90') dateMatch = daysDiff <= 90;
          }
 
-         return searchMatch && segmentMatch && dateMatch;
+         // Label filter
+         const labelMatch = labelFilter === 'all' || 
+            (contact.labels && contact.labels.split(',').map(l => l.trim()).includes(labelFilter));
+
+         return searchMatch && segmentMatch && dateMatch && labelMatch;
       });
-   }, [contacts, contactSearch, segmentFilter, dateFilter]); // Added contacts to dependency
+   }, [contacts, contactSearch, segmentFilter, dateFilter, labelFilter]); // Added contacts and labelFilter to dependency
 
    // Handle contact selection
    const toggleContactSelection = (contactId: string) => {

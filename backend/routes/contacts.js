@@ -9,7 +9,7 @@ const authenticate = require('../middleware/authMiddleware');
 router.get('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { search, category, channel, status, view, list_id } = req.query;
+        const { search, category, channel, status, view, list_id, label } = req.query;
 
         // Base query
         let sql = 'SELECT c.* FROM contacts c ';
@@ -44,6 +44,11 @@ router.get('/', authenticate, async (req, res) => {
         if (status) {
             sql += ' AND c.status = ?';
             params.push(status);
+        }
+
+        if (label) {
+            sql += " AND c.labels LIKE ?";
+            params.push(`%${label}%`);
         }
 
         // Views

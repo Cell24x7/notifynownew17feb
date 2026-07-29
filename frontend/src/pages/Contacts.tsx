@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Trash2,
   Edit,
-  Loader2
+  Loader2,
+  Tag
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -81,6 +82,7 @@ export default function Contacts() {
   const [selectedView, setSelectedView] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
@@ -125,12 +127,12 @@ export default function Contacts() {
 
   useEffect(() => {
     fetchContacts();
-  }, [selectedView, selectedCategory, selectedChannel, selectedList]);
+  }, [selectedView, selectedCategory, selectedChannel, selectedList, selectedLabel]);
 
   // Reset selection when filters change
   useEffect(() => {
     setSelectedContacts([]);
-  }, [searchQuery, selectedView, selectedCategory, selectedChannel, selectedList]);
+  }, [searchQuery, selectedView, selectedCategory, selectedChannel, selectedList, selectedLabel]);
 
   const fetchContacts = async () => {
     try {
@@ -142,9 +144,10 @@ export default function Contacts() {
         category: selectedCategory,
         channel: selectedChannel,
         list_id: selectedList,
+        label: selectedLabel,
       });
       setContacts(data);
-      if (selectedView === 'all' && !selectedCategory && !selectedChannel && !selectedList) {
+      if (selectedView === 'all' && !selectedCategory && !selectedChannel && !selectedList && !selectedLabel) {
         cachedContactsList = data;
       }
     } catch (error) {
@@ -446,6 +449,12 @@ export default function Contacts() {
   const isAllSelected = filteredContacts.length > 0 && selectedContacts.length === filteredContacts.length;
   const isIndeterminate = selectedContacts.length > 0 && selectedContacts.length < filteredContacts.length;
 
+  const uniqueLabels = Array.from(new Set(
+      (cachedContactsList || contacts)
+          .flatMap(c => (c.labels ? c.labels.split(',').map(l => l.trim()) : []))
+          .filter(Boolean)
+  )).sort();
+
   const SidebarContent = () => (
       <div className="space-y-6">
         {/* Views */}
@@ -461,6 +470,7 @@ export default function Contacts() {
                     setSelectedCategory(null);
                     setSelectedChannel(null);
                     setSelectedList(null);
+                    setSelectedLabel(null);
                     setSearchQuery('');
                   }
                   setIsFilterOpen(false); 
@@ -504,6 +514,32 @@ export default function Contacts() {
             ))}
           </div>
         </div>
+
+        {/* Labels */}
+        {uniqueLabels.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Labels</h3>
+            <div className="space-y-1">
+              {uniqueLabels.map((label) => (
+                <button
+                  key={label}
+                  onClick={() => { setSelectedLabel(selectedLabel === label ? null : label); setIsFilterOpen(false); }}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
+                    selectedLabel === label
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted text-muted-foreground'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Tag className={cn('w-4 h-4', selectedLabel === label ? 'text-primary-foreground' : 'text-blue-500')} />
+                    <span>{label}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Channels */}
         <div>
