@@ -1392,6 +1392,19 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        />
                                     </div>
                                     <div className="flex gap-2">
+                                        <Select value={listFilter} onValueChange={setListFilter}>
+                                           <SelectTrigger className="w-[140px]">
+                                              <Users className="mr-2 h-4 w-4" />
+                                              <SelectValue placeholder="List" />
+                                           </SelectTrigger>
+                                           <SelectContent>
+                                              <SelectItem value="all">All Contacts</SelectItem>
+                                              {contactLists.map(list => (
+                                                <SelectItem key={list.id} value={list.id}>{list.name}</SelectItem>
+                                              ))}
+                                           </SelectContent>
+                                        </Select>
+
                                        <Select value={segmentFilter} onValueChange={setSegmentFilter}>
                                           <SelectTrigger className="w-[140px]">
                                              <Filter className="mr-2 h-4 w-4" />
@@ -1404,6 +1417,21 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              <SelectItem value="vip">VIPs</SelectItem>
                                           </SelectContent>
                                        </Select>
+
+                                        {uniqueLabels.length > 0 && (
+                                           <Select value={labelFilter} onValueChange={setLabelFilter}>
+                                              <SelectTrigger className="w-[140px]">
+                                                 <Tag className="mr-2 h-4 w-4" />
+                                                 <SelectValue placeholder="Label" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                 <SelectItem value="all">All Labels</SelectItem>
+                                                 {uniqueLabels.map(label => (
+                                                    <SelectItem key={label} value={label}>{label}</SelectItem>
+                                                 ))}
+                                              </SelectContent>
+                                           </Select>
+                                        )}
 
                                        <Select value={dateFilter} onValueChange={setDateFilter}>
                                           <SelectTrigger className="w-[140px]">
@@ -1630,7 +1658,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                 </div>
 
                                                 <div className="flex flex-col gap-2 min-w-[240px]">
-                                                   <div className="flex gap-2">
+                                                   <div className="flex gap-2 flex-wrap">
                                                       <Select
                                                          value={campaignData.fieldMapping[variable]?.type || 'custom'}
                                                          onValueChange={(val: any) => {
