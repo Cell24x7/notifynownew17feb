@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Edit,
   Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -95,6 +96,9 @@ export default function Contacts() {
     channel: (enabledChannels[0]?.toLowerCase() || 'whatsapp') as Contact['channel'],
     labels: '',
   });
+
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -261,6 +265,32 @@ export default function Contacts() {
         description: error.response?.data?.message || 'Failed to create contact.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleEditClick = (contact: Contact) => {
+    setEditingContact(contact);
+    setIsEditOpen(false); // Close add if open
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateContact = async () => {
+    if (!editingContact) return;
+    if (!editingContact.name.trim() || !editingContact.phone.trim()) {
+      toast({ title: 'Validation Error', description: 'Name and Phone are required.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await contactService.updateContact(editingContact.id, editingContact);
+      toast({ title: 'Success', description: 'Contact updated successfully.' });
+      setIsEditOpen(false);
+      setEditingContact(null);
+      
+      // Optimistic update
+      setContacts(prev => prev.map(c => c.id === editingContact.id ? editingContact : c));
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.response?.data?.message || 'Failed to update contact.', variant: 'destructive' });
     }
   };
 
@@ -606,6 +636,100 @@ export default function Contacts() {
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {/* EDIT DIALOG */}
+              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Edit Contact</DialogTitle>
+                    <DialogDescription>
+                      Update the contact details.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {editingContact && (
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Name</Label>
+                      <Input
+                        placeholder="Contact name"
+                        value={editingContact.name}
+                        onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone</Label>
+                      <Input
+                        placeholder="+1 234 567 890"
+                        value={editingContact.phone}
+                        onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        placeholder="email@example.com"
+                        value={editingContact.email || ''}
+                        onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Category</Label>
+                        <Select
+                          value={editingContact.category}
+                          onValueChange={(value: any) => setEditingContact({ ...editingContact, category: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="guest">Guest</SelectItem>
+                            <SelectItem value="lead">Lead</SelectItem>
+                            <SelectItem value="customer">Customer</SelectItem>
+                            <SelectItem value="vip">VIP</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Channel</Label>
+                        <Select
+                          value={editingContact.channel}
+                          onValueChange={(value: any) => setEditingContact({ ...editingContact, channel: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {enabledChannels.map((channel: string) => (
+                              <SelectItem key={channel} value={channel.toLowerCase()}>
+                                {channel}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Labels (comma separated)</Label>
+                      <Input
+                        placeholder="VIP, Premium, Returning"
+                        value={editingContact.labels || ''}
+                        onChange={(e) => setEditingContact({ ...editingContact, labels: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleUpdateContact} className="gradient-primary">
+                        Save Changes
+                      </Button>
+                    </div>
+                  </div>
+                  )}
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
@@ -732,6 +856,15 @@ export default function Contacts() {
                                 onClick={() => handleToggleBlacklist(contact)}
                             >
                                 <Ban className="h-4 w-4" />
+                            </Button>
+
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-muted-foreground hover:bg-blue-100 dark:hover:bg-blue-900/20"
+                              onClick={() => handleEditClick(contact)}
+                            >
+                              <Edit className="h-4 w-4" />
                             </Button>
 
                             <Button 

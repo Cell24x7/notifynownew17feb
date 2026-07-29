@@ -217,7 +217,7 @@ router.post('/bulk', authenticate, async (req, res) => {
             const batch = allValues.slice(i, i + BATCH_SIZE);
             if (batch.length > 0) {
                 await query(
-                    `INSERT INTO contacts 
+                    `INSERT IGNORE INTO contacts 
                     (id, user_id, name, phone, email, category, channel, labels, starred, status) 
                     VALUES ?`,
                     [batch]
