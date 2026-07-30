@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Trash2,
   Edit,
+  Edit2,
   Loader2,
   Tag
 } from 'lucide-react';
