@@ -108,6 +108,16 @@ export default function Contacts() {
   const [isListDialogOpen, setIsListDialogOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [addToListId, setAddToListId] = useState<string>('none');
+  
+  // Edit/Delete List State
+  const [isRenameListOpen, setIsRenameListOpen] = useState(false);
+  const [listToRename, setListToRename] = useState<ContactList | null>(null);
+  const [renameListName, setRenameListName] = useState('');
+
+  // Edit/Delete Label State
+  const [isRenameLabelOpen, setIsRenameLabelOpen] = useState(false);
+  const [labelToRename, setLabelToRename] = useState('');
+  const [renameLabelName, setRenameLabelName] = useState('');
 
   const { toast } = useToast();
 
@@ -414,6 +424,57 @@ export default function Contacts() {
       }
   };
 
+  const handleRenameList = async () => {
+    if (!listToRename || !renameListName.trim()) return;
+    try {
+        await contactService.renameContactList(listToRename.id, renameListName);
+        toast({ title: 'Success', description: 'List renamed successfully.' });
+        setIsRenameListOpen(false);
+        setListToRename(null);
+        fetchContactLists();
+    } catch (error: any) {
+        toast({ title: 'Error', description: error.response?.data?.message || 'Failed to rename list.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteList = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this list? (Contacts inside will NOT be deleted)')) return;
+    try {
+        await contactService.deleteContactList(id);
+        toast({ title: 'Deleted', description: 'List deleted successfully.' });
+        if (selectedList === id) setSelectedList(null);
+        fetchContactLists();
+    } catch (error: any) {
+        toast({ title: 'Error', description: 'Failed to delete list.', variant: 'destructive' });
+    }
+  };
+
+  const handleRenameLabel = async () => {
+    if (!labelToRename || !renameLabelName.trim()) return;
+    try {
+        await contactService.renameLabel(labelToRename, renameLabelName);
+        toast({ title: 'Success', description: 'Label renamed successfully.' });
+        setIsRenameLabelOpen(false);
+        setLabelToRename('');
+        if (selectedLabel === labelToRename) setSelectedLabel(renameLabelName);
+        fetchContacts();
+    } catch (error: any) {
+        toast({ title: 'Error', description: error.response?.data?.message || 'Failed to rename label.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteLabel = async (label: string) => {
+    if (!window.confirm(`Are you sure you want to delete the label "${label}" from all contacts?`)) return;
+    try {
+        await contactService.deleteLabel(label);
+        toast({ title: 'Deleted', description: 'Label deleted successfully.' });
+        if (selectedLabel === label) setSelectedLabel(null);
+        fetchContacts();
+    } catch (error: any) {
+        toast({ title: 'Error', description: 'Failed to delete label.', variant: 'destructive' });
+    }
+  };
+
   const getChannelIcon = (channel: string) => {
     const config = (channelConfig as any)[(channel || '').toLowerCase()];
     if (config) {
@@ -538,21 +599,40 @@ export default function Contacts() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Labels</h3>
             <div className="space-y-1">
               {uniqueLabels.map((label) => (
-                <button
-                  key={label}
-                  onClick={() => { setSelectedLabel(selectedLabel === label ? null : label); setIsFilterOpen(false); }}
-                  className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
-                    selectedLabel === label
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted text-muted-foreground'
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <Tag className={cn('w-4 h-4', selectedLabel === label ? 'text-primary-foreground' : 'text-blue-500')} />
-                    <span>{label}</span>
+                <div key={label} className="group relative flex items-center w-full">
+                  <button
+                    onClick={() => { setSelectedLabel(selectedLabel === label ? null : label); setIsFilterOpen(false); }}
+                    className={cn(
+                      'flex-1 flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
+                      selectedLabel === label
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted text-muted-foreground'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Tag className={cn('w-4 h-4', selectedLabel === label ? 'text-primary-foreground' : 'text-blue-500')} />
+                      <span className="truncate pr-8">{label}</span>
+                    </div>
+                  </button>
+                  <div className="absolute right-2 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("h-6 w-6 rounded-full hover:bg-muted", selectedLabel === label ? 'text-primary-foreground hover:text-foreground' : '')}
+                      onClick={(e) => { e.stopPropagation(); setLabelToRename(label); setRenameLabelName(label); setIsRenameLabelOpen(true); }}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("h-6 w-6 rounded-full hover:bg-destructive/20 hover:text-destructive", selectedLabel === label ? 'text-primary-foreground' : '')}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteLabel(label); }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -592,21 +672,40 @@ export default function Contacts() {
           </div>
           <div className="space-y-1">
             {contactLists.map((list) => (
-              <button
-                key={list.id}
-                onClick={() => { setSelectedList(selectedList === list.id ? null : list.id); setIsFilterOpen(false); }}
-                className={cn(
-                  'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
-                  selectedList === list.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted text-muted-foreground'
-                )}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span className="truncate">{list.name}</span>
+              <div key={list.id} className="group relative flex items-center w-full">
+                <button
+                  onClick={() => { setSelectedList(selectedList === list.id ? null : list.id); setIsFilterOpen(false); }}
+                  className={cn(
+                    'flex-1 flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors',
+                    selectedList === list.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted text-muted-foreground'
+                  )}
+                >
+                  <div className="flex items-center gap-2 truncate pr-14">
+                    <span className="truncate">{list.name}</span>
+                  </div>
+                  <Badge variant="secondary" className={cn('pointer-events-none group-hover:opacity-0 transition-opacity', selectedList === list.id ? 'bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20' : 'bg-muted-foreground/10')}>{list.contact_count}</Badge>
+                </button>
+                <div className="absolute right-2 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-6 w-6 rounded-full hover:bg-muted", selectedList === list.id ? 'text-primary-foreground hover:text-foreground' : '')}
+                    onClick={(e) => { e.stopPropagation(); setListToRename(list); setRenameListName(list.name); setIsRenameListOpen(true); }}
+                  >
+                    <Edit2 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-6 w-6 rounded-full hover:bg-destructive/20 hover:text-destructive", selectedList === list.id ? 'text-primary-foreground' : '')}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteList(list.id); }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
-                <Badge variant="secondary" className={cn(selectedList === list.id ? 'bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20' : 'bg-muted-foreground/10')}>{list.contact_count}</Badge>
-              </button>
+              </div>
             ))}
             {contactLists.length === 0 && (
               <div className="text-xs text-muted-foreground px-3 py-2 text-center border border-dashed rounded-lg">No lists created</div>
@@ -1088,6 +1187,56 @@ export default function Contacts() {
           )}
         </div>
       </div>
+
+      {/* Rename List Dialog */}
+      <Dialog open={isRenameListOpen} onOpenChange={setIsRenameListOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename List</DialogTitle>
+            <DialogDescription>Enter a new name for the list.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>List Name</Label>
+              <Input
+                placeholder="List name"
+                value={renameListName}
+                onChange={(e) => setRenameListName(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsRenameListOpen(false)}>Cancel</Button>
+              <Button onClick={handleRenameList} className="gradient-primary">Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Label Dialog */}
+      <Dialog open={isRenameLabelOpen} onOpenChange={setIsRenameLabelOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename Label</DialogTitle>
+            <DialogDescription>
+              This will rename the label for all contacts that have it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Label Name</Label>
+              <Input
+                placeholder="Label name"
+                value={renameLabelName}
+                onChange={(e) => setRenameLabelName(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsRenameLabelOpen(false)}>Cancel</Button>
+              <Button onClick={handleRenameLabel} className="gradient-primary">Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

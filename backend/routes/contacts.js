@@ -181,6 +181,80 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
 
+// PUT /api/contacts/labels/rename - Rename a global label
+router.put('/labels/rename', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { oldLabel, newLabel } = req.body;
+
+        if (!oldLabel || !newLabel || !oldLabel.trim() || !newLabel.trim()) {
+            return res.status(400).json({ success: false, message: 'Both old and new labels are required' });
+        }
+
+        const oldL = oldLabel.trim();
+        const newL = newLabel.trim();
+
+        // Find all contacts that have the old label
+        const [contacts] = await query("SELECT id, labels FROM contacts WHERE user_id = ? AND labels LIKE ?", [userId, `%${oldL}%`]);
+
+        for (const contact of contacts) {
+            if (!contact.labels) continue;
+            
+            const currentLabels = contact.labels.split(',').map(l => l.trim());
+            
+            if (currentLabels.includes(oldL)) {
+                // Replace old label with new label (and avoid duplicates if newL already exists)
+                const updatedLabels = currentLabels.map(l => l === oldL ? newL : l);
+                // Remove duplicates in case they merged labels
+                const uniqueLabels = [...new Set(updatedLabels)].join(', ');
+                
+                await query('UPDATE contacts SET labels = ? WHERE id = ?', [uniqueLabels, contact.id]);
+            }
+        }
+
+        res.json({ success: true, message: 'Label renamed successfully' });
+    } catch (error) {
+        console.error('Rename label error:', error);
+        res.status(500).json({ success: false, message: 'Failed to rename label' });
+    }
+});
+
+// DELETE /api/contacts/labels/delete - Delete a global label
+router.delete('/labels/delete', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { label } = req.body;
+
+        if (!label || !label.trim()) {
+            return res.status(400).json({ success: false, message: 'Label is required' });
+        }
+
+        const targetLabel = label.trim();
+
+        // Find all contacts that have the label
+        const [contacts] = await query("SELECT id, labels FROM contacts WHERE user_id = ? AND labels LIKE ?", [userId, `%${targetLabel}%`]);
+
+        for (const contact of contacts) {
+            if (!contact.labels) continue;
+            
+            const currentLabels = contact.labels.split(',').map(l => l.trim());
+            
+            if (currentLabels.includes(targetLabel)) {
+                // Remove the label
+                const updatedLabels = currentLabels.filter(l => l !== targetLabel);
+                const newLabelsStr = updatedLabels.join(', ');
+                
+                await query('UPDATE contacts SET labels = ? WHERE id = ?', [newLabelsStr, contact.id]);
+            }
+        }
+
+        res.json({ success: true, message: 'Label deleted successfully' });
+    } catch (error) {
+        console.error('Delete label error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete label' });
+    }
+});
+
 // POST /api/contacts/bulk - Bulk Import
 router.post('/bulk', authenticate, async (req, res) => {
     try {

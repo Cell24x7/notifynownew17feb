@@ -56,6 +56,35 @@ router.post('/', authenticate, async (req, res) => {
     }
 });
 
+// PUT /api/contact-lists/:id
+router.put('/:id', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const listId = req.params.id;
+        const { name } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ success: false, message: 'List name is required' });
+        }
+
+        // Verify ownership
+        const [lists] = await query('SELECT id FROM contact_lists WHERE id = ? AND user_id = ?', [listId, userId]);
+        if (lists.length === 0) {
+            return res.status(404).json({ success: false, message: 'List not found or unauthorized' });
+        }
+
+        await query('UPDATE contact_lists SET name = ? WHERE id = ?', [name.trim(), listId]);
+
+        res.json({ success: true, message: 'List renamed successfully' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'A list with this name already exists' });
+        }
+        console.error('Update contact list error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update list' });
+    }
+});
+
 // DELETE /api/contact-lists/:id
 router.delete('/:id', authenticate, async (req, res) => {
     try {

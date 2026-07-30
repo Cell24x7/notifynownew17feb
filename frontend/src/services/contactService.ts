@@ -79,5 +79,23 @@ export const contactService = {
     assignToList: async (list_id: string, contact_ids: string[]) => {
         const response = await axios.post(`${API_BASE_URL}/api/contact-lists/assign`, { list_id, contact_ids }, { headers: getAuthHeader() });
         return response.data;
+    },
+
+    renameContactList: async (id: string, name: string) => {
+        const response = await axios.put(`${API_BASE_URL}/api/contact-lists/${id}`, { name }, { headers: getAuthHeader() });
+        return response.data;
+    },
+
+    renameLabel: async (oldLabel: string, newLabel: string) => {
+        const response = await axios.put(`${API_BASE_URL}/api/contacts/labels/rename`, { oldLabel, newLabel }, { headers: getAuthHeader() });
+        return response.data;
+    },
+
+    deleteLabel: async (label: string) => {
+        const response = await axios.delete(`${API_BASE_URL}/api/contacts/labels/delete`, { 
+            headers: getAuthHeader(),
+            data: { label } // axios delete body
+        });
+        return response.data;
     }
 };
