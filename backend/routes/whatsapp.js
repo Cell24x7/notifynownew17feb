@@ -1336,6 +1336,12 @@ router.post('/api/send-single', async (req, res) => {
         const result = await sendUniversalMessage(sendItem);
 
         if (result.success) {
+            // Log to API usage
+            await query(
+                'INSERT INTO api_message_logs (user_id, campaign_id, campaign_name, template_name, message_id, recipient, status, created_at, send_time, channel, message_content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)',
+                [user.id, 'API_SINGLE_WA', 'Direct WhatsApp API', templateName, result.messageId, to, 'sent', 'whatsapp', result.processedMessage || templateName]
+            );
+
             res.json({ 
                 success: true, 
                 messageId: result.messageId, 
