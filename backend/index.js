@@ -295,17 +295,21 @@ dinstarPolling.startPolling();
 const edplPolling = require('./services/edplPollingService');
 edplPolling.startPolling();
 
-// Auto-create chat_flows table if it doesn't exist
+// Auto-create tables if they don't exist
 const { ensureChatFlowsTable } = require('./services/chatflowService');
 const { ensureWhatsAppPricingColumns } = require('./services/pricingService');
 const { ensureAutomationsTable } = require('./services/automationService');
 const { ensureEnquiryColumns } = require('./services/enquiryService');
 const { ensureFeedbacksTable } = require('./services/feedbackService');
+const { ensureVoiceLogsTable } = require('./services/edplPollingService');
 
 ensureChatFlowsTable().catch(err => console.error('ChatFlow table init error:', err));
 ensureWhatsAppPricingColumns().catch(err => console.error('Pricing columns init error:', err));
 ensureAutomationsTable().catch(err => console.error('Automations table init error:', err));
 ensureEnquiryColumns().catch(err => console.error('Enquiry columns init error:', err));
+ensureFeedbacksTable().catch(err => console.error('Feedbacks table init error:', err));
+ensureVoiceLogsTable().catch(err => console.error('Voice logs table init error:', err));
+
 app.get('/api/temp-debug', async (req, res) => {
   try {
     const { query } = require('./config/db');
