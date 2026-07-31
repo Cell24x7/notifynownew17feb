@@ -1192,7 +1192,6 @@ export default function SuperAdminClients() {
                   </Select>
                   <p className="text-[10px] text-muted-foreground">Each user must have a Meta WhatsApp business account assigned to send messages.</p>
                 </div>
-                </div>
 
                 <div className="space-y-2">
                   <Label>AI Voice Configuration</Label>
