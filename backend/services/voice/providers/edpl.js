@@ -30,6 +30,8 @@ const createBroadcastCampaign = async (name, audioBuffer, audioFileName, csvBuff
         
         if (allowedPorts) {
             form.append('allowedPorts', allowedPorts); // e.g., "[0,1]"
+        } else {
+            form.append('allowedPorts', '[0,1]'); // Default to [0,1] if not provided
         }
         
         // Append Audio
