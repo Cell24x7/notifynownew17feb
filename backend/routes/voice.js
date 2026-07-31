@@ -29,10 +29,11 @@ router.post('/upload', authenticate, upload.single('audio_file'), async (req, re
             WHERE u.id = ?
         `, [userId]);
         
-        // Fallback to your provided credentials if not explicitly assigned in DB
-        const voiceConfig = configs[0]?.api_user ? configs[0] : { 
+        // Use assigned config, otherwise fallback to cell24x7 defaults
+        const voiceConfig = configs[0]?.id ? configs[0] : { 
             api_user: 'Idpupil2024', 
-            api_password: 'apipupil2024' 
+            api_password: 'apipupil2024',
+            provider: 'cell24x7'
         };
 
         console.log(`🎙️ Uploading audio for User ${userId} to Voice Gateway...`);
