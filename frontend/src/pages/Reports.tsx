@@ -17,6 +17,18 @@ import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 
+interface VoiceLog {
+    id: string | number;
+    campaign_name: string;
+    mobile: string;
+    status: string;
+    duration: number;
+    attempts: number;
+    created_at: string;
+    user_email?: string;
+    company?: string;
+}
+
 interface Report {
     id: string;
     name: string;
@@ -110,6 +122,10 @@ export default function Reports() {
     const [reports, setReports] = useState<Report[]>(cachedReportsList || []);
     const [detailedLogs, setDetailedLogs] = useState<WebhookLog[]>(cachedDetailedLogs || []);
     const [apiLogs, setApiLogs] = useState<WebhookLog[]>(cachedApiLogs || []);
+    const [voiceLogs, setVoiceLogs] = useState<VoiceLog[]>([]);
+    const [voicePage, setVoicePage] = useState(1);
+    const [voiceTotal, setVoiceTotal] = useState(0);
+    const [loadingVoice, setLoadingVoice] = useState(false);
     const [summaryPage, setSummaryPage] = useState(1);
     const [summaryTotal, setSummaryTotal] = useState(cachedSummaryTotal);
     const [detailedPage, setDetailedPage] = useState(1);
@@ -981,7 +997,75 @@ export default function Reports() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-            </Tabs>
+            
+                    <TabsContent value="voice" className="flex-1 mt-4">
+                        <Card className="border-none shadow-sm h-full rounded-2xl overflow-hidden bg-white/50 backdrop-blur-sm">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-gray-100 bg-white">
+                                <div className="space-y-1">
+                                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                        </div>
+                                        Voice Call Logs
+                                    </CardTitle>
+                                    <CardDescription>Live call duration and status</CardDescription>
+                                </div>
+                                <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase tracking-widest px-4 py-1.5 rounded-full">
+                                    Total Calls: {voiceTotal}
+                                </Badge>
+                            </CardHeader>
+                            <CardContent className="p-0 overflow-auto bg-white/50">
+                                <Table>
+                                    <TableHeader className="bg-muted/30">
+                                        <TableRow>
+                                            <TableHead className="w-[120px] font-bold text-gray-700 text-xs uppercase tracking-wider">Time</TableHead>
+                                            <TableHead className="font-bold text-gray-700 text-xs uppercase tracking-wider">Campaign</TableHead>
+                                            <TableHead className="font-bold text-gray-700 text-xs uppercase tracking-wider">Mobile</TableHead>
+                                            <TableHead className="font-bold text-gray-700 text-xs uppercase tracking-wider">Status</TableHead>
+                                            <TableHead className="font-bold text-gray-700 text-xs uppercase tracking-wider">Duration</TableHead>
+                                            <TableHead className="font-bold text-gray-700 text-xs uppercase tracking-wider">Attempts</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loadingVoice ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="text-center h-32">
+                                                    <div className="flex flex-col items-center justify-center space-y-3 text-muted-foreground">
+                                                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                                        <span className="text-sm">Loading voice logs...</span>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : voiceLogs.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">No voice logs found</TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            voiceLogs.map((log) => (
+                                                <TableRow key={log.id} className="hover:bg-blue-50/50 transition-colors">
+                                                    <TableCell className="text-[11px] font-medium text-gray-600 whitespace-nowrap">
+                                                        {format(new Date(log.created_at), 'dd MMM yy')} <br/>
+                                                        <span className="text-gray-400">{format(new Date(log.created_at), 'HH:mm')}</span>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs font-semibold text-gray-800">{log.campaign_name}</TableCell>
+                                                    <TableCell className="text-xs font-mono font-medium text-gray-900">{log.mobile}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className={log.status === 'answered' ? 'bg-green-50 text-green-700 border-green-200 uppercase text-[10px] tracking-wider' : 'bg-red-50 text-red-700 border-red-200 uppercase text-[10px] tracking-wider'}>
+                                                            {log.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs font-mono font-bold text-blue-600 bg-blue-50/50 px-2 py-1 rounded-md inline-block mt-2">{log.duration}s</TableCell>
+                                                    <TableCell className="text-xs text-gray-500 font-medium">{log.attempts}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                                {renderPagination(voicePage, voiceTotal, setVoicePage)}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+</Tabs>
         </div>
     );
 }
