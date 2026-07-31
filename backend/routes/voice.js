@@ -96,4 +96,23 @@ router.get('/configs', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * @route DELETE /api/voice/configs/:id
+ * @desc Delete a voice configuration
+ */
+router.delete('/configs/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [result] = await query('DELETE FROM voice_configs WHERE id = ?', [id]);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Configuration not found' });
+        }
+        
+        res.json({ success: true, message: 'Configuration deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;

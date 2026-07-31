@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit2, Search } from 'lucide-react';
+import { Plus, Edit2, Search, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -115,6 +115,20 @@ export default function VoiceConfigs() {
     }
   };
 
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this configuration?')) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      await axios.delete(`${API_BASE_URL}/api/voice/configs/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast({ title: 'Success', description: 'Voice configuration deleted' });
+      fetchConfigs();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.response?.data?.message || err.message, variant: 'destructive' });
+    }
+  };
+
   const filteredConfigs = configs.filter(config => 
     config.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     config.provider?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -188,9 +202,12 @@ export default function VoiceConfigs() {
                           {config.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(config)}>
+                      <TableCell className="text-right flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(config)} title="Edit Configuration">
                           <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(config.id)} title="Delete Configuration" className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
