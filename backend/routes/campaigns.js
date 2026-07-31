@@ -404,9 +404,6 @@ router.patch('/:id/status', authenticate, async (req, res) => {
                     }
                 }
             }
-                    }
-                }
-            }
         }
 
         // 5. Update the status
