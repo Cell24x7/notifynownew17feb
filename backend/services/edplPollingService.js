@@ -61,44 +61,45 @@ async function pollEDPLCampaigns() {
                 // Process detailed call logs
                 if (edplData.leads && edplData.leads.length > 0) {
                     for (const lead of edplData.leads) {
-                        let logStatus = 'failed';
-                        if (lead.dial_status === 'answered') {
-                            logStatus = 'delivered';
-                        }
-                        
-                        const reason = typeof lead.call_duration !== 'undefined' 
-                            ? `Duration: ${lead.call_duration}s (${lead.dial_status})` 
-                            : `Status: ${lead.dial_status}`;
-                        
-                        const updatedAt = lead.updated_at ? new Date(lead.updated_at) : new Date();
-                        
-                        // Check if it already exists in voice_logs
-                        const [existing] = await query('SELECT id FROM voice_logs WHERE message_id = ? LIMIT 1', [lead.id]);
-                        
-                        if (existing.length > 0) {
-                            // Update existing log
-                            await query(`
-                                UPDATE voice_logs 
-                                SET status = ?, duration = ?, attempts = ? 
-                                WHERE message_id = ?
-                            `, [lead.dial_status, lead.call_duration || 0, lead.attempts || 1, lead.id]);
-                        } else {
-                            // Insert new log
-                            await query(`
-                                INSERT INTO voice_logs 
-                                (user_id, campaign_id, campaign_name, mobile, status, duration, attempts, message_id, created_at) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            `, [
-                                campaign.user_id, 
-                                campaign.id, 
-                                edplData.campaign?.name || campaign.name || 'Voice Campaign',
-                                lead.phone_number,
-                                lead.dial_status,
-                                lead.call_duration || 0,
-                                lead.attempts || 1,
-                                lead.id,
-                                updatedAt
-                            ]);
+                        try {
+                            const mobile = lead.phone_number || lead.phone || 'unknown';
+                            const dialStatus = lead.dial_status || 'pending';
+                            const duration = lead.call_duration || 0;
+                            const attempts = lead.attempts || 1;
+                            const msgId = lead.id || `unknown_${Math.random().toString(36).substr(2, 9)}`;
+                            
+                            const updatedAt = lead.updated_at ? new Date(lead.updated_at) : new Date();
+                            
+                            // Check if it already exists in voice_logs
+                            const [existing] = await query('SELECT id FROM voice_logs WHERE message_id = ? LIMIT 1', [msgId]);
+                            
+                            if (existing.length > 0) {
+                                // Update existing log
+                                await query(`
+                                    UPDATE voice_logs 
+                                    SET status = ?, duration = ?, attempts = ? 
+                                    WHERE message_id = ?
+                                `, [dialStatus, duration, attempts, msgId]);
+                            } else {
+                                // Insert new log
+                                await query(`
+                                    INSERT INTO voice_logs 
+                                    (user_id, campaign_id, campaign_name, mobile, status, duration, attempts, message_id, created_at) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                `, [
+                                    campaign.user_id, 
+                                    campaign.id, 
+                                    edplData.campaign?.name || campaign.name || 'Voice Campaign',
+                                    mobile,
+                                    dialStatus,
+                                    duration,
+                                    attempts,
+                                    msgId,
+                                    updatedAt
+                                ]);
+                            }
+                        } catch (logErr) {
+                            console.error(`[EDPL-POLL] Error inserting log for campaign ${campaign.id}:`, logErr.message);
                         }
                     }
                 }
