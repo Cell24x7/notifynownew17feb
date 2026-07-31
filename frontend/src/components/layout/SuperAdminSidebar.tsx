@@ -1,6 +1,6 @@
-import { Mic, useState } from 'react';
-import { Mic, NavLink, useLocation } from 'react-router-dom';
-import { Mic,
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import {
   LayoutDashboard,
   MessageSquare,
   Megaphone,
@@ -25,13 +25,14 @@ import { Mic,
   Settings,
   Smartphone,
   Zap,
-  LifeBuoy
+  LifeBuoy,
+  Mic
 } from 'lucide-react';
-import { Mic, Button } from '@/components/ui/button';
-import { Mic, cn } from '@/lib/utils';
-import { Mic, useAuth } from '@/contexts/AuthContext';
-import { Mic, ThemeToggle } from '@/components/ui/theme-toggle';
-import { Mic, useBranding } from '@/contexts/BrandingContext';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useBranding } from '@/contexts/BrandingContext';
 
 import defaultLogo from '@/assets/veloxaio.png';
 // Logo will be loaded from branding settings
@@ -256,4 +257,5 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
     </aside>
   );
 }
+
 
