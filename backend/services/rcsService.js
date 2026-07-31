@@ -470,19 +470,29 @@ const getRcsTemplateStatus = async (config, templateName) => {
 };
 
 /**
- * Get Dotgo Template Details using ADMIN credentials
+ * Get RCS Template Details using appropriate credentials
  */
-const getDotgoTemplateDetails = async (config, templateName) => {
+const getRcsTemplateDetails = async (config, templateName) => {
   try {
-    const token = await getDotgoAdminToken();
-    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
+    const provider = config.provider || 'dotgo';
+    let token;
+    let baseUrl;
+
+    if (provider === 'vi') {
+      token = await getRcsToken(config);
+      baseUrl = 'https://virbm.in/directory/secure/api/v1/bots';
+    } else {
+      token = await getDotgoAdminToken();
+      baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    }
+
+    if (!token) return { success: false, error: "Authentication failed" };
 
     const botId = config.bot_id;
-    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     const base64Name = base64UrlEncode(templateName);
     const url = `${baseUrl}/${botId}/templates/${base64Name}`;
 
-    console.log(`🔍 Fetching Dotgo Details (Admin Token) for Bot: ${botId}, Template: ${templateName}`);
+    console.log(`🔍 Fetching ${provider} Details for Bot: ${botId}, Template: ${templateName}`);
 
     const response = await axios.get(url, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -490,29 +500,42 @@ const getDotgoTemplateDetails = async (config, templateName) => {
 
     return { success: true, data: response.data };
   } catch (error) {
-    console.error("❌ Dotgo Details Fetch Error:", error.message);
+    if (error.response?.status === 401) {
+        const cacheKey = config.provider === 'vi' ? (config.id || config.bot_id) : 'admin';
+        tokenCache.delete(cacheKey);
+    }
+    console.error(`❌ ${config.provider || 'RCS'} Details Fetch Error:`, error.message);
     return { success: false, error: error.message };
   }
 };
 
 /**
- * Delete a template from Dotgo using ADMIN credentials
+ * Delete a template from RCS provider
  */
-const deleteDotgoTemplate = async (config, templateName) => {
+const deleteRcsTemplate = async (config, templateName) => {
   try {
-    const token = await getDotgoAdminToken();
-    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
+    const provider = config.provider || 'dotgo';
+    let token;
+    let baseUrl;
+
+    if (provider === 'vi') {
+      token = await getRcsToken(config);
+      baseUrl = 'https://virbm.in/directory/secure/api/v1/bots';
+    } else {
+      token = await getDotgoAdminToken();
+      baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
+    }
+
+    if (!token) return { success: false, error: "Authentication failed" };
 
     const botId = config.bot_id;
-    const baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
 
     // Pattern: {serverRoot}/directory/secure/api/v1/bots/{botId}/deleteTemplate/{base64_name}
     const base64Name = base64UrlEncode(templateName);
     const url = `${baseUrl}/${botId}/deleteTemplate/${base64Name}`;
 
-    console.log(`🗑️ Deleting Dotgo Template (Admin Token) for Bot: ${botId}, Template: ${templateName} (B64: ${base64Name})`);
+    console.log(`🗑️ Deleting ${provider} Template for Bot: ${botId}, Template: ${templateName} (B64: ${base64Name})`);
 
-    // The user's curl shows POST for deletion
     const response = await axios.post(url, {}, {
       headers: { 'Authorization': `Bearer ${token}` },
       timeout: 15000
@@ -523,7 +546,11 @@ const deleteDotgoTemplate = async (config, templateName) => {
 
     return { success: true, data: response.data };
   } catch (error) {
-    console.error("❌ Dotgo Template Deletion Error:", error.message);
+    if (error.response?.status === 401) {
+        const cacheKey = config.provider === 'vi' ? (config.id || config.bot_id) : 'admin';
+        tokenCache.delete(cacheKey);
+    }
+    console.error(`❌ ${config.provider || 'RCS'} Template Deletion Error:`, error.message);
     if (error.response) {
       console.error("📦 Error Response:", JSON.stringify(error.response.data));
       const dotgoError = error.response.data?.error?.message || error.response.data?.message || JSON.stringify(error.response.data);
@@ -727,8 +754,8 @@ module.exports = {
   getExternalTemplates,
   submitRcsTemplate,
   getRcsTemplateStatus,
-  getDotgoTemplateDetails,
-  deleteDotgoTemplate,
+  getRcsTemplateDetails,
+  deleteRcsTemplate,
   submitBotToDotgo,
   verifyBotToDotgo
 };

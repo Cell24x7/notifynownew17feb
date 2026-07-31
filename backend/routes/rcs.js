@@ -403,8 +403,8 @@ router.get('/templates/external/:name/sync', authenticate, async (req, res) => {
     }
 
     const config = configs[0];
-    const { getDotgoTemplateDetails } = require('../services/rcsService');
-    const result = await getDotgoTemplateDetails(config, templateName);
+    const { getRcsTemplateDetails } = require('../services/rcsService');
+    const result = await getRcsTemplateDetails(config, templateName);
 
     if (result.success && result.data) {
       const t = result.data;
@@ -493,8 +493,8 @@ router.delete('/templates/external/:name', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No RCS configuration assigned' });
     }
 
-    const { deleteDotgoTemplate } = require('../services/rcsService');
-    const result = await deleteDotgoTemplate(configs[0], templateName);
+    const { deleteRcsTemplate } = require('../services/rcsService');
+    const result = await deleteRcsTemplate(configs[0], templateName);
 
     if (result.success) {
       res.json({ success: true, message: 'Template deleted from Dotgo' });
