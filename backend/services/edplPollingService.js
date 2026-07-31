@@ -59,6 +59,7 @@ async function pollEDPLCampaigns() {
                 `, [sent, answered, failed, newStatus, campaign.id]);
                 
                 // Process detailed call logs
+                console.log(`[EDPL-POLL] Campaign ${campaign.id} leads array size: ${edplData.leads ? edplData.leads.length : 'undefined'}`);
                 if (edplData.leads && edplData.leads.length > 0) {
                     for (const lead of edplData.leads) {
                         try {

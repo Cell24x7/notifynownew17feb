@@ -998,7 +998,17 @@ router.get('/day-summary', authenticate, async (req, res) => {
     }
 });
 
-// GET voice logs with pagination and search
+  // DEBUG GET voice logs
+  router.get('/debug-voice-logs', async (req, res) => {
+      try {
+          const [logs] = await query('SELECT * FROM voice_logs ORDER BY created_at DESC LIMIT 50');
+          res.json({ success: true, count: logs.length, logs });
+      } catch (err) {
+          res.status(500).json({ success: false, error: err.message });
+      }
+  });
+
+  // GET voice logs with pagination and search
 router.get('/voice-logs', authenticate, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
