@@ -60,11 +60,22 @@ router.post('/upload', authenticate, upload.single('audio_file'), async (req, re
  */
 router.post('/configs', authenticate, async (req, res) => {
     try {
-        const { name, api_user, api_password, status } = req.body;
-        if (!name || !api_user || !api_password) {
-            return res.status(400).json({ success: false, message: 'All fields are required' });
+        const { name, api_user, api_password, provider, base_url, api_key, status } = req.body;
+        if (!name || (!api_user && !api_key)) {
+            return res.status(400).json({ success: false, message: 'Name and at least API User or API Key are required' });
         }
-        const [result] = await query('INSERT INTO voice_configs (name, api_user, api_password, status) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=?, api_user=?, api_password=?, status=?', [name, api_user, api_password, status || 'active', name, api_user, api_password, status || 'active']);
+        
+        const finalProvider = provider || 'cell24x7';
+        
+        const [result] = await query(
+            `INSERT INTO voice_configs (name, api_user, api_password, provider, base_url, api_key, status) 
+             VALUES (?, ?, ?, ?, ?, ?, ?) 
+             ON DUPLICATE KEY UPDATE name=?, api_user=?, api_password=?, provider=?, base_url=?, api_key=?, status=?`, 
+            [
+                name, api_user || null, api_password || null, finalProvider, base_url || null, api_key || null, status || 'active', 
+                name, api_user || null, api_password || null, finalProvider, base_url || null, api_key || null, status || 'active'
+            ]
+        );
         res.json({ success: true, message: 'Configuration saved successfully', configId: result.insertId || result.id });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -77,7 +88,7 @@ router.post('/configs', authenticate, async (req, res) => {
  */
 router.get('/configs', authenticate, async (req, res) => {
     try {
-        const [configs] = await query('SELECT id, name, api_user, status FROM voice_configs');
+        const [configs] = await query('SELECT id, name, api_user, provider, base_url, status FROM voice_configs');
         res.json({ success: true, configs });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

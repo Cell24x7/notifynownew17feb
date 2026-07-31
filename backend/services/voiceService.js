@@ -1,125 +1,62 @@
-const axios = require('axios');
-const FormData = require('form-data');
-require('dotenv').config();
+const cell24x7 = require('./voice/providers/cell24x7');
+const edpl = require('./voice/providers/edpl');
 
 /**
- * Get Authentication Token for Voice Audio Upload
- * @param {object} config - { api_user, api_password }
+ * Factory for routing requests based on provider type
  */
-const getVoiceAuthToken = async (config) => {
-    try {
-        const url = 'http://43.242.212.34:2121/file/authenticate';
-        const payload = {
-            username: config.api_user || "Idpupil2024",
-            password: config.api_password || "apipupil2024"
-        };
-        
-        console.log(`🎙️ Attempting Voice Auth for user: ${payload.username} at ${url}`);
-        
-        const response = await axios.post(url, payload, { timeout: 10000 });
-        const token = response.data?.jwttoken || response.data?.token || response.data?.accessToken || null;
-        
-        if (token) {
-            console.log(`✅ Voice Auth Success for: ${payload.username}`);
-        } else {
-            console.warn(`⚠️ No token found in Voice Auth response for: ${payload.username}`);
-            console.log('Response body:', JSON.stringify(response.data));
-        }
-        
-        return token;
-    } catch (error) {
-        console.error('❌ Voice Auth Error:', error.message);
-        if (error.response) {
-            console.error('Error Response Data:', JSON.stringify(error.response.data));
-            console.error('Error Status:', error.response.status);
-        }
-        return null;
-    }
-};
 
-/**
- * Upload Audio File to Voice Server
- * @param {Buffer} fileBuffer 
- * @param {string} fileName 
- * @param {object} config 
- */
 const uploadVoiceAudio = async (fileBuffer, fileName, config) => {
-    try {
-        const token = await getVoiceAuthToken(config);
-        if (!token) throw new Error("Voice authentication failed");
-
-        const url = 'http://43.242.212.34:2121/file/uploadaudio';
-        const form = new FormData();
-        form.append('file', fileBuffer, { filename: fileName });
-
-        const response = await axios.post(url, form, {
-            headers: {
-                ...form.getHeaders(),
-                'Authorization': `Bearer ${token}`
-            },
-            timeout: 30000
-        });
-
-        console.log('🎙️ Voice Upload Response:', JSON.stringify(response.data));
-
-        // The API returns the audio ID in the "data" field
-        return { 
-            success: true, 
-            audioId: response.data?.data || response.data?.audioId || response.data?.id,
-            raw: response.data 
-        };
-    } catch (error) {
-        console.error('❌ Voice Upload Error:', error.message);
-        return { success: false, error: error.message };
+    const provider = config?.provider || 'cell24x7';
+    
+    if (provider === 'cell24x7') {
+        return cell24x7.uploadVoiceAudio(fileBuffer, fileName, config);
     }
+    
+    if (provider === 'edpl') {
+        // EDPL might not require a separate audio upload step if we send it directly in createBroadcastCampaign.
+        // However, if the old codebase relies on this step, we can just return a fake ID and handle the real upload during campaign broadcast.
+        return { success: true, audioId: 'edpl_audio_deferred', message: 'EDPL uses direct campaign upload' };
+    }
+    
+    return { success: false, error: 'Unknown Voice Provider' };
+};
+
+const sendVoiceCall = async (mobile, audioId, options = {}, config = {}) => {
+    const provider = config?.provider || 'cell24x7';
+    
+    if (provider === 'cell24x7') {
+        return cell24x7.sendVoiceCall(mobile, audioId, options, config);
+    }
+    
+    if (provider === 'edpl') {
+        // EDPL doesn't send single voice calls. It operates at a campaign level via CSV.
+        return { success: false, error: 'EDPL Provider only supports bulk campaign broadcasts, not single calls.' };
+    }
+    
+    return { success: false, error: 'Unknown Voice Provider' };
 };
 
 /**
- * Send Static Voice Call
- * @param {string} mobile 
- * @param {string} audioId 
- * @param {object} options - { retries, interval }
- * @param {object} config - { api_user, api_password }
+ * Route EDPL Broadcast Campaign creation
  */
-const sendVoiceCall = async (mobile, audioId, options = {}, config = {}) => {
-    try {
-        const user = config.api_user || "Idpupil2024";
-        const pwd = config.api_password || "apipupil2024";
-        const cleanMobile = mobile.replace(/\D/g, '').slice(-10); // Ensure 10 digits
-        
-        const retries = options.retries || 2;
-        const interval = options.interval || 5;
-
-        // Build Callback URL
-        const baseSystemUrl = (process.env.API_BASE_URL || 'https://notifynow.in').replace('https://', 'http://');
-        const callbackUrl = encodeURIComponent(`${baseSystemUrl}/api/webhooks/voice/callback?campaign_id=${options.campaignId || 'manual'}&user_id=${options.userId || 0}`);
-
-        // API URL updated to include callback
-        const url = `https://voice.cell24x7.com/voiceReceiver/api?user=${user}&pwd=${pwd}&mobile=${cleanMobile}&audio=${audioId}&retries=${retries}&retryinterval=${interval}&callback=${callbackUrl}`;
-        
-        console.log(`📡 Sending Voice Call to ${cleanMobile}...`);
-        console.log(`🔗 URL: ${url}`);
-
-        const response = await axios.get(url, { timeout: 15000 });
-        
-        console.log('📥 Voice Gateway Response:', String(response.data));
-
-        // The gateway often returns text like "Success: 12345"
-        const isSuccess = String(response.data).toLowerCase().includes('success') || response.status === 200;
-
-        return { 
-            success: isSuccess, 
-            messageId: response.data?.id || `voice_${Date.now()}`,
-            raw: response.data 
-        };
-    } catch (error) {
-        console.error('❌ Voice Send Error:', error.message);
-        return { success: false, error: error.message };
+const createBroadcastCampaign = async (name, audioBuffer, audioFileName, csvBuffer, csvFileName, allowedPorts, config) => {
+    if (config?.provider === 'edpl') {
+        return edpl.createBroadcastCampaign(name, audioBuffer, audioFileName, csvBuffer, csvFileName, allowedPorts, config);
     }
+    return { success: false, error: 'Provider does not support direct broadcast campaigns.' };
 };
 
 module.exports = {
-    getVoiceAuthToken,
+    // Legacy support (mostly cell24x7)
     uploadVoiceAudio,
-    sendVoiceCall
+    sendVoiceCall,
+    
+    // New EDPL support
+    createBroadcastCampaign,
+    
+    // Export raw providers if needed elsewhere
+    providers: {
+        cell24x7,
+        edpl
+    }
 };
