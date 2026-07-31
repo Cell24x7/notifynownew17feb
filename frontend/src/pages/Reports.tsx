@@ -265,6 +265,33 @@ export default function Reports() {
         }
     };
 
+    const fetchVoiceLogs = async () => {
+        setLoadingVoice(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            let queryUrl = `${API_BASE_URL}/api/reports/voice-logs?page=${voicePage}&limit=${ITEMS_PER_PAGE}`;
+            if (searchQuery) queryUrl += `&mobile=${searchQuery}`;
+            if (targetUserId && targetUserId !== 'all') queryUrl += `&user_id=${targetUserId}`;
+
+            const res = await fetch(queryUrl, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setVoiceLogs(data.logs);
+                setVoiceTotal(data.total);
+            }
+        } catch (error) {
+            console.error('Failed to fetch voice logs', error);
+        } finally {
+            setLoadingVoice(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'voice') fetchVoiceLogs();
+    }, [activeTab, voicePage, searchQuery, targetUserId]);
+
     const fetchWebhookLogs = async (page: number = 1, currentTab: string = activeTab, silent: boolean = false) => {
         const cache = currentTab === 'api' ? cachedApiLogs : cachedDetailedLogs;
         if (!cache && !silent) setLoadingLogs(true);
@@ -453,6 +480,7 @@ export default function Reports() {
         if (activeTab === 'scheduled') fetchReports(scheduledPage, 'scheduled', silent);
         if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, 'detailed', silent);
         if (activeTab === 'api') fetchWebhookLogs(apiPage, 'api', silent);
+        if (activeTab === 'voice') fetchVoiceLogs();
     };
 
     // Background Auto-Refresh every 10 seconds
