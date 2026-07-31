@@ -130,7 +130,7 @@ async function ensureVoiceLogsTable() {
             CREATE TABLE IF NOT EXISTS voice_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
-                campaign_id INT NOT NULL,
+                campaign_id VARCHAR(255) NOT NULL,
                 campaign_name VARCHAR(255),
                 mobile VARCHAR(50) NOT NULL,
                 status VARCHAR(50) NOT NULL,
@@ -143,6 +143,8 @@ async function ensureVoiceLogsTable() {
                 INDEX (mobile)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
+        // Ensure campaign_id is VARCHAR in case it was created as INT previously
+        await query(`ALTER TABLE voice_logs MODIFY COLUMN campaign_id VARCHAR(255)`);
         console.log('[EDPL-POLL] voice_logs table ensured.');
     } catch (err) {
         console.error('[EDPL-POLL] Error creating voice_logs table:', err.message);

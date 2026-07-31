@@ -7,7 +7,7 @@ async function run() {
       CREATE TABLE IF NOT EXISTS voice_logs (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
-        campaign_id INT NOT NULL,
+        campaign_id VARCHAR(255) NOT NULL,
         campaign_name VARCHAR(255),
         mobile VARCHAR(50) NOT NULL,
         status VARCHAR(50) NOT NULL,
