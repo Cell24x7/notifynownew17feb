@@ -61,8 +61,8 @@ router.post('/upload', authenticate, upload.single('audio_file'), async (req, re
 router.post('/configs', authenticate, async (req, res) => {
     try {
         const { name, api_user, api_password, provider, base_url, api_key, status } = req.body;
-        if (!name || (!api_user && !api_key)) {
-            return res.status(400).json({ success: false, message: 'Name and at least API User or API Key are required' });
+        if (!name) {
+            return res.status(400).json({ success: false, message: 'Name is required' });
         }
         
         const finalProvider = provider || 'cell24x7';
@@ -72,8 +72,8 @@ router.post('/configs', authenticate, async (req, res) => {
              VALUES (?, ?, ?, ?, ?, ?, ?) 
              ON DUPLICATE KEY UPDATE name=?, api_user=?, api_password=?, provider=?, base_url=?, api_key=?, status=?`, 
             [
-                name, api_user || null, api_password || null, finalProvider, base_url || null, api_key || null, status || 'active', 
-                name, api_user || null, api_password || null, finalProvider, base_url || null, api_key || null, status || 'active'
+                name, api_user || '', api_password || '', finalProvider, base_url || '', api_key || '', status || 'active', 
+                name, api_user || '', api_password || '', finalProvider, base_url || '', api_key || '', status || 'active'
             ]
         );
         res.json({ success: true, message: 'Configuration saved successfully', configId: result.insertId || result.id });
