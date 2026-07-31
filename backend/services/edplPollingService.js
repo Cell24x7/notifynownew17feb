@@ -118,6 +118,7 @@ async function pollEDPLCampaigns() {
 
 function startPolling() {
     console.log('[EDPL-POLL] EDPL Voice Gateway polling started (every 30s)');
+    ensureVoiceLogsTable();
     // Run every 30 seconds
     setInterval(pollEDPLCampaigns, 30000);
     // Initial run after 10 seconds
