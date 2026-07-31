@@ -1008,6 +1008,25 @@ router.get('/day-summary', authenticate, async (req, res) => {
       }
   });
 
+  router.get('/debug-edpl', async (req, res) => {
+      try {
+          const [campaigns] = await query(`SELECT * FROM campaigns WHERE channel IN ('voice', 'voicebot') AND ai_voice_config_id IS NOT NULL AND status = 'completed' ORDER BY created_at DESC LIMIT 1`);
+          if (campaigns.length === 0) return res.json({ error: 'No EDPL campaigns found' });
+          const c = campaigns[0];
+          
+          const [vcs] = await query('SELECT provider, base_url, api_user, api_key FROM voice_configs WHERE id = ?', [c.ai_voice_config_id]);
+          if (!vcs || vcs.length === 0) return res.json({ error: 'Config not found' });
+          const vc = vcs[0];
+          
+          const edpl = require('../services/voice/providers/edpl');
+          const result = await edpl.getCampaignStatus(c.template_id, vc);
+          
+          res.json({ campaign: c.name, template_id: c.template_id, edpl_response: result });
+      } catch (err) {
+          res.status(500).json({ error: err.message });
+      }
+  });
+
   // GET voice logs with pagination and search
 router.get('/voice-logs', authenticate, async (req, res) => {
     try {
