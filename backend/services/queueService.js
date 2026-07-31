@@ -164,15 +164,34 @@ const processBatch = async ({ campaignTable, queueTable, logsTable, name: proces
 
         // --- 1. Auto-start scheduled campaigns ---
         try {
-            const [autoStartResult] = await query(`
-                UPDATE ${campaignTable} 
-                SET status = 'running', last_run_at = NOW()
-                WHERE status = 'scheduled' 
-                AND next_run_at <= NOW()
-                AND status != 'running'
+            const [scheduledCampaigns] = await query(`
+                SELECT c.*, u.ai_voice_config_id 
+                FROM ${campaignTable} c
+                LEFT JOIN users u ON c.user_id = u.id
+                WHERE c.status = 'scheduled' 
+                AND c.next_run_at <= NOW()
+                AND c.status != 'running'
             `);
-            if (autoStartResult.affectedRows > 0) {
-                console.log(`⏰ [Scheduler] Auto-started ${autoStartResult.affectedRows} scheduled campaign(s) whose time has come.`);
+            
+            if (scheduledCampaigns.length > 0) {
+                const { interceptEDPLCampaign } = require('./edplHelper');
+                
+                for (const campaign of scheduledCampaigns) {
+                    let isIntercepted = false;
+                    
+                    if ((campaign.channel === 'voice' || campaign.channel === 'voicebot') && campaign.ai_voice_config_id) {
+                        const [vc] = await query('SELECT provider, base_url, api_user, api_key FROM voice_configs WHERE id = ?', [campaign.ai_voice_config_id]);
+                        if (vc && vc.length > 0 && vc[0].provider === 'edpl') {
+                            isIntercepted = true;
+                            await interceptEDPLCampaign(campaign.id, campaign, vc[0]);
+                        }
+                    }
+                    
+                    if (!isIntercepted) {
+                        await query(`UPDATE ${campaignTable} SET status = 'running', last_run_at = NOW() WHERE id = ?`, [campaign.id]);
+                    }
+                }
+                console.log(`⏰ [Scheduler] Processed ${scheduledCampaigns.length} scheduled campaign(s) whose time has come.`);
             }
         } catch (schedErr) {
             console.error('[Scheduler] Error auto-starting campaigns:', schedErr.message);
