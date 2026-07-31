@@ -13,9 +13,20 @@ const uploadVoiceAudio = async (fileBuffer, fileName, config) => {
     }
     
     if (provider === 'edpl') {
-        // EDPL might not require a separate audio upload step if we send it directly in createBroadcastCampaign.
-        // However, if the old codebase relies on this step, we can just return a fake ID and handle the real upload during campaign broadcast.
-        return { success: true, audioId: 'edpl_audio_deferred', message: 'EDPL uses direct campaign upload' };
+        const fs = require('fs');
+        const path = require('path');
+        const uploadDir = path.join(__dirname, '../../uploads/voice');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        
+        // Save file locally and return local path as audioId
+        const ext = path.extname(fileName) || '.mp3';
+        const uniqueName = `edpl_${Date.now()}_${Math.floor(Math.random()*1000)}${ext}`;
+        const filePath = path.join(uploadDir, uniqueName);
+        fs.writeFileSync(filePath, fileBuffer);
+        
+        return { success: true, audioId: `local:${uniqueName}`, message: 'EDPL audio saved locally for later bulk upload' };
     }
     
     return { success: false, error: 'Unknown Voice Provider' };
