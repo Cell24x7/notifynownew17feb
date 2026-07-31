@@ -385,59 +385,25 @@ router.patch('/:id/status', authenticate, async (req, res) => {
                 });
             }
             
-            // 4. EDPL INTERCEPT
+            // 4. EDPL INTERCEPT (Deferred to background queue)
             if (campaign.channel === 'voice' || campaign.channel === 'voicebot') {
                 const voiceConfigId = campaign.ai_voice_config_id;
                 if (voiceConfigId) {
                     const [vc] = await query('SELECT provider, base_url, api_user, api_key FROM voice_configs WHERE id = ?', [voiceConfigId]);
                     if (vc && vc.length > 0 && vc[0].provider === 'edpl') {
-                        console.log(`[EDPL] Intercepting bulk campaign ${id} for EDPL gateway...`);
-                        
-                        try {
-                            const [contacts] = await query('SELECT mobile, name FROM campaign_contacts WHERE campaign_id = ?', [id]);
-                            if (contacts.length === 0) {
-                                throw new Error('No contacts found for EDPL campaign');
-                            }
-                            
-                            // Generate CSV buffer
-                            let csvContent = 'phone,name\n';
-                            contacts.forEach(c => {
-                                csvContent += `${c.mobile},${c.name || ''}\n`;
-                            });
-                            const csvBuffer = Buffer.from(csvContent, 'utf-8');
-                            
-                            // Load Audio File
-                            const metadata = typeof campaign.template_metadata === 'string' ? JSON.parse(campaign.template_metadata || '{}') : (campaign.template_metadata || {});
-                            const audioId = metadata.audioId;
-                            
-                            if (!audioId || !audioId.startsWith('local:')) {
-                                throw new Error('EDPL requires a locally saved audio file. Please re-upload audio.');
-                            }
-                            
-                            const fileName = audioId.replace('local:', '');
-                            const filePath = require('path').join(__dirname, '../../uploads/voice', fileName);
-                            const fs = require('fs');
-                            
-                            if (!fs.existsSync(filePath)) {
-                                throw new Error('Audio file not found on server.');
-                            }
-                            const audioBuffer = fs.readFileSync(filePath);
-                            
-                            // API call to EDPL
-                            const edplResult = await createBroadcastCampaign(campaign.name, audioBuffer, fileName, csvBuffer, 'leads.csv', null, vc[0]);
-                            
-                            if (edplResult.success) {
-                                finalStatus = 'running_external';
-                                console.log(`[EDPL] Successfully created external campaign: ${edplResult.campaignId}`);
-                                await query(`UPDATE ${table} SET template_id = ? WHERE id = ?`, [edplResult.campaignId, id]);
-                            } else {
-                                throw new Error(edplResult.error || 'Failed to create bulk campaign on EDPL');
-                            }
-                        } catch (err) {
-                            // Rollback credits on failure
-                            await query('UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?', [campaign.recipient_count, userId]);
-                            return res.status(500).json({ success: false, message: err.message });
-                        }
+                        console.log(`[EDPL] Deferring campaign ${id} start to background scheduler (waiting for CSV parse)...`);
+                        // DO NOT deduct credits here, the background interceptor will handle it if it fails.
+                        // Actually, wait! The wallet deduction happened on line 380!
+                        // If we defer, the background scheduler won't deduct again. But if it fails, it needs to rollback.
+                        // My interceptEDPLCampaign rolls back if it fails! So this is fine.
+                        return res.json({ 
+                            success: true, 
+                            message: 'Campaign scheduled for background processing.',
+                            campaignId: id 
+                        });
+                    }
+                }
+            }
                     }
                 }
             }

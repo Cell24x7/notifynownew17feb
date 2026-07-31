@@ -7,14 +7,22 @@ async function interceptEDPLCampaign(campaignId, campaign, vcConfig) {
     console.log(`[EDPL] Intercepting bulk campaign ${campaignId} for EDPL gateway...`);
     
     try {
-        const [contacts] = await query('SELECT mobile, name FROM campaign_contacts WHERE campaign_id = ?', [campaignId]);
+        const [contacts] = await query('SELECT mobile, variables FROM campaign_queue WHERE campaign_id = ?', [campaignId]);
         if (contacts.length === 0) {
             throw new Error('No contacts found for EDPL campaign');
         }
         
         let csvContent = 'phone,name\n';
         contacts.forEach(c => {
-            csvContent += `${c.mobile},${c.name || ''}\n`;
+            let name = '';
+            if (c.variables) {
+                try {
+                    const vars = JSON.parse(c.variables);
+                    // Look for common name headers
+                    name = vars.name || vars.Name || vars.NAME || '';
+                } catch (e) {}
+            }
+            csvContent += `${c.mobile},${name}\n`;
         });
         const csvBuffer = Buffer.from(csvContent, 'utf-8');
         
