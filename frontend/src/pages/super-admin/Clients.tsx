@@ -1192,6 +1192,27 @@ export default function SuperAdminClients() {
                   </Select>
                   <p className="text-[10px] text-muted-foreground">Each user must have a Meta WhatsApp business account assigned to send messages.</p>
                 </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>AI Voice Configuration</Label>
+                  <Select
+                    value={currentClient.ai_voice_config_id || 'default'}
+                    onValueChange={v => setCurrentClient(p => ({ ...p, ai_voice_config_id: v === 'default' ? '' : v }))}
+                    disabled={modalMode === 'view'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Voice Configuration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">None (Select a configuration)</SelectItem>
+                      {voiceConfigs.map(config => (
+                        <SelectItem key={config.id} value={String(config.id)}>{config.name} ({config.provider})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">Used for bulk voice campaigns (e.g. EDPL, Cell24x7).</p>
+                </div>
               </div>
             </div>
 
