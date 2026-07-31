@@ -356,7 +356,12 @@ router.patch('/:id/status', authenticate, async (req, res) => {
         const table = id.startsWith('CAMP_API_') ? 'api_campaigns' : 'campaigns';
 
         // 1. Check existence and ownership
-        const [existing] = await query(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`, [id, userId]);
+        const [existing] = await query(`
+            SELECT c.*, u.ai_voice_config_id 
+            FROM ${table} c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.id = ? AND c.user_id = ?
+        `, [id, userId]);
         if (existing.length === 0) {
             return res.status(404).json({ success: false, message: 'Campaign not found' });
         }
