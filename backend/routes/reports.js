@@ -998,5 +998,70 @@ router.get('/day-summary', authenticate, async (req, res) => {
     }
 });
 
+// GET voice logs with pagination and search
+router.get('/voice-logs', authenticate, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const searchMobile = req.query.mobile || '';
+        const targetUserId = req.query.user_id;
+
+        let conditions = [];
+        let params = [];
+
+        // Role based access
+        if (req.user.role === 'client') {
+            conditions.push("v.user_id = ?");
+            params.push(req.user.id);
+        } else if (req.user.role === 'reseller') {
+            if (targetUserId) {
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                conditions.push("(v.user_id = ? AND v.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+                params.push(targetUserId, actualResellerId);
+            } else {
+                const actualResellerId = req.user.actual_reseller_id || req.user.id;
+                conditions.push("(v.user_id = ? OR v.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
+                params.push(req.user.id, actualResellerId);
+            }
+        } else if (req.user.role === 'admin' && targetUserId) {
+            conditions.push("v.user_id = ?");
+            params.push(targetUserId);
+        }
+
+        if (searchMobile) {
+            conditions.push("v.mobile LIKE ?");
+            params.push(`%${searchMobile}%`);
+        }
+
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+        const countQuery = `SELECT COUNT(*) as total FROM voice_logs v ${whereClause}`;
+        const [countResult] = await query(countQuery, params);
+        const total = countResult[0].total;
+
+        const dataQuery = `
+            SELECT v.*, u.email as user_email, u.company 
+            FROM voice_logs v
+            JOIN users u ON v.user_id = u.id
+            ${whereClause}
+            ORDER BY v.created_at DESC
+            LIMIT ? OFFSET ?
+        `;
+        const [logs] = await query(dataQuery, [...params, limit, offset]);
+
+        res.json({
+            success: true,
+            total,
+            page,
+            limit,
+            logs
+        });
+    } catch (err) {
+        console.error('Error fetching voice logs:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
 module.exports = router;
 

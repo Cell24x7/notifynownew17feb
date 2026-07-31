@@ -72,32 +72,32 @@ async function pollEDPLCampaigns() {
                         
                         const updatedAt = lead.updated_at ? new Date(lead.updated_at) : new Date();
                         
-                        // Check if it already exists in message_logs
-                        const [existing] = await query('SELECT id FROM message_logs WHERE message_id = ? LIMIT 1', [lead.id]);
+                        // Check if it already exists in voice_logs
+                        const [existing] = await query('SELECT id FROM voice_logs WHERE message_id = ? LIMIT 1', [lead.id]);
                         
                         if (existing.length > 0) {
                             // Update existing log
                             await query(`
-                                UPDATE message_logs 
-                                SET status = ?, delivery_time = ?, failure_reason = ? 
+                                UPDATE voice_logs 
+                                SET status = ?, duration = ?, attempts = ? 
                                 WHERE message_id = ?
-                            `, [logStatus, updatedAt, reason, lead.id]);
+                            `, [lead.dial_status, lead.call_duration || 0, lead.attempts || 1, lead.id]);
                         } else {
                             // Insert new log
                             await query(`
-                                INSERT INTO message_logs 
-                                (user_id, campaign_id, campaign_name, recipient, channel, status, send_time, delivery_time, failure_reason, message_id) 
-                                VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)
+                                INSERT INTO voice_logs 
+                                (user_id, campaign_id, campaign_name, mobile, status, duration, attempts, message_id, created_at) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                             `, [
                                 campaign.user_id, 
                                 campaign.id, 
                                 edplData.campaign?.name || campaign.name || 'Voice Campaign',
                                 lead.phone_number,
-                                campaign.channel,
-                                logStatus,
-                                updatedAt,
-                                reason,
-                                lead.id
+                                lead.dial_status,
+                                lead.call_duration || 0,
+                                lead.attempts || 1,
+                                lead.id,
+                                updatedAt
                             ]);
                         }
                     }

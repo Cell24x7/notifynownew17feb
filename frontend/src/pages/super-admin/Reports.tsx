@@ -15,6 +15,18 @@ import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 import { useToast } from '@/hooks/use-toast';
 
+interface VoiceLog {
+    id: string | number;
+    campaign_name: string;
+    mobile: string;
+    status: string;
+    duration: number;
+    attempts: number;
+    created_at: string;
+    user_email?: string;
+    company?: string;
+}
+
 interface Report {
     id: string;
     name: string;
@@ -72,6 +84,10 @@ export default function SuperAdminReports() {
     const [selectedUserId, setSelectedUserId] = useState<string>('');
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
+    const [voiceLogs, setVoiceLogs] = useState<VoiceLog[]>([]);
+    const [voicePage, setVoicePage] = useState(1);
+    const [voiceTotal, setVoiceTotal] = useState(0);
+    const [loadingVoice, setLoadingVoice] = useState(false);
     const [summaryPage, setSummaryPage] = useState(1);
     const [summaryTotal, setSummaryTotal] = useState(0);
     const [detailedPage, setDetailedPage] = useState(1);
@@ -421,9 +437,10 @@ export default function SuperAdminReports() {
                     </Card>
 
                     <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                        <TabsList className="grid w-[400px] grid-cols-2">
+                        <TabsList className="grid w-[500px] grid-cols-3">
                             <TabsTrigger value="summary">Summary Report</TabsTrigger>
                             <TabsTrigger value="detailed">Detailed Reports</TabsTrigger>
+                            <TabsTrigger value="voice">Voice Logs</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
@@ -561,7 +578,64 @@ export default function SuperAdminReports() {
                                 </CardContent>
                             </Card>
                         </TabsContent>
-                    </Tabs>
+                    
+                        <TabsContent value="voice" className="flex-1 mt-4">
+                            <Card className="border-none shadow-sm h-full">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-xl font-bold">Voice Call Logs</CardTitle>
+                                        <CardDescription>Live call duration and status</CardDescription>
+                                    </div>
+                                    <Badge variant="secondary" className="font-mono">
+                                        Total Calls: {voiceTotal}
+                                    </Badge>
+                                </CardHeader>
+                                <CardContent className="p-0 overflow-auto">
+                                    <Table>
+                                        <TableHeader className="bg-muted/30">
+                                            <TableRow>
+                                                <TableHead>Time</TableHead>
+                                                <TableHead>Campaign</TableHead>
+                                                <TableHead>Mobile</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Duration</TableHead>
+                                                <TableHead>Attempts</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {loadingVoice ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="text-center h-24">Loading logs...</TableCell>
+                                                </TableRow>
+                                            ) : voiceLogs.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No voice logs found</TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                voiceLogs.map((log) => (
+                                                    <TableRow key={log.id}>
+                                                        <TableCell className="text-xs">
+                                                            {format(new Date(log.created_at), 'dd MMM yy HH:mm')}
+                                                        </TableCell>
+                                                        <TableCell className="font-medium text-xs">{log.campaign_name}</TableCell>
+                                                        <TableCell className="font-mono text-xs">{log.mobile}</TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="outline" className={log.status === 'answered' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}>
+                                                                {log.status.toUpperCase()}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="font-mono font-bold">{log.duration}s</TableCell>
+                                                        <TableCell>{log.attempts}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                    {renderPagination(voicePage, voiceTotal, setVoicePage)}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+</Tabs>
                 </>
             )}
         </div>
