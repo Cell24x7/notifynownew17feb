@@ -50,6 +50,7 @@ import SuperAdminNumbers from "./pages/super-admin/Numbers";
 import SuperAdminRcsConfigs from "./pages/super-admin/RcsConfigs";
 import SuperAdminWhatsappConfigs from "./pages/super-admin/WhatsappConfigs";
 import SuperAdminSmsGateways from "./pages/super-admin/SmsGateways";
+import SuperAdminVoiceConfigs from "./pages/super-admin/VoiceConfigs";
 import SuperAdminUsageLedger from "./pages/super-admin/UsageLedger";
 import SuperAdminSystemEngine from "./pages/super-admin/SystemEngine";
 import SuperAdminDevelopmentEfficiency from "./pages/super-admin/DevelopmentEfficiency";
@@ -149,6 +150,7 @@ const App = () => (
                       <Route path="/super-admin/rcs-configs" element={<SuperAdminRcsConfigs />} />
                       <Route path="/super-admin/whatsapp-configs" element={<SuperAdminWhatsappConfigs />} />
                       <Route path="/super-admin/sms-gateways" element={<SuperAdminSmsGateways />} />
+                      <Route path="/super-admin/voice-configs" element={<SuperAdminVoiceConfigs />} />
                       <Route path="/super-admin/ledger" element={<SuperAdminUsageLedger />} />
                       <Route path="/super-admin/engine" element={<SuperAdminSystemEngine />} />
                       <Route path="/super-admin/dev-progress" element={<SuperAdminDevelopmentEfficiency />} />

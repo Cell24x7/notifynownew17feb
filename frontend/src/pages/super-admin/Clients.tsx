@@ -34,6 +34,7 @@ export default function SuperAdminClients() {
   const [plans, setPlans] = useState<any[]>([]); // State for real plans
   const [rcsConfigs, setRcsConfigs] = useState<any[]>([]); // State for RCS configs
   const [whatsappConfigs, setWhatsappConfigs] = useState<any[]>([]); // State for WhatsApp configs
+  const [voiceConfigs, setVoiceConfigs] = useState<any[]>([]); // State for Voice configs
   const [smsGateways, setSmsGateways] = useState<any[]>([]); // State for SMS gateways
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('clients');
@@ -55,6 +56,7 @@ export default function SuperAdminClients() {
     channels_enabled: [] as string[],
     rcs_config_id: '',
     whatsapp_config_id: '',
+    ai_voice_config_id: '',
     rcs_text_price: 1.00,
     rcs_rich_card_price: 1.00,
     rcs_carousel_price: 1.00,
@@ -149,6 +151,21 @@ export default function SuperAdminClients() {
     }
   };
 
+  // Fetch Voice configurations
+  const fetchVoiceConfigs = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_BASE_URL}/api/voice/configs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setVoiceConfigs(res.data.configs || []);
+      }
+    } catch (err) {
+      console.error('Failed to load Voice configs', err);
+    }
+  };
+
   // Fetch SMS Gateways
   const fetchSmsGateways = async () => {
     try {
@@ -169,6 +186,7 @@ export default function SuperAdminClients() {
     fetchPlans();
     fetchRcsConfigs();
     fetchWhatsappConfigs();
+    fetchVoiceConfigs();
     fetchSmsGateways();
   }, []);
 
@@ -266,6 +284,7 @@ export default function SuperAdminClients() {
       const payload = { ...currentClient };
       if (payload.rcs_config_id === '') payload.rcs_config_id = null as any;
       if (payload.whatsapp_config_id === '') payload.whatsapp_config_id = null as any;
+      if (payload.ai_voice_config_id === '') payload.ai_voice_config_id = null as any;
 
       const token = localStorage.getItem('authToken');
       const res = await axios.post(`${API_URL}/clients`, payload, {
@@ -325,6 +344,7 @@ export default function SuperAdminClients() {
       }
       if (payload.rcs_config_id === '') payload.rcs_config_id = null as any;
       if (payload.whatsapp_config_id === '') payload.whatsapp_config_id = null as any;
+      if (payload.ai_voice_config_id === '') payload.ai_voice_config_id = null as any;
       if (payload.sms_gateway_id === '') payload.sms_gateway_id = null as any;
 
       const token = localStorage.getItem('authToken');
@@ -366,6 +386,7 @@ export default function SuperAdminClients() {
       channels_enabled: [],
       rcs_config_id: '',
       whatsapp_config_id: '',
+      ai_voice_config_id: '',
       rcs_text_price: 1.00,
       rcs_rich_card_price: 1.00,
       rcs_carousel_price: 1.00,
@@ -429,6 +450,7 @@ export default function SuperAdminClients() {
       channels_enabled: clientChannels,
       rcs_config_id: client.rcs_config_id ? String(client.rcs_config_id) : '',
       whatsapp_config_id: client.whatsapp_config_id ? String(client.whatsapp_config_id) : '',
+      ai_voice_config_id: client.ai_voice_config_id ? String(client.ai_voice_config_id) : '',
       rcs_text_price: client.rcs_text_price || 1.00,
       rcs_rich_card_price: client.rcs_rich_card_price || 1.00,
       rcs_carousel_price: client.rcs_carousel_price || 1.00,
@@ -473,6 +495,7 @@ export default function SuperAdminClients() {
       channels_enabled: parseChannels(client.channels_enabled),
       rcs_config_id: client.rcs_config_id ? String(client.rcs_config_id) : '',
       whatsapp_config_id: client.whatsapp_config_id ? String(client.whatsapp_config_id) : '',
+      ai_voice_config_id: client.ai_voice_config_id ? String(client.ai_voice_config_id) : '',
       rcs_text_price: client.rcs_text_price || 1.00,
       rcs_rich_card_price: client.rcs_rich_card_price || 1.00,
       rcs_carousel_price: client.rcs_carousel_price || 1.00,

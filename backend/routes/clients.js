@@ -45,7 +45,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         id, name, email, company AS company_name, contact_phone,
         plan_id, credits_available, wallet_balance, credits_used,
         IFNULL(channels_enabled, '[]') AS channels_enabled,
-        status, created_at, permissions, rcs_config_id, whatsapp_config_id, sms_gateway_id,
+        status, created_at, permissions, rcs_config_id, whatsapp_config_id, ai_voice_config_id, sms_gateway_id,
         rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
@@ -95,7 +95,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     sms_promotional_price = 1.00, sms_transactional_price = 1.00, sms_service_price = 1.00,
     rcs_limit = null, wa_limit = null, sms_limit = null, voice_limit = null,
     pe_id = null, hash_id = null, is_api_allowed = false, is_proero_enabled = 0, is_smm_enabled = 0, is_dinstar_enabled = 0,
-    dlr_webhook_url = null, wa_unofficial_webhook_enabled = 0
+    dlr_webhook_url = null, wa_unofficial_webhook_enabled = 0, ai_voice_config_id = null
   } = req.body;
 
   if (!email || !password) {
@@ -144,7 +144,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       INSERT INTO users (
         name, company, contact_phone, email, password, role,
         status, plan_id, credits_available, wallet_balance, credits_used, channels_enabled, 
-        rcs_config_id, whatsapp_config_id, sms_gateway_id,
+        rcs_config_id, whatsapp_config_id, ai_voice_config_id, sms_gateway_id,
         rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
         wa_marketing_price, wa_utility_price, wa_authentication_price,
         sms_promotional_price, sms_transactional_price, sms_service_price,
@@ -155,7 +155,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     `, [
       name, company_name, contact_phone, email, hash,
       status, plan_id, credits_available, credits_available, JSON.stringify(channels_enabled), 
-      rcs_config_id || null, whatsapp_config_id || null, sms_gateway_id || null,
+      rcs_config_id || null, whatsapp_config_id || null, ai_voice_config_id || null, sms_gateway_id || null,
       rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
       wa_marketing_price, wa_utility_price, wa_authentication_price,
       sms_promotional_price, sms_transactional_price, sms_service_price,
@@ -186,7 +186,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   const {
     name, company_name, contact_phone, email, password,
     plan_id, status, credits_available, channels_enabled, permissions, 
-    rcs_config_id, whatsapp_config_id, sms_gateway_id,
+    rcs_config_id, whatsapp_config_id, ai_voice_config_id, sms_gateway_id,
     rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
     wa_marketing_price, wa_utility_price, wa_authentication_price,
     sms_promotional_price, sms_transactional_price, sms_service_price,
@@ -229,6 +229,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   if (permissions !== undefined) { fields.push('permissions = ?'); values.push(JSON.stringify(permissions)); }
   if (rcs_config_id !== undefined) { fields.push('rcs_config_id = ?'); values.push(rcs_config_id || null); }
   if (whatsapp_config_id !== undefined) { fields.push('whatsapp_config_id = ?'); values.push(whatsapp_config_id || null); }
+  if (ai_voice_config_id !== undefined) { fields.push('ai_voice_config_id = ?'); values.push(ai_voice_config_id || null); }
   if (sms_gateway_id !== undefined) { fields.push('sms_gateway_id = ?'); values.push(sms_gateway_id || null); }
   if (rcs_text_price !== undefined) { fields.push('rcs_text_price = ?'); values.push(rcs_text_price); }
   if (rcs_rich_card_price !== undefined) { fields.push('rcs_rich_card_price = ?'); values.push(rcs_rich_card_price); }

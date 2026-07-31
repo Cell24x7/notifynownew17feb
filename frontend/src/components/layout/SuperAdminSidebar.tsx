@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import {
+import { Mic, useState } from 'react';
+import { Mic, NavLink, useLocation } from 'react-router-dom';
+import { Mic,
   LayoutDashboard,
   MessageSquare,
   Megaphone,
@@ -27,11 +27,11 @@ import {
   Zap,
   LifeBuoy
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { useBranding } from '@/contexts/BrandingContext';
+import { Mic, Button } from '@/components/ui/button';
+import { Mic, cn } from '@/lib/utils';
+import { Mic, useAuth } from '@/contexts/AuthContext';
+import { Mic, ThemeToggle } from '@/components/ui/theme-toggle';
+import { Mic, useBranding } from '@/contexts/BrandingContext';
 
 import defaultLogo from '@/assets/veloxaio.png';
 // Logo will be loaded from branding settings
@@ -89,6 +89,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
     { icon: MessageSquareMore, label: 'RCS Configs', path: '/super-admin/rcs-configs', permission: 'RCS Configs - View' },
     { icon: MessageCircle, label: 'WhatsApp Configs', path: '/super-admin/whatsapp-configs', permission: 'WhatsApp Configs - View' },
     { icon: Send, label: 'SMS Gateways', path: '/super-admin/sms-gateways', permission: 'SMS Gateways - View' },
+    { icon: Mic, label: 'Voice Gateways', path: '/super-admin/voice-configs', permission: 'Voice Configs - View' },
     { icon: CreditCard, label: 'Numbers', path: '/super-admin/numbers', permission: 'Numbers - View' },
     { icon: ScrollText, label: 'System Logs', path: '/super-admin/logs', permission: 'System Logs - View' },
     { icon: LifeBuoy, label: 'Support Tickets', path: '/super-admin/support', permission: 'Dashboard - View' },
@@ -255,3 +256,4 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
     </aside>
   );
 }
+
