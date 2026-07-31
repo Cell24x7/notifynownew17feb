@@ -1,3 +1,4 @@
+require('dotenv').config({ path: __dirname + '/../.env' });
 const { query } = require('../config/db');
 
 async function migrateVoiceGateways() {
