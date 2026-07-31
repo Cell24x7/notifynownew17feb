@@ -291,6 +291,10 @@ startPolling();
 const dinstarPolling = require('./services/dinstarPollingService');
 dinstarPolling.startPolling();
 
+// Start EDPL Voice Gateway polling service
+const edplPolling = require('./services/edplPollingService');
+edplPolling.startPolling();
+
 // Auto-create chat_flows table if it doesn't exist
 const { ensureChatFlowsTable } = require('./services/chatflowService');
 const { ensureWhatsAppPricingColumns } = require('./services/pricingService');
