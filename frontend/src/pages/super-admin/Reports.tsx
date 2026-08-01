@@ -9,10 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { 
     Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight, User, 
-    Users, Building
+    Users, Building, Check, ChevronsUpDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
@@ -98,8 +99,8 @@ export default function SuperAdminReports() {
     
     const [users, setUsers] = useState<HierarchyUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
-    const [selectedUser, setSelectedUser] = useState<HierarchyUser | null>(null);
-
+    const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+    
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
     const [voiceLogs, setVoiceLogs] = useState<VoiceLog[]>([]);
@@ -318,27 +319,79 @@ export default function SuperAdminReports() {
                                 Auto-refresh (10s)
                             </Label>
                         </div>
-                        <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                            <SelectTrigger className="w-[320px] bg-slate-50 border-slate-200">
-                                <User className="w-4 h-4 mr-2 text-slate-500" />
-                                <SelectValue placeholder="Select User/Reseller" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all" className="font-bold text-blue-600">-- ALL SYSTEM USERS --</SelectItem>
-                                <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 uppercase mt-1">Resellers</div>
-                                {users.filter(u => u.role === 'reseller').map(user => (
-                                    <SelectItem key={user.id} value={user.id.toString()} className="pl-6">
-                                        {user.company_name || user.name} ({user.email})
-                                    </SelectItem>
-                                ))}
-                                <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 uppercase mt-1">Clients / Users</div>
-                                {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => (
-                                    <SelectItem key={user.id} value={user.id.toString()} className="pl-6">
-                                        {user.company_name || user.name} ({user.email})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Popover open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={userDropdownOpen}
+                                    className="w-[320px] justify-between bg-slate-50 border-slate-200 font-normal"
+                                >
+                                    <div className="flex items-center gap-2 truncate">
+                                        <User className="h-4 w-4 text-slate-500 shrink-0" />
+                                        <span className="truncate">
+                                            {selectedUserId === 'all' 
+                                                ? '-- ALL SYSTEM USERS --' 
+                                                : selectedUser 
+                                                    ? `${selectedUser.company_name || selectedUser.name} (${selectedUser.email})`
+                                                    : 'Select User/Reseller'}
+                                        </span>
+                                    </div>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                                <Command>
+                                    <CommandInput placeholder="Search users by name, email, or company..." />
+                                    <CommandList>
+                                        <CommandEmpty>No user found.</CommandEmpty>
+                                        <CommandGroup>
+                                            <CommandItem
+                                                value="all"
+                                                onSelect={() => {
+                                                    setSelectedUserId('all');
+                                                    setUserDropdownOpen(false);
+                                                }}
+                                                className="font-bold text-blue-600"
+                                            >
+                                                <Check className={cn("mr-2 h-4 w-4", selectedUserId === 'all' ? "opacity-100" : "opacity-0")} />
+                                                -- ALL SYSTEM USERS --
+                                            </CommandItem>
+                                        </CommandGroup>
+                                        <CommandGroup heading="Resellers">
+                                            {users.filter(u => u.role === 'reseller').map(user => (
+                                                <CommandItem
+                                                    key={user.id}
+                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                    onSelect={() => {
+                                                        setSelectedUserId(user.id.toString());
+                                                        setUserDropdownOpen(false);
+                                                    }}
+                                                >
+                                                    <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                    {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                        <CommandGroup heading="Clients / Users">
+                                            {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => (
+                                                <CommandItem
+                                                    key={user.id}
+                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                    onSelect={() => {
+                                                        setSelectedUserId(user.id.toString());
+                                                        setUserDropdownOpen(false);
+                                                    }}
+                                                >
+                                                    <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                    {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                         <Button variant="default" size="sm" onClick={handleExport} className="gap-2 bg-blue-600 hover:bg-blue-700">
                             <Download className="h-4 w-4" /> Export CSV
                         </Button>

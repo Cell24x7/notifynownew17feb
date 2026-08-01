@@ -60,16 +60,16 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
       path: '/super-admin/reports', 
       permission: 'Reports - View',
       subItems: [
+        { label: 'Today Report', path: '/super-admin/reports?tab=today' },
+        { label: 'API Detail report', path: '/super-admin/reports?tab=api_detail' },
+        { label: 'Bulk Detail Report', path: '/super-admin/reports?tab=bulk_detail' },
         { label: 'Pull Report', path: '/super-admin/reports?tab=pull' },
         { label: 'Short Url Report', path: '/super-admin/reports?tab=short_url' },
-        { label: 'Bulk Detail Report', path: '/super-admin/reports?tab=bulk_detail' },
-        { label: 'API Detail report', path: '/super-admin/reports?tab=api_detail' },
         { label: 'Voice Details Report', path: '/super-admin/reports?tab=voice_detail' },
         { label: 'RCS Details Report', path: '/super-admin/reports?tab=rcs_detail' },
-        { label: 'SMS Summary Report', path: '/super-admin/reports?tab=sms_summary' },
-        { label: 'Today Report', path: '/super-admin/reports?tab=today' },
         { label: 'WhatsApp Details Report', path: '/super-admin/reports?tab=whatsapp_detail' },
         { label: 'WhatsApp Summary Report', path: '/super-admin/reports?tab=whatsapp_summary' },
+        { label: 'SMS Summary Report', path: '/super-admin/reports?tab=sms_summary' },
         { label: 'Queue Status', path: '/super-admin/reports/queue' }
       ]
     },
