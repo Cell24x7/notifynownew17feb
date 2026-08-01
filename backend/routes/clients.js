@@ -165,7 +165,30 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       dlr_webhook_url || null, wa_unofficial_webhook_enabled || 0
     ]);
 
-    // Log Initial Transaction
+    // If Reseller is creating the client with initial credits, deduct from Reseller's balance
+    if (credits_available > 0 && req.user.role === 'reseller') {
+      const resellerId = req.user.id;
+      const initialCredits = parseFloat(credits_available);
+      
+      const [reseller] = await query('SELECT wallet_balance FROM users WHERE id = ?', [resellerId]);
+      if (!reseller.length || parseFloat(reseller[0].wallet_balance) < initialCredits) {
+        // Rollback created user since reseller doesn't have enough balance
+        await query('DELETE FROM users WHERE id = ?', [result.insertId]);
+        return res.status(400).json({ success: false, message: `Insufficient credits in your pool to allocate ₹${initialCredits} to the new user.` });
+      }
+
+      // Deduct from reseller
+      await query('UPDATE users SET wallet_balance = wallet_balance - ?, credits_available = credits_available - ?, credits_used = credits_used + ? WHERE id = ?', 
+        [initialCredits, initialCredits, initialCredits, resellerId]);
+
+      // Log Reseller Debit Transaction
+      await query(`
+        INSERT INTO transactions (user_id, type, amount, credits, description, status)
+        VALUES (?, 'debit', ?, ?, ?, 'completed')
+      `, [resellerId, initialCredits, initialCredits, `Allocated credits to new user: ${name}`]);
+    }
+
+    // Log Initial Transaction for new user
     if (credits_available > 0) {
       await query(`
         INSERT INTO transactions (user_id, type, amount, credits, description, status)
