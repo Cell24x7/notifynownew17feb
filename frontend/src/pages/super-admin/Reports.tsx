@@ -99,6 +99,7 @@ export default function SuperAdminReports() {
     
     const [users, setUsers] = useState<HierarchyUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
+    const [selectedUser, setSelectedUser] = useState<HierarchyUser | null>(null);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     
     const [reports, setReports] = useState<Report[]>([]);
