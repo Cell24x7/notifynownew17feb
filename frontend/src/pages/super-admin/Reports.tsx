@@ -353,9 +353,9 @@ export default function SuperAdminReports() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="px-6 pt-5 pb-5">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full items-start">
+                            <div className="flex flex-wrap gap-4 w-full items-start">
                                 {/* User Type */}
-                                <div className="w-full">
+                                <div className="flex-1 min-w-[140px]">
                                     <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Type</Label>
                                     <Select value={userType} onValueChange={(val) => { setUserType(val); setSelectedUserId('all'); setSelectedFilterResellerId('all'); }}>
                                         <SelectTrigger className="w-full bg-white border-slate-200">
@@ -371,7 +371,7 @@ export default function SuperAdminReports() {
 
                                 {/* Reseller Filter (Only show when 'reseller' is selected) */}
                                 {userType === 'reseller' && (
-                                    <div className="w-full">
+                                    <div className="flex-1 min-w-[160px]">
                                         <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">Select Reseller</Label>
                                         <Select value={selectedFilterResellerId} onValueChange={(val) => { setSelectedFilterResellerId(val); setSelectedUserId('all'); }}>
                                             <SelectTrigger className="w-full bg-white border-slate-200">
@@ -390,7 +390,7 @@ export default function SuperAdminReports() {
                                 )}
 
                                 {/* User Name */}
-                                <div className={cn("w-full", userType === 'reseller' ? "md:col-span-2 lg:col-span-1 xl:col-span-2" : "md:col-span-1 lg:col-span-2 xl:col-span-3")}>
+                                <div className="flex-[2] min-w-[240px]">
                                     <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Name</Label>
                                     <Popover open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
                                         <PopoverTrigger asChild>
@@ -535,13 +535,13 @@ export default function SuperAdminReports() {
                                 </div>
 
                                 {/* From Date */}
-                                <div className="w-full">
+                                <div className="flex-1 min-w-[140px]">
                                     <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">From Date</Label>
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white border-slate-200", !startDate && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {startDate ? format(startDate, "PPP") : <span>Select Start Date</span>}
+                                                <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                                                <span className="truncate">{startDate ? format(startDate, "PPP") : "Start Date"}</span>
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0" align="start">
@@ -551,14 +551,14 @@ export default function SuperAdminReports() {
                                 </div>
 
                                 {/* To Date */}
-                                <div className="w-full">
+                                <div className="flex-1 min-w-[140px]">
                                     <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">To Date</Label>
                                     <div className="flex gap-2">
                                         <Popover>
                                             <PopoverTrigger asChild>
                                                 <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white border-slate-200", !endDate && "text-muted-foreground")}>
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {endDate ? format(endDate, "PPP") : <span>Select End Date</span>}
+                                                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                                                    <span className="truncate">{endDate ? format(endDate, "PPP") : "End Date"}</span>
                                                 </Button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-auto p-0" align="start">
@@ -574,8 +574,8 @@ export default function SuperAdminReports() {
                                 </div>
 
                                 {/* Search */}
-                                <div className="w-full md:col-span-2 lg:col-span-3 xl:col-span-4">
-                                    <div className="relative mt-1">
+                                <div className="w-full mt-1">
+                                    <div className="relative">
                                         <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                                         <Input
                                             placeholder="Search recipient, campaign..."
