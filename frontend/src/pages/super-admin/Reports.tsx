@@ -8,9 +8,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { 
+    Calendar as CalendarIcon, Download, Search, ChevronLeft, ChevronRight, User, 
+    BarChart, Database, Phone, MessageSquare, Smartphone, Zap, Clock, Users, Building
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
 import { useToast } from '@/hooks/use-toast';
@@ -57,11 +59,21 @@ interface WebhookLog {
     campaign_channel?: string;
 }
 
-interface Client {
+interface HierarchyUser {
     id: string;
     name: string;
     email: string;
     company_name: string;
+    role: string;
+    rcs_text_price: number;
+    rcs_rich_card_price: number;
+    rcs_carousel_price: number;
+    wa_marketing_price: number;
+    wa_utility_price: number;
+    wa_authentication_price: number;
+    sms_promotional_price: number;
+    sms_transactional_price: number;
+    sms_service_price: number;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -80,186 +92,162 @@ const downloadCsv = (content: string, filename: string) => {
 
 export default function SuperAdminReports() {
     const { toast } = useToast();
-    const [clients, setClients] = useState<Client[]>([]);
-    const [selectedUserId, setSelectedUserId] = useState<string>('');
+    const [users, setUsers] = useState<HierarchyUser[]>([]);
+    const [selectedUserId, setSelectedUserId] = useState<string>('all');
+    const [selectedUser, setSelectedUser] = useState<HierarchyUser | null>(null);
+
+    const [activeReport, setActiveReport] = useState('summary');
+    
     const [reports, setReports] = useState<Report[]>([]);
     const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
     const [voiceLogs, setVoiceLogs] = useState<VoiceLog[]>([]);
-    const [voicePage, setVoicePage] = useState(1);
-    const [voiceTotal, setVoiceTotal] = useState(0);
-    const [loadingVoice, setLoadingVoice] = useState(false);
-    const [summaryPage, setSummaryPage] = useState(1);
-    const [summaryTotal, setSummaryTotal] = useState(0);
-    const [detailedPage, setDetailedPage] = useState(1);
-    const [detailedTotal, setDetailedTotal] = useState(0);
+    
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
 
     const [loading, setLoading] = useState(false);
-    const [loadingLogs, setLoadingLogs] = useState(false);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState('summary');
     const [autoRefresh, setAutoRefresh] = useState(false);
 
-    // Fetch clients on mount
+    const reportTypes = [
+        { id: 'summary', name: 'Today Report', icon: <Clock className="w-4 h-4" /> },
+        { id: 'bulk_detail', name: 'Bulk Detail Report', icon: <Database className="w-4 h-4" /> },
+        { id: 'api_detail', name: 'API Detail Report', icon: <Zap className="w-4 h-4" /> },
+        { id: 'voice_detail', name: 'Voice Details Report', icon: <Phone className="w-4 h-4" /> },
+        { id: 'rcs_detail', name: 'RCS Details Report', icon: <MessageSquare className="w-4 h-4" /> },
+        { id: 'whatsapp_detail', name: 'WhatsApp Details Report', icon: <MessageSquare className="w-4 h-4" /> },
+        { id: 'sms_summary', name: 'SMS Summary Report', icon: <Smartphone className="w-4 h-4" /> },
+        { id: 'whatsapp_summary', name: 'WhatsApp Summary Report', icon: <BarChart className="w-4 h-4" /> },
+    ];
+
     useEffect(() => {
-        fetchClients();
+        fetchUsers();
     }, []);
 
-    const fetchClients = async () => {
+    const fetchUsers = async () => {
         try {
             const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_BASE_URL}/api/clients`, {
+            const response = await fetch(`${API_BASE_URL}/api/clients/all-hierarchy`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
             if (data.success) {
-                setClients(data.clients);
+                setUsers(data.users);
             }
         } catch (error) {
-            console.error('Failed to fetch clients', error);
+            console.error('Failed to fetch users', error);
         }
     };
 
     useEffect(() => {
-        if (selectedUserId) {
-            setSummaryPage(1);
-            fetchReports(1);
+        if (selectedUserId !== 'all') {
+            const user = users.find(u => u.id.toString() === selectedUserId);
+            setSelectedUser(user || null);
+        } else {
+            setSelectedUser(null);
         }
-    }, [startDate, endDate, selectedUserId]);
+    }, [selectedUserId, users]);
 
     useEffect(() => {
-        if (selectedUserId) {
-            fetchReports(summaryPage);
-        }
-    }, [summaryPage]);
+        setCurrentPage(1);
+        fetchData(1);
+    }, [startDate, endDate, selectedUserId, activeReport, searchQuery]);
 
     useEffect(() => {
-        if (selectedUserId) {
-            fetchWebhookLogs(detailedPage);
-        }
-    }, [detailedPage]);
+        fetchData(currentPage);
+    }, [currentPage]);
 
+    // Background Auto-Refresh
     useEffect(() => {
-        if (!selectedUserId) return;
-        if (activeTab === 'summary') fetchReports(summaryPage);
-        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage);
-    }, [activeTab, searchQuery]);
+        if (!autoRefresh) return;
+        const interval = setInterval(() => { fetchData(currentPage, true); }, 10000);
+        return () => clearInterval(interval);
+    }, [selectedUserId, autoRefresh, activeReport, currentPage, startDate, endDate, searchQuery]);
 
-    const fetchReports = async (page: number = 1, silent: boolean = false) => {
-        if (!selectedUserId) return;
+    const fetchData = async (page: number = 1, silent: boolean = false) => {
         if (!silent) setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/rcs/reports?userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}&`;
-            
-            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
-            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+            let baseParams = `userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}`;
+            if (startDate) baseParams += `&startDate=${startDate.toISOString().split('T')[0]}`;
+            if (endDate) baseParams += `&endDate=${endDate.toISOString().split('T')[0]}`;
+            if (searchQuery) baseParams += `&search=${encodeURIComponent(searchQuery)}`;
 
-            const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                setReports(data.reports);
-                setSummaryTotal(data.pagination?.total || 0);
+            if (activeReport.includes('summary')) {
+                // Fetch Campaign Summary
+                let url = `${API_BASE_URL}/api/rcs/reports?${baseParams}`;
+                if (activeReport === 'sms_summary') url += '&channel=sms';
+                if (activeReport === 'whatsapp_summary') url += '&channel=whatsapp';
+
+                const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await response.json();
+                if (data.success) {
+                    setReports(data.reports);
+                    setTotalItems(data.pagination?.total || 0);
+                }
+            } else if (activeReport === 'voice_detail') {
+                // Fetch Voice Logs
+                const response = await fetch(`${API_BASE_URL}/api/reports/voice-logs?${baseParams}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await response.json();
+                if (data.success) {
+                    setVoiceLogs(data.logs);
+                    setTotalItems(data.total || 0);
+                }
+            } else {
+                // Fetch Webhook Detailed Logs
+                let url = `${API_BASE_URL}/api/webhooks/message-logs?${baseParams}`;
+                if (activeReport === 'rcs_detail') url += '&channel=rcs';
+                if (activeReport === 'whatsapp_detail') url += '&channel=whatsapp';
+                if (activeReport === 'api_detail') url += '&source=api';
+                if (activeReport === 'bulk_detail') url += '&source=manual';
+
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (data.success) {
+                    setWebhookLogs(data.data);
+                    setTotalItems(data.pagination?.total || 0);
+                }
             }
         } catch (error) {
-            console.error('Failed to fetch reports', error);
-            toast({ title: 'Error', description: 'Failed to load summary reports', variant: 'destructive' });
+            console.error('Failed to fetch data', error);
+            if(!silent) toast({ title: 'Error', description: 'Failed to load report data', variant: 'destructive' });
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchWebhookLogs = async (page: number = 1, silent: boolean = false) => {
-        if (!selectedUserId) return;
-        if (!silent) setLoadingLogs(true);
-        try {
-            const token = localStorage.getItem('authToken');
-            let url = `${API_BASE_URL}/api/webhooks/message-logs?userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}&`;
-            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
-            if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
-
-            const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-                setWebhookLogs(data.data);
-                setDetailedTotal(data.pagination?.total || 0);
-            }
-        } catch (error) {
-            console.error('Error fetching logs:', error);
-            toast({ title: 'Error', description: 'Failed to load detailed reports', variant: 'destructive' });
-        } finally {
-            setLoadingLogs(false);
-        }
-    };
-
-    const handleRefresh = (silent: boolean = false) => {
-        if (activeTab === 'summary') fetchReports(summaryPage, silent);
-        if (activeTab === 'detailed') fetchWebhookLogs(detailedPage, silent);
-    };
-
-    // Background Auto-Refresh every 10 seconds for super-admin dashboard
-    useEffect(() => {
-        if (!selectedUserId || !autoRefresh) return;
-
-        const interval = setInterval(() => {
-            handleRefresh(true);
-        }, 10000); // 10 seconds
-
-        return () => clearInterval(interval);
-    }, [selectedUserId, autoRefresh, activeTab, summaryPage, detailedPage, startDate, endDate, searchQuery]);
-
     const handleExport = () => {
-        if (!selectedUserId) {
-            toast({ title: 'Selection Required', description: 'Please select a user first' });
-            return;
-        }
+        toast({ title: 'Exporting...', description: 'Your CSV is being generated' });
+        // Export logic based on active report type
+        let csvContent = "";
+        let filename = "";
 
-        if (activeTab === 'summary') {
+        if (activeReport.includes('summary')) {
             const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
-            const csvContent = [
+            csvContent = [
                 headers.join(','),
-                ...reports.map(r => [
-                    `"${r.name}"`,
-                    `"${r.template_id}"`,
-                    format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
-                    r.recipient_count,
-                    r.sent_count,
-                    r.delivered_count,
-                    r.read_count,
-                    r.failed_count
-                ].join(','))
+                ...reports.map(r => `"${r.name}","${r.template_id}",${format(new Date(r.created_at), 'yyyy-MM-dd HH:mm')},${r.recipient_count},${r.sent_count},${r.delivered_count},${r.read_count},${r.failed_count}`)
             ].join('\n');
-
-            downloadCsv(csvContent, `super_admin_summary_${selectedUserId}_${format(new Date(), 'yyyyMMdd')}.csv`);
-        } else if (activeTab === 'detailed') {
-            const headers = ['Id', 'Rtime', 'Mobile', 'Channel', 'sendTime', 'DelTime', 'ReadTime', 'Template', 'Campaign', 'Status', 'Reason'];
-            const csvContent = [
+            filename = `${activeReport}_${format(new Date(), 'yyyyMMdd')}.csv`;
+        } else if (activeReport === 'voice_detail') {
+            const headers = ['Date', 'Campaign', 'Mobile', 'Status', 'Duration', 'Attempts'];
+            csvContent = [
                 headers.join(','),
-                ...webhookLogs.map(l => [
-                    l.id,
-                    l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-',
-                    l.recipient,
-                    `"${l.channel || l.campaign_channel || 'rcs'}"`,
-                    l.send_time ? format(new Date(l.send_time), 'HH:mm:ss') : '-',
-                    l.delivery_time ? format(new Date(l.delivery_time), 'HH:mm:ss') : '-',
-                    l.read_time ? format(new Date(l.read_time), 'HH:mm:ss') : '-',
-                    `"${l.template_name || ''}"`,
-                    `"${l.campaign_name || ''}"`,
-                    l.status,
-                    `"${l.failure_reason || ''}"`
-                ].join(','))
+                ...voiceLogs.map(l => `${format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss')},"${l.campaign_name}",${l.mobile},${l.status},${l.duration},${l.attempts}`)
             ].join('\n');
-
-            downloadCsv(csvContent, `super_admin_detailed_${selectedUserId}_${format(new Date(), 'yyyyMMdd')}.csv`);
+            filename = `voice_report_${format(new Date(), 'yyyyMMdd')}.csv`;
+        } else {
+            const headers = ['Id', 'Date', 'Mobile', 'Channel', 'Status', 'Reason', 'Template', 'Campaign'];
+            csvContent = [
+                headers.join(','),
+                ...webhookLogs.map(l => `${l.id},${l.created_at ? format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss') : '-'},${l.recipient},${l.channel || l.campaign_channel || 'rcs'},${l.status},"${l.failure_reason || ''}","${l.template_name || ''}","${l.campaign_name || ''}"`)
+            ].join('\n');
+            filename = `${activeReport}_${format(new Date(), 'yyyyMMdd')}.csv`;
         }
+
+        downloadCsv(csvContent, filename);
     };
 
     const getStatusColor = (status: string) => {
@@ -268,11 +256,12 @@ export default function SuperAdminReports() {
             case 'delivered': return 'bg-green-100 text-green-700 border-green-200';
             case 'read': return 'bg-purple-100 text-purple-700 border-purple-200';
             case 'failed': return 'bg-red-100 text-red-700 border-red-200';
+            case 'answered': return 'bg-green-100 text-green-700 border-green-200';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';
         }
     };
 
-    const renderPagination = (currentPage: number, totalItems: number, onPageChange: (page: number) => void) => {
+    const renderPagination = () => {
         const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
         if (totalPages <= 1) return null;
 
@@ -284,27 +273,13 @@ export default function SuperAdminReports() {
                     <span className="font-medium">{totalItems}</span> results
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="h-8 px-2"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(c => c - 1)} disabled={currentPage === 1} className="h-8 px-2">
                         <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                     </Button>
-                    <div className="flex items-center gap-1">
-                        <Badge variant="outline" className="h-8 px-3 font-bold bg-white">
-                            Page {currentPage} of {totalPages}
-                        </Badge>
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="h-8 px-2"
-                    >
+                    <Badge variant="outline" className="h-8 px-3 font-bold bg-white">
+                        Page {currentPage} of {totalPages}
+                    </Badge>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(c => c + 1)} disabled={currentPage === totalPages} className="h-8 px-2">
                         Next <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                 </div>
@@ -313,15 +288,50 @@ export default function SuperAdminReports() {
     };
 
     return (
-        <div className="h-full flex flex-col space-y-6 p-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Global MIS Analytics</h1>
-                    <p className="text-muted-foreground">Monitor performance across all users</p>
+        <div className="h-full flex bg-[#f8fafc]">
+            {/* Sidebar UI */}
+            <div className="w-[280px] bg-slate-900 text-slate-300 flex flex-col shadow-xl z-10 shrink-0 h-full overflow-y-auto">
+                <div className="p-6 border-b border-slate-800">
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                        <BarChart className="text-blue-400" />
+                        Reporting Suite
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">Super Admin Dashboard</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    {selectedUserId && (
-                        <>
+                <div className="flex-1 py-4">
+                    <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Reports</div>
+                    {reportTypes.map((type) => (
+                        <button
+                            key={type.id}
+                            onClick={() => setActiveReport(type.id)}
+                            className={cn(
+                                "w-full flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-200 border-l-4",
+                                activeReport === type.id 
+                                    ? "bg-slate-800 text-white border-blue-500 shadow-inner" 
+                                    : "border-transparent hover:bg-slate-800/50 hover:text-slate-100"
+                            )}
+                        >
+                            <span className={cn("transition-colors", activeReport === type.id ? "text-blue-400" : "")}>
+                                {type.icon}
+                            </span>
+                            {type.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+                {/* Header Section */}
+                <div className="bg-white border-b px-8 py-5 shadow-sm z-0">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-800">
+                                {reportTypes.find(r => r.id === activeReport)?.name || 'Report'}
+                            </h1>
+                            <p className="text-sm text-slate-500 mt-1">View and analyze your system data</p>
+                        </div>
+                        <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 mr-2">
                                 <input
                                     type="checkbox"
@@ -334,310 +344,237 @@ export default function SuperAdminReports() {
                                     Auto-refresh (10s)
                                 </Label>
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => handleRefresh(false)} className="h-9 px-4">
-                                Refresh Data
+                            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                                <SelectTrigger className="w-[320px] bg-slate-50 border-slate-200">
+                                    <User className="w-4 h-4 mr-2 text-slate-500" />
+                                    <SelectValue placeholder="Select User/Reseller" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all" className="font-bold text-blue-600">-- ALL SYSTEM USERS --</SelectItem>
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 uppercase">Resellers</div>
+                                    {users.filter(u => u.role === 'reseller').map(user => (
+                                        <SelectItem key={user.id} value={user.id.toString()} className="pl-6">
+                                            {user.company_name || user.name} ({user.email})
+                                        </SelectItem>
+                                    ))}
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 uppercase mt-1">Clients / Users</div>
+                                    {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => (
+                                        <SelectItem key={user.id} value={user.id.toString()} className="pl-6">
+                                            {user.company_name || user.name} ({user.email})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button variant="default" size="sm" onClick={handleExport} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                                <Download className="h-4 w-4" /> Export CSV
                             </Button>
-                        </>
-                    )}
-                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                        <SelectTrigger className="w-[280px] bg-primary/5 border-primary/20">
-                            <User className="w-4 h-4 mr-2" />
-                            <SelectValue placeholder="Select User to View Report" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {clients.map(client => (
-                                <SelectItem key={client.id} value={client.id.toString()}>
-                                    {client.company_name || client.name} ({client.email})
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Button variant="default" size="sm" onClick={handleExport} disabled={!selectedUserId} className="gap-2 bg-blue-600 hover:bg-blue-700">
-                        <Download className="h-4 w-4" />
-                        Export CSV
-                    </Button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 p-8 overflow-y-auto">
+                    {/* Filters & Pricing Row */}
+                    <div className="flex flex-col xl:flex-row gap-6 mb-6">
+                        {/* Date Filters Card */}
+                        <Card className="flex-1 shadow-sm border-slate-200">
+                            <CardHeader className="pb-3 px-6 bg-slate-50/50 rounded-t-xl border-b">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                    <Search className="w-4 h-4 text-blue-500" /> Report Filters
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-wrap gap-4 px-6 pt-5 pb-5">
+                                <div className="flex items-center gap-2">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant={"outline"} className={cn("w-[180px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <span className="text-slate-300">-</span>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant={"outline"} className={cn("w-[180px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {endDate ? format(endDate, "PPP") : <span>End Date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                                        </PopoverContent>
+                                    </Popover>
+                                    {(startDate || endDate) && (
+                                        <Button variant="ghost" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50">
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-[200px] relative">
+                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                    <Input
+                                        placeholder="Search recipient, campaign..."
+                                        className="pl-9 bg-white border-slate-200"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Pricing Information Card (Only visible when a user is selected) */}
+                        {selectedUser && (
+                            <Card className="xl:w-[450px] shrink-0 shadow-sm border-blue-100 bg-blue-50/30 overflow-hidden">
+                                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                                <CardHeader className="pb-2 px-6 pt-4">
+                                    <CardTitle className="text-sm font-bold text-slate-800 flex items-center justify-between">
+                                        <span className="flex items-center gap-2">
+                                            {selectedUser.role === 'reseller' ? <Building className="w-4 h-4 text-blue-600" /> : <Users className="w-4 h-4 text-blue-600" />}
+                                            Billing Rates: {selectedUser.company_name || selectedUser.name}
+                                        </span>
+                                        <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-wider bg-blue-100 text-blue-700">
+                                            {selectedUser.role}
+                                        </Badge>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-6 pb-4">
+                                    <div className="grid grid-cols-3 gap-y-3 gap-x-4 text-sm">
+                                        <div><span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">WA Mktg</span><span className="font-mono font-semibold text-slate-800">₹{selectedUser.wa_marketing_price || 0}</span></div>
+                                        <div><span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">WA Utility</span><span className="font-mono font-semibold text-slate-800">₹{selectedUser.wa_utility_price || 0}</span></div>
+                                        <div><span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">WA Auth</span><span className="font-mono font-semibold text-slate-800">₹{selectedUser.wa_authentication_price || 0}</span></div>
+                                        
+                                        <div><span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">RCS Text</span><span className="font-mono font-semibold text-slate-800">₹{selectedUser.rcs_text_price || 0}</span></div>
+                                        <div><span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">RCS Media</span><span className="font-mono font-semibold text-slate-800">₹{selectedUser.rcs_rich_card_price || 0}</span></div>
+                                        <div><span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">SMS Promo</span><span className="font-mono font-semibold text-slate-800">₹{selectedUser.sms_promotional_price || 0}</span></div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+
+                    {/* Data Table */}
+                    <Card className="shadow-sm border-slate-200">
+                        <div className="p-0 overflow-auto rounded-xl">
+                            <Table>
+                                <TableHeader className="bg-slate-50">
+                                    {activeReport.includes('summary') ? (
+                                        <TableRow>
+                                            <TableHead className="font-bold text-slate-700">Campaign Name</TableHead>
+                                            <TableHead className="font-bold text-slate-700">Template</TableHead>
+                                            <TableHead className="font-bold text-slate-700">Date</TableHead>
+                                            <TableHead className="text-right font-bold text-slate-700">Total</TableHead>
+                                            <TableHead className="text-right font-bold text-blue-600">Sent</TableHead>
+                                            <TableHead className="text-right font-bold text-green-600">Delivered</TableHead>
+                                            <TableHead className="text-right font-bold text-purple-600">Read</TableHead>
+                                            <TableHead className="text-right font-bold text-red-600">Failed</TableHead>
+                                        </TableRow>
+                                    ) : activeReport === 'voice_detail' ? (
+                                        <TableRow>
+                                            <TableHead className="font-bold text-slate-700">Time</TableHead>
+                                            <TableHead className="font-bold text-slate-700">Campaign</TableHead>
+                                            <TableHead className="font-bold text-slate-700">Mobile</TableHead>
+                                            <TableHead className="font-bold text-slate-700">Status</TableHead>
+                                            <TableHead className="font-bold text-slate-700">Duration</TableHead>
+                                            <TableHead className="font-bold text-slate-700">Attempts</TableHead>
+                                        </TableRow>
+                                    ) : (
+                                        <TableRow>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Id</TableHead>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Date/Time</TableHead>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Mobile</TableHead>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Channel</TableHead>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Template</TableHead>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Campaign</TableHead>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Status</TableHead>
+                                            <TableHead className="font-bold text-slate-700 text-[11px] uppercase">Reason</TableHead>
+                                        </TableRow>
+                                    )}
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        <TableRow><TableCell colSpan={8} className="text-center py-20 text-slate-500">Loading data...</TableCell></TableRow>
+                                    ) : totalItems === 0 ? (
+                                        <TableRow><TableCell colSpan={8} className="text-center py-20 text-slate-500">No records found for the selected filters.</TableCell></TableRow>
+                                    ) : activeReport.includes('summary') ? (
+                                        reports.map((report) => (
+                                            <TableRow key={report.id} className="hover:bg-slate-50/50">
+                                                <TableCell className="font-medium text-sm text-slate-800">{report.name}</TableCell>
+                                                <TableCell className="font-mono text-[11px] text-slate-500">{report.template_id}</TableCell>
+                                                <TableCell className="text-slate-500 text-xs">
+                                                    {format(new Date(report.created_at), 'dd MMM yyyy')}<br/>
+                                                    <span className="text-[10px]">{format(new Date(report.created_at), 'HH:mm:ss')}</span>
+                                                </TableCell>
+                                                <TableCell className="text-right font-bold text-slate-700">{report.recipient_count}</TableCell>
+                                                <TableCell className="text-right font-semibold text-blue-600">{report.sent_count}</TableCell>
+                                                <TableCell className="text-right font-semibold text-green-600">{report.delivered_count}</TableCell>
+                                                <TableCell className="text-right font-semibold text-purple-600">{report.read_count}</TableCell>
+                                                <TableCell className="text-right font-semibold text-red-600">{report.failed_count}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : activeReport === 'voice_detail' ? (
+                                        voiceLogs.map((log) => (
+                                            <TableRow key={log.id} className="hover:bg-slate-50/50">
+                                                <TableCell className="text-xs text-slate-600">
+                                                    {format(new Date(log.created_at), 'dd MMM yy HH:mm:ss')}
+                                                </TableCell>
+                                                <TableCell className="font-medium text-sm text-slate-800">{log.campaign_name}</TableCell>
+                                                <TableCell className="font-mono text-xs text-slate-600">{log.mobile}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={getStatusColor(log.status)}>
+                                                        {log.status.toUpperCase()}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="font-mono font-bold text-slate-700">{log.duration}s</TableCell>
+                                                <TableCell className="text-slate-600 font-semibold">{log.attempts}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        webhookLogs.map((log) => (
+                                            <TableRow key={log.id} className="hover:bg-slate-50/50">
+                                                <TableCell className="text-[11px] font-mono text-slate-500">
+                                                    {log.id}
+                                                </TableCell>
+                                                <TableCell className="text-xs text-slate-600">
+                                                    {log.created_at ? format(new Date(log.created_at), 'dd MMM yy HH:mm:ss') : '-'}
+                                                </TableCell>
+                                                <TableCell className="text-xs font-mono text-slate-700">
+                                                    {log.recipient?.replace(/^\+/, '')}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={cn("text-[9px] px-1.5 h-5 border-none font-black uppercase", 
+                                                        (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'sms' ? "bg-amber-100 text-amber-700" : 
+                                                        (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp' ? "bg-emerald-100 text-emerald-700" : 
+                                                        "bg-blue-100 text-blue-700")}>
+                                                        {log.channel || log.campaign_channel || 'rcs'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-xs text-slate-600 truncate max-w-[150px]" title={log.template_name}>
+                                                    {log.template_name || '-'}
+                                                </TableCell>
+                                                <TableCell className="text-xs text-slate-800 font-medium truncate max-w-[150px]" title={log.campaign_name}>
+                                                    {log.campaign_name || '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={cn("uppercase text-[9px] font-bold px-1.5 py-0.5", getStatusColor(log.status))}>
+                                                        {log.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-xs text-red-500 truncate max-w-[200px]" title={log.failure_reason || ''}>
+                                                    {log.failure_reason || '-'}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                            {renderPagination()}
+                        </div>
+                    </Card>
                 </div>
             </div>
-
-            {!selectedUserId ? (
-                <Card className="flex-1 flex flex-col items-center justify-center border-dashed border-2 py-20">
-                    <div className="bg-primary/10 p-6 rounded-full mb-4">
-                        <User className="w-12 h-12 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">No User Selected</h3>
-                    <p className="text-muted-foreground text-center max-w-sm">
-                        Please select a user from the dropdown above to view their detailed and summary campaign reports.
-                    </p>
-                </Card>
-            ) : (
-                <>
-                    <Card>
-                        <CardHeader className="pb-3 px-6">
-                            <CardTitle className="text-sm font-medium">Filters for {clients.find(c => c.id.toString() === selectedUserId)?.company_name || 'Selected User'}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-wrap gap-4 px-6 pb-4">
-                            <div className="flex items-center gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[200px] justify-start text-left font-normal",
-                                                !startDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-muted-foreground">-</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[200px] justify-start text-left font-normal",
-                                                !endDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {endDate ? format(endDate, "PPP") : <span>End Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                                {(startDate || endDate) && (
-                                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
-                                        className="text-xs h-8"
-                                    >
-                                        Clear Dates
-                                    </Button>
-                                )}
-                            </div>
-
-                            <div className="flex-1 max-w-sm relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search recipient, campaign, template..."
-                                    className="pl-9"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                        <TabsList className="grid w-[500px] grid-cols-3">
-                            <TabsTrigger value="summary">Summary Report</TabsTrigger>
-                            <TabsTrigger value="detailed">Detailed Reports</TabsTrigger>
-                            <TabsTrigger value="voice">Voice Logs</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="summary" className="flex-1 flex flex-col space-y-4 pt-4">
-                            <Card className="flex-1 overflow-hidden">
-                                <CardContent className="p-0">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Campaign Name</TableHead>
-                                                <TableHead>Template</TableHead>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead className="text-right">Total</TableHead>
-                                                <TableHead className="text-right text-blue-600">Sent</TableHead>
-                                                <TableHead className="text-right text-green-600">Deliv.</TableHead>
-                                                <TableHead className="text-right text-purple-600">Read</TableHead>
-                                                <TableHead className="text-right text-red-600">Failed</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {loading ? (
-                                                <TableRow><TableCell colSpan={8} className="text-center py-10">Loading reports...</TableCell></TableRow>
-                                            ) : reports.length === 0 ? (
-                                                <TableRow><TableCell colSpan={8} className="text-center py-10">No reports found.</TableCell></TableRow>
-                                            ) : (
-                                                reports.map((report) => (
-                                                    <TableRow key={report.id}>
-                                                        <TableCell className="font-medium">{report.name}</TableCell>
-                                                        <TableCell className="font-mono text-[10px]">{report.template_id}</TableCell>
-                                                        <TableCell className="text-muted-foreground leading-tight">
-                                                            {format(new Date(report.created_at), 'dd MMM yy')}<br/>
-                                                            <span className="text-[10px]">{format(new Date(report.created_at), 'HH:mm')}</span>
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-semibold">{report.recipient_count}</TableCell>
-                                                        <TableCell className="text-right text-blue-600">{report.sent_count}</TableCell>
-                                                        <TableCell className="text-right text-green-600">{report.delivered_count}</TableCell>
-                                                        <TableCell className="text-right text-purple-600">{report.read_count}</TableCell>
-                                                        <TableCell className="text-right text-red-600">{report.failed_count}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                    {renderPagination(summaryPage, summaryTotal, setSummaryPage)}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="detailed" className="flex-1 mt-4">
-                            <Card className="border-none shadow-sm h-full">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <div className="space-y-1">
-                                        <CardTitle className="text-xl font-bold">Detailed Delivery Reports</CardTitle>
-                                        <CardDescription>Consolidated status for every recipient</CardDescription>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="secondary" className="font-mono text-blue-600 bg-blue-50 border-blue-100 uppercase">
-                                            Total Messages: {detailedTotal}
-                                        </Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-0 overflow-auto">
-                                    <Table>
-                                        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm border-b-2">
-                                            <TableRow className="bg-muted/30">
-                                                <TableHead className="w-[50px] font-bold text-black border-r px-2 text-[10px]">Id</TableHead>
-                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Rtime</TableHead>
-                                                <TableHead className="w-[100px] font-bold text-black border-r text-center px-2 text-[10px]">Mobile</TableHead>
-                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Channel</TableHead>
-                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">sendTime</TableHead>
-                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">DelTime</TableHead>
-                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">ReadTime</TableHead>
-                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Template</TableHead>
-                                                <TableHead className="w-[110px] font-bold text-black border-r text-center px-2 text-[10px]">Campaign</TableHead>
-                                                <TableHead className="w-[80px] font-bold text-black border-r text-center px-2 text-[10px]">Status</TableHead>
-                                                <TableHead className="font-bold text-black text-center px-2 text-[10px]">reason</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {loadingLogs ? (
-                                                <TableRow><TableCell colSpan={10} className="text-center py-10">Fetching logs...</TableCell></TableRow>
-                                            ) : webhookLogs.length === 0 ? (
-                                                <TableRow><TableCell colSpan={10} className="text-center py-10">No message logs available yet.</TableCell></TableRow>
-                                            ) : (
-                                                webhookLogs.map((log) => (
-                                                    <TableRow key={log.id} className="hover:bg-muted/50 transition-colors border-b">
-                                                        <TableCell className="text-[10px] font-mono border-r px-2">
-                                                            {log.id}
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] border-r text-center px-2">
-                                                            {log.created_at ? format(new Date(log.created_at), 'dd MMM HH:mm:ss') : '-'}
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] border-r text-center px-2">
-                                                            {log.recipient?.replace(/^\+/, '')}
-                                                        </TableCell>
-                                                        <TableCell className="text-center border-r px-2 py-2">
-                                                            <Badge variant="outline" className={cn("text-[8px] px-1.5 h-4 border-none font-black uppercase", 
-                                                                (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'sms' ? "bg-amber-50 text-amber-700" : 
-                                                                (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp' ? "bg-emerald-50 text-emerald-700" : 
-                                                                (log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp_unofficial' ? "bg-teal-50 text-teal-700 border border-teal-200/50" :
-                                                                "bg-blue-50 text-blue-700")}>
-                                                                {(log.channel || log.campaign_channel || 'rcs').toLowerCase() === 'whatsapp_unofficial' 
-                                                                    ? 'WhatsApp Unofficial' 
-                                                                    : (log.channel || log.campaign_channel || 'rcs')}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] border-r text-center px-2">
-                                                            {log.send_time ? format(new Date(log.send_time), 'HH:mm:ss') : '-'}
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] border-r text-center text-green-600 font-medium px-2">
-                                                            {log.delivery_time ? format(new Date(log.delivery_time), 'HH:mm:ss') : '-'}
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] border-r text-center text-purple-600 font-medium px-2">
-                                                            {log.read_time ? format(new Date(log.read_time), 'HH:mm:ss') : '-'}
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.template_name}>
-                                                            {log.template_name || 'N/A'}
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] border-r text-center truncate max-w-[110px] px-2" title={log.campaign_name}>
-                                                            {log.campaign_name || 'N/A'}
-                                                        </TableCell>
-                                                        <TableCell className="text-center border-r px-1">
-                                                            <Badge variant="outline" className={cn("uppercase text-[8px] font-bold px-1 py-0", getStatusColor(log.status))}>
-                                                                {log.status}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell className="text-[10px] text-red-500 text-center truncate max-w-[120px] px-2" title={log.failure_reason || ''}>
-                                                            {log.failure_reason || '-'}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                    {renderPagination(detailedPage, detailedTotal, setDetailedPage)}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    
-                        <TabsContent value="voice" className="flex-1 mt-4">
-                            <Card className="border-none shadow-sm h-full">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <div className="space-y-1">
-                                        <CardTitle className="text-xl font-bold">Voice Call Logs</CardTitle>
-                                        <CardDescription>Live call duration and status</CardDescription>
-                                    </div>
-                                    <Badge variant="secondary" className="font-mono">
-                                        Total Calls: {voiceTotal}
-                                    </Badge>
-                                </CardHeader>
-                                <CardContent className="p-0 overflow-auto">
-                                    <Table>
-                                        <TableHeader className="bg-muted/30">
-                                            <TableRow>
-                                                <TableHead>Time</TableHead>
-                                                <TableHead>Campaign</TableHead>
-                                                <TableHead>Mobile</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Duration</TableHead>
-                                                <TableHead>Attempts</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {loadingVoice ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={6} className="text-center h-24">Loading logs...</TableCell>
-                                                </TableRow>
-                                            ) : voiceLogs.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No voice logs found</TableCell>
-                                                </TableRow>
-                                            ) : (
-                                                voiceLogs.map((log) => (
-                                                    <TableRow key={log.id}>
-                                                        <TableCell className="text-xs">
-                                                            {format(new Date(log.created_at), 'dd MMM yy HH:mm')}
-                                                        </TableCell>
-                                                        <TableCell className="font-medium text-xs">{log.campaign_name}</TableCell>
-                                                        <TableCell className="font-mono text-xs">{log.mobile}</TableCell>
-                                                        <TableCell>
-                                                            <Badge variant="outline" className={log.status === 'answered' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}>
-                                                                {log.status.toUpperCase()}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell className="font-mono font-bold">{log.duration}s</TableCell>
-                                                        <TableCell>{log.attempts}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                    {renderPagination(voicePage, voiceTotal, setVoicePage)}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-</Tabs>
-                </>
-            )}
         </div>
     );
 }

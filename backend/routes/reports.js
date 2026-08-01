@@ -1033,18 +1033,18 @@ router.get('/voice-logs', authenticate, async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
-        const searchMobile = req.query.mobile || '';
-        const targetUserId = req.query.user_id;
+        const searchMobile = req.query.mobile || req.query.search || '';
+        const targetUserId = req.query.userId || req.query.user_id;
 
         let conditions = [];
         let params = [];
 
         // Role based access
-        if (req.user.role === 'client') {
+        if (req.user.role === 'client' || req.user.role === 'user') {
             conditions.push("v.user_id = ?");
             params.push(req.user.id);
         } else if (req.user.role === 'reseller') {
-            if (targetUserId) {
+            if (targetUserId && targetUserId !== 'all') {
                 const actualResellerId = req.user.actual_reseller_id || req.user.id;
                 conditions.push("(v.user_id = ? AND v.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
                 params.push(targetUserId, actualResellerId);
@@ -1053,7 +1053,7 @@ router.get('/voice-logs', authenticate, async (req, res) => {
                 conditions.push("(v.user_id = ? OR v.user_id IN (SELECT id FROM users WHERE reseller_id = ?))");
                 params.push(req.user.id, actualResellerId);
             }
-        } else if (req.user.role === 'admin' && targetUserId) {
+        } else if ((req.user.role === 'admin' || req.user.role === 'superadmin') && targetUserId && targetUserId !== 'all') {
             conditions.push("v.user_id = ?");
             params.push(targetUserId);
         }

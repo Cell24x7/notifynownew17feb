@@ -512,4 +512,36 @@ router.post('/:id/read', authenticateToken, isResellerOrAdmin, async (req, res) 
   }
 });
 
+/**
+ * GET all hierarchy (Resellers and Clients) for Super Admin Reports
+ */
+router.get('/all-hierarchy', authenticateToken, isResellerOrAdmin, async (req, res) => {
+  try {
+    let sql = `
+      SELECT
+        id, name, email, company AS company_name, role,
+        rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
+        wa_marketing_price, wa_utility_price, wa_authentication_price,
+        sms_promotional_price, sms_transactional_price, sms_service_price,
+        reseller_id
+      FROM users
+      WHERE role IN ('client', 'user', 'reseller', 'admin', 'superadmin')
+    `;
+    let params = [];
+
+    if (req.user.role === 'reseller') {
+      sql += ' AND (reseller_id = ? OR id = ?)';
+      params.push(req.user.actual_reseller_id || req.user.id, req.user.id);
+    }
+
+    sql += ' ORDER BY role DESC, id DESC';
+
+    const [rows] = await query(sql, params);
+    res.json({ success: true, users: rows });
+  } catch (err) {
+    console.error('GET ALL HIERARCHY ERROR:', err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
 module.exports = router;
