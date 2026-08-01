@@ -102,6 +102,7 @@ export default function SuperAdminReports() {
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
     const [selectedUser, setSelectedUser] = useState<HierarchyUser | null>(null);
     const [userType, setUserType] = useState<string>('all');
+    const [selectedFilterResellerId, setSelectedFilterResellerId] = useState<string>('all');
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     
     const [reports, setReports] = useState<Report[]>([]);
@@ -353,7 +354,7 @@ export default function SuperAdminReports() {
                                 <div className="flex items-center gap-4 w-full">
                                     <div className="flex-1">
                                         <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Type</Label>
-                                        <Select value={userType} onValueChange={(val) => { setUserType(val); setSelectedUserId('all'); }}>
+                                        <Select value={userType} onValueChange={(val) => { setUserType(val); setSelectedUserId('all'); setSelectedFilterResellerId('all'); }}>
                                             <SelectTrigger className="w-full bg-white border-slate-200">
                                                 <SelectValue placeholder="Select User Type" />
                                             </SelectTrigger>
@@ -364,6 +365,28 @@ export default function SuperAdminReports() {
                                             </SelectContent>
                                         </Select>
                                     </div>
+
+                                    {/* Reseller Filter (Only show when looking for users) */}
+                                    {(userType === 'all' || userType === 'user') && (
+                                        <div className="flex-1">
+                                            <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">Filter by Reseller</Label>
+                                            <Select value={selectedFilterResellerId} onValueChange={(val) => { setSelectedFilterResellerId(val); setSelectedUserId('all'); }}>
+                                                <SelectTrigger className="w-full bg-white border-slate-200">
+                                                    <SelectValue placeholder="All Resellers" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">-- All Resellers & Admin --</SelectItem>
+                                                    <SelectItem value="direct">Direct Admin Users</SelectItem>
+                                                    {users.filter(u => u.role === 'reseller').map(reseller => (
+                                                        <SelectItem key={`filter-${reseller.id}`} value={reseller.id.toString()}>
+                                                            {reseller.company_name || reseller.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+
                                     <div className="flex-[2]">
                                         <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Name</Label>
                                         <Popover open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
@@ -405,7 +428,7 @@ export default function SuperAdminReports() {
                                                                 -- ALL SYSTEM USERS --
                                                             </CommandItem>
                                                         </CommandGroup>
-                                                        {(userType === 'all' || userType === 'reseller') && (
+                                                        {(userType === 'all' || userType === 'reseller') && selectedFilterResellerId === 'all' && (
                                                             <CommandGroup heading="Resellers">
                                                                 {users.filter(u => u.role === 'reseller').map(user => (
                                                                     <CommandItem
@@ -424,7 +447,16 @@ export default function SuperAdminReports() {
                                                         )}
                                                         {(userType === 'all' || userType === 'user') && (
                                                             <CommandGroup heading="Clients / Users">
-                                                                {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => {
+                                                                {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin')
+                                                                    .filter(u => {
+                                                                        if (selectedFilterResellerId === 'all') return true;
+                                                                        if (selectedFilterResellerId === 'direct') {
+                                                                            const p = users.find(x => x.id.toString() === u.reseller_id?.toString());
+                                                                            return !p || p.role === 'admin' || p.role === 'superadmin';
+                                                                        }
+                                                                        return u.reseller_id?.toString() === selectedFilterResellerId;
+                                                                    })
+                                                                    .map(user => {
                                                                     const parentName = getResellerName(user.reseller_id);
                                                                     return (
                                                                         <CommandItem
