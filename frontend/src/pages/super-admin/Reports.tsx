@@ -352,207 +352,208 @@ export default function SuperAdminReports() {
                                 <Search className="w-4 h-4 text-blue-500" /> Report Filters
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="flex flex-wrap gap-4 px-6 pt-5 pb-5">
-                            <div className="flex flex-wrap items-center gap-4 w-full">
-                                {/* Row 1: User Type and User Name */}
-                                <div className="flex items-center gap-4 w-full">
-                                    <div className="flex-[0.8]">
-                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Type</Label>
-                                        <Select value={userType} onValueChange={(val) => { setUserType(val); setSelectedUserId('all'); setSelectedFilterResellerId('all'); }}>
+                        <CardContent className="px-6 pt-5 pb-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full items-start">
+                                {/* User Type */}
+                                <div className="w-full">
+                                    <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Type</Label>
+                                    <Select value={userType} onValueChange={(val) => { setUserType(val); setSelectedUserId('all'); setSelectedFilterResellerId('all'); }}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200">
+                                            <SelectValue placeholder="Select Type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Users</SelectItem>
+                                            <SelectItem value="reseller">Reseller</SelectItem>
+                                            <SelectItem value="user">User / Client</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Reseller Filter (Only show when 'reseller' is selected) */}
+                                {userType === 'reseller' && (
+                                    <div className="w-full">
+                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">Select Reseller</Label>
+                                        <Select value={selectedFilterResellerId} onValueChange={(val) => { setSelectedFilterResellerId(val); setSelectedUserId('all'); }}>
                                             <SelectTrigger className="w-full bg-white border-slate-200">
-                                                <SelectValue placeholder="Select Type" />
+                                                <SelectValue placeholder="Choose a Reseller..." />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">All Users</SelectItem>
-                                                <SelectItem value="reseller">Reseller</SelectItem>
-                                                <SelectItem value="user">User / Client</SelectItem>
+                                                <SelectItem value="all">-- Select Reseller --</SelectItem>
+                                                {users.filter(u => u.role === 'reseller').map(reseller => (
+                                                    <SelectItem key={`filter-${reseller.id}`} value={(reseller.actual_reseller_id || reseller.id).toString()}>
+                                                        {reseller.company_name || reseller.name}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
+                                )}
 
-                                    {/* Reseller Filter (Only show when 'reseller' is selected) */}
-                                    {userType === 'reseller' && (
-                                        <div className="flex-1">
-                                            <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">Select Reseller</Label>
-                                            <Select value={selectedFilterResellerId} onValueChange={(val) => { setSelectedFilterResellerId(val); setSelectedUserId('all'); }}>
-                                                <SelectTrigger className="w-full bg-white border-slate-200">
-                                                    <SelectValue placeholder="Choose a Reseller..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">-- Select Reseller --</SelectItem>
-                                                    {users.filter(u => u.role === 'reseller').map(reseller => (
-                                                        <SelectItem key={`filter-${reseller.id}`} value={(reseller.actual_reseller_id || reseller.id).toString()}>
-                                                            {reseller.company_name || reseller.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-
-                                    <div className="flex-[2]">
-                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Name</Label>
-                                        <Popover open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    role="combobox"
-                                                    aria-expanded={userDropdownOpen}
-                                                    className="w-full justify-between bg-white border-slate-200 font-normal"
-                                                >
-                                                    <div className="flex items-center gap-2 truncate">
-                                                        <User className="h-4 w-4 text-slate-500 shrink-0" />
-                                                        <span className="truncate">
-                                                            {selectedUserId === 'all' 
-                                                                ? '-- ALL SYSTEM USERS --' 
-                                                                : selectedUser 
-                                                                    ? `${selectedUser.company_name || selectedUser.name} (${selectedUser.email})`
-                                                                    : 'Select User/Reseller'}
-                                                        </span>
-                                                    </div>
-                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[450px] p-0" align="start">
-                                                <Command>
-                                                    <CommandInput placeholder="Search users by name, email, or company..." />
-                                                    <CommandList>
-                                                        <CommandEmpty>No user found.</CommandEmpty>
-                                                        <CommandGroup>
-                                                            <CommandItem
-                                                                value="all"
-                                                                onSelect={() => {
-                                                                    setSelectedUserId('all');
-                                                                    setUserDropdownOpen(false);
-                                                                }}
-                                                                className="font-bold text-blue-600"
-                                                            >
-                                                                <Check className={cn("mr-2 h-4 w-4", selectedUserId === 'all' ? "opacity-100" : "opacity-0")} />
-                                                                -- ALL SYSTEM USERS --
-                                                            </CommandItem>
+                                {/* User Name */}
+                                <div className={cn("w-full", userType === 'reseller' ? "md:col-span-2 lg:col-span-1 xl:col-span-2" : "md:col-span-1 lg:col-span-2 xl:col-span-3")}>
+                                    <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Name</Label>
+                                    <Popover open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={userDropdownOpen}
+                                                className="w-full justify-between bg-white border-slate-200 font-normal"
+                                            >
+                                                <div className="flex items-center gap-2 truncate">
+                                                    <User className="h-4 w-4 text-slate-500 shrink-0" />
+                                                    <span className="truncate">
+                                                        {selectedUserId === 'all' 
+                                                            ? '-- ALL SYSTEM USERS --' 
+                                                            : selectedUser 
+                                                                ? `${selectedUser.company_name || selectedUser.name} (${selectedUser.email})`
+                                                                : 'Select User/Reseller'}
+                                                    </span>
+                                                </div>
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[450px] p-0" align="start">
+                                            <Command>
+                                                <CommandInput placeholder="Search users by name, email, or company..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No user found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        <CommandItem
+                                                            value="all"
+                                                            onSelect={() => {
+                                                                setSelectedUserId('all');
+                                                                setUserDropdownOpen(false);
+                                                            }}
+                                                            className="font-bold text-blue-600"
+                                                        >
+                                                            <Check className={cn("mr-2 h-4 w-4", selectedUserId === 'all' ? "opacity-100" : "opacity-0")} />
+                                                            -- ALL SYSTEM USERS --
+                                                        </CommandItem>
+                                                    </CommandGroup>
+                                                    {userType === 'all' && (
+                                                        <CommandGroup heading="Resellers">
+                                                            {users.filter(u => u.role === 'reseller').map(user => (
+                                                                <CommandItem
+                                                                    key={user.id}
+                                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                                    onSelect={() => {
+                                                                        setSelectedUserId(user.id.toString());
+                                                                        setUserDropdownOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                                    {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
+                                                                </CommandItem>
+                                                            ))}
                                                         </CommandGroup>
-                                                        {userType === 'all' && (
-                                                            <CommandGroup heading="Resellers">
-                                                                {users.filter(u => u.role === 'reseller').map(user => (
-                                                                    <CommandItem
-                                                                        key={user.id}
-                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
-                                                                        onSelect={() => {
-                                                                            setSelectedUserId(user.id.toString());
-                                                                            setUserDropdownOpen(false);
-                                                                        }}
-                                                                    >
-                                                                        <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                                        {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        )}
-                                                        {userType === 'reseller' && selectedFilterResellerId !== 'all' && (
-                                                            <CommandGroup heading="Reseller Account">
-                                                                {users.filter(u => (u.actual_reseller_id?.toString() === selectedFilterResellerId) || (u.id.toString() === selectedFilterResellerId)).filter(u => u.role === 'reseller').map(user => (
-                                                                    <CommandItem
-                                                                        key={user.id}
-                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
-                                                                        onSelect={() => {
-                                                                            setSelectedUserId(user.id.toString());
-                                                                            setUserDropdownOpen(false);
-                                                                        }}
-                                                                        className="flex items-start py-2"
-                                                                    >
-                                                                        <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                                        <div className="flex flex-col gap-0.5">
-                                                                            <span className="font-medium text-slate-800">
-                                                                                {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
-                                                                            </span>
-                                                                            <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
-                                                                                Main Reseller Account
-                                                                            </span>
-                                                                        </div>
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        )}
-                                                        <CommandGroup heading="Clients / Users">
-                                                            {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin')
-                                                                .filter(u => {
-                                                                    if (userType === 'all') return true;
-                                                                    if (userType === 'user') {
-                                                                        const p = users.find(x => x.id.toString() === u.reseller_id?.toString());
-                                                                        return !p || p.role === 'admin' || p.role === 'superadmin';
-                                                                    }
-                                                                    if (userType === 'reseller') {
-                                                                        if (selectedFilterResellerId === 'all') return false; // Force selecting a reseller first
-                                                                        return u.reseller_id?.toString() === selectedFilterResellerId;
-                                                                    }
-                                                                    return true;
-                                                                })
-                                                                .map(user => {
-                                                                const parentName = getResellerName(user.reseller_id);
-                                                                return (
-                                                                    <CommandItem
-                                                                        key={user.id}
-                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id} ${parentName || ''}`}
-                                                                        onSelect={() => {
-                                                                            setSelectedUserId(user.id.toString());
-                                                                            setUserDropdownOpen(false);
-                                                                        }}
-                                                                        className="flex items-start py-2"
-                                                                    >
-                                                                        <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                                        <div className="flex flex-col gap-0.5">
-                                                                            <span className="font-medium text-slate-800">
-                                                                                {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
-                                                                            </span>
-                                                                            {parentName ? (
-                                                                                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">
-                                                                                    via Reseller: {parentName}
-                                                                                </span>
-                                                                            ) : (
-                                                                                <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
-                                                                                    Direct Admin User
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                    </CommandItem>
-                                                                );
-                                                            })}
-                                                            {userType === 'reseller' && selectedFilterResellerId !== 'all' && users.filter(u => u.reseller_id?.toString() === selectedFilterResellerId && u.role !== 'reseller' && u.role !== 'superadmin').length === 0 && (
-                                                                <div className="p-4 text-center text-sm text-slate-500">
-                                                                    No clients found for this reseller.
-                                                                </div>
-                                                            )}
-                                                            {userType === 'reseller' && selectedFilterResellerId === 'all' && (
-                                                                <div className="p-4 text-center text-sm text-slate-500">
-                                                                    Please select a Reseller from the dropdown above to view its clients.
-                                                                </div>
-                                                            )}
+                                                    )}
+                                                    {userType === 'reseller' && selectedFilterResellerId !== 'all' && (
+                                                        <CommandGroup heading="Reseller Account">
+                                                            {users.filter(u => (u.actual_reseller_id?.toString() === selectedFilterResellerId) || (u.id.toString() === selectedFilterResellerId)).filter(u => u.role === 'reseller').map(user => (
+                                                                <CommandItem
+                                                                    key={user.id}
+                                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                                    onSelect={() => {
+                                                                        setSelectedUserId(user.id.toString());
+                                                                        setUserDropdownOpen(false);
+                                                                    }}
+                                                                    className="flex items-start py-2"
+                                                                >
+                                                                    <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                                    <div className="flex flex-col gap-0.5">
+                                                                        <span className="font-medium text-slate-800">
+                                                                            {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
+                                                                        </span>
+                                                                        <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
+                                                                            Main Reseller Account
+                                                                        </span>
+                                                                    </div>
+                                                                </CommandItem>
+                                                            ))}
                                                         </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
+                                                    )}
+                                                    <CommandGroup heading="Clients / Users">
+                                                        {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin')
+                                                            .filter(u => {
+                                                                if (userType === 'all') return true;
+                                                                if (userType === 'user') {
+                                                                    const p = users.find(x => x.id.toString() === u.reseller_id?.toString());
+                                                                    return !p || p.role === 'admin' || p.role === 'superadmin';
+                                                                }
+                                                                if (userType === 'reseller') {
+                                                                    if (selectedFilterResellerId === 'all') return false; // Force selecting a reseller first
+                                                                    return u.reseller_id?.toString() === selectedFilterResellerId;
+                                                                }
+                                                                return true;
+                                                            })
+                                                            .map(user => {
+                                                            const parentName = getResellerName(user.reseller_id);
+                                                            return (
+                                                                <CommandItem
+                                                                    key={user.id}
+                                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id} ${parentName || ''}`}
+                                                                    onSelect={() => {
+                                                                        setSelectedUserId(user.id.toString());
+                                                                        setUserDropdownOpen(false);
+                                                                    }}
+                                                                    className="flex items-start py-2"
+                                                                >
+                                                                    <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                                    <div className="flex flex-col gap-0.5">
+                                                                        <span className="font-medium text-slate-800">
+                                                                            {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
+                                                                        </span>
+                                                                        {parentName ? (
+                                                                            <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">
+                                                                                via Reseller: {parentName}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                                                                                Direct Admin User
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </CommandItem>
+                                                            );
+                                                        })}
+                                                        {userType === 'reseller' && selectedFilterResellerId !== 'all' && users.filter(u => u.reseller_id?.toString() === selectedFilterResellerId && u.role !== 'reseller' && u.role !== 'superadmin').length === 0 && (
+                                                            <div className="p-4 text-center text-sm text-slate-500">
+                                                                No clients found for this reseller.
+                                                            </div>
+                                                        )}
+                                                        {userType === 'reseller' && selectedFilterResellerId === 'all' && (
+                                                            <div className="p-4 text-center text-sm text-slate-500">
+                                                                Please select a Reseller from the dropdown above to view its clients.
+                                                            </div>
+                                                        )}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
 
-                                {/* Row 2: Date Filters */}
-                                <div className="flex items-end gap-4 w-full mt-2">
-                                    <div className="flex-1">
-                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">From Date</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white border-slate-200", !startDate && "text-muted-foreground")}>
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {startDate ? format(startDate, "PPP") : <span>Select Start Date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
-                                    <div className="flex-1">
-                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">To Date</Label>
+                                {/* From Date */}
+                                <div className="w-full">
+                                    <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">From Date</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white border-slate-200", !startDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {startDate ? format(startDate, "PPP") : <span>Select Start Date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+
+                                {/* To Date */}
+                                <div className="w-full">
+                                    <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">To Date</Label>
+                                    <div className="flex gap-2">
                                         <Popover>
                                             <PopoverTrigger asChild>
                                                 <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white border-slate-200", !endDate && "text-muted-foreground")}>
@@ -564,22 +565,26 @@ export default function SuperAdminReports() {
                                                 <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
                                             </PopoverContent>
                                         </Popover>
+                                        {(startDate || endDate) && (
+                                            <Button variant="ghost" onClick={() => { setStartDate(undefined); setEndDate(undefined); }} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 h-10 px-2 shrink-0">
+                                                Clear
+                                            </Button>
+                                        )}
                                     </div>
-                                    {(startDate || endDate) && (
-                                        <Button variant="ghost" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 h-10 mb-0">
-                                            Clear Dates
-                                        </Button>
-                                    )}
                                 </div>
-                            </div>
-                            <div className="flex-1 min-w-[200px] relative">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                                <Input
-                                    placeholder="Search recipient, campaign..."
-                                    className="pl-9 bg-white border-slate-200"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
+
+                                {/* Search */}
+                                <div className="w-full md:col-span-2 lg:col-span-3 xl:col-span-4">
+                                    <div className="relative mt-1">
+                                        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                                        <Input
+                                            placeholder="Search recipient, campaign..."
+                                            className="pl-9 h-10 bg-white border-slate-200 w-full"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
