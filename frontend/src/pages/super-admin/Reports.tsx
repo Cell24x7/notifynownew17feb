@@ -353,15 +353,15 @@ export default function SuperAdminReports() {
                                 {/* Row 1: User Type and User Name */}
                                 <div className="flex items-center gap-4 w-full">
                                     <div className="flex-[0.8]">
-                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Category</Label>
+                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Type</Label>
                                         <Select value={userType} onValueChange={(val) => { setUserType(val); setSelectedUserId('all'); setSelectedFilterResellerId('all'); }}>
                                             <SelectTrigger className="w-full bg-white border-slate-200">
-                                                <SelectValue placeholder="Select Category" />
+                                                <SelectValue placeholder="Select Type" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">All Users & Resellers</SelectItem>
-                                                <SelectItem value="direct">Direct Admin Clients</SelectItem>
-                                                <SelectItem value="reseller">Clients via Reseller</SelectItem>
+                                                <SelectItem value="all">All Users</SelectItem>
+                                                <SelectItem value="reseller">Reseller</SelectItem>
+                                                <SelectItem value="user">User / Client</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -444,11 +444,36 @@ export default function SuperAdminReports() {
                                                                 ))}
                                                             </CommandGroup>
                                                         )}
+                                                        {userType === 'reseller' && selectedFilterResellerId !== 'all' && (
+                                                            <CommandGroup heading="Reseller Account">
+                                                                {users.filter(u => u.id.toString() === selectedFilterResellerId).map(user => (
+                                                                    <CommandItem
+                                                                        key={user.id}
+                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                                        onSelect={() => {
+                                                                            setSelectedUserId(user.id.toString());
+                                                                            setUserDropdownOpen(false);
+                                                                        }}
+                                                                        className="flex items-start py-2"
+                                                                    >
+                                                                        <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                                        <div className="flex flex-col gap-0.5">
+                                                                            <span className="font-medium text-slate-800">
+                                                                                {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
+                                                                            </span>
+                                                                            <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
+                                                                                Main Reseller Account
+                                                                            </span>
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        )}
                                                         <CommandGroup heading="Clients / Users">
                                                             {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin')
                                                                 .filter(u => {
                                                                     if (userType === 'all') return true;
-                                                                    if (userType === 'direct') {
+                                                                    if (userType === 'user') {
                                                                         const p = users.find(x => x.id.toString() === u.reseller_id?.toString());
                                                                         return !p || p.role === 'admin' || p.role === 'superadmin';
                                                                     }
