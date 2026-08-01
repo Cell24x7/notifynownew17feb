@@ -100,6 +100,7 @@ export default function SuperAdminReports() {
     const [users, setUsers] = useState<HierarchyUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
     const [selectedUser, setSelectedUser] = useState<HierarchyUser | null>(null);
+    const [userType, setUserType] = useState<string>('all');
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     
     const [reports, setReports] = useState<Report[]>([]);
@@ -320,79 +321,6 @@ export default function SuperAdminReports() {
                                 Auto-refresh (10s)
                             </Label>
                         </div>
-                        <Popover open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={userDropdownOpen}
-                                    className="w-[320px] justify-between bg-slate-50 border-slate-200 font-normal"
-                                >
-                                    <div className="flex items-center gap-2 truncate">
-                                        <User className="h-4 w-4 text-slate-500 shrink-0" />
-                                        <span className="truncate">
-                                            {selectedUserId === 'all' 
-                                                ? '-- ALL SYSTEM USERS --' 
-                                                : selectedUser 
-                                                    ? `${selectedUser.company_name || selectedUser.name} (${selectedUser.email})`
-                                                    : 'Select User/Reseller'}
-                                        </span>
-                                    </div>
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[400px] p-0" align="start">
-                                <Command>
-                                    <CommandInput placeholder="Search users by name, email, or company..." />
-                                    <CommandList>
-                                        <CommandEmpty>No user found.</CommandEmpty>
-                                        <CommandGroup>
-                                            <CommandItem
-                                                value="all"
-                                                onSelect={() => {
-                                                    setSelectedUserId('all');
-                                                    setUserDropdownOpen(false);
-                                                }}
-                                                className="font-bold text-blue-600"
-                                            >
-                                                <Check className={cn("mr-2 h-4 w-4", selectedUserId === 'all' ? "opacity-100" : "opacity-0")} />
-                                                -- ALL SYSTEM USERS --
-                                            </CommandItem>
-                                        </CommandGroup>
-                                        <CommandGroup heading="Resellers">
-                                            {users.filter(u => u.role === 'reseller').map(user => (
-                                                <CommandItem
-                                                    key={user.id}
-                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
-                                                    onSelect={() => {
-                                                        setSelectedUserId(user.id.toString());
-                                                        setUserDropdownOpen(false);
-                                                    }}
-                                                >
-                                                    <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                    {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                        <CommandGroup heading="Clients / Users">
-                                            {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => (
-                                                <CommandItem
-                                                    key={user.id}
-                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
-                                                    onSelect={() => {
-                                                        setSelectedUserId(user.id.toString());
-                                                        setUserDropdownOpen(false);
-                                                    }}
-                                                >
-                                                    <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                    {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
                         <Button variant="default" size="sm" onClick={handleExport} className="gap-2 bg-blue-600 hover:bg-blue-700">
                             <Download className="h-4 w-4" /> Export CSV
                         </Button>
@@ -412,35 +340,140 @@ export default function SuperAdminReports() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-wrap gap-4 px-6 pt-5 pb-5">
-                            <div className="flex items-center gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant={"outline"} className={cn("w-[180px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                            <div className="flex flex-wrap items-center gap-4 w-full">
+                                {/* Row 1: User Type and User Name */}
+                                <div className="flex items-center gap-4 w-full">
+                                    <div className="flex-1">
+                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Type</Label>
+                                        <Select value={userType} onValueChange={(val) => { setUserType(val); setSelectedUserId('all'); }}>
+                                            <SelectTrigger className="w-full bg-white border-slate-200">
+                                                <SelectValue placeholder="Select User Type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Users</SelectItem>
+                                                <SelectItem value="reseller">Reseller</SelectItem>
+                                                <SelectItem value="user">User / Client</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex-[2]">
+                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">User Name</Label>
+                                        <Popover open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={userDropdownOpen}
+                                                    className="w-full justify-between bg-white border-slate-200 font-normal"
+                                                >
+                                                    <div className="flex items-center gap-2 truncate">
+                                                        <User className="h-4 w-4 text-slate-500 shrink-0" />
+                                                        <span className="truncate">
+                                                            {selectedUserId === 'all' 
+                                                                ? '-- ALL SYSTEM USERS --' 
+                                                                : selectedUser 
+                                                                    ? `${selectedUser.company_name || selectedUser.name} (${selectedUser.email})`
+                                                                    : 'Select User/Reseller'}
+                                                        </span>
+                                                    </div>
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[450px] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput placeholder="Search users by name, email, or company..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No user found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            <CommandItem
+                                                                value="all"
+                                                                onSelect={() => {
+                                                                    setSelectedUserId('all');
+                                                                    setUserDropdownOpen(false);
+                                                                }}
+                                                                className="font-bold text-blue-600"
+                                                            >
+                                                                <Check className={cn("mr-2 h-4 w-4", selectedUserId === 'all' ? "opacity-100" : "opacity-0")} />
+                                                                -- ALL SYSTEM USERS --
+                                                            </CommandItem>
+                                                        </CommandGroup>
+                                                        {(userType === 'all' || userType === 'reseller') && (
+                                                            <CommandGroup heading="Resellers">
+                                                                {users.filter(u => u.role === 'reseller').map(user => (
+                                                                    <CommandItem
+                                                                        key={user.id}
+                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                                        onSelect={() => {
+                                                                            setSelectedUserId(user.id.toString());
+                                                                            setUserDropdownOpen(false);
+                                                                        }}
+                                                                    >
+                                                                        <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                                        {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        )}
+                                                        {(userType === 'all' || userType === 'user') && (
+                                                            <CommandGroup heading="Clients / Users">
+                                                                {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => (
+                                                                    <CommandItem
+                                                                        key={user.id}
+                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                                        onSelect={() => {
+                                                                            setSelectedUserId(user.id.toString());
+                                                                            setUserDropdownOpen(false);
+                                                                        }}
+                                                                    >
+                                                                        <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                                        {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        )}
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+
+                                {/* Row 2: Date Filters */}
+                                <div className="flex items-end gap-4 w-full mt-2">
+                                    <div className="flex-1">
+                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">From Date</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white border-slate-200", !startDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {startDate ? format(startDate, "PPP") : <span>Select Start Date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    <div className="flex-1">
+                                        <Label className="text-xs text-slate-500 font-bold mb-1 block uppercase">To Date</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal bg-white border-slate-200", !endDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {endDate ? format(endDate, "PPP") : <span>Select End Date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    {(startDate || endDate) && (
+                                        <Button variant="ghost" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 h-10 mb-0">
+                                            Clear Dates
                                         </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-slate-300">-</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant={"outline"} className={cn("w-[180px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {endDate ? format(endDate, "PPP") : <span>End Date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                                {(startDate || endDate) && (
-                                    <Button variant="ghost" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50">
-                                        Clear
-                                    </Button>
-                                )}
+                                    )}
+                                </div>
                             </div>
                             <div className="flex-1 min-w-[200px] relative">
                                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
