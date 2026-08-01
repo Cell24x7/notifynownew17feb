@@ -519,22 +519,24 @@ router.get('/all-hierarchy', authenticateToken, isResellerOrAdmin, async (req, r
   try {
     let sql = `
       SELECT
-        id, name, email, company AS company_name, role,
-        rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
-        wa_marketing_price, wa_utility_price, wa_authentication_price,
-        sms_promotional_price, sms_transactional_price, sms_service_price,
-        reseller_id
-      FROM users
-      WHERE role IN ('client', 'user', 'reseller', 'admin', 'superadmin')
+        u.id, u.name, u.email, u.company AS company_name, u.role,
+        u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
+        u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
+        u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
+        u.reseller_id,
+        r.id AS actual_reseller_id
+      FROM users u
+      LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
+      WHERE u.role IN ('client', 'user', 'reseller', 'admin', 'superadmin')
     `;
     let params = [];
 
     if (req.user.role === 'reseller') {
-      sql += ' AND (reseller_id = ? OR id = ?)';
+      sql += ' AND (u.reseller_id = ? OR u.id = ?)';
       params.push(req.user.actual_reseller_id || req.user.id, req.user.id);
     }
 
-    sql += ' ORDER BY role DESC, id DESC';
+    sql += ' ORDER BY u.role DESC, u.id DESC';
 
     const [rows] = await query(sql, params);
     res.json({ success: true, users: rows });

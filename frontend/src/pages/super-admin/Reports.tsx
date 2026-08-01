@@ -77,6 +77,7 @@ interface HierarchyUser {
     sms_transactional_price: number;
     sms_service_price: number;
     reseller_id?: number | null;
+    actual_reseller_id?: number | null;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -120,8 +121,11 @@ export default function SuperAdminReports() {
 
     const getResellerName = (resellerId?: number | null) => {
         if (!resellerId) return null;
-        // If a user's reseller_id matches another user's id, return that user's name
-        const parent = users.find(u => u.id.toString() === resellerId.toString());
+        // If a user's reseller_id matches another user's actual_reseller_id or id, return that user's name
+        const parent = users.find(u => 
+            (u.actual_reseller_id?.toString() === resellerId.toString()) || 
+            (u.id.toString() === resellerId.toString())
+        );
         return parent ? (parent.company_name || parent.name) : null;
     };
 
@@ -377,7 +381,7 @@ export default function SuperAdminReports() {
                                                 <SelectContent>
                                                     <SelectItem value="all">-- Select Reseller --</SelectItem>
                                                     {users.filter(u => u.role === 'reseller').map(reseller => (
-                                                        <SelectItem key={`filter-${reseller.id}`} value={reseller.id.toString()}>
+                                                        <SelectItem key={`filter-${reseller.id}`} value={(reseller.actual_reseller_id || reseller.id).toString()}>
                                                             {reseller.company_name || reseller.name}
                                                         </SelectItem>
                                                     ))}
@@ -446,7 +450,7 @@ export default function SuperAdminReports() {
                                                         )}
                                                         {userType === 'reseller' && selectedFilterResellerId !== 'all' && (
                                                             <CommandGroup heading="Reseller Account">
-                                                                {users.filter(u => u.id.toString() === selectedFilterResellerId).map(user => (
+                                                                {users.filter(u => (u.actual_reseller_id?.toString() === selectedFilterResellerId) || (u.id.toString() === selectedFilterResellerId)).filter(u => u.role === 'reseller').map(user => (
                                                                     <CommandItem
                                                                         key={user.id}
                                                                         value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
