@@ -76,6 +76,7 @@ interface HierarchyUser {
     sms_promotional_price: number;
     sms_transactional_price: number;
     sms_service_price: number;
+    reseller_id?: number | null;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -115,6 +116,13 @@ export default function SuperAdminReports() {
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [searchQuery, setSearchQuery] = useState('');
     const [autoRefresh, setAutoRefresh] = useState(false);
+
+    const getResellerName = (resellerId?: number | null) => {
+        if (!resellerId) return null;
+        // If a user's reseller_id matches another user's id, return that user's name
+        const parent = users.find(u => u.id.toString() === resellerId.toString());
+        return parent ? (parent.company_name || parent.name) : null;
+    };
 
     const getReportTitle = () => {
         switch(activeTab) {
@@ -416,19 +424,36 @@ export default function SuperAdminReports() {
                                                         )}
                                                         {(userType === 'all' || userType === 'user') && (
                                                             <CommandGroup heading="Clients / Users">
-                                                                {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => (
-                                                                    <CommandItem
-                                                                        key={user.id}
-                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
-                                                                        onSelect={() => {
-                                                                            setSelectedUserId(user.id.toString());
-                                                                            setUserDropdownOpen(false);
-                                                                        }}
-                                                                    >
-                                                                        <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                                        {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
-                                                                    </CommandItem>
-                                                                ))}
+                                                                {users.filter(u => u.role !== 'reseller' && u.role !== 'superadmin').map(user => {
+                                                                    const parentName = getResellerName(user.reseller_id);
+                                                                    return (
+                                                                        <CommandItem
+                                                                            key={user.id}
+                                                                            value={`${user.company_name} ${user.name} ${user.email} ${user.id} ${parentName || ''}`}
+                                                                            onSelect={() => {
+                                                                                setSelectedUserId(user.id.toString());
+                                                                                setUserDropdownOpen(false);
+                                                                            }}
+                                                                            className="flex items-start py-2"
+                                                                        >
+                                                                            <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                                            <div className="flex flex-col gap-0.5">
+                                                                                <span className="font-medium text-slate-800">
+                                                                                    {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
+                                                                                </span>
+                                                                                {parentName ? (
+                                                                                    <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">
+                                                                                        via Reseller: {parentName}
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                                                                                        Direct Admin User
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </CommandItem>
+                                                                    );
+                                                                })}
                                                             </CommandGroup>
                                                         )}
                                                     </CommandList>
