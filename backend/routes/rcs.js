@@ -155,6 +155,7 @@ router.get('/reports', authenticate, async (req, res) => {
 
     let sql = `
       FROM ${tableName} c
+      LEFT JOIN users u ON c.user_id = u.id
       WHERE 1=1
     `;
     const params = [];
@@ -226,7 +227,8 @@ router.get('/reports', authenticate, async (req, res) => {
       SELECT 
         c.id, c.name, c.template_id, c.template_name, c.created_at, c.channel,
         c.recipient_count, c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status,
-        c.scheduled_at, c.next_run_at, c.schedule_type, c.scheduling_mode, c.frequency
+        c.scheduled_at, c.next_run_at, c.schedule_type, c.scheduling_mode, c.frequency,
+        u.name as user_name, u.company_name as user_company
       ${sql}
       ORDER BY c.created_at DESC
     `;

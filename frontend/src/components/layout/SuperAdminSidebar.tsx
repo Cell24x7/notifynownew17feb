@@ -70,6 +70,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
         { label: 'WhatsApp Details Report', path: '/super-admin/reports?tab=whatsapp_detail' },
         { label: 'WhatsApp Summary Report', path: '/super-admin/reports?tab=whatsapp_summary' },
         { label: 'SMS Summary Report', path: '/super-admin/reports?tab=sms_summary' },
+        { label: 'RCS Summary Report', path: '/super-admin/reports?tab=rcs_summary' },
         { label: 'Queue Status', path: '/super-admin/reports/queue' }
       ]
     },

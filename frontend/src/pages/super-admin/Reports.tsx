@@ -41,6 +41,9 @@ interface Report {
     read_count: number;
     failed_count: number;
     created_at: string;
+    user_name?: string;
+    user_company?: string;
+    channel?: string;
 }
 
 interface WebhookLog {
@@ -141,6 +144,7 @@ export default function SuperAdminReports() {
             case 'today': return 'Today Report';
             case 'whatsapp_detail': return 'WhatsApp Details Report';
             case 'whatsapp_summary': return 'WhatsApp Summary Report';
+            case 'rcs_summary': return 'RCS Summary Report';
             default: return 'Report';
         }
     };
@@ -203,6 +207,7 @@ export default function SuperAdminReports() {
                 let url = `${API_BASE_URL}/api/rcs/reports?${baseParams}`;
                 if (activeTab === 'sms_summary') url += '&channel=sms';
                 if (activeTab === 'whatsapp_summary') url += '&channel=whatsapp';
+                if (activeTab === 'rcs_summary') url += '&channel=rcs';
                 if (activeTab === 'today') url += `&startDate=${new Date().toISOString().split('T')[0]}&endDate=${new Date().toISOString().split('T')[0]}`;
 
                 const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -248,10 +253,10 @@ export default function SuperAdminReports() {
         let filename = "";
 
         if (activeTab.includes('summary') || activeTab === 'today') {
-            const headers = ['Campaign Name', 'Template', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
+            const headers = ['User', 'Campaign Name', 'Template', 'Channel', 'Date', 'Total', 'Sent', 'Delivered', 'Read', 'Failed'];
             csvContent = [
                 headers.join(','),
-                ...reports.map(r => `"${r.name}","${r.template_id}",${format(new Date(r.created_at), 'yyyy-MM-dd HH:mm')},${r.recipient_count},${r.sent_count},${r.delivered_count},${r.read_count},${r.failed_count}`)
+                ...reports.map(r => `"${r.user_company || r.user_name || ''}","${r.name}","${r.template_id}","${r.channel || 'rcs'}",${format(new Date(r.created_at), 'yyyy-MM-dd HH:mm')},${r.recipient_count},${r.sent_count},${r.delivered_count},${r.read_count},${r.failed_count}`)
             ].join('\n');
             filename = `${activeTab}_${format(new Date(), 'yyyyMMdd')}.csv`;
         } else if (activeTab === 'voice_detail') {
@@ -626,7 +631,9 @@ export default function SuperAdminReports() {
                             <TableHeader className="bg-slate-50">
                                 {activeTab.includes('summary') || activeTab === 'today' ? (
                                     <TableRow>
+                                        <TableHead className="font-bold text-slate-700">User</TableHead>
                                         <TableHead className="font-bold text-slate-700">Campaign Name</TableHead>
+                                        <TableHead className="font-bold text-slate-700">Channel</TableHead>
                                         <TableHead className="font-bold text-slate-700">Template</TableHead>
                                         <TableHead className="font-bold text-slate-700">Date</TableHead>
                                         <TableHead className="text-right font-bold text-slate-700">Total</TableHead>
@@ -665,7 +672,18 @@ export default function SuperAdminReports() {
                                 ) : activeTab.includes('summary') || activeTab === 'today' ? (
                                     reports.map((report) => (
                                         <TableRow key={report.id} className="hover:bg-slate-50/50">
+                                            <TableCell className="font-medium text-xs text-slate-700">
+                                                {report.user_company || report.user_name || '-'}
+                                            </TableCell>
                                             <TableCell className="font-medium text-sm text-slate-800">{report.name}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-none font-black uppercase", 
+                                                    (report.channel || 'rcs').toLowerCase() === 'sms' ? "bg-amber-100 text-amber-700" : 
+                                                    (report.channel || 'rcs').toLowerCase() === 'whatsapp' ? "bg-emerald-100 text-emerald-700" : 
+                                                    "bg-blue-100 text-blue-700")}>
+                                                    {report.channel || 'rcs'}
+                                                </Badge>
+                                            </TableCell>
                                             <TableCell className="font-mono text-[11px] text-slate-500">{report.template_id}</TableCell>
                                             <TableCell className="text-slate-500 text-xs">
                                                 {format(new Date(report.created_at), 'dd MMM yyyy')}<br/>
