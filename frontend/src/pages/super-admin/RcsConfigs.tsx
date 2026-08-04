@@ -336,8 +336,8 @@ export default function RcsConfigs() {
                     setFormData({ 
                       ...formData, 
                       provider: v,
-                      auth_url: isVi ? 'https://api.vodafone.com/auth/token' : 'https://auth.dotgo.com/auth/oauth/token',
-                      api_base_url: isVi ? 'https://api.vodafone.com/rcs/v1' : 'https://api.dotgo.com/rcs/v1'
+                      auth_url: isVi ? 'https://auth.virbm.in/auth/oauth/token?grant_type=client_credentials' : 'https://auth.dotgo.com/auth/oauth/token',
+                      api_base_url: isVi ? 'https://api.virbm.in/rcs' : 'https://api.dotgo.com/rcs/v1'
                     });
                   }}
                 >
