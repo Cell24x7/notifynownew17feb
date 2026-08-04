@@ -1,3 +1,14 @@
+const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
+
+// Load environment variables from .env.production or .env
+const envPath = fs.existsSync(path.join(__dirname, '../.env.production'))
+    ? path.join(__dirname, '../.env.production')
+    : path.join(__dirname, '../.env');
+
+dotenv.config({ path: envPath });
+
 const axios = require('axios');
 const { query } = require('../config/db');
 
@@ -21,14 +32,17 @@ async function testNukeCreate() {
         // 2. Prepare Template Payload for Nuke API
         const templateName = `indianprincess_test_btn_${Date.now().toString().slice(-4)}`;
         const bodyText = 'Dear {{1}}, Your one time password for Voucher issue is {{2}} Indian Princess';
+        const buttonUrl = 'https://www.instagram.com/indianprincess.stores?igsh=YWw3bWVrOTNyb3Bo';
+        const buttonLabel = '📸 Follow Us';
+
         const ctaButtons = [
             {
                 type: 'URL',
-                text: 'Follow Us',
-                displayText: 'Follow Us',
-                label: 'Follow Us',
-                url: 'https://www.instagram.com/indianprincess.stores',
-                value: 'https://www.instagram.com/indianprincess.stores'
+                text: buttonLabel,
+                displayText: buttonLabel,
+                label: buttonLabel,
+                url: buttonUrl,
+                value: buttonUrl
             }
         ];
 
