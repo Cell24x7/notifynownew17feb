@@ -293,6 +293,8 @@ router.post('/templates', authenticate, async (req, res) => {
             });
 
             const wa20Payload = {
+                username: config.customer_id,
+                customer_id: config.customer_id,
                 template_name: sanitizedName,
                 category: (category || 'utility').toLowerCase(),
                 language: 14, // 14 = English for WA20
@@ -312,8 +314,12 @@ router.post('/templates', authenticate, async (req, res) => {
             if (ctaButtons.length > 0) {
                 wa20Payload.call_to_action_buttons = ctaButtons;
             }
+            if (buttons.length > 0) {
+                wa20Payload.buttons = buttons;
+            }
 
-            const response = await axios.post('https://wa20.nuke.co.in/webhook/api/createTemplates.php', wa20Payload, {
+            const createUrl = `https://wa20.nuke.co.in/webhook/api/createTemplates.php?username=${config.customer_id}`;
+            const response = await axios.post(createUrl, wa20Payload, {
                 headers: getHeaders(config)
             });
 
