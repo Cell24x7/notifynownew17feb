@@ -44,24 +44,43 @@ async function deleteUnapproved() {
 
         console.log(`\n🗑️ Found ${toDelete.length} unapproved/test templates to delete!`);
 
-        let deletedCount = 0;
-        for (const t of toDelete) {
+        const testT = toDelete[0];
+        console.log(`\n🧪 Diagnostic Test: Attempting delete of template [${testT.template_name}]...`);
+
+        const deleteEndpoints = [
+            { method: 'POST', url: `https://wa20.nuke.co.in/webhook/api/deleteTemplates.php`, type: 'urlencoded', data: { username: config.customer_id, template_name: testT.template_name, name: testT.template_name } },
+            { method: 'DELETE', url: `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}&template_name=${testT.template_name}`, type: 'query' },
+            { method: 'DELETE', url: `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}&name=${testT.template_name}`, type: 'query' },
+            { method: 'POST', url: `https://wa20.nuke.co.in/v6/api/whatsappTemplate/24/${config.customer_id}/deleteTemplate`, type: 'json', data: { template_name: testT.template_name } },
+            { method: 'POST', url: `https://wa20.nuke.co.in/v6/api/whatsappTemplate/24/${config.customer_id}/delete`, type: 'json', data: { template_name: testT.template_name } },
+            { method: 'POST', url: `https://wa20.nuke.co.in/webhook/api/deleteTemplate.php`, type: 'urlencoded', data: { username: config.customer_id, template_name: testT.template_name } },
+            { method: 'POST', url: `https://wa20.nuke.co.in/webhook/api/templates.php`, type: 'urlencoded', data: { username: config.customer_id, action: 'delete', template_name: testT.template_name } }
+        ];
+
+        let workingEndpoint = null;
+
+        for (const ep of deleteEndpoints) {
             try {
-                // Try deleting via Nuke API
-                const delUrl = `https://wa20.nuke.co.in/webhook/api/deleteTemplate.php?username=${config.customer_id}&name=${t.template_name}&template_name=${t.template_name}`;
-                await axios.delete(delUrl, { headers: { 'Authorization': `Bearer ${config.wa_token}` } });
-                console.log(`  ✅ Deleted: [${t.template_name}] (ID: ${t.id}, Status: ${t.status})`);
-                deletedCount++;
-            } catch (err) {
-                // Fallback POST delete
-                try {
-                    const fallbackUrl = `https://wa20.nuke.co.in/webhook/api/deleteTemplates.php`;
-                    await axios.post(fallbackUrl, { username: config.customer_id, template_name: t.template_name }, { headers: { 'Authorization': `Bearer ${config.wa_token}` } });
-                    console.log(`  ✅ Deleted (POST): [${t.template_name}]`);
-                    deletedCount++;
-                } catch (e2) {
-                    console.log(`  ❌ Failed to delete [${t.template_name}]:`, err.message);
+                let res;
+                const headers = { 'Authorization': `Bearer ${config.wa_token}` };
+                
+                if (ep.type === 'urlencoded') {
+                    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                    const formData = new URLSearchParams();
+                    Object.keys(ep.data).forEach(k => formData.append(k, ep.data[k]));
+                    res = await axios.post(ep.url, formData.toString(), { headers });
+                } else if (ep.type === 'json') {
+                    headers['Content-Type'] = 'application/json';
+                    res = await axios.post(ep.url, ep.data, { headers });
+                } else {
+                    res = await axios.delete(ep.url, { headers });
                 }
+
+                console.log(`✅ [${ep.method} ${ep.url}] -> Success! Response:`, JSON.stringify(res.data));
+                workingEndpoint = ep;
+                break;
+            } catch (err) {
+                console.log(`❌ [${ep.method} ${ep.url}] -> ${err.response ? err.response.status + ' ' + JSON.stringify(err.response.data) : err.message}`);
             }
         }
 
