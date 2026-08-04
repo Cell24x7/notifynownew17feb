@@ -97,21 +97,28 @@ async function testNukeCreate() {
             }
         }
 
-        // Fetch list to check which variation stored buttons in Nuke DB
-        console.log('\n🔍 Fetching latest templates from Nuke DB to inspect stored columns...');
+        console.log('\n🔍 Fetching ALL templates of userindp from Nuke API to find any existing button templates...');
         const listUrl = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`;
         const listRes = await axios.get(listUrl, { headers: { 'Authorization': `Bearer ${config.wa_token}` } });
         const list = listRes.data.data || listRes.data || [];
+        console.log(`\nTotal templates returned from Nuke: ${list.length}`);
 
-        const recent = list.slice(-7);
-        console.log(`\n📊 Inspected Latest ${recent.length} Templates from Nuke DB:`);
-        recent.forEach(t => {
-            console.log(`\n📌 Template: ${t.template_name} (ID: ${t.id})`);
-            console.log(`   button_type_set:        ${t.button_type_set}`);
-            console.log(`   call_action_type_set1:  ${t.call_action_type_set1}`);
-            console.log(`   visit_website_btn_text: ${t.visit_website_btn_text}`);
-            console.log(`   visit_website_url_text: ${t.visit_website_url_text}`);
-        });
+        const withButtons = list.filter(t => 
+            t.button_type_set || 
+            t.visit_website_btn_text || 
+            t.call_phone_btn_text || 
+            (t.quick_replies && t.quick_replies !== '[]') ||
+            t.carousels || t.flow
+        );
+
+        console.log(`\n🎯 Found ${withButtons.length} templates with buttons/interactivity in Nuke DB!`);
+        if (withButtons.length > 0) {
+            console.log('\n📄 Sample Template with Buttons from Nuke:');
+            console.log(JSON.stringify(withButtons[0], null, 2));
+        } else {
+            console.log('\n📋 Sample Template structure (first template):');
+            console.log(JSON.stringify(list[0], null, 2));
+        }
 
     } catch (error) {
         console.error('❌ Error testing Nuke create:', error.response ? error.response.data : error.message);
