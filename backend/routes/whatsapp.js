@@ -273,6 +273,15 @@ router.get('/templates', authenticate, async (req, res) => {
             });
         }
 
+        // Filter out deleted templates for this user
+        try {
+            const [deletedRows] = await query('SELECT template_name FROM deleted_whatsapp_templates WHERE user_id = ?', [req.user.id]);
+            if (deletedRows && deletedRows.length > 0) {
+                const deletedNames = new Set(deletedRows.map(r => r.template_name));
+                templates = templates.filter(t => !deletedNames.has(t.name || t.template_name));
+            }
+        } catch (e) {}
+
         res.json({
             success: true,
             templates,
@@ -434,6 +443,14 @@ router.delete('/templates/:templateName', authenticate, async (req, res) => {
         if (!config) {
             return res.status(404).json({ success: false, message: 'WhatsApp configuration not found' });
         }
+
+        // Store in DB to permanently hide from UI
+        try {
+            await query(
+                'INSERT INTO deleted_whatsapp_templates (user_id, template_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP',
+                [req.user.id, templateName]
+            );
+        } catch (e) {}
 
         if (config.isWa20) {
             // Nuke WA20 delete template
