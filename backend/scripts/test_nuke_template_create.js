@@ -98,7 +98,8 @@ async function testNukeCreate() {
         // 3. Verify template list from Nuke
         console.log('\n🔍 Verifying registered template from Nuke templates list API...');
         const listUrl = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`;
-        const listRes = await axios.get(listUrl, { headers });
+        const listHeaders = { 'Authorization': `Bearer ${config.wa_token}` };
+        const listRes = await axios.get(listUrl, { headers: listHeaders });
         
         const templates = listRes.data.data || listRes.data || [];
         const created = templates.find(t => t.template_name === templateName || t.name === templateName);
