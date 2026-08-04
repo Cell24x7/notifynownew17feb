@@ -283,6 +283,27 @@ const sendUniversalMessage = async (item) => {
                     }
                 }
 
+                // 🔑 For Vi provider: Build a named key-value object from template variable names
+                // Vi requires {"custom_policynumber": "value"} NOT positional array
+                let viNamedParams = null;
+                if (rcsConfig.provider === 'vi') {
+                    const regex = /\[\[([^\]]+)\]\]|\{#([^#]+)#\}|\[([^\]]+)\]|\{\{([^}]+)\}\}|\{([^}]+)\}/g;
+                    const allKeys = [];
+                    const fullText = `${body} ${metaStr}`;
+                    let m;
+                    while ((m = regex.exec(fullText)) !== null) {
+                        const k = (m[1] || m[2] || m[3] || m[4] || m[5]).trim();
+                        if (k && !allKeys.includes(k)) allKeys.push(k);
+                    }
+                    if (allKeys.length > 0 && customParams.length > 0) {
+                        viNamedParams = {};
+                        allKeys.forEach((key, idx) => {
+                            viNamedParams[key] = customParams[idx] || '';
+                        });
+                        console.log(`[RCS-Vi] (${item.mobile}) Named params: ${JSON.stringify(viNamedParams)}`);
+                    }
+                }
+
                 processedMessage = body || `Template: ${item.template_name}`;
                 
                 // Reconstruct processedMessage for logging if we have variables
@@ -297,7 +318,9 @@ const sendUniversalMessage = async (item) => {
                     processedMessage = bodyText;
                 }
 
-                result = await sendRcsTemplate(item.mobile, item.template_name, rcsConfig, customParams);
+                // Pass named params for Vi, array for Dotgo
+                const paramsToSend = viNamedParams !== null ? viNamedParams : customParams;
+                result = await sendRcsTemplate(item.mobile, item.template_name, rcsConfig, paramsToSend);
             } else {
                 const body = item.template_body || '';
                 processedMessage = replaceVariables(body || item.campaign_name, resolvedVars);
