@@ -162,11 +162,40 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
       url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
     }
 
+    // Format customParams: Vi requires stringified JSON object ("{}"), Dotgo expects array
+    let formattedCustomParams;
+    if (provider === 'vi') {
+      if (typeof customParams === 'string') {
+        formattedCustomParams = customParams;
+      } else if (Array.isArray(customParams)) {
+        if (customParams.length === 0) {
+          formattedCustomParams = "{}";
+        } else {
+          const obj = {};
+          customParams.forEach((item, idx) => {
+            if (typeof item === 'object' && item !== null) {
+              const k = item.key || item.name || `param${idx+1}`;
+              obj[k] = item.value || item.val || "";
+            } else {
+              obj[`param${idx+1}`] = String(item);
+            }
+          });
+          formattedCustomParams = JSON.stringify(obj);
+        }
+      } else if (typeof customParams === 'object' && customParams !== null) {
+        formattedCustomParams = JSON.stringify(customParams);
+      } else {
+        formattedCustomParams = "{}";
+      }
+    } else {
+      formattedCustomParams = (Array.isArray(customParams) && customParams.length > 0) ? customParams : [];
+    }
+
     const payload = {
       contentMessage: {
         templateMessage: {
           templateCode: templateCode,
-          customParams: (Array.isArray(customParams) && customParams.length > 0) ? customParams : []
+          customParams: formattedCustomParams
         }
       }
     };
@@ -194,8 +223,9 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
         tokenCache.delete(cacheKey);
     }
 
-    console.error(`❌ ${config.provider || 'RCS'} Send Error:`, error.message);
-    return { success: false, error: error.response?.data?.message || error.message };
+    const detailedReason = error.response?.data?.reason?.text || error.response?.data?.message || error.response?.data?.error || error.message;
+    console.error(`❌ ${config.provider || 'RCS'} Send Error:`, detailedReason, error.response?.data ? JSON.stringify(error.response.data) : '');
+    return { success: false, error: detailedReason };
   }
 };
 
