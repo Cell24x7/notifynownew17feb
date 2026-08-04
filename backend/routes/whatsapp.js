@@ -422,6 +422,45 @@ router.post('/templates', authenticate, async (req, res) => {
             });
         }
 
+/**
+ * DELETE /api/whatsapp/templates/:templateName
+ * Delete a template by name (supports Meta, Pinbot, and WA20)
+ */
+router.delete('/templates/:templateName', authenticate, async (req, res) => {
+    try {
+        const { templateName } = req.params;
+        const config = await getWhatsAppConfig(req.user.id);
+
+        if (!config) {
+            return res.status(404).json({ success: false, message: 'WhatsApp configuration not found' });
+        }
+
+        if (config.isWa20) {
+            // Nuke WA20 delete template
+            const delUrl = `https://wa20.nuke.co.in/webhook/api/deleteTemplate.php?username=${config.customer_id}&name=${templateName}&template_name=${templateName}`;
+            try {
+                await axios.delete(delUrl, { headers: getHeaders(config) });
+            } catch (err) {
+                // Fallback POST delete
+                const fallbackUrl = `https://wa20.nuke.co.in/webhook/api/deleteTemplates.php`;
+                await axios.post(fallbackUrl, { username: config.customer_id, template_name: templateName }, { headers: getHeaders(config) });
+            }
+            return res.json({ success: true, message: `Template ${templateName} deleted successfully` });
+        }
+
+        // Meta / Pinbot Delete Template
+        const deleteUrl = config.isPinbot
+            ? `${PINBOT_BASE}/${config.wa_biz_accnt_id}/message_templates?name=${templateName}`
+            : `${GRAPH_BASE}/${config.wa_biz_accnt_id}/message_templates?name=${templateName}`;
+
+        const response = await axios.delete(deleteUrl, { headers: getHeaders(config) });
+        res.json({ success: true, message: `Template ${templateName} deleted successfully`, data: response.data });
+    } catch (error) {
+        console.error('❌ Error deleting template:', error.response?.data || error.message);
+        res.status(500).json({ success: false, message: error.message, error: error.response?.data });
+    }
+});
+
         // Meta/Pinbot requirement: Media headers and variable body text MUST have an example/sample
         const processedComponents = components.map(comp => {
             const normalizedComp = { ...comp };
