@@ -188,11 +188,43 @@ router.get('/templates', authenticate, async (req, res) => {
                 if (t.template_footer) {
                     components.push({ type: 'FOOTER', text: t.template_footer });
                 }
-                if (t.quick_replies && t.quick_replies !== '[]') {
-                    try {
-                        const btns = JSON.parse(t.quick_replies);
-                        components.push({ type: 'BUTTONS', buttons: btns });
-                    } catch (e) {}
+                let rawBtns = [];
+                const parseBtn = (val) => {
+                    if (!val) return [];
+                    if (Array.isArray(val)) return val;
+                    if (typeof val === 'string' && val !== '[]') {
+                        try {
+                            const p = JSON.parse(val);
+                            return Array.isArray(p) ? p : [p];
+                        } catch (e) { return []; }
+                    }
+                    return [];
+                };
+
+                rawBtns = [
+                    ...parseBtn(t.quick_replies),
+                    ...parseBtn(t.call_to_action),
+                    ...parseBtn(t.quick_reply_buttons),
+                    ...parseBtn(t.call_to_action_buttons),
+                    ...parseBtn(t.buttons),
+                    ...parseBtn(t.actions)
+                ];
+
+                if (rawBtns.length > 0) {
+                    const formattedButtons = rawBtns.map(btn => {
+                        const typeUC = (btn.type || '').toUpperCase();
+                        let type = 'QUICK_REPLY';
+                        if (typeUC === 'URL' || btn.url) type = 'URL';
+                        else if (typeUC === 'PHONE_NUMBER' || typeUC === 'PHONE' || btn.phone_number) type = 'PHONE_NUMBER';
+
+                        return {
+                            type,
+                            text: btn.text || btn.label || btn.displayText || 'Button',
+                            url: btn.url || btn.value || '',
+                            phone_number: btn.phone_number || btn.phoneNumber || btn.value || ''
+                        };
+                    });
+                    components.push({ type: 'BUTTONS', buttons: formattedButtons });
                 }
                 
                 // Map WA20 status (1=approved, 0=pending, 2=rejected/failed) to Meta status
