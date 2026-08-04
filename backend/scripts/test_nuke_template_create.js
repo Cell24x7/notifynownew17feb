@@ -75,16 +75,24 @@ async function testNukeCreate() {
             actions: JSON.stringify(ctaButtons)
         };
 
-        console.log('\n📤 Sending createTemplates payload to Nuke API...');
+        console.log('\n📤 Sending createTemplates payload to Nuke API (x-www-form-urlencoded)...');
         console.log(JSON.stringify(wa20Payload, null, 2));
 
         const createUrl = `https://wa20.nuke.co.in/webhook/api/createTemplates.php?username=${config.customer_id}`;
-        const headers = {
-            'Authorization': `Bearer ${config.wa_token}`,
-            'Content-Type': 'application/json'
-        };
+        
+        // 🎯 PHP $_POST FIX: Send as x-www-form-urlencoded
+        const formData = new URLSearchParams();
+        Object.keys(wa20Payload).forEach(key => {
+            const val = wa20Payload[key];
+            formData.append(key, typeof val === 'object' ? JSON.stringify(val) : val);
+        });
 
-        const response = await axios.post(createUrl, wa20Payload, { headers });
+        const response = await axios.post(createUrl, formData.toString(), {
+            headers: {
+                'Authorization': `Bearer ${config.wa_token}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
         console.log('\n📥 Nuke API Response:', JSON.stringify(response.data, null, 2));
 
         // 3. Verify template list from Nuke
