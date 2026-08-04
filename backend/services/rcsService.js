@@ -155,8 +155,8 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
     // Route based on provider
     let url;
     if (provider === 'vi') {
-      // Vi Google Style: {serverRoot}/v1/phones/{phone_number}/agentMessages/async?botId={bot_id}
-      url = `${apiBaseUrl}/v1/phones/${formattedMobile}/agentMessages/async?botId=${botId}`;
+      // Vi Google Style Official Endpoint: https://api.virbm.in/rcs/v1/phones/{phone_number}/agentMessages/async?botId={bot_id}
+      url = `https://api.virbm.in/rcs/v1/phones/${formattedMobile}/agentMessages/async?botId=${botId}`;
     } else {
       // Dotgo/Google Standard: {serverRoot}/phones/{phone_number}/agentMessages?botId={bot_id}
       url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
@@ -220,7 +220,7 @@ const sendRcsMessage = async (mobile, message, config) => {
     // Route based on provider
     let url;
     if (provider === 'vi') {
-      url = `${apiBaseUrl}/v1/phones/${formattedMobile}/agentMessages/async?botId=${botId}`;
+      url = `https://api.virbm.in/rcs/v1/phones/${formattedMobile}/agentMessages/async?botId=${botId}`;
     } else {
       url = `${apiBaseUrl}/phones/${formattedMobile}/agentMessages?botId=${botId}`;
     }
