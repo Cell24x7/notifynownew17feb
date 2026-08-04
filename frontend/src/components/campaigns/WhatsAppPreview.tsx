@@ -18,7 +18,12 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
     const header = getComponent('HEADER');
     const body = getComponent('BODY');
     const footer = getComponent('FOOTER');
-    const buttonsComp = getComponent('BUTTONS');
+    const buttonsFromComp = getComponent('BUTTONS')?.buttons || [];
+    const directButtons = data.buttons || [];
+    const buttonsList = buttonsFromComp.length > 0 ? buttonsFromComp : directButtons;
+
+    const ctaButtons = buttonsList.filter((b: any) => (b.type || '').toUpperCase() !== 'QUICK_REPLY');
+    const quickReplyButtons = buttonsList.filter((b: any) => (b.type || '').toUpperCase() === 'QUICK_REPLY');
 
     return (
         <div className="flex flex-col h-full items-center justify-start overflow-hidden no-scrollbar w-full">
@@ -120,13 +125,13 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                         </div>
 
                         {/* Template Buttons Preview - CTAs */}
-                        {buttonsComp?.buttons?.filter((b: any) => b.type !== 'QUICK_REPLY').length > 0 && (
+                        {ctaButtons.length > 0 && (
                             <div className="border-t border-gray-100 dark:border-white/5 flex flex-col bg-gray-50/50 dark:bg-black/5">
-                                {buttonsComp.buttons.filter((b: any) => b.type !== 'QUICK_REPLY').map((btn: any, i: number) => (
+                                {ctaButtons.map((btn: any, i: number) => (
                                     <div key={i} className="py-3 px-3 border-b last:border-0 border-gray-100 dark:border-white/5 text-center flex items-center justify-center gap-2 text-[#008069] dark:text-[#53bdeb] font-semibold text-[13px] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer active:bg-black/[0.1]">
-                                        {btn.type === 'URL' && <ExternalLink className="h-3.5 w-3.5" />}
-                                        {btn.type === 'PHONE_NUMBER' && <Phone className="h-3.5 w-3.5" />}
-                                        {btn.text || 'Action Button'}
+                                        {(btn.type === 'URL' || (btn.type || '').toUpperCase() === 'URL' || btn.url) && <ExternalLink className="h-3.5 w-3.5" />}
+                                        {(btn.type === 'PHONE_NUMBER' || (btn.type || '').toUpperCase() === 'PHONE_NUMBER' || btn.phone_number) && <Phone className="h-3.5 w-3.5" />}
+                                        {btn.text || btn.label || btn.displayText || 'Action Button'}
                                     </div>
                                 ))}
                             </div>
@@ -135,11 +140,11 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
 
 
                     {/* Template Buttons Preview - Quick Replies */}
-                    {buttonsComp?.buttons?.filter((b: any) => b.type === 'QUICK_REPLY').length > 0 && (
+                    {quickReplyButtons.length > 0 && (
                         <div className="mt-2 space-y-1.5 flex flex-col items-center animate-in slide-in-from-bottom-2 duration-700">
-                            {buttonsComp.buttons.filter((b: any) => b.type === 'QUICK_REPLY').map((btn: any, i: number) => (
+                            {quickReplyButtons.map((btn: any, i: number) => (
                                 <div key={i} className="w-full bg-white dark:bg-[#1f2c33] rounded-lg py-2.5 text-center shadow-sm text-[#00a884] dark:text-[#53bdeb] font-bold text-xs hover:bg-zinc-50 dark:hover:bg-white/5 transition-all cursor-pointer border border-black/5">
-                                    {btn.text || 'Quick Reply'}
+                                    {btn.text || btn.label || btn.displayText || 'Quick Reply'}
                                 </div>
                             ))}
                         </div>
