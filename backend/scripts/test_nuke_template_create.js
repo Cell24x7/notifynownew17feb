@@ -34,68 +34,48 @@ async function testNukeCreate() {
         const config = users[0];
         console.log(`\n✅ Using Target Account: [${config.email}] | Chatbot: [${config.chatbot_name}] | Customer ID: [${config.customer_id}]`);
 
-        // Test multiple variations to find exact Nuke parameter names/values
-        const variations = [
-            { name: 'var1_call_to_action_url', button_type_set: 'call_to_action', call_action_type_set1: 'url' },
-            { name: 'var2_CTA_VISIT_WEBSITE', button_type_set: 'CALL_TO_ACTION', call_action_type_set1: 'VISIT_WEBSITE' },
-            { name: 'var3_cta_website', button_type_set: 'cta', call_action_type_set1: 'website' },
-            { name: 'var4_num_1_1', button_type_set: '1', call_action_type_set1: '1' },
-            { name: 'var5_custom_url', button_type_set: 'custom', call_action_type_set1: 'url' },
-            { name: 'var6_visit_website', button_type_set: 'visit_website', call_action_type_set1: 'static' }
-        ];
-
-        console.log(`\n🧪 Testing ${variations.length} Nuke parameter variations to find exact DB match...`);
-
+        // Test sending URL button in quick_replies column
         const buttonUrl = 'https://www.instagram.com/indianprincess.stores?igsh=YWw3bWVrOTNyb3Bo';
         const buttonLabel = '📸 Follow Us';
 
-        for (let i = 0; i < variations.length; i++) {
-            const v = variations[i];
-            const testName = `indianprincess_t_${Date.now().toString().slice(-3)}_${i+1}`;
-            
-            const payload = {
-                username: config.customer_id,
-                customer_id: config.customer_id,
-                template_name: testName,
-                category: 'utility',
-                language: 14,
-                header_area_type: 'none',
-                header_media_type: '',
-                template_body: 'Dear {{1}}, Your voucher password is {{2}} Indian Princess',
-                template_footer: '',
-
-                button_type_set: v.button_type_set,
-                call_action_type_set1: v.call_action_type_set1,
-                visit_website_btn_text: buttonLabel,
-                visit_website_url_text: buttonUrl,
-                visit_website_url_set: 'static',
-
-                call_phone_btn_text: '',
-                call_phone_btn_phone_number: '',
-                quick_reply_btn_text1: '',
-
-                call_to_action_buttons: [{ type: 'URL', text: buttonLabel, url: buttonUrl }],
-                buttons: [{ type: 'URL', text: buttonLabel, url: buttonUrl }]
-            };
-
-            const createUrl = `https://wa20.nuke.co.in/webhook/api/createTemplates.php?username=${config.customer_id}`;
-            const formData = new URLSearchParams();
-            Object.keys(payload).forEach(k => {
-                const val = payload[k];
-                if (val !== undefined && val !== null) {
-                    formData.append(k, typeof val === 'object' ? JSON.stringify(val) : val);
-                }
-            });
-
-            try {
-                const res = await axios.post(createUrl, formData.toString(), {
-                    headers: { 'Authorization': `Bearer ${config.wa_token}`, 'Content-Type': 'application/x-www-form-urlencoded' }
-                });
-                console.log(`\n[Test ${i+1}/${variations.length}: ${v.name}] -> Created (ID: ${res.data.template_id})`);
-            } catch (err) {
-                console.log(`[Test ${i+1}] Failed:`, err.message);
+        const urlBtnObj = [
+            {
+                type: 'URL',
+                text: buttonLabel,
+                url: buttonUrl
             }
-        }
+        ];
+
+        const testName = `indianprincess_url_qr_${Date.now().toString().slice(-4)}`;
+        
+        const payload = {
+            username: config.customer_id,
+            customer_id: config.customer_id,
+            template_name: testName,
+            category: 'utility',
+            language: 14,
+            header_area_type: 'none',
+            header_media_type: '',
+            template_body: 'Dear {{1}}, Your voucher password is {{2}} Indian Princess',
+            template_footer: '',
+            quick_replies: JSON.stringify(urlBtnObj),
+            call_to_action: JSON.stringify(urlBtnObj),
+            buttons: JSON.stringify(urlBtnObj)
+        };
+
+        console.log('\n📤 Testing quick_replies with URL type object payload...');
+        const createUrl = `https://wa20.nuke.co.in/webhook/api/createTemplates.php?username=${config.customer_id}`;
+        
+        const formData = new URLSearchParams();
+        Object.keys(payload).forEach(k => {
+            const val = payload[k];
+            if (val !== undefined && val !== null) formData.append(k, val);
+        });
+
+        const res = await axios.post(createUrl, formData.toString(), {
+            headers: { 'Authorization': `Bearer ${config.wa_token}`, 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        console.log('📥 Nuke API Response:', JSON.stringify(res.data, null, 2));
 
         console.log('\n🔍 Fetching ALL templates of userindp from Nuke API to find any existing button templates...');
         const listUrl = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`;
