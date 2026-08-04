@@ -44,44 +44,45 @@ async function deleteUnapproved() {
 
         console.log(`\n🗑️ Found ${toDelete.length} unapproved/test templates to delete!`);
 
-        const testT = toDelete[0];
-        console.log(`\n🧪 Diagnostic Test: Attempting delete of template [${testT.template_name}]...`);
+        let deletedCount = 0;
 
-        const deleteEndpoints = [
-            { method: 'POST', url: `https://wa20.nuke.co.in/webhook/api/deleteTemplates.php`, type: 'urlencoded', data: { username: config.customer_id, template_name: testT.template_name, name: testT.template_name } },
-            { method: 'DELETE', url: `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}&template_name=${testT.template_name}`, type: 'query' },
-            { method: 'DELETE', url: `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}&name=${testT.template_name}`, type: 'query' },
-            { method: 'POST', url: `https://wa20.nuke.co.in/v6/api/whatsappTemplate/24/${config.customer_id}/deleteTemplate`, type: 'json', data: { template_name: testT.template_name } },
-            { method: 'POST', url: `https://wa20.nuke.co.in/v6/api/whatsappTemplate/24/${config.customer_id}/delete`, type: 'json', data: { template_name: testT.template_name } },
-            { method: 'POST', url: `https://wa20.nuke.co.in/webhook/api/deleteTemplate.php`, type: 'urlencoded', data: { username: config.customer_id, template_name: testT.template_name } },
-            { method: 'POST', url: `https://wa20.nuke.co.in/webhook/api/templates.php`, type: 'urlencoded', data: { username: config.customer_id, action: 'delete', template_name: testT.template_name } }
-        ];
+        for (const t of toDelete) {
+            const templateName = t.template_name;
+            let success = false;
 
-        let workingEndpoint = null;
-
-        for (const ep of deleteEndpoints) {
+            // Try Method 1: DELETE https://wa20.nuke.co.in/webhook/api/templates.php?username=...&name=...
             try {
-                let res;
-                const headers = { 'Authorization': `Bearer ${config.wa_token}` };
-                
-                if (ep.type === 'urlencoded') {
-                    headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                    const formData = new URLSearchParams();
-                    Object.keys(ep.data).forEach(k => formData.append(k, ep.data[k]));
-                    res = await axios.post(ep.url, formData.toString(), { headers });
-                } else if (ep.type === 'json') {
-                    headers['Content-Type'] = 'application/json';
-                    res = await axios.post(ep.url, ep.data, { headers });
-                } else {
-                    res = await axios.delete(ep.url, { headers });
+                const delUrl1 = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}&name=${encodeURIComponent(templateName)}`;
+                const r1 = await axios.delete(delUrl1, { headers: { 'Authorization': `Bearer ${config.wa_token}` } });
+                console.log(`  ✅ Deleted [${templateName}]:`, r1.data.message || r1.data);
+                success = true;
+            } catch (err1) {
+                // Try Method 2: DELETE with template_name query param
+                try {
+                    const delUrl2 = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}&template_name=${encodeURIComponent(templateName)}`;
+                    const r2 = await axios.delete(delUrl2, { headers: { 'Authorization': `Bearer ${config.wa_token}` } });
+                    console.log(`  ✅ Deleted (v2) [${templateName}]:`, r2.data.message || r2.data);
+                    success = true;
+                } catch (err2) {
+                    // Try Method 3: POST x-www-form-urlencoded delete
+                    try {
+                        const delUrl3 = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`;
+                        const formData = new URLSearchParams();
+                        formData.append('username', config.customer_id);
+                        formData.append('template_name', templateName);
+                        formData.append('action', 'delete');
+                        const r3 = await axios.post(delUrl3, formData.toString(), {
+                            headers: { 'Authorization': `Bearer ${config.wa_token}`, 'Content-Type': 'application/x-www-form-urlencoded' }
+                        });
+                        console.log(`  ✅ Deleted (POST) [${templateName}]:`, r3.data.message || r3.data);
+                        success = true;
+                    } catch (err3) {
+                        console.log(`  ❌ Could not delete [${templateName}]: ${err1.message}`);
+                    }
                 }
-
-                console.log(`✅ [${ep.method} ${ep.url}] -> Success! Response:`, JSON.stringify(res.data));
-                workingEndpoint = ep;
-                break;
-            } catch (err) {
-                console.log(`❌ [${ep.method} ${ep.url}] -> ${err.response ? err.response.status + ' ' + JSON.stringify(err.response.data) : err.message}`);
             }
+
+            if (success) deletedCount++;
         }
 
         console.log(`\n🎉 Successfully deleted ${deletedCount} / ${toDelete.length} templates!`);
