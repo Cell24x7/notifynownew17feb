@@ -70,11 +70,11 @@ const getRcsToken = async (config) => {
         let finalAuthUrl = authUrl;
         let postData = "grant_type=client_credentials";
 
-        if (config.provider === 'vi' || authUrl.includes('grant_type=')) {
-          postData = null; // Send empty body if params are in URL
-          if (!authUrl.includes('grant_type=')) {
-            finalAuthUrl += (authUrl.includes('?') ? '&' : '?') + "grant_type=client_credentials";
-          }
+        if (config.provider === 'vi') {
+          finalAuthUrl = 'https://auth.virbm.in/auth/oauth/token?grant_type=client_credentials';
+          postData = null;
+        } else if (authUrl && authUrl.includes('grant_type=')) {
+          postData = null;
         }
 
         const response = await axios.post(
@@ -394,7 +394,7 @@ const submitRcsTemplate = async (config, templateData, files = [], existingName 
 
     const response = await axios.post(url, form, {
       headers: {
-        'Authorization': `Bearer ${authHeaderToken}`,
+        'Authorization': `Bearer ${token}`,
         ...form.getHeaders()
       },
       timeout: 60000
