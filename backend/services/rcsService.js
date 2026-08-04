@@ -640,6 +640,9 @@ const getExternalTemplates = async (config) => {
 
   } catch (error) {
     console.error("❌ Fetch External Templates Error:", error.message);
+    if (error.response && error.response.data) {
+        console.error("❌ Error Response Data:", JSON.stringify(error.response.data));
+    }
     // If it's a timeout or error, return the cached data if it exists (even if expired) as a fallback
     const stale = templateCache.get(config.bot_id);
     if (stale) {

@@ -110,6 +110,42 @@ export default function TodayReport() {
                         </div>
                     </CardContent>
                 </Card>
+                <Card className="border-none shadow-md bg-gradient-to-br from-white to-orange-50 dark:from-slate-900 dark:to-slate-800">
+                    <CardContent className="p-6">
+                        <p className="text-sm font-medium text-muted-foreground">RCS Sent</p>
+                        <p className="text-3xl font-bold mt-2">
+                            {data.filter(d => d.channel.toLowerCase() === 'rcs').reduce((acc, curr) => acc + curr.total, 0).toLocaleString()}
+                        </p>
+                        <div className="mt-4 flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-orange-500" />
+                            <span className="text-xs text-muted-foreground">Total RCS traffic today</span>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-none shadow-md bg-gradient-to-br from-white to-green-50 dark:from-slate-900 dark:to-slate-800">
+                    <CardContent className="p-6">
+                        <p className="text-sm font-medium text-muted-foreground">WhatsApp Sent</p>
+                        <p className="text-3xl font-bold mt-2">
+                            {data.filter(d => d.channel.toLowerCase().includes('whatsapp')).reduce((acc, curr) => acc + curr.total, 0).toLocaleString()}
+                        </p>
+                        <div className="mt-4 flex items-center gap-2">
+                            <PhoneIncoming className="w-4 h-4 text-green-500" />
+                            <span className="text-xs text-muted-foreground">Total WhatsApp traffic today</span>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-none shadow-md bg-gradient-to-br from-white to-indigo-50 dark:from-slate-900 dark:to-slate-800">
+                    <CardContent className="p-6">
+                        <p className="text-sm font-medium text-muted-foreground">SMS Sent</p>
+                        <p className="text-3xl font-bold mt-2">
+                            {data.filter(d => d.channel.toLowerCase() === 'sms').reduce((acc, curr) => acc + curr.total, 0).toLocaleString()}
+                        </p>
+                        <div className="mt-4 flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-indigo-500" />
+                            <span className="text-xs text-muted-foreground">Total SMS traffic today</span>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <Card className="border-none shadow-lg overflow-hidden">
