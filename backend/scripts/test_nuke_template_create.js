@@ -116,10 +116,18 @@ async function testNukeCreate() {
         const listUrl = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`;
         const listRes = await axios.get(listUrl, { headers: { 'Authorization': `Bearer ${config.wa_token}` } });
         const list = listRes.data.data || listRes.data || [];
-        const newlyCreated = list.find(t => t.id === res.data.template_id || t.template_name === testName);
-
-        console.log(`\n🎉 NEWLY CREATED TEMPLATE [${testName}] FROM NUKE DB:`);
-        console.log(JSON.stringify(newlyCreated || list[list.length - 1], null, 2));
+        
+        const recent4 = list.slice(-4);
+        console.log(`\n📊 RESULTS OF 4 TEST VARIATIONS IN NUKE DB:`);
+        recent4.forEach(t => {
+            console.log(`\n📌 Template: ${t.template_name} (ID: ${t.id})`);
+            console.log(`   quick_replies:          ${t.quick_replies}`);
+            console.log(`   button_type_set:        ${t.button_type_set}`);
+            console.log(`   call_action_type_set1:  ${t.call_action_type_set1}`);
+            console.log(`   visit_website_btn_text: ${t.visit_website_btn_text}`);
+            console.log(`   visit_website_url_text: ${t.visit_website_url_text}`);
+            console.log(`   call_phone_btn_text:    ${t.call_phone_btn_text}`);
+        });
 
         const withButtons = list.filter(t => 
             t.button_type_set || 
