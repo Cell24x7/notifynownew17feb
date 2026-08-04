@@ -280,8 +280,13 @@ router.post('/templates', authenticate, async (req, res) => {
                 if (typeUC === 'FOOTER') footerText = comp.text || "";
                 if (typeUC === 'BUTTONS' && comp.buttons) {
                     comp.buttons.forEach(b => {
-                        if ((b.type || '').toUpperCase() === 'QUICK_REPLY') {
+                        const btnType = (b.type || '').toUpperCase();
+                        if (btnType === 'QUICK_REPLY') {
                             buttons.push({ type: "QUICK_REPLY", text: b.text });
+                        } else if (btnType === 'URL') {
+                            buttons.push({ type: "URL", text: b.text, url: b.url || b.value || '' });
+                        } else if (btnType === 'PHONE_NUMBER') {
+                            buttons.push({ type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number || b.value || '' });
                         }
                     });
                 }
@@ -290,15 +295,22 @@ router.post('/templates', authenticate, async (req, res) => {
             const wa20Payload = {
                 template_name: sanitizedName,
                 category: (category || 'utility').toLowerCase(),
-                language: 14, // Assuming 14 is English for WA20
+                language: 14, // 14 = English for WA20
                 header_area_type: "none",
                 header_media_type: "",
                 template_body: bodyText,
                 template_footer: footerText
             };
             
-            if (buttons.length > 0) {
-                wa20Payload.quick_reply_buttons = buttons;
+            // Separate quick_reply and call_to_action buttons
+            const quickReplies = buttons.filter(b => b.type === 'QUICK_REPLY');
+            const ctaButtons = buttons.filter(b => b.type === 'URL' || b.type === 'PHONE_NUMBER');
+            
+            if (quickReplies.length > 0) {
+                wa20Payload.quick_reply_buttons = quickReplies;
+            }
+            if (ctaButtons.length > 0) {
+                wa20Payload.call_to_action_buttons = ctaButtons;
             }
 
             const response = await axios.post('https://wa20.nuke.co.in/webhook/api/createTemplates.php', wa20Payload, {
