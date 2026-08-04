@@ -409,7 +409,7 @@ router.get('/templates/external/:name/sync', authenticate, async (req, res) => {
     const result = await getRcsTemplateDetails(config, templateName);
 
     if (result.success && result.data) {
-      const t = result.data;
+      const t = result.data.templateModel || result.data;
       const type = t.templateType || t.type || 'text_message';
       let body = t.textMessageContent || t.fallbackText || '';
       const meta = {};

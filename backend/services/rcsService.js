@@ -458,7 +458,8 @@ const getRcsTemplateStatus = async (config, templateName) => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
-    return { success: true, status: response.data?.status || 'UNKNOWN', raw: response.data };
+    const status = response.data?.templateStatus || response.data?.status || 'UNKNOWN';
+    return { success: true, status, raw: response.data };
   } catch (error) {
     if (error.response?.status === 401) {
         const cacheKey = config.provider === 'vi' ? (config.id || config.bot_id) : 'admin';
