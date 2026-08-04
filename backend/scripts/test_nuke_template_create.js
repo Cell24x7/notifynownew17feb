@@ -61,6 +61,14 @@ async function testNukeCreate() {
             header_media_type: '',
             template_body: bodyText,
             template_footer: '',
+            
+            // 🎯 NUKE SPECIFIC BUTTON FIELDS DISCOVERED FROM NUKE DB COLUMNS:
+            visit_website_btn_text: buttonLabel,
+            visit_website_url_text: buttonUrl,
+            visit_website_url_set: 'static',
+            call_action_type_set1: 'VISIT_WEBSITE',
+
+            // Also keep standard arrays & JSON strings
             call_to_action_buttons: ctaButtons,
             call_to_action: JSON.stringify(ctaButtons),
             buttons: ctaButtons,

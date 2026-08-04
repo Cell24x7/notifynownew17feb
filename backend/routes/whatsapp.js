@@ -210,6 +210,25 @@ router.get('/templates', authenticate, async (req, res) => {
                     ...parseBtn(t.actions)
                 ];
 
+                // 🎯 NUKE DB COLUMNS DISCOVERY FIX:
+                if (t.visit_website_btn_text || t.visit_website_url_text) {
+                    rawBtns.push({
+                        type: 'URL',
+                        text: t.visit_website_btn_text || 'Visit Website',
+                        url: t.visit_website_url_text || ''
+                    });
+                }
+                if (t.call_phone_btn_text || t.call_phone_btn_phone_number) {
+                    rawBtns.push({
+                        type: 'PHONE_NUMBER',
+                        text: t.call_phone_btn_text || 'Call',
+                        phone_number: t.call_phone_btn_phone_number || ''
+                    });
+                }
+                if (t.quick_reply_btn_text1) rawBtns.push({ type: 'QUICK_REPLY', text: t.quick_reply_btn_text1 });
+                if (t.quick_reply_btn_text2) rawBtns.push({ type: 'QUICK_REPLY', text: t.quick_reply_btn_text2 });
+                if (t.quick_reply_btn_text3) rawBtns.push({ type: 'QUICK_REPLY', text: t.quick_reply_btn_text3 });
+
                 if (rawBtns.length > 0) {
                     const formattedButtons = rawBtns.map(btn => {
                         const typeUC = (btn.type || '').toUpperCase();
@@ -342,8 +361,25 @@ router.post('/templates', authenticate, async (req, res) => {
             // Separate quick_reply and call_to_action buttons
             const quickReplies = buttons.filter(b => b.type === 'QUICK_REPLY');
             const ctaButtons = buttons.filter(b => b.type === 'URL' || b.type === 'PHONE_NUMBER');
-            
+
+            const urlBtn = buttons.find(b => b.type === 'URL');
+            const phoneBtn = buttons.find(b => b.type === 'PHONE_NUMBER');
+
+            // 🎯 NUKE DB COLUMNS DISCOVERY FIX:
+            if (urlBtn) {
+                wa20Payload.visit_website_btn_text = urlBtn.text || urlBtn.label || urlBtn.displayText || '';
+                wa20Payload.visit_website_url_text = urlBtn.url || urlBtn.value || '';
+                wa20Payload.visit_website_url_set = 'static';
+                wa20Payload.call_action_type_set1 = 'VISIT_WEBSITE';
+            }
+            if (phoneBtn) {
+                wa20Payload.call_phone_btn_text = phoneBtn.text || phoneBtn.label || phoneBtn.displayText || '';
+                wa20Payload.call_phone_btn_phone_number = phoneBtn.phone_number || phoneBtn.phoneNumber || phoneBtn.value || '';
+            }
             if (quickReplies.length > 0) {
+                wa20Payload.quick_reply_btn_text1 = quickReplies[0]?.text || '';
+                if (quickReplies[1]) wa20Payload.quick_reply_btn_text2 = quickReplies[1].text || '';
+                if (quickReplies[2]) wa20Payload.quick_reply_btn_text3 = quickReplies[2].text || '';
                 wa20Payload.quick_reply_buttons = quickReplies;
                 wa20Payload.quick_replies = JSON.stringify(quickReplies);
             }
