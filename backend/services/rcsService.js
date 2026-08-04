@@ -272,21 +272,20 @@ const sendRcsMessage = async (mobile, message, config) => {
  */
 const submitRcsTemplate = async (config, templateData, files = [], existingName = null) => {
   try {
-    const token = await getDotgoAdminToken();
-    if (!token) return { success: false, error: "Platform Admin Authentication failed" };
-
-    const botId = config.bot_id;
     const provider = config.provider || 'dotgo';
-    
-    let baseUrl;
-    let authHeaderToken = token;
+    let token, baseUrl;
 
     if (provider === 'vi') {
+      token = await getRcsToken(config);
       baseUrl = 'https://virbm.in/directory/secure/api/v1/bots';
-      // For Vi, we use the client's own token for management
     } else {
+      token = await getDotgoAdminToken();
       baseUrl = process.env.DOTGO_ADMIN_TEMPLATE_URL || `https://developer-api.dotgo.com/directory/secure/api/v1/bots`;
     }
+
+    if (!token) return { success: false, error: `${provider === 'vi' ? 'Vi' : 'Dotgo Admin'} Authentication failed` };
+
+    const botId = config.bot_id;
 
     // Pattern: {serverRoot}/directory/secure/api/v1/bots/{botId}/templates[/{name}]
     let url = `${baseUrl}/${botId}/templates`;
@@ -531,19 +530,29 @@ const deleteRcsTemplate = async (config, templateName) => {
 
     const botId = config.bot_id;
 
-    // Pattern: {serverRoot}/directory/secure/api/v1/bots/{botId}/deleteTemplate/{base64_name}
-    const base64Name = base64UrlEncode(templateName);
-    const url = `${baseUrl}/${botId}/deleteTemplate/${base64Name}`;
-
-    console.log(`🗑️ Deleting ${provider} Template for Bot: ${botId}, Template: ${templateName} (B64: ${base64Name})`);
-
-    const response = await axios.post(url, {}, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      timeout: 15000
-    });
-
     // Clear cache so the next list fetch is fresh
     templateCache.delete(botId);
+
+    const base64Name = base64UrlEncode(templateName);
+    let response;
+
+    if (provider === 'vi') {
+      const url = `${baseUrl}/${botId}/templates/${base64Name}`;
+      console.log(`🗑️ Deleting ${provider} Template for Bot: ${botId}, Template: ${templateName} (B64: ${base64Name})`);
+      response = await axios.delete(url, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        timeout: 15000
+      });
+    } else {
+      // Pattern: {serverRoot}/directory/secure/api/v1/bots/{botId}/deleteTemplate/{base64_name}
+      const url = `${baseUrl}/${botId}/deleteTemplate/${base64Name}`;
+      console.log(`🗑️ Deleting ${provider} Template for Bot: ${botId}, Template: ${templateName} (B64: ${base64Name})`);
+      response = await axios.post(url, {}, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        timeout: 15000
+      });
+    }
+
 
     return { success: true, data: response.data };
   } catch (error) {

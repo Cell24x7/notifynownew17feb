@@ -22,7 +22,8 @@ router.get('/', authenticate, async (req, res) => {
  */
 router.get('/templates/external', authenticate, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const isAdminRole = req.user.role === 'superadmin' || req.user.role === 'admin';
+    const userId = isAdminRole && req.query.custId ? req.query.custId : req.user.id;
 
     // Fetch user's assigned RCS config to get the full credentials
     const [configs] = await query(`
