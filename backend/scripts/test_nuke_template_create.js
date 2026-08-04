@@ -16,18 +16,23 @@ async function testNukeCreate() {
     try {
         console.log('🔍 Searching for userindp or indian princess config in database...');
         
-        // 1. Find user or WA config
+        // 1. Find user or WA config specifically for indian princess / userindp
         const [users] = await query(
-            "SELECT u.id, u.email, u.name, u.whatsapp_config_id, wc.* FROM users u JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id WHERE u.email LIKE '%indp%' OR u.name LIKE '%indp%' OR u.email LIKE '%indian%' OR wc.chatbot_name LIKE '%indian%' OR wc.customer_id IS NOT NULL LIMIT 1"
+            "SELECT u.id, u.email, u.name, u.whatsapp_config_id, wc.* FROM users u JOIN whatsapp_configs wc ON u.whatsapp_config_id = wc.id WHERE u.email LIKE '%indp%' OR u.name LIKE '%indp%' OR u.email LIKE '%indian%' OR wc.chatbot_name LIKE '%indian%' OR wc.chatbot_name LIKE '%princess%' ORDER BY CASE WHEN u.email LIKE '%indp%' OR u.name LIKE '%indp%' THEN 1 ELSE 2 END LIMIT 5"
         );
 
         if (!users || users.length === 0) {
-            console.error('❌ User or WA20 config not found in DB!');
+            console.error('❌ User or WA20 config not found in DB! Searching all whatsapp_configs...');
+            const [allConfigs] = await query("SELECT id, chatbot_name, customer_id, wa_token FROM whatsapp_configs");
+            console.log('Available Configs:', JSON.stringify(allConfigs, null, 2));
             process.exit(1);
         }
 
+        console.log(`📋 Found ${users.length} matching accounts:`);
+        users.forEach((u, i) => console.log(`  [${i+1}] User: ${u.email} | Name: ${u.name} | Chatbot: ${u.chatbot_name} | Customer ID: ${u.customer_id}`));
+
         const config = users[0];
-        console.log(`✅ Found User: [${config.email}] | Chatbot: [${config.chatbot_name}] | Customer ID: [${config.customer_id}]`);
+        console.log(`\n✅ Using Target Account: [${config.email}] | Chatbot: [${config.chatbot_name}] | Customer ID: [${config.customer_id}]`);
 
         // 2. Prepare Template Payload for Nuke API
         const templateName = `indianprincess_test_btn_${Date.now().toString().slice(-4)}`;
