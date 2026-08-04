@@ -77,11 +77,13 @@ async function testNukeCreate() {
         });
         console.log('📥 Nuke API Response:', JSON.stringify(res.data, null, 2));
 
-        console.log('\n🔍 Fetching ALL templates of userindp from Nuke API to find any existing button templates...');
         const listUrl = `https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`;
         const listRes = await axios.get(listUrl, { headers: { 'Authorization': `Bearer ${config.wa_token}` } });
         const list = listRes.data.data || listRes.data || [];
-        console.log(`\nTotal templates returned from Nuke: ${list.length}`);
+        const newlyCreated = list.find(t => t.id === res.data.template_id || t.template_name === testName);
+
+        console.log(`\n🎉 NEWLY CREATED TEMPLATE [${testName}] FROM NUKE DB:`);
+        console.log(JSON.stringify(newlyCreated || list[list.length - 1], null, 2));
 
         const withButtons = list.filter(t => 
             t.button_type_set || 
