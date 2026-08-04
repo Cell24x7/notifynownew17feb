@@ -313,12 +313,15 @@ router.post('/templates', authenticate, async (req, res) => {
                 if (typeUC === 'BUTTONS' && comp.buttons) {
                     comp.buttons.forEach(b => {
                         const btnType = (b.type || '').toUpperCase();
+                        const btnText = b.text || b.label || b.displayText || '';
                         if (btnType === 'QUICK_REPLY') {
-                            buttons.push({ type: "QUICK_REPLY", text: b.text });
+                            buttons.push({ type: "QUICK_REPLY", text: btnText, displayText: btnText, label: btnText });
                         } else if (btnType === 'URL') {
-                            buttons.push({ type: "URL", text: b.text, url: b.url || b.value || '' });
+                            const btnUrl = b.url || b.value || b.uri || '';
+                            buttons.push({ type: "URL", text: btnText, displayText: btnText, label: btnText, url: btnUrl, value: btnUrl });
                         } else if (btnType === 'PHONE_NUMBER') {
-                            buttons.push({ type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number || b.value || '' });
+                            const btnPhone = b.phone_number || b.phoneNumber || b.value || '';
+                            buttons.push({ type: "PHONE_NUMBER", text: btnText, displayText: btnText, label: btnText, phone_number: btnPhone, phoneNumber: btnPhone, value: btnPhone });
                         }
                     });
                 }
@@ -342,18 +345,25 @@ router.post('/templates', authenticate, async (req, res) => {
             
             if (quickReplies.length > 0) {
                 wa20Payload.quick_reply_buttons = quickReplies;
+                wa20Payload.quick_replies = JSON.stringify(quickReplies);
             }
             if (ctaButtons.length > 0) {
                 wa20Payload.call_to_action_buttons = ctaButtons;
+                wa20Payload.call_to_action = JSON.stringify(ctaButtons);
             }
             if (buttons.length > 0) {
                 wa20Payload.buttons = buttons;
+                wa20Payload.actions = JSON.stringify(buttons);
             }
+
+            console.log('📤 Sending WA20 createTemplates payload:', JSON.stringify(wa20Payload));
 
             const createUrl = `https://wa20.nuke.co.in/webhook/api/createTemplates.php?username=${config.customer_id}`;
             const response = await axios.post(createUrl, wa20Payload, {
                 headers: getHeaders(config)
             });
+
+            console.log('📥 WA20 createTemplates response:', JSON.stringify(response.data));
 
             return res.json({
                 success: true,
