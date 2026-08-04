@@ -112,13 +112,10 @@ async function testNukeCreate() {
         );
 
         console.log(`\n🎯 Found ${withButtons.length} templates with buttons/interactivity in Nuke DB!`);
-        if (withButtons.length > 0) {
-            console.log('\n📄 Sample Template with Buttons from Nuke:');
-            console.log(JSON.stringify(withButtons[0], null, 2));
-        } else {
-            console.log('\n📋 Sample Template structure (first template):');
-            console.log(JSON.stringify(list[0], null, 2));
-        }
+        withButtons.forEach((tb, idx) => {
+            console.log(`\n📄 Button Template #${idx+1} [${tb.template_name}] (ID: ${tb.id}):`);
+            console.log(JSON.stringify(tb, null, 2));
+        });
 
     } catch (error) {
         console.error('❌ Error testing Nuke create:', error.response ? error.response.data : error.message);
