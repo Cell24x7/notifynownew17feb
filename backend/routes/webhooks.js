@@ -304,9 +304,9 @@ router.get('/dotgo', async (req, res) => {
     }
 });
 
-// POST /api/webhooks/dotgo
-// Dotgo specific webhook handler (decodes base64 data)
-router.post('/dotgo', async (req, res) => {
+// POST /api/webhooks/dotgo OR /api/webhooks/vi
+// Dotgo / VI specific webhook handler (decodes base64 data)
+router.post(['/dotgo', '/vi'], async (req, res) => {
     try {
         const payload = req.body;
         console.log('📦 Dotgo Webhook Raw:', JSON.stringify(payload, null, 2));
