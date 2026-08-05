@@ -34,3 +34,19 @@ backend/scripts/fix_*.js
 backend/scripts/inspect_*.js
 backend/scripts/seed_*.js
 backend/scripts/setup_*.js
+
+# Ignored one-off scripts and PDFs
+Agent_onboarding_api.pdf
+RCS_Template_Management_API.pdf
+ViRBM_RCS_APIs.pdf
+backend/get_gateway.js
+backend/scratch_test_vi_list.js
+backend/scratch_test_vi_single.js
+backend/scratch_test_wa.js
+check_db_test.js
+list_ui.js
+modify_reports.js
+modify_reports_main.js
+patch.js
+splice.js
+ui_patch.js
