@@ -477,12 +477,14 @@ const sendUniversalMessage = async (item) => {
             }
 
             // 🔗 FINAL UNIVERSAL LINK TRACKING: Wrap URLs in waParams after all resolutions
-            for (let i = 0; i < waParams.length; i++) {
-                const val = String(waParams[i] || '').trim();
-                if (val.toLowerCase().startsWith('http') && val.match(/https?:\/\/[^\s]+/i)) {
-                    // Inject Tracking Link Engine
-                    waParams[i] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, val, null);
-                    console.log(`[MASTER-TRACK] Replaced: ${val} -> ${waParams[i]} (Mobile: ${item.mobile})`);
+            if (item.short_link_enabled) {
+                for (let i = 0; i < waParams.length; i++) {
+                    const val = String(waParams[i] || '').trim();
+                    if (val.toLowerCase().startsWith('http') && val.match(/https?:\/\/[^\s]+/i)) {
+                        // Inject Tracking Link Engine
+                        waParams[i] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, val, null);
+                        console.log(`[MASTER-TRACK] Replaced: ${val} -> ${waParams[i]} (Mobile: ${item.mobile})`);
+                    }
                 }
             }
             
@@ -521,8 +523,10 @@ const sendUniversalMessage = async (item) => {
                         let btnVars = getOrderedVariables(btn.url || '', resolvedVars);
                         if (btnVars.length > 0) {
                             // Force tracking for button variables (since they are URL components)
-                            for (let j = 0; j < btnVars.length; j++) {
-                                btnVars[j] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, btnVars[j]);
+                            if (item.short_link_enabled) {
+                                for (let j = 0; j < btnVars.length; j++) {
+                                    btnVars[j] = await createTrackingLink(item.user_id, item.campaign_id, item.mobile, btnVars[j]);
+                                }
                             }
 
                             payloadComponents.push({
