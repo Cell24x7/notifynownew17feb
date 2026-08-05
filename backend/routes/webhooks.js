@@ -304,6 +304,12 @@ router.get('/dotgo', async (req, res) => {
     }
 });
 
+// GET /api/webhooks/vi
+// Simple check for browser viewing
+router.get('/vi', (req, res) => {
+    res.status(200).json({ success: true, message: 'Heartbeat acknowledged' });
+});
+
 // POST /api/webhooks/dotgo OR /api/webhooks/vi
 // Dotgo / VI specific webhook handler (decodes base64 data)
 router.post(['/dotgo', '/vi'], async (req, res) => {
