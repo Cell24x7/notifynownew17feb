@@ -92,6 +92,7 @@ let cachedReportsList: Report[] | null = null;
 let cachedDetailedLogs: WebhookLog[] | null = null;
 let cachedApiLogs: WebhookLog[] | null = null;
 let cachedEngagementReports: EngagementReport[] | null = null;
+let cachedApiSummaryStats: any[] | null = null;
 let cachedSummaryStats: any = null;
 let cachedSummaryTotal = 0;
 let cachedDetailedTotal = 0;
@@ -110,6 +111,7 @@ export default function Reports() {
         cachedDetailedLogs = null;
         cachedApiLogs = null;
         cachedEngagementReports = null;
+        cachedApiSummaryStats = null;
         cachedSummaryStats = null;
         cachedSummaryTotal = 0;
         cachedDetailedTotal = 0;
@@ -154,6 +156,8 @@ export default function Reports() {
     const [engagementPage, setEngagementPage] = useState(1);
     const [engagementTotal, setEngagementTotal] = useState(cachedEngagementTotal);
     const [loadingEngagement, setLoadingEngagement] = useState(!cachedEngagementReports);
+    const [apiSummaryLogs, setApiSummaryLogs] = useState<any[]>(cachedApiSummaryStats || []);
+    const [loadingApiSummary, setLoadingApiSummary] = useState(!cachedApiSummaryStats);
     const [summaryStats, setSummaryStats] = useState<any>(cachedSummaryStats);
     
     // Read from URL
@@ -215,10 +219,12 @@ export default function Reports() {
             fetchWebhookLogs(detailedPage, 'detailed');
         } else if (activeTab === 'api') {
             fetchWebhookLogs(apiPage, 'api');
+        } else if (activeTab === 'api-summary') {
+            fetchApiSummary();
         } else if (activeTab === 'engagement') {
             fetchEngagementReports(engagementPage);
         }
-    }, [detailedPage, apiPage, engagementPage, targetUserId]);
+    }, [detailedPage, apiPage, engagementPage, targetUserId, startDate, endDate, channelFilter]);
 
     const fetchReports = async (page: number = 1, fetchForTab: string = activeTab, silent: boolean = false) => {
         if (!cachedReportsList && !silent) setLoading(true);
@@ -352,6 +358,28 @@ export default function Reports() {
             }
         } catch (error) {
             console.error('Error fetching summary stats:', error);
+        }
+    };
+
+    const fetchApiSummary = async (silent: boolean = false) => {
+        if (!cachedApiSummaryStats && !silent) setLoadingApiSummary(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            let url = `${API_BASE_URL}/api/reports/api-summary?`;
+            if (startDate) url += `from=${startDate.toISOString().split('T')[0]}&`;
+            if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
+            if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
+
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (data.success) {
+                setApiSummaryLogs(data.summary || []);
+                cachedApiSummaryStats = data.summary || [];
+            }
+        } catch (error) {
+            console.error('Failed to fetch API summary', error);
+        } finally {
+            setLoadingApiSummary(false);
         }
     };
 
@@ -729,6 +757,9 @@ export default function Reports() {
                     <TabsTrigger value="detailed" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Detailed Reports</TabsTrigger>
                     <TabsTrigger value="engagement" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Click Reports</TabsTrigger>
                     <TabsTrigger value="api" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">API Logs</TabsTrigger>
+                    {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                        <TabsTrigger value="api-summary" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">API Summary</TabsTrigger>
+                    )}
                     <TabsTrigger value="voice" className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Voice Logs</TabsTrigger>
                 </TabsList>
 
@@ -865,6 +896,63 @@ export default function Reports() {
                     </Card>
                 </TabsContent>
 
+
+                <TabsContent value="api-summary" className="flex-1 flex flex-col space-y-4 pt-4 overflow-visible">
+                    <Card className="flex-1 border border-border shadow-md rounded-xl bg-card overflow-visible">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <div className="space-y-1">
+                                <CardTitle className="text-xl font-bold">API Gateway Summary</CardTitle>
+                                <CardDescription>Aggregated API usage by user and assigned gateways</CardDescription>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0 overflow-visible">
+                            <Table>
+                                <TableHeader className="bg-muted/50 border-b border-border">
+                                    <TableRow className="h-10 hover:bg-transparent">
+                                        <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">User</TableHead>
+                                        <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Company</TableHead>
+                                        <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Channel</TableHead>
+                                        <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Gateway</TableHead>
+                                        <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Sent</TableHead>
+                                        <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Delivered</TableHead>
+                                        <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Failed</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loadingApiSummary ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Loading...</TableCell>
+                                        </TableRow>
+                                    ) : apiSummaryLogs.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">No API summary data found</TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        apiSummaryLogs.map((log, i) => (
+                                            <TableRow key={i} className="hover:bg-slate-50 transition-colors cursor-pointer group h-12">
+                                                <TableCell className="font-medium">{log.username}</TableCell>
+                                                <TableCell className="text-muted-foreground">{log.company || '-'}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="uppercase text-[10px] font-bold tracking-wide">
+                                                        {log.channel}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-none rounded-full px-3 shadow-none truncate max-w-[150px]">
+                                                        {log.gateway_name}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right font-medium text-blue-600">{log.total_sent?.toLocaleString() || 0}</TableCell>
+                                                <TableCell className="text-right font-medium text-emerald-600">{log.total_delivered?.toLocaleString() || 0}</TableCell>
+                                                <TableCell className="text-right font-medium text-rose-600">{log.total_failed?.toLocaleString() || 0}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
                 {(activeTab === 'detailed' || activeTab === 'api') && (
                     <TabsContent value={activeTab} className="flex-1 mt-4 overflow-visible">

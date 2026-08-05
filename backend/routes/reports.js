@@ -289,6 +289,97 @@ router.get('/today-summary', authenticate, async (req, res) => {
     }
 });
 
+// GET /api/reports/api-summary
+// Summary for API usage grouped by user, channel and resolving their active gateway
+router.get('/api-summary', authenticate, async (req, res) => {
+    try {
+        if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+        
+        const { from, to, userId } = req.query;
+        let conditions = [];
+        let params = [];
+
+        if (from) {
+            conditions.push("c.created_at >= ?");
+            params.push(from + ' 00:00:00');
+        }
+        if (to) {
+            conditions.push("c.created_at <= ?");
+            params.push(to + ' 23:59:59');
+        }
+        if (userId && userId !== 'all') {
+            conditions.push("c.user_id = ?");
+            params.push(userId);
+        }
+
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+        // Query to get aggregated data
+        const [rows] = await query(`
+            SELECT 
+                u.id as user_id,
+                u.email as username,
+                u.company,
+                c.channel,
+                COALESCE(SUM(c.sent_count), 0) as total_sent,
+                COALESCE(SUM(c.delivered_count), 0) as total_delivered,
+                COALESCE(SUM(c.failed_count), 0) as total_failed,
+                u.sms_gateway_id,
+                u.whatsapp_gateway_id
+            FROM api_campaigns c
+            JOIN users u ON c.user_id = u.id
+            ${whereClause}
+            GROUP BY u.id, c.channel, u.sms_gateway_id, u.whatsapp_gateway_id
+            ORDER BY total_sent DESC
+        `, params);
+
+        // Fetch gateways to map them
+        const [smsGateways] = await query('SELECT id, name FROM sms_gateways');
+        
+        // Wrap in try-catch in case whatsapp_proero_channels doesn't exist or similar
+        let whatsappGateways = [];
+        try {
+             const [waRes] = await query('SELECT id, name FROM whatsapp_proero_channels');
+             whatsappGateways = waRes;
+        } catch(e) {}
+
+        const smsGatewayMap = {};
+        smsGateways.forEach(g => smsGatewayMap[g.id] = g.name);
+        const waGatewayMap = {};
+        whatsappGateways.forEach(g => waGatewayMap[g.id] = g.name);
+
+        const summary = rows.map(row => {
+            let gatewayName = 'Default / Unknown';
+            const channelLower = (row.channel || '').toLowerCase();
+            if (channelLower === 'sms') {
+                gatewayName = smsGatewayMap[row.sms_gateway_id] || 'System Default SMS';
+            } else if (channelLower === 'whatsapp' || channelLower === 'wa-unofficial' || channelLower === 'wa_unofficial') {
+                gatewayName = waGatewayMap[row.whatsapp_gateway_id] || 'System Default WA';
+            } else if (channelLower === 'rcs') {
+                gatewayName = 'RCS Gateway'; // or fetch if they have rcs_gateway_id
+            }
+
+            return {
+                user_id: row.user_id,
+                username: row.username,
+                company: row.company,
+                channel: row.channel,
+                total_sent: Number(row.total_sent),
+                total_delivered: Number(row.total_delivered),
+                total_failed: Number(row.total_failed),
+                gateway_name: gatewayName
+            };
+        });
+
+        res.json({ success: true, summary });
+    } catch (error) {
+        console.error('API summary error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch API summary' });
+    }
+});
+
 // GET /api/reports/detail
 router.get('/detail', authenticate, async (req, res) => {
     try {
