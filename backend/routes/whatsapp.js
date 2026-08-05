@@ -1483,6 +1483,19 @@ router.post('/api/send-single', async (req, res) => {
         const config = await getWhatsAppConfig(user.id);
         if (!config) return res.status(400).json({ success: false, message: 'WhatsApp not configured for this user' });
 
+        // Fetch template details to get metadata, body, and language
+        const [templates] = await query('SELECT body, metadata, language FROM message_templates WHERE name = ? AND user_id = ? AND channel = "whatsapp" LIMIT 1', [templateName, user.id]);
+        
+        let template_metadata = null;
+        let template_body = '';
+        let language = 'en_US';
+        
+        if (templates.length > 0) {
+            template_metadata = templates[0].metadata;
+            template_body = templates[0].body;
+            language = templates[0].language;
+        }
+
         // Build payload for Universal Sender
         const sendItem = {
             user_id: user.id,
@@ -1490,6 +1503,9 @@ router.post('/api/send-single', async (req, res) => {
             mobile: to,
             template_name: templateName,
             template_id: templateName,
+            template_metadata: template_metadata,
+            template_body: template_body,
+            language: language,
             variables: variables,
             is_failover_enabled: failover_enabled ? 1 : 0,
             failover_sms_template: failover_sms_template_id || null,
