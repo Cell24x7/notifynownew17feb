@@ -142,7 +142,7 @@ const campaignWorker = new Worker(queueName, async (job) => {
         const chan = (item.channel || 'rcs').toLowerCase();
         const tName = item.template_name || 'N/A';
         const cName = item.campaign_name || 'N/A';
-        const msgContent = item.template_body || item.campaign_name || 'Template Message';
+        const msgContent = item.template_body || 'Template Message';
 
         // 1. Process Message
         // Ensure variables are parsed if they come from SQL as JSON string

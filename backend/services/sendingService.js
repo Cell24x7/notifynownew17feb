@@ -227,8 +227,8 @@ const sendUniversalMessage = async (item) => {
     }
 
     try {
+        let processedMessage = '';
         if (channelParsed === 'rcs') {
-            let processedMessage = '';
             
             // 1. Determine which RCS Config to use (Strict Routing)
             let rcsConfig = null;
@@ -509,6 +509,8 @@ const sendUniversalMessage = async (item) => {
                     }
                 });
                 processedMessage = bodyText;
+            } else {
+                processedMessage = bodyComp?.text || item.template_body || '';
             }
 
             // ── BUTTON COMPONENTS ──────────────────────────────────────
