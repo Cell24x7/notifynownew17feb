@@ -1262,34 +1262,88 @@ router.post('/send-campaign', authenticate, async (req, res) => {
 });
 
 /**
+ * Universal Developer Authentication Helper for WhatsApp API
+ * Supports Header (x-api-key, apikey, Authorization: Bearer <key>),
+ * JSON Body (apiKey, api_key, apiKey + apiSecret), and (username + password)
+ */
+const authenticateWhatsAppApiUser = async (req) => {
+    const bcrypt = require('bcryptjs');
+    const params = { ...req.query, ...req.body };
+    const { username, user: userParam, password, pwd, apiKey, api_key, apiSecret, api_secret, secret } = params;
+
+    let headerKey = req.headers['x-api-key'] || req.headers['apikey'];
+    const authHeader = req.headers['authorization'];
+    if (!headerKey && authHeader && authHeader.startsWith('Bearer ')) {
+        headerKey = authHeader.substring(7).trim();
+    }
+
+    const effectiveApiKey = headerKey || apiKey || api_key || (username && (username.startsWith('nn_') || username.length > 20) ? username : null);
+    const effectivePassword = password || pwd || apiSecret || api_secret || secret;
+    const effectiveUsername = username || userParam;
+
+    let userRecord = null;
+
+    // 1. Authenticate by API Key
+    if (effectiveApiKey) {
+        const [users] = await query('SELECT * FROM users WHERE api_key = ?', [effectiveApiKey]);
+        if (users.length > 0) {
+            userRecord = users[0];
+            // If password/secret is also supplied, verify it against api_password (or regular password)
+            if (effectivePassword) {
+                let secretMatches = false;
+                if (userRecord.api_password) {
+                    secretMatches = await bcrypt.compare(effectivePassword, userRecord.api_password);
+                }
+                if (!secretMatches && userRecord.password) {
+                    secretMatches = await bcrypt.compare(effectivePassword, userRecord.password);
+                }
+                if (!secretMatches) {
+                    return { error: 'Invalid API Secret / Password for provided API Key', statusCode: 401 };
+                }
+            }
+            return { user: userRecord };
+        }
+    }
+
+    // 2. Authenticate by Username & Password / API Password
+    if (effectiveUsername && effectivePassword) {
+        const [users] = await query('SELECT * FROM users WHERE email = ? OR contact_phone = ? OR api_key = ?', [effectiveUsername, effectiveUsername, effectiveUsername]);
+        if (users.length > 0) {
+            const candidate = users[0];
+            let isMatch = false;
+            if (candidate.api_password) {
+                isMatch = await bcrypt.compare(effectivePassword, candidate.api_password);
+            }
+            if (!isMatch && candidate.password) {
+                isMatch = await bcrypt.compare(effectivePassword, candidate.password);
+            }
+            if (isMatch) {
+                return { user: candidate };
+            }
+        }
+    }
+
+    return { error: 'Invalid API credentials. Provide x-api-key header/apiKey OR valid username and password/apiSecret.', statusCode: 401 };
+};
+
+/**
  * POST /api/whatsapp/api/send-bulk
  * Dynamic Bulk API: Best for large campaigns with variables/media
  */
 router.post('/api/send-bulk', async (req, res) => {
     try {
-        const { username, password, numbers, campaignName, templateName, mediaUrl, variables } = req.body;
+        const { numbers, campaignName, templateName, mediaUrl, variables } = req.body;
 
-        if (!username || !password || !templateName || !numbers) {
-            return res.status(400).json({ success: false, message: 'Missing required fields: username, password, templateName, numbers' });
+        if (!templateName || !numbers) {
+            return res.status(400).json({ success: false, message: 'Missing required fields: templateName, numbers' });
         }
 
-        // Auth
-        const bcrypt = require('bcryptjs');
-        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
-        
-        if (!users.length) {
-            return res.status(401).json({ success: false, message: 'Invalid API credentials: User not found' });
-        }
-        
-        if (!users[0].api_password) {
-            return res.status(401).json({ success: false, message: 'Invalid API credentials: API Password not set in profile' });
+        const auth = await authenticateWhatsAppApiUser(req);
+        if (auth.error) {
+            return res.status(auth.statusCode || 401).json({ success: false, message: auth.error });
         }
 
-        if (!(await bcrypt.compare(password, users[0].api_password))) {
-            return res.status(401).json({ success: false, message: 'Invalid API credentials: Password mismatch' });
-        }
-
-        const user = users[0];
+        const user = auth.user;
         const userId = user.id;
 
         // Fetch Template
@@ -1362,22 +1416,19 @@ router.post('/api/send-bulk', async (req, res) => {
  */
 router.post('/api/campaign-status', async (req, res) => {
     try {
-        const { username, password, campaignId, detail } = req.body;
+        const { campaignId, detail } = req.body;
 
-        if (!username || !password || !campaignId) {
-            return res.status(400).json({ success: false, message: 'Required: username, password, campaignId' });
+        if (!campaignId) {
+            return res.status(400).json({ success: false, message: 'Required: campaignId' });
         }
 
-        // Auth
-        const bcrypt = require('bcryptjs');
-        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
-        if (!users.length || !users[0].api_password) {
-            return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        const auth = await authenticateWhatsAppApiUser(req);
+        if (auth.error) {
+            return res.status(auth.statusCode || 401).json({ success: false, message: auth.error });
         }
-        if (!(await bcrypt.compare(password, users[0].api_password))) {
-            return res.status(401).json({ success: false, message: 'Invalid API credentials' });
-        }
-        const userId = users[0].id;
+
+        const user = auth.user;
+        const userId = user.id;
 
         // Find campaign in api_campaigns (or campaigns for manual)
         let campaign = null;
@@ -1467,19 +1518,18 @@ router.post('/api/campaign-status', async (req, res) => {
  */
 router.post('/api/send-single', async (req, res) => {
     try {
-        const { username, password, to, templateName, variables, mediaUrl, failover_enabled, failover_sms_template_id, failover_variables } = req.body;
+        const { to, templateName, variables, mediaUrl, failover_enabled, failover_sms_template_id, failover_variables } = req.body;
 
-        if (!username || !password || !templateName || !to) {
-            return res.status(400).json({ success: false, message: 'Missing required fields: username, password, templateName, to' });
+        if (!templateName || !to) {
+            return res.status(400).json({ success: false, message: 'Missing required fields: templateName, to' });
         }
 
-        // Auth
-        const bcrypt = require('bcryptjs');
-        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
-        if (!users.length || !users[0].api_password) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
-        if (!(await bcrypt.compare(password, users[0].api_password))) return res.status(401).json({ success: false, message: 'Invalid API credentials' });
+        const auth = await authenticateWhatsAppApiUser(req);
+        if (auth.error) {
+            return res.status(auth.statusCode || 401).json({ success: false, message: auth.error });
+        }
 
-        const user = users[0];
+        const user = auth.user;
         const config = await getWhatsAppConfig(user.id);
         if (!config) return res.status(400).json({ success: false, message: 'WhatsApp not configured for this user' });
 
@@ -1542,19 +1592,15 @@ router.post('/api/send-single', async (req, res) => {
  */
 router.get('/api/status/:id', async (req, res) => {
     try {
-        const { username, password } = req.query;
         const id = req.params.id;
 
-        if (!username || !password) return res.status(401).json({ success: false, message: 'Auth required' });
-
-        // Simple Auth
-        const bcrypt = require('bcryptjs');
-        const [users] = await query('SELECT * FROM users WHERE email = ?', [username]);
-        if (!users.length || !(await bcrypt.compare(password, users[0].api_password))) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        const auth = await authenticateWhatsAppApiUser(req);
+        if (auth.error) {
+            return res.status(auth.statusCode || 401).json({ success: false, message: auth.error });
         }
 
-        const userId = users[0].id;
+        const user = auth.user;
+        const userId = user.id;
 
         // 1. Check if it's a Campaign (Manual or API)
         if (id.startsWith('CAMP_')) {

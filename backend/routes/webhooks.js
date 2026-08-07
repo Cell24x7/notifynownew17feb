@@ -311,49 +311,79 @@ router.get('/vi', (req, res) => {
 });
 
 // POST /api/webhooks/dotgo OR /api/webhooks/vi
-// Dotgo / VI specific webhook handler (decodes base64 data)
+// Dotgo / VI specific webhook handler (decodes base64 data OR direct JSON DLRs)
 router.post(['/dotgo', '/vi'], async (req, res) => {
     try {
-        const payload = req.body;
-        console.log('📦 Dotgo Webhook Raw:', JSON.stringify(payload, null, 2));
-
-        if (!payload.message || !payload.message.data) {
-            console.log('ℹ️ Dotgo Heartbeat or empty payload received. Returning 200.');
-            return res.status(200).json({ success: true, message: 'Heartbeat acknowledged' });
-        }
+        const payload = req.body || {};
+        console.log('📦 Dotgo/VI Webhook Raw:', JSON.stringify(payload, null, 2));
 
         // Respond immediately to the gateway
-        res.status(200).json({ success: true, message: 'Dotgo webhook received' });
+        res.status(200).json({ success: true, message: 'Dotgo/VI webhook received' });
 
         const io = req.io; // Capture local reference to req.io
 
         setImmediate(() => { webhookDbLimiter(async () => {
             try {
-                // 1. Decode Base64 data
+                // 1. Extract / Decode payload data (Supports both Base64 PubSub wrapper and Direct JSON format)
                 let decodedData = {};
-                try {
-                    const base64Data = payload.message.data;
-                    const decodedString = Buffer.from(base64Data, 'base64').toString('utf-8');
-                    decodedData = JSON.parse(decodedString);
-                    console.log('🔓 Decoded Dotgo Data:', JSON.stringify(decodedData, null, 2));
-                } catch (e) {
-                    console.warn('⚠️ Failed to decode Dotgo message.data:', e.message);
+                if (payload.message && payload.message.data) {
+                    try {
+                        const base64Data = payload.message.data;
+                        const decodedString = Buffer.from(base64Data, 'base64').toString('utf-8');
+                        decodedData = JSON.parse(decodedString);
+                        console.log('🔓 Decoded Dotgo/VI Data:', JSON.stringify(decodedData, null, 2));
+                    } catch (e) {
+                        console.warn('⚠️ Failed to decode Dotgo/VI message.data:', e.message);
+                        decodedData = payload;
+                    }
+                } else if (typeof payload === 'object' && payload !== null && Object.keys(payload).length > 0) {
+                    decodedData = payload;
+                } else {
+                    console.log('ℹ️ Dotgo/VI Heartbeat or empty payload received.');
+                    return;
                 }
 
-                // Robust messageId extraction for Dotgo (check name field if messageId missing)
-                const messageId = decodedData.messageId || decodedData.messageID || payload.message?.messageId || (payload.message?.name ? payload.message.name.split('/').pop() : null);
-                const eventType = decodedData.eventType || payload.message?.attributes?.event_type;
+                // Robust messageId extraction for Dotgo / VI (check all possible locations)
+                const messageId = 
+                    decodedData.messageId || 
+                    decodedData.messageID || 
+                    decodedData.msgId || 
+                    decodedData.id || 
+                    payload.messageId || 
+                    payload.messageID || 
+                    payload.msgId || 
+                    payload.id || 
+                    payload.message?.messageId || 
+                    (payload.message?.name ? payload.message.name.split('/').pop() : null);
+
+                const eventType = 
+                    decodedData.eventType || 
+                    decodedData.status || 
+                    decodedData.event || 
+                    decodedData.deliveryStatus || 
+                    decodedData.state || 
+                    payload.eventType || 
+                    payload.status || 
+                    payload.event || 
+                    payload.message?.attributes?.event_type;
                 
                 let finalStatus = 'unknown';
                 if (eventType) {
-                    const et = eventType.toLowerCase();
-                    if (et === 'message' || et === 'text' || et.includes('received')) finalStatus = 'received';
-                    else if (et === 'delivered') finalStatus = 'delivered';
-                    else if (et === 'displayed' || et === 'read') finalStatus = 'read';
-                    else if (et === 'failed') finalStatus = 'failed';
+                    const et = String(eventType).toLowerCase();
+                    if (et === 'message' || et === 'text' || et.includes('received') || et === 'user_message') finalStatus = 'received';
+                    else if (et === 'delivered' || et === 'deliv' || et === 'delivery_success') finalStatus = 'delivered';
+                    else if (et === 'displayed' || et === 'read' || et === 'seen') finalStatus = 'read';
+                    else if (et === 'failed' || et === 'undelivered' || et.includes('fail') || et === 'rejected') finalStatus = 'failed';
+                    else if (et === 'sent' || et === 'submitted') finalStatus = 'sent';
                     else finalStatus = et;
                 } else if (decodedData.text || decodedData.message || (decodedData.response && decodedData.response.text) || decodedData.suggestionResponse || (decodedData.response && decodedData.response.suggestionResponse)) {
                     finalStatus = 'received';
+                }
+
+                // Heartbeat check: if no messageId and status remains unknown, ignore gracefully
+                if (!messageId && finalStatus === 'unknown' && !decodedData.text) {
+                    console.log('ℹ️ Dotgo/VI Heartbeat ping acknowledged.');
+                    return;
                 }
 
                 const messageContent = 
@@ -365,15 +395,15 @@ router.post(['/dotgo', '/vi'], async (req, res) => {
                     null;
                 
                 // Identify participants
-                const rawSender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || null;
-                const rawRecipient = decodedData.destinationPhoneNumber || decodedData.recipient || null;
+                const rawSender = decodedData.senderPhoneNumber || decodedData.userPhoneNumber || decodedData.sender || payload.sender || null;
+                const rawRecipient = decodedData.destinationPhoneNumber || decodedData.recipient || decodedData.mobile || payload.recipient || null;
                 
-                const cleanSender = rawSender ? rawSender.replace(/\D/g, '') : null;
-                const cleanRecipient = rawRecipient ? rawRecipient.replace(/\D/g, '') : null;
+                const cleanSender = rawSender ? String(rawSender).replace(/\D/g, '') : null;
+                const cleanRecipient = rawRecipient ? String(rawRecipient).replace(/\D/g, '') : null;
 
                 // For incoming messages, the person we are talking to is the SENDER.
                 // For outgoing/DLRs, the person we are talking to is the RECIPIENT.
-                // IMPORTANT: In Dotgo DLR events (delivered/failed/read), destinationPhoneNumber is often missing.
+                // IMPORTANT: In Dotgo/VI DLR events (delivered/failed/read), destinationPhoneNumber is often missing.
                 // In that case, senderPhoneNumber IS actually the recipient (the person message was sent TO).
                 let contactPhone;
                 if (finalStatus === 'received') {
@@ -382,9 +412,9 @@ router.post(['/dotgo', '/vi'], async (req, res) => {
                     contactPhone = cleanRecipient || cleanSender; // Fallback to sender for DLR events
                 }
 
-                console.log(`📊 Dotgo Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
+                console.log(`📊 Dotgo/VI Status: ${finalStatus} (MsgID: ${messageId}) | Contact: ${contactPhone}`);
                 console.log(`🔍 LOG DEBUG: messageID=${messageId}, contact=${contactPhone}, finalStatus=${finalStatus}`);
-                if (messageContent) console.log(`💬 Dotgo Message Content: ${messageContent} from ${cleanSender}`);
+                if (messageContent) console.log(`💬 Dotgo/VI Message Content: ${messageContent} from ${cleanSender}`);
 
                 // userId needs to be available for both webhook_logs AND message_logs sections
                 let userId = null;
