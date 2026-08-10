@@ -401,23 +401,14 @@ router.post('/templates', authenticate, async (req, res) => {
                 wa20Payload.actions = JSON.stringify(buttons);
             }
 
-            console.log('📤 Sending WA20 createTemplates payload:', JSON.stringify(wa20Payload));
+            console.log('📤 Sending WA20 createTemplates JSON payload:', JSON.stringify(wa20Payload));
 
             const createUrl = `https://wa20.nuke.co.in/webhook/api/createTemplates.php?username=${config.customer_id}`;
-            
-            // Format as x-www-form-urlencoded for PHP $_POST compatibility
-            const formData = new URLSearchParams();
-            Object.keys(wa20Payload).forEach(key => {
-                const val = wa20Payload[key];
-                if (val !== undefined && val !== null) {
-                    formData.append(key, typeof val === 'object' ? JSON.stringify(val) : val);
-                }
-            });
 
-            const response = await axios.post(createUrl, formData.toString(), {
+            const response = await axios.post(createUrl, wa20Payload, {
                 headers: {
                     Authorization: `Bearer ${config.wa_token}`,
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/json'
                 }
             });
 
