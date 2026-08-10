@@ -1420,7 +1420,13 @@ router.post('/whatsapp/callback', async (req, res) => {
                 }
             }).catch(console.error); });
         } else {
-            res.sendStatus(404);
+            console.log('==============================================');
+            console.log('📨 RECEIVED WA20 / CUSTOM WHATSAPP WEBHOOK ON /whatsapp/callback');
+            console.log('Timestamp:', new Date().toISOString());
+            console.log('Payload:', JSON.stringify(payload, null, 2));
+            console.log('==============================================');
+            res.status(200).send('EVENT_RECEIVED');
+            setImmediate(() => { processWa20Payload(payload, req.io); });
         }
     } catch (error) {
         console.error('❌ WA Webhook Error:', error.message);
@@ -1969,6 +1975,22 @@ router.post('/wa-unofficial/poll/:campaignId', async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// GET /api/webhooks/wa20/callback
+// Verification & Status check endpoint for WA20 Webhook
+router.get('/wa20/callback', (req, res) => {
+    console.log('==============================================');
+    console.log('🔍 GET /api/webhooks/wa20/callback hit');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Query:', JSON.stringify(req.query));
+    console.log('==============================================');
+
+    const challenge = req.query["hub.challenge"] || req.query["challenge"];
+    if (challenge) {
+        return res.status(200).send(challenge);
+    }
+    return res.status(200).send("WA20 Webhook Active - NotifyNow Ready");
+});
+
 // POST /api/webhooks/wa20/callback
 // Standard endpoint for WA20 Delivery Reports & Incoming Messages
 router.post('/wa20/callback', async (req, res) => {
@@ -1976,68 +1998,190 @@ router.post('/wa20/callback', async (req, res) => {
         const payload = req.body;
         console.log('==============================================');
         console.log('📨 RECEIVED WA20 WEBHOOK');
+        console.log('Timestamp:', new Date().toISOString());
         console.log('Payload:', JSON.stringify(payload, null, 2));
+        console.log('==============================================');
         
-        // Return 200 immediately to acknowledge receipt
-        res.status(200).send('EVENT_RECEIVED');
-        
-        const { query } = require('../config/db');
-        let userId = null;
+        const customerId = (payload && !Array.isArray(payload)) 
+            ? (payload.username || payload.customer_id || payload.user || req.query.username || req.query.customer_id || 'userindp') 
+            : (req.query.username || req.query.customer_id || 'userindp');
 
-        // Find config by username (customer_id)
-        if (payload.username) {
-            const [configs] = await query('SELECT id FROM whatsapp_configs WHERE customer_id = ? LIMIT 1', [payload.username]);
-            if (configs.length > 0) {
-                const configId = configs[0].id;
-                // Find user by config
-                const [users] = await query('SELECT id FROM users WHERE whatsapp_config_id = ? LIMIT 1', [configId]);
-                if (users.length > 0) {
-                    userId = users[0].id;
+        // Return rich JSON 200 immediately to acknowledge receipt to WA2 provider
+        res.status(200).json({
+            status: 'EVENT_RECEIVED',
+            success: true,
+            message: 'WA20 Webhook payload received and processed successfully',
+            customer_id: customerId,
+            timestamp: new Date().toISOString(),
+            received_data: payload
+        });
+        
+        setImmediate(() => { processWa20Payload(payload, req.io, req.query); });
+    } catch (error) {
+        console.error('[WA20-WEBHOOK] Error handling webhook:', error.message);
+        if (!res.headersSent) {
+            res.status(200).json({ status: 'EVENT_RECEIVED', success: true, message: 'Event acknowledged' });
+        }
+    }
+});
+
+/**
+ * Helper to process WA20 / Nuke flat delivery status, message logs & template status
+ */
+async function processWa20Payload(payloadInput, io, reqQuery = {}) {
+    try {
+        if (!payloadInput) return;
+        
+        // Handle Array payloads if WA20 sends batch items
+        const payloads = Array.isArray(payloadInput) ? payloadInput : [payloadInput];
+        const { query } = require('../config/db');
+
+        for (let payload of payloads) {
+            if (typeof payload === 'string') {
+                try { payload = JSON.parse(payload); } catch(e) { continue; }
+            }
+            if (!payload || typeof payload !== 'object') continue;
+
+            let userId = null;
+
+            const username = payload.username || payload.customer_id || payload.user || payload.account || reqQuery.username || reqQuery.customer_id;
+            const mobile = String(payload.mobile || payload.to || payload.recipient || payload.phone || '').replace(/\D/g, '');
+            let statusRaw = String(payload.status || payload.event || payload.state || '').toLowerCase();
+            const messageId = payload.message_id || payload.id || payload.wamid || payload.msg_id;
+            const templateName = payload.template_name || payload.template;
+
+            // Map numeric & string statuses to standard status names
+            if (statusRaw === '1' || statusRaw === 'success' || statusRaw === 'sent_success') statusRaw = 'delivered';
+            else if (statusRaw === '2' || statusRaw === 'seen') statusRaw = 'read';
+            else if (statusRaw === '3' || statusRaw === 'undelivered' || statusRaw === 'error') statusRaw = 'failed';
+            else if (statusRaw === '0') statusRaw = 'pending';
+
+            // 1. Resolve User ID
+            if (username) {
+                const [configs] = await query('SELECT id FROM whatsapp_configs WHERE customer_id = ? LIMIT 1', [username]);
+                if (configs.length > 0) {
+                    const [users] = await query('SELECT id FROM users WHERE whatsapp_config_id = ? LIMIT 1', [configs[0].id]);
+                    if (users.length > 0) userId = users[0].id;
+                }
+            }
+
+            // 2. Save raw payload to webhook_logs (For Live Webhooks UI)
+            try {
+                await query(
+                    `INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type, channel) 
+                     VALUES (?, ?, ?, ?, ?, ?, 'whatsapp', 'wa20')`,
+                    [
+                        userId, 
+                        username || 'WA20_System', 
+                        mobile || 'N/A', 
+                        statusRaw || 'event', 
+                        JSON.stringify(payload),
+                        statusRaw === 'failed' ? 'failed' : 'received'
+                    ]
+                );
+                console.log(`✅ [WA20-LOG] Saved to webhook_logs for user ${userId || 'unknown'} (Username: ${username || 'N/A'})`);
+            } catch (logErr) {
+                console.error('❌ [WA20-LOG] Error saving to webhook_logs:', logErr.message);
+            }
+
+            // 3. Process Template Approval Status Update
+            if (templateName && (statusRaw === 'approved' || statusRaw === 'rejected' || statusRaw === 'failed' || statusRaw === 'pending')) {
+                console.log(`📊 [WA20 Template Update] Template: ${templateName} -> Status: ${statusRaw}`);
+                let finalStatus = statusRaw;
+                if (finalStatus === 'failed') finalStatus = 'rejected';
+                const reason = payload.reason === 'NONE' ? '' : (payload.reason || '');
+
+                if (userId) {
+                    const [updateRes] = await query(
+                        'UPDATE message_templates SET status = ?, rejected_reason = ? WHERE name = ? AND user_id = ?',
+                        [finalStatus, reason, templateName, userId]
+                    );
+                    console.log(`✅ [WA20 Template Update] User template affected rows: ${updateRes.affectedRows}`);
+                } else {
+                    const [updateRes] = await query(
+                        'UPDATE message_templates SET status = ?, rejected_reason = ? WHERE name = ?',
+                        [finalStatus, reason, templateName]
+                    );
+                    console.log(`✅ [WA20 Template Update] Global template affected rows: ${updateRes.affectedRows}`);
+                }
+            }
+
+            // 4. Process Message Delivery Status (DLR)
+            const validMessageStatuses = ['sent', 'delivered', 'read', 'failed', 'undelivered'];
+            if (validMessageStatuses.includes(statusRaw)) {
+                let finalStatus = statusRaw === 'undelivered' ? 'failed' : statusRaw;
+                console.log(`📊 [WA20 DLR] Message Status Update: Mobile: ${mobile} | MsgID: ${messageId || 'N/A'} -> Status: ${finalStatus}`);
+
+                let logs = [];
+                let isApiLog = false;
+
+                // Search by Message ID first if provided
+                if (messageId) {
+                    [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                    if (logs.length === 0) {
+                        [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                        if (logs.length > 0) isApiLog = true;
+                    }
+                }
+
+                // Fallback: Search by Mobile Number (last 10 digits) if messageId not found or not provided
+                if (logs.length === 0 && mobile) {
+                    const cleanRecipient = mobile.slice(-10);
+                    const possibleRecipients = [cleanRecipient, `91${cleanRecipient}`, `+91${cleanRecipient}`];
+
+                    [logs] = await query(
+                        'SELECT * FROM message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY created_at DESC LIMIT 1',
+                        possibleRecipients
+                    );
+                    if (logs.length === 0) {
+                        [logs] = await query(
+                            'SELECT * FROM api_message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY send_time DESC LIMIT 1',
+                            possibleRecipients
+                        );
+                        if (logs.length > 0) isApiLog = true;
+                    }
+                }
+
+                if (logs.length > 0) {
+                    const log = logs[0];
+                    const targetTable = isApiLog ? 'api_message_logs' : 'message_logs';
+                    const campaignsTable = isApiLog ? 'api_campaigns' : 'campaigns';
+
+                    const weights = { sent: 1, delivered: 2, read: 3, failed: 99 };
+                    const oldStatus = (log.status || 'sent').toLowerCase();
+
+                    if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
+                        // Update log table
+                        await query(`UPDATE ${targetTable} SET status = ?, updated_at = NOW() WHERE id = ?`, [finalStatus, log.id]);
+
+                        const reason = payload.reason || payload.error || payload.failure_reason || null;
+
+                        if (log.campaign_id) {
+                            if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                await query(`UPDATE ${targetTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
+                            } else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                if (oldStatus !== 'delivered') {
+                                    incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                }
+                                incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
+                                await query(`UPDATE ${targetTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?`, [log.id]);
+                            } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
+                                await query(`UPDATE ${targetTable} SET failure_reason = ? WHERE id = ?`, [reason || 'WA20 Delivery Failed', log.id]);
+                            }
+                        }
+                        console.log(`✅ [WA20 DLR] Successfully updated ${targetTable} log ${log.id} to ${finalStatus}`);
+                    }
+                } else {
+                    console.log(`⚠️ [WA20 DLR] No matching message log found for mobile: ${mobile}, msgId: ${messageId}`);
                 }
             }
         }
-
-        // 1. SAVE ALL INCOMING WA20 WEBHOOKS TO webhook_logs (For Live Webhooks UI)
-        try {
-            await query(
-                `INSERT INTO webhook_logs (user_id, sender, recipient, message_content, raw_payload, status, type, channel) 
-                 VALUES (?, ?, ?, ?, ?, 'received', 'whatsapp', 'wa20')`,
-                [
-                    userId, 
-                    payload.username || 'System', 
-                    payload.mobile || payload.to || '', 
-                    payload.status || 'event', 
-                    JSON.stringify(payload)
-                ]
-            );
-        } catch (logErr) {
-            console.error('❌ Error saving WA20 webhook to webhook_logs:', logErr.message);
-        }
-
-        // 2. Template Status Update mapping
-        if (payload.template_name && payload.username && payload.status && userId) {
-            console.log(`📊 WA20 Template Update: ${payload.template_name} -> ${payload.status}`);
-            let finalStatus = payload.status.toLowerCase();
-            if (finalStatus === 'failed') finalStatus = 'rejected';
-            
-            const reason = payload.reason === 'NONE' ? '' : (payload.reason || '');
-            
-            // Update the template
-            const [updateRes] = await query(
-                'UPDATE message_templates SET status = ?, rejected_reason = ? WHERE name = ? AND user_id = ?',
-                [finalStatus, reason, payload.template_name, userId]
-            );
-            if (updateRes.affectedRows > 0) {
-                console.log(`✅ Template ${payload.template_name} updated successfully in DB for user ${userId}.`);
-            } else {
-                console.log(`⚠️ Template ${payload.template_name} not found in DB for user ${userId}.`);
-            }
-        }
-    } catch (error) {
-        console.error('[WA20-WEBHOOK] Error processing webhook:', error.message);
-        // We still send 200 to prevent retries of bad payloads, or 500 if it's our fault
+    } catch (err) {
+        console.error('❌ [WA20-WEBHOOK] Error processing WA20 payload:', err.message);
     }
-});
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
