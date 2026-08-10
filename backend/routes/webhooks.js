@@ -2045,9 +2045,9 @@ async function processWa20Payload(payloadInput, io, reqQuery = {}) {
             let userId = null;
 
             const username = payload.username || payload.customer_id || payload.user || payload.account || reqQuery.username || reqQuery.customer_id;
-            const mobile = String(payload.mobile || payload.to || payload.recipient || payload.phone || '').replace(/\D/g, '');
-            let statusRaw = String(payload.status || payload.event || payload.state || '').toLowerCase();
-            const messageId = payload.message_id || payload.id || payload.wamid || payload.msg_id;
+            const mobile = String(payload.mobile || payload.to || payload.recipient || payload.receiver || payload.phone || payload.from || '').replace(/\D/g, '');
+            let statusRaw = String(payload.status || payload.event || payload.eventtype || payload.state || '').toLowerCase();
+            const messageId = payload.message_id || payload.whts_ref_id || payload.id || payload.wamid || payload.msg_id || payload.providerMessageId || payload.request_id;
             const templateName = payload.template_name || payload.template;
 
             // Map numeric & string statuses to standard status names
@@ -2199,11 +2199,6 @@ async function ensureMediaUrlColumn() {
     }
 }
 
-// Ensure column exists on startup
-ensureMediaUrlColumn();
-
-module.exports = router;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/webhooks/gsm/callback
 // Standard endpoint for GSM Delivery Reports & Incoming Messages
@@ -2212,29 +2207,31 @@ router.post('/gsm/callback', async (req, res) => {
         const payload = req.body;
         console.log('==============================================');
         console.log('📨 RECEIVED GSM WEBHOOK');
+        console.log('Timestamp:', new Date().toISOString());
         console.log('Payload:', JSON.stringify(payload, null, 2));
+        console.log('==============================================');
         
         // Return 200 immediately to acknowledge receipt
         res.status(200).send('EVENT_RECEIVED');
         
-        // Process GSM DLR payload
+        // Process payload via processWa20Payload (handles Nuke GSM & WA20 formats seamlessly)
+        setImmediate(() => { processWa20Payload(payload, req.io, req.query); });
+
+        // Fallback for custom legacy gsm.status.update
         if (payload.event === 'gsm.status.update' && payload.providerMessageId && payload.status) {
             const messageId = payload.providerMessageId;
             let finalStatus = payload.status.toLowerCase();
             
-            // Map status
             if (finalStatus === 'delivered' || finalStatus === 'sent_ok') finalStatus = 'delivered';
             else if (finalStatus === 'failed' || finalStatus === 'undelivered') finalStatus = 'failed';
             else if (finalStatus === 'sending') finalStatus = 'sent';
             
             const { query } = require('../config/db');
             
-            // 1. Check message_logs
             let isApiLog = false;
             let [logs] = await query('SELECT * FROM message_logs WHERE message_id = ? LIMIT 1', [messageId]);
             let table = 'message_logs';
             
-            // 2. Check api_message_logs
             if (logs.length === 0) {
                 [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ? LIMIT 1', [messageId]);
                 table = 'api_message_logs';
@@ -2249,11 +2246,9 @@ router.post('/gsm/callback', async (req, res) => {
                     console.log(`[GSM Webhook] Updating ${table} ID ${log.id} to ${finalStatus}`);
                     await query(`UPDATE ${table} SET status = ? WHERE id = ?`, [finalStatus, log.id]);
                     
-                    // Update campaign_queue
                     const queueTable = isApiLog ? 'api_campaign_queue' : 'campaign_queue';
                     await query(`UPDATE ${queueTable} SET status = ? WHERE message_id = ?`, [finalStatus, messageId]);
                     
-                    // Update Campaigns stats if campaign_id exists
                     if (log.campaign_id && !isApiLog) {
                         if (finalStatus === 'delivered' && oldStatus !== 'delivered') {
                             await query(`UPDATE campaigns SET delivered_count = delivered_count + 1 WHERE id = ?`, [log.campaign_id]);
@@ -2262,12 +2257,14 @@ router.post('/gsm/callback', async (req, res) => {
                         }
                     }
                 }
-            } else {
-                console.log(`⚠️ [GSM Webhook] No message log found for providerMessageId: ${messageId}`);
             }
         }
-        
     } catch (error) {
         console.error('[GSM-WEBHOOK] Error processing webhook:', error.message);
     }
 });
+
+// Ensure column exists on startup
+ensureMediaUrlColumn();
+
+module.exports = router;
