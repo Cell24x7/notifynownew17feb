@@ -2205,8 +2205,10 @@ async function ensureMediaUrlColumn() {
 router.post('/gsm/callback', async (req, res) => {
     try {
         const payload = req.body;
+        const isWa = payload.wabaNumber || payload.whts_ref_id || (payload.id && String(payload.id).startsWith('wamid.')) || payload.username === 'userindp';
+        
         console.log('==============================================');
-        console.log('📨 RECEIVED GSM WEBHOOK');
+        console.log(isWa ? '📨 RECEIVED WA20 / NUKE WHATSAPP WEBHOOK' : '📨 RECEIVED GSM / SMS WEBHOOK');
         console.log('Timestamp:', new Date().toISOString());
         console.log('Payload:', JSON.stringify(payload, null, 2));
         console.log('==============================================');
