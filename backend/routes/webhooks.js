@@ -2115,31 +2115,52 @@ async function processWa20Payload(payloadInput, io, reqQuery = {}) {
                 let logs = [];
                 let isApiLog = false;
 
-                // Search by Message ID first if provided
-                if (messageId) {
-                    [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
+                const searchIds = [messageId, payload.request_id, payload.whts_ref_id, payload.id].filter(Boolean);
+
+                // Search by Message ID / Request ID first if provided
+                if (searchIds.length > 0) {
+                    const placeholders = searchIds.map(() => '?').join(',');
+                    [logs] = await query(`SELECT * FROM message_logs WHERE message_id IN (${placeholders})`, searchIds);
                     if (logs.length === 0) {
-                        [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
+                        [logs] = await query(`SELECT * FROM api_message_logs WHERE message_id IN (${placeholders})`, searchIds);
                         if (logs.length > 0) isApiLog = true;
                     }
                 }
 
-                // Fallback: Search by Mobile Number (last 10 digits) if messageId not found or not provided
+                // Fallback: Search by Mobile Number (last 10 digits) - Compare newest between message_logs & api_message_logs
                 if (logs.length === 0 && mobile) {
                     const cleanRecipient = mobile.slice(-10);
                     const possibleRecipients = [cleanRecipient, `91${cleanRecipient}`, `+91${cleanRecipient}`];
 
-                    [logs] = await query(
-                        'SELECT * FROM message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY created_at DESC LIMIT 1',
+                    const [manualLogs] = await query(
+                        'SELECT *, "message_logs" as tbl_src, created_at as log_ts FROM message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY created_at DESC LIMIT 1',
                         possibleRecipients
                     );
-                    if (logs.length === 0) {
-                        [logs] = await query(
-                            'SELECT * FROM api_message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY send_time DESC LIMIT 1',
-                            possibleRecipients
-                        );
-                        if (logs.length > 0) isApiLog = true;
+                    const [apiLogs] = await query(
+                        'SELECT *, "api_message_logs" as tbl_src, COALESCE(send_time, created_at) as log_ts FROM api_message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY id DESC LIMIT 1',
+                        possibleRecipients
+                    );
+
+                    let newestLog = null;
+                    if (manualLogs.length > 0 && apiLogs.length > 0) {
+                        const manualTime = new Date(manualLogs[0].log_ts || 0).getTime();
+                        const apiTime = new Date(apiLogs[0].log_ts || 0).getTime();
+                        if (apiTime >= manualTime) {
+                            newestLog = apiLogs[0];
+                            isApiLog = true;
+                        } else {
+                            newestLog = manualLogs[0];
+                            isApiLog = false;
+                        }
+                    } else if (apiLogs.length > 0) {
+                        newestLog = apiLogs[0];
+                        isApiLog = true;
+                    } else if (manualLogs.length > 0) {
+                        newestLog = manualLogs[0];
+                        isApiLog = false;
                     }
+
+                    if (newestLog) logs = [newestLog];
                 }
 
                 if (logs.length > 0) {
@@ -2156,20 +2177,20 @@ async function processWa20Payload(payloadInput, io, reqQuery = {}) {
 
                         const reason = payload.reason || payload.error || payload.failure_reason || null;
 
-                        if (log.campaign_id) {
-                            if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                await query(`UPDATE ${targetTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
-                            } else if (finalStatus === 'read' && oldStatus !== 'read') {
+                        if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                            if (log.campaign_id) incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                            await query(`UPDATE ${targetTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
+                        } else if (finalStatus === 'read' && oldStatus !== 'read') {
+                            if (log.campaign_id) {
                                 if (oldStatus !== 'delivered') {
                                     incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
                                 }
                                 incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                await query(`UPDATE ${targetTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?`, [log.id]);
-                            } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
-                                await query(`UPDATE ${targetTable} SET failure_reason = ? WHERE id = ?`, [reason || 'WA20 Delivery Failed', log.id]);
                             }
+                            await query(`UPDATE ${targetTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?`, [log.id]);
+                        } else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                            if (log.campaign_id) incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
+                            await query(`UPDATE ${targetTable} SET failure_reason = ? WHERE id = ?`, [reason || 'WA20 Delivery Failed', log.id]);
                         }
                         console.log(`✅ [WA20 DLR] Successfully updated ${targetTable} log ${log.id} to ${finalStatus}`);
                     }

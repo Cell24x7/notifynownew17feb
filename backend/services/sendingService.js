@@ -569,7 +569,7 @@ const sendUniversalMessage = async (item) => {
                 console.log(`✅ [Meta Response] Success: ${JSON.stringify(respData)}`);
                 result = { 
                     success: true, 
-                    messageId: respData.messages?.[0]?.id || respData.message_id || `wa_${Date.now()}_${item.mobile}`,
+                    messageId: respData.messages?.[0]?.id || respData.message_id || respData.request_id || respData.whts_ref_id || `wa_${Date.now()}_${item.mobile}`,
                     processedMessage
                 };
             } catch (metaErr) {
