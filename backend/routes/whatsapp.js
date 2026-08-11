@@ -254,7 +254,12 @@ router.get('/templates', authenticate, async (req, res) => {
                 let metaCategory = 'UTILITY';
                 if (t.category) {
                     if (typeof t.category === 'string') {
-                        metaCategory = t.category.toUpperCase();
+                        const catLower = t.category.toLowerCase();
+                        if (catLower === 'auth' || catLower === 'authentication') {
+                            metaCategory = 'AUTHENTICATION';
+                        } else {
+                            metaCategory = t.category.toUpperCase();
+                        }
                     } else if (typeof t.category === 'number') {
                         if (t.category === 1) metaCategory = 'MARKETING';
                         else if (t.category === 2) metaCategory = 'UTILITY';
@@ -355,11 +360,16 @@ router.post('/templates', authenticate, async (req, res) => {
                 }
             });
 
+            let wa20Category = (category || 'utility').toLowerCase();
+            if (wa20Category === 'authentication' || wa20Category === 'auth') {
+                wa20Category = 'auth';
+            }
+
             const wa20Payload = {
                 username: config.customer_id,
                 customer_id: config.customer_id,
                 template_name: sanitizedName,
-                category: (category || 'utility').toLowerCase(),
+                category: wa20Category,
                 language: 14, // 14 = English for WA20
                 header_area_type: "none",
                 header_media_type: "",
@@ -566,9 +576,10 @@ router.delete('/templates/:templateName', authenticate, async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Error creating WA template:', error.response?.data || error.message);
-        res.status(500).json({
+        const statusCode = error.response?.status || 500;
+        res.status(statusCode).json({
             success: false,
-            message: 'Failed to create WhatsApp template',
+            message: error.response?.data?.message || error.response?.data?.error?.message || 'Failed to create WhatsApp template',
             error: error.response?.data?.error?.message || error.response?.data?.message || error.message
         });
     }
