@@ -286,6 +286,32 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Whitelabel Domain Security Guard:
+    // If login is performed on a reseller custom domain, restrict access ONLY to:
+    // 1. SuperAdmins / Platform Admins
+    // 2. The Reseller Master Admin
+    // 3. Sub-clients created under this reseller
+    const requestHost = (req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0].toLowerCase();
+    if (requestHost && requestHost !== 'localhost' && requestHost !== '127.0.0.1' && !requestHost.includes('notifynow.in') || requestHost === 'developer.notifynow.in') {
+      const [domainResellerRows] = await query(
+        'SELECT id, name, email FROM resellers WHERE LOWER(domain) = ?',
+        [requestHost]
+      );
+      if (domainResellerRows.length > 0) {
+        const domainReseller = domainResellerRows[0];
+        const isSuperAdmin = user.role === 'superadmin' || user.role === 'admin';
+        const isResellerAdmin = user.email.toLowerCase() === domainReseller.email.toLowerCase() || (user.role === 'reseller' && (Number(user.reseller_id) === Number(domainReseller.id) || Number(user.actual_reseller_id) === Number(domainReseller.id)));
+        const isSubClient = Number(user.reseller_id) === Number(domainReseller.id) || Number(user.actual_reseller_id) === Number(domainReseller.id);
+
+        if (!isSuperAdmin && !isResellerAdmin && !isSubClient) {
+          return res.status(403).json({
+            success: false,
+            message: `Access Denied: Your account does not belong to ${domainReseller.name}. Please log in through your main organization portal.`
+          });
+        }
+      }
+    }
+
     // 1. Priority: User-specific overrides
     let finalPermissions = null; // Start as null to detect absence
     if (user.permissions) {
