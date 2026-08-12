@@ -288,20 +288,35 @@ router.post('/login', async (req, res) => {
 
     // Whitelabel Domain Security Guard:
     // If login is performed on a reseller custom domain, restrict access ONLY to:
-    // 1. SuperAdmins / Platform Admins
+    // 1. SuperAdmins (platform owners)
     // 2. The Reseller Master Admin
     // 3. Sub-clients created under this reseller
-    const requestHost = (req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0].toLowerCase();
-    if (requestHost && requestHost !== 'localhost' && requestHost !== '127.0.0.1' && !requestHost.includes('notifynow.in') || requestHost === 'developer.notifynow.in') {
+    let effectiveDomain = '';
+    if (req.body && req.body.domain) {
+      effectiveDomain = req.body.domain.split(':')[0].toLowerCase();
+    } else {
+      const rawOrigin = req.headers.origin || req.headers.referer || '';
+      if (rawOrigin) {
+        try {
+          effectiveDomain = new URL(rawOrigin).hostname.toLowerCase();
+        } catch (e) {}
+      }
+      if (!effectiveDomain) {
+        effectiveDomain = (req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0].toLowerCase();
+      }
+    }
+
+    if (effectiveDomain && effectiveDomain !== 'localhost' && effectiveDomain !== '127.0.0.1') {
       const [domainResellerRows] = await query(
         'SELECT id, name, email FROM resellers WHERE LOWER(domain) = ?',
-        [requestHost]
+        [effectiveDomain]
       );
       if (domainResellerRows.length > 0) {
         const domainReseller = domainResellerRows[0];
-        const isSuperAdmin = user.role === 'superadmin' || user.role === 'admin';
-        const isResellerAdmin = user.email.toLowerCase() === domainReseller.email.toLowerCase() || (user.role === 'reseller' && (Number(user.reseller_id) === Number(domainReseller.id) || Number(user.actual_reseller_id) === Number(domainReseller.id)));
-        const isSubClient = Number(user.reseller_id) === Number(domainReseller.id) || Number(user.actual_reseller_id) === Number(domainReseller.id);
+        const isSuperAdmin = user.role === 'superadmin';
+        const userResellerId = Number(user.actual_reseller_id || user.reseller_id || 0);
+        const isResellerAdmin = user.email.toLowerCase() === domainReseller.email.toLowerCase() || (user.role === 'reseller' && userResellerId === Number(domainReseller.id));
+        const isSubClient = userResellerId > 0 && userResellerId === Number(domainReseller.id);
 
         if (!isSuperAdmin && !isResellerAdmin && !isSubClient) {
           return res.status(403).json({
