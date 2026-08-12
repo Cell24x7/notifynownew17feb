@@ -132,8 +132,8 @@ router.get('/whitelabel', async (req, res) => {
     }
 
     const settings = rows[0];
-    // Automatically set hide_payments and hide_pricing if payment_gateway_type is 'none' or null
-    const isNoGateway = !settings.payment_gateway_type || settings.payment_gateway_type === 'none';
+    // ONLY set hide_payments and hide_pricing if payment_gateway_type is explicitly 'none'
+    const isNoGateway = settings.payment_gateway_type === 'none';
     settings.hide_payments = isNoGateway ? 1 : 0;
     settings.hide_pricing = isNoGateway ? 1 : 0;
 

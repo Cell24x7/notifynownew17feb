@@ -35,15 +35,15 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         settings && (
             settings.payment_gateway_type === 'none' ||
             settings.hide_payments === 1 ||
-            settings.hide_payments === true
+            settings.hide_payments === 1
         )
     );
 
     const isPricingHidden = Boolean(
         settings && (
+            settings.payment_gateway_type === 'none' ||
             settings.hide_pricing === 1 ||
-            settings.hide_pricing === true ||
-            isPaymentDisabled
+            settings.hide_pricing === true
         )
     );
 

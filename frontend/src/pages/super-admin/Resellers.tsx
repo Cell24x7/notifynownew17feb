@@ -838,7 +838,7 @@ export default function SuperAdminResellers() {
                 Selecting "None" will disable online payment gateways and hide all Wallet & Pricing options from reseller clients.
               </p>
               <Select
-                value={currentReseller.payment_gateway_type || 'none'}
+                value={currentReseller.payment_gateway_type || 'ccavenue'}
                 onValueChange={(v) => setCurrentReseller(prev => ({ ...prev, payment_gateway_type: v }))}
                 disabled={modalMode === 'view'}
               >
