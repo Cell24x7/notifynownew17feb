@@ -55,7 +55,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
-  const { settings } = useBranding();
+  const { settings, isPaymentDisabled, isPricingHidden } = useBranding();
 
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const isDark = theme === 'dark';
@@ -85,17 +85,18 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   // Permissions check
   // Default to true if no permissions found to avoid locking out users during transition
   const hasPermission = (featureName: string) => {
-    // Platform admins always have full access
-    if (user?.role === 'superadmin' || user?.role === 'admin') return true;
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'superadmin') return true;
 
-    if (!user?.permissions || !Array.isArray(user.permissions)) {
-       return false;
-    }
+    // Check custom permissions list
+    const permissions: string[] = user.permissions || [];
+    if (permissions.length === 0) return true; // Default fallback to allow all if not set
 
-    const target = featureName.toLowerCase().trim();
+    const target = featureName.trim();
 
-    return user.permissions.some((p: any) => {
-      const rawFeature = (typeof p === 'string' ? p : p?.feature || '').toLowerCase().trim();
+    return permissions.some((perm) => {
+      const rawFeature = (typeof perm === 'string' ? perm : (perm as any).feature_name || '').trim();
+      if (!rawFeature) return false;
       
       // 1. Direct match
       if (rawFeature === target) return true;
@@ -116,7 +117,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: hasPermission('Dashboard - View') },
-    { icon: CreditCard, label: 'Plans', path: '/user-plans', show: hasPermission('User Plans - View') },
+    { icon: CreditCard, label: 'Plans', path: '/user-plans', show: !isPricingHidden && hasPermission('User Plans - View') },
     { icon: FileText, label: 'Templates', path: '/templates', show: hasPermission('Template - View') },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { 
@@ -141,8 +142,8 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
     { icon: Users, label: 'Manage Users', path: '/reseller/users', show: hasPermission('Reseller Users - View') },
     { icon: Globe, label: 'Whitelabel & Payments', path: '/reseller/branding', show: hasPermission('Reseller Branding - View') },
-    { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: hasPermission('Marketplace - View') },
-    { icon: Wallet, label: 'Wallet', path: '/wallet', show: hasPermission('Wallet - View') },
+    { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: !isPricingHidden && hasPermission('Marketplace - View') },
+    { icon: Wallet, label: 'Wallet', path: '/wallet', show: !isPaymentDisabled && hasPermission('Wallet - View') },
     { 
       icon: Terminal, 
       label: 'API Hub', 

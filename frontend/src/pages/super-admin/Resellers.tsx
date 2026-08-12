@@ -304,6 +304,7 @@ export default function SuperAdminResellers() {
 
     setCurrentReseller({
       ...reseller,
+      payment_gateway_type: reseller.payment_gateway_type || 'none',
       channels_enabled: channels,
       brand_name: reseller.brand_name || '',
       logo_url: reseller.logo_url || '',
@@ -828,6 +829,29 @@ export default function SuperAdminResellers() {
                   disabled={modalMode === 'view'}
                 />
               </div>
+            </div>
+
+            {/* Payment Gateway Control */}
+            <div className="space-y-2 bg-muted/20 p-4 rounded-xl border">
+              <Label className="font-bold text-sm">Payment Gateway Control</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Selecting "None" will disable online payment gateways and hide all Wallet & Pricing options from reseller clients.
+              </p>
+              <Select
+                value={currentReseller.payment_gateway_type || 'none'}
+                onValueChange={(v) => setCurrentReseller(prev => ({ ...prev, payment_gateway_type: v }))}
+                disabled={modalMode === 'view'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Payment Gateway Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (Hide Payments & Pricing for Clients)</SelectItem>
+                  <SelectItem value="ccavenue">CCAvenue Only</SelectItem>
+                  <SelectItem value="paypal">PayPal Only</SelectItem>
+                  <SelectItem value="both">Both (CCAvenue & PayPal)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Commission & Status */}

@@ -11,11 +11,16 @@ interface BrandingSettings {
     secondary_color: string;
     support_email: string;
     support_phone: string;
+    payment_gateway_type?: string;
+    hide_payments?: number | boolean;
+    hide_pricing?: number | boolean;
 }
 
 interface BrandingContextType {
     settings: BrandingSettings | null;
     isLoading: boolean;
+    isPaymentDisabled: boolean;
+    isPricingHidden: boolean;
     refreshBranding: () => Promise<void>;
 }
 
@@ -25,6 +30,22 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [settings, setSettings] = useState<BrandingSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
+
+    const isPaymentDisabled = Boolean(
+        settings && (
+            settings.payment_gateway_type === 'none' ||
+            settings.hide_payments === 1 ||
+            settings.hide_payments === true
+        )
+    );
+
+    const isPricingHidden = Boolean(
+        settings && (
+            settings.hide_pricing === 1 ||
+            settings.hide_pricing === true ||
+            isPaymentDisabled
+        )
+    );
 
     const fetchBranding = async () => {
         setIsLoading(true);
@@ -76,7 +97,13 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, [user?.actual_reseller_id]); 
 
     return (
-        <BrandingContext.Provider value={{ settings, isLoading, refreshBranding: fetchBranding }}>
+        <BrandingContext.Provider value={{ 
+            settings, 
+            isLoading, 
+            isPaymentDisabled, 
+            isPricingHidden, 
+            refreshBranding: fetchBranding 
+        }}>
             {children}
         </BrandingContext.Provider>
     );

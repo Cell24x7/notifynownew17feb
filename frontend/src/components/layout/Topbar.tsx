@@ -31,7 +31,7 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
     const { user, logout } = useAuth();
-  const { settings } = useBranding();
+  const { settings, isPaymentDisabled } = useBranding();
     const { selectedClientId, setSelectedClientId } = useClient();
     const { theme, setTheme } = useTheme();
     const isDark = theme === 'dark';
@@ -50,7 +50,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                         setClients(res.data.clients || []);
                     }
                 } catch (err) {
-                    console.error('Failed to fetch clients for selector', err);
+                    console.error('Failed to fetch clients for topbar selector', err);
                 }
             };
             fetchClients();
@@ -58,29 +58,43 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     }, [isAdmin]);
 
     return (
-        <div className="flex items-center justify-between w-full h-16 px-4 md:px-8 bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-800 sticky top-0 z-20">
-            {/* Mobile: menu + logo */}
-            <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
+        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-100 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md px-4 sm:px-6 transition-colors">
+            {/* Mobile Menu Button & Brand */}
+            <div className="flex items-center gap-3">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onMenuClick}
+                    className="lg:hidden h-9 w-9 rounded-xl border border-slate-100 dark:border-zinc-800 text-slate-600 dark:text-zinc-400"
+                >
                     <Menu className="h-5 w-5" />
                 </Button>
 
-            </div>
+                {/* Reseller Branding or Default Brand Name */}
+                <div className="flex items-center gap-2.5">
+                    {settings?.logo_url ? (
+                        <img src={settings.logo_url} alt={settings.brand_name} className="h-8 w-auto object-contain max-w-[140px]" />
+                    ) : (
+                        <img src={defaultLogo} alt="Logo" className="h-8 w-auto object-contain max-w-[140px]" />
+                    )}
+                    {!settings?.logo_url && (
+                        <span className="font-black text-slate-800 dark:text-zinc-100 text-base tracking-tight hidden sm:inline-block">
+                            {settings?.brand_name || 'NOTIFY'}
+                        </span>
+                    )}
+                </div>
 
-            <div className="flex-1 hidden md:flex items-center px-4">
+                {/* Admin Client Selector */}
                 {isAdmin && (
-                    <div className="flex items-center gap-2 max-w-xs w-full">
-                        <Users className="h-4 w-4 text-slate-400 shrink-0" />
-                        <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                            <SelectTrigger className="h-9 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl text-xs font-semibold">
-                                <SelectValue placeholder="Select Client (All)" />
+                    <div className="hidden md:flex items-center ml-4 pl-4 border-l border-slate-100 dark:border-zinc-800">
+                        <Select value={selectedClientId || 'all'} onValueChange={(val) => setSelectedClientId(val === 'all' ? null : val)}>
+                            <SelectTrigger className="w-[180px] h-8 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800">
+                                <SelectValue placeholder="All Clients" />
                             </SelectTrigger>
-                            <SelectContent className="rounded-xl border-slate-100 shadow-xl">
-                                <SelectItem value="all" className="text-xs font-bold">All Clients (System)</SelectItem>
-                                {clients.map(client => (
-                                    <SelectItem key={client.id} value={String(client.id)} className="text-xs">
-                                        {client.name} ({client.company_name})
-                                    </SelectItem>
+                            <SelectContent>
+                                <SelectItem value="all">Global View (All Clients)</SelectItem>
+                                {clients.map((c) => (
+                                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -89,23 +103,39 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             </div>
 
             <div className="flex items-center gap-3 ml-auto">
-                {/* Wallet Balance */}
-                <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
-                    <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
-                        <Wallet className="h-4 w-4 text-emerald-600" />
+                {/* Wallet Balance or Credits Display */}
+                {!isPaymentDisabled ? (
+                    <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
+                        <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
+                            <Wallet className="h-4 w-4 text-emerald-600" />
+                        </div>
+                        <div>
+                            <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
+                            <p className="text-sm font-black text-slate-800 dark:text-zinc-100 leading-tight">
+                                {(user?.role === 'admin' || user?.role === 'superadmin') 
+                                    ? 'Unlimited' 
+                                    : `₹${Number(user?.wallet_balance || 0).toFixed(2)}`}
+                            </p>
+                        </div>
+                        <button className="ml-1 p-1 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700 hidden sm:flex">
+                            <Zap className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                        </button>
                     </div>
-                    <div>
-                        <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
-                        <p className="text-sm font-black text-slate-800 dark:text-zinc-100 leading-tight">
-                            {(user?.role === 'admin' || user?.role === 'superadmin') 
-                                ? 'Unlimited' 
-                                : `₹${Number(user?.wallet_balance || 0).toFixed(2)}`}
-                        </p>
+                ) : (
+                    <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-indigo-100 dark:border-zinc-800 shadow-sm transition-all">
+                        <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">
+                            <Zap className="h-4 w-4 text-indigo-600 fill-indigo-600" />
+                        </div>
+                        <div>
+                            <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Credits</p>
+                            <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 leading-tight">
+                                {(user?.role === 'admin' || user?.role === 'superadmin') 
+                                    ? 'Unlimited' 
+                                    : `${Number(user?.wallet_balance || user?.credits_available || 0).toLocaleString()} Units`}
+                            </p>
+                        </div>
                     </div>
-                    <button className="ml-1 p-1 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700 hidden sm:flex">
-                        <Zap className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-                    </button>
-                </div>
+                )}
 
                 {/* User Profile Dropdown */}
                 <DropdownMenu>
@@ -190,6 +220,6 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-        </div>
+        </header>
     );
 }

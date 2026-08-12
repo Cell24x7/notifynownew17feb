@@ -17,12 +17,14 @@ import { walletApi } from '@/services/walletApi';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { useBranding } from '@/contexts/BrandingContext';
 
 const API_URL = `${API_BASE_URL}/api`;
 
 export default function Wallet() {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
+  const { isPaymentDisabled } = useBranding();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -227,7 +229,7 @@ export default function Wallet() {
               </div>
             </div>
             
-            {user?.role !== 'admin' && user?.role !== 'superadmin' && (
+            {user?.role !== 'admin' && user?.role !== 'superadmin' && !isPaymentDisabled && (
                 <div className="mt-4">
                     <Dialog open={isRechargeOpen} onOpenChange={setIsRechargeOpen}>
                         <DialogTrigger asChild>

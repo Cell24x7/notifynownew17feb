@@ -93,6 +93,11 @@ async function updateSchema() {
         }
 
 
+        // Ensure role column supports superadmin (VARCHAR 50)
+        try {
+            await connection.execute("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'user'");
+        } catch (e) {}
+
         // 1. Add reseller_id to users if it doesn't exist
         const [userCols] = await connection.execute('DESCRIBE users');
         const hasResellerId = userCols.some(col => col.Field === 'reseller_id');

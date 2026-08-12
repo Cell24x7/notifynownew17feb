@@ -15,6 +15,7 @@ import { ChannelIcon } from '@/components/ui/channel-icon';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { API_BASE_URL } from '@/config/api';
+import { useBranding } from '@/contexts/BrandingContext';
 
 type Plan = {
   id: string;
@@ -31,6 +32,7 @@ type Plan = {
 
 export default function UserPlans({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
+  const { isPricingHidden } = useBranding();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -94,6 +96,20 @@ export default function UserPlans({ embedded = false }: { embedded?: boolean }) 
     // Example:
     // window.location.href = `/payment?planId=${selectedPlan.id}`;
   };
+
+  if (isPricingHidden) {
+    return (
+      <div className="p-8 max-w-3xl mx-auto my-12 text-center bg-card rounded-2xl border shadow-sm p-12 space-y-4">
+        <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary">
+          <Zap className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-bold">Subscription & Credit Management</h2>
+        <p className="text-muted-foreground text-sm max-w-md mx-auto">
+          Your account plan and message allocation are managed directly by your organization administrator. For upgrade or credit adjustments, please contact your account support.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(

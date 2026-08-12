@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranding } from '@/contexts/BrandingContext';
 import { Check, ChevronLeft, ChevronRight, Upload, Download, Users, FileSpreadsheet, Calendar, Send, Clock, X, Plus, AlertCircle, Search, Filter, Smile, Sparkles, Smartphone, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,6 +119,7 @@ const channelOptions = [
 
 export default function CampaignCreationStepper({ templates, onComplete, onCancel, whatsappError }: CampaignCreationStepperProps) {
    const { user } = useAuth();
+   const { isPaymentDisabled } = useBranding();
    const { toast } = useToast();
    const enabledChannels = user?.channels_enabled || [];
 
