@@ -81,6 +81,10 @@ export default function SuperAdminClients() {
     is_smm_enabled: false,
     dlr_webhook_url: '',
     wa_unofficial_webhook_enabled: false,
+    sender_type: 'dynamic' as 'static' | 'dynamic',
+    account_expiry_date: '',
+    billing_type: 'prepaid' as 'prepaid' | 'postpaid',
+    postpaid_credit_limit: 0,
   });
 
   // Fetch real plans
@@ -978,14 +982,22 @@ export default function SuperAdminClients() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email Address <span className="text-red-500">*</span></Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="font-medium">Email Address <span className="text-red-500">*</span></Label>
+                    <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                      🔑 Username for Login (Isse hi login hoga)
+                    </span>
+                  </div>
                   <Input
                     type="email"
-                    placeholder="name@company.com"
+                    placeholder="name@company.com (This is the Username for login)"
                     value={currentClient.email}
                     onChange={e => setCurrentClient(prev => ({ ...prev, email: e.target.value }))}
                     disabled={modalMode === 'view'}
                   />
+                  <p className="text-[10px] text-muted-foreground">
+                    Notice: This Email Address acts as the unique Username for portal login.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Contact Phone</Label>

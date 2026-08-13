@@ -1,124 +1,186 @@
-# 🚀 NotifyNow | Executive Changelog & Updates
+# Daily Updates & Changelog
 
-This document tracks major feature releases, business logic updates, and provides a quick guide for Users and Developers. It is automatically synchronized to reflect real-time production development.
+This document is automatically updated based on development activity.
 
----
-
-## 📊 Development Efficiency & Smart Work Report
-
-| Date | Major Task | Smart Logic & Optimization | Expected | Actual | Efficiency |
-|---|---|---|---|---|---|
-| **Mar 12** | Deployment Pipeline | Parent-folder PM2 naming & smart DB migrations with auto-indexing. | 15h | **2h** | 🛡️ 86% |
-| **Mar 13** | Multi-Channel DB Core | Scalable logging architecture for WA, SMS, RCS, Voice, and Email. | 20h | **3h** | 🚀 85% |
-| **Apr 09** | Meta API Hardening | Binary buffer streaming for high-speed media uploads. | 6h | **1h** | ⚡ 83% |
-| **Apr 10** | Email Integration | Reused RCS core logic with SMTP bridge for 10x faster roll-out. | 12h | **1.5h** | 🚀 87% |
-| **Apr 11** | RCS API Hardening | Aggressive schema expansion & granular SQL error catching. | 10h | **1h** | 🛡️ 90% |
-| **Apr 16** | WA Failover (API) | Immediate SMS failover logic for bulk WhatsApp API bounces. | 14h | **1h** | ⚡ 92% |
-| **Apr 16** | Turbo Indexing | Applied vital composite indexes for 1Cr+ scale performance. | 12h | **45m** | 🏎️ 94% |
-| **Apr 30** | Multi-Channel Preview | Unified Phone Mockup frame for WA/RCS/SMS with live state sync. | 16h | **1.5h** | 🚀 91% |
-| **May 15** | Multi-Gateway Payment | PayPal & CCAvenue integrated with dynamic credit deduction. | 18h | **2h** | 💰 88% |
-| **May 30** | Developer API Platform | REST endpoints for channel conversations and message history. | 10h | **1.5h** | 🔗 85% |
-| **Jun 01** | Unofficial WA Sync | Real-time Webhook Callbacks & 10-sec socket auto-refresh panel. | 12h | **1h** | 📡 91% |
-| **Jun 18** | Ultra-Scale Normalization| Auto-archival (90-days), composite queue lock removal, daily stats. | 24h | **3h** | 🚀 87% |
-| **Jun 18** | Short Link Tracking | Dynamic URL shortening per user/campaign for CTR analytics. | 15h | **2h** | 📈 86% |
-| **Jun 18** | API Documentation | Interactive UI portal `docs.html` covering all channels and auth. | 8h | **45m** | 📄 90% |
-
-> [!IMPORTANT]
-> **Performance Note:** Total manual development time reduced by ~85% using Advanced Core Engineering, Component Reusability, and Rapid Architecture Deployment. The system is enterprise-ready for millions of Daily Active Sends.
+## [2026-08-11]
+- fix(whatsapp): map authentication category to auth for WA20 template creation (5156555)
+- fix(reports): enable real-time status & timestamp updates for API delivery logs in api_message_logs (927fe69)
 
 ---
 
-## 🔮 Future Roadmap (Q3 - Q4 2026)
-
-| Expected Quarter | Strategic Feature | Impact |
-|---|---|---|
-| **Q3 2026** | **AI Auto-Reply Bots** | Integrated LLMs to handle incoming queries on Unofficial/Official WhatsApp automatically based on uploaded knowledgebases. |
-| **Q3 2026** | **Shopify App Integration** | 1-Click install for Shopify merchants to automatically sync Abandoned Carts, Order Updates, and Delivery Tracking to WhatsApp. |
-| **Q4 2026** | **Advanced Reseller Whitelabeling** | Full CSS/Theme builder for resellers to re-brand the panel completely under their own domain without touching code. |
-| **Q4 2026** | **Omnichannel Drip Campaigns** | Node-based visual journey builder. Example: *If WhatsApp is unread for 2hrs -> Send SMS -> If SMS delivered -> Send Voice Call.* |
+## [2026-08-10]
+- fix(whatsapp): send application/json body to WA20 createTemplates API for smooth template registration (c88cb82)
+- feat(webhooks): log clear WA20 / NUKE WHATSAPP WEBHOOK label in terminal for WhatsApp callbacks (dfd5120)
+- fix(webhooks): handle Nuke GSM webhook callbacks and extract receiver, whts_ref_id, and error fields for WA20 DLR (8761f72)
+- fix(webhooks): enhance WA20 webhook callback endpoint with dynamic user resolution, DLR processing and JSON response (cfe95c5)
 
 ---
 
-## 📖 User Quick Start Guide
-### 1. How to Send a Campaign?
-*   **Step 1:** Go to **Templates** → Create your message (SMS/WhatsApp/RCS/Email).
-*   **Step 2:** Go to **Campaigns** → Select your template.
-*   **Step 3:** Upload your **Audience (CSV)** or enter manual numbers/emails.
-*   **Step 4:** Map your Excel columns to template variables (e.g., column "A" goes to {{name}}).
-*   **Step 5:** Preview and **Send/Schedule**.
-
-### 2. Monitoring Results
-*   Check the **Reports** tab for live Delivery (DLR) counts. Use the "Download" button for detailed per-message logs.
+## [2026-08-07]
+- feat: enhance WhatsApp API authentication to support apiKey and apiSecret in headers and body (49ae7df)
 
 ---
 
-## 🛠️ Developer API Reference
-All API calls require an `api_key`. Include it in the header: `Authorization: Bearer YOUR_API_KEY`. Or view the full portal at `/docs.html`.
-
-| Channel | Endpoint | Method | Key Params |
-|---|---|---|---|
-| **SMS** | `/api/v1/sms/send` | POST | `sender_id`, `mobile`, `message` |
-| **WhatsApp** | `/api/v1/whatsapp/send` | POST | `templateName`, `numbers`, `failover_enabled` |
-| **RCS** | `/api/v1/rcs/send` | POST | `bot_id`, `card_type`, `suggestions` |
-| **Email** | `/api/v1/email/send` | POST | `subject`, `from_name`, `attachment` |
+## [2026-08-06]
+- Fix message_content showing campaign name in reports (a7c96c4)
+- Update wa20 webhook callback to log payload (b78dfa6)
 
 ---
 
-<details open>
-<summary>📂 <b>View All Technical Git Logs (Daily Activity Archive)</b></summary>
-<br>
+## [2026-08-05]
+- feat(sidebar): add API Summary Report link to Reports Hub dropdown for Super Admin (c4014d8)
+- feat(reports): add API Summary tab for Super Admins to track API usage by gateway and channel (751df96)
+- chore: ignore scratch files and pdfs (2d0c2b8)
+- feat(webhook): add GET /vi route for browser testing (62f89ea)
+- feat(webhook): add /vi alias for dotgo rcs webhook (14021a3)
+- feat: complete overhaul of API Docs to Readme.io style with sidebar (be8bd32)
+- fix: fetch template metadata in whatsapp single send api to correctly map variables (f120aab)
+- fix: made WhatsApp dynamic URL link tracking conditional on short_link_enabled (1ca75be)
 
-## [2026-06-18]
-- feat: 🚀 Database normalization, auto-archival for fast panel loads, and queue locking elimination
-- feat: 🔗 Short link click tracking for campaign URLs with real-time stats
-- docs: 📄 Created unified API documentation and added release notes
-- chore: 🧹 Cleaned gitignore and removed untracked SSH scratch files
+---
 
-## [2026-06-01]
-- feat: 📡 10-second automatic background refresh and socket.io updates in reports dashboard
-- feat: 🛠️ Enable real-time status updates and channel filtering for Unofficial WhatsApp reports
-- feat: 🔗 Support tracking original custom campaign ID via metadata across multi-recipient or rotated dispatches
-- feat: 📱 Set providerMessageId to campaign_id in webhook forwarding
-- feat: ⚙️ Update unofficial WhatsApp send and webhook forwarding to match custom developer payload and headers
-- ui: 🍷 Update footer with "Powered by Cell24x7" link
+## [2026-08-04]
+- Fix SQL syntax error and restore missing columns in INSERT users (69425aa)
+- Fix column count mismatch in INSERT users for client creation (a605f53)
+- Implement DB backed deleted_whatsapp_templates filter to permanently hide deleted and test templates from UI (10c03f5)
+- Fix delete script loop and delete all 38 test/unapproved templates automatically (3f12726)
+- Add delete endpoint diagnostic test to identify working Nuke delete API format (1723375)
+- Add DELETE WhatsApp template endpoint and create automated cleanup script for unapproved/test templates (976e0d9)
+- Fix list results output in test script (6c4e6e5)
+- Batch test Nuke button parameter names (quick_reply_btn_text1 vs visit_website_btn_text vs url_button_text) (8ce28db)
+- Print newly created template object directly from Nuke list (44765e6)
+- Test URL button payload in quick_replies JSON string column (ecd89d2)
+- Print all button templates found in userindp account (67692fa)
+- Inspect all Nuke templates to discover existing button template structure (058b647)
+- Test 6 Nuke button parameter variations in batch to pinpoint exact DB column values (818e0fc)
+- Fix listHeaders variable in test script (b158d4b)
+- Convert Nuke template creation request to x-www-form-urlencoded format for PHP  compatibility (84f14ad)
+- CRITICAL DISCOVERY: Map Nuke specific DB columns (visit_website_btn_text, visit_website_url_text, visit_website_url_set) in template creation and reading (9e51e3f)
+- Target userindp / Indian Princess account specifically in Nuke template create script (deb0bb3)
+- Auto-load .env.production and use exact Raghu Sir button details (📸 Follow Us + instagram link with igsh) (241edcb)
+- Add Nuke template creation test script for live server verification (ce13440)
+- Comprehensive WA20 createTemplates payload formatting (array + JSON string + button aliases) and logging (14ac73f)
+- Fix WhatsAppPreview to handle direct buttons array and ensure CTAs/QuickReplies render properly in preview (92abd69)
+- Fix WA20 template GET mapping: parse call_to_action and all button fields so buttons render in preview and campaign creation (3ba83cf)
+- Enhance WA20 createTemplates payload with username, customer_id and buttons array fallback (2e310af)
+- Fix WA20/Nuke template creation: add URL and PHONE_NUMBER button (call_to_action) support alongside QUICK_REPLY (c813189)
+- Fix Vi RCS named customParams: extract variable key names from template body and send as named JSON object instead of positional array (0b7ae68)
+- Fix ViRBM customParams format to stringified JSON and extract detailed error response text for 400 bad request (6d4c5e2)
+- Hardcode official ViRBM endpoint (https://api.virbm.in/rcs) for message and template sending to prevent SSL cert errors from legacy api.vodafone.com URLs (f8a2441)
+- Fix Vi authentication token URL override and fix authHeaderToken reference error in template submission (3686b82)
+- Add create_rcs_configs_table to deploy_production.sh migration sequence (9c6929d)
+- Fix Vi RCS provider UI base URL defaults (8657195)
+- Fix Vi RCS provider token generation and template fetching endpoints, add TodayReport UI updates for RCS/WA/SMS summaries (a674170)
+- Fix Vi provider template fetch logic, delete format, submit auth, and Super Admin list fetch (d18ca57)
+- Fix Vi RCS template sync and status check parsing issue (840da4b)
 
-## [2026-05-31]
-- feat: 📞 Update landing page contact information with sales email and phone number
+---
 
-## [2026-05-30]
-- feat: 💬 Make developer chats API query independent of active channel connection state by fallback querying local database logs
-- fix: 🔑 Ignore truncated x-api-key placeholder in developer auth middleware and fallback to bearer token
-- feat: 📂 Add developer api endpoints for fetching channel chats and messages
+## [2026-08-03]
+- Add RCS Summary Report and user/channel info in Today Report (190270e)
 
-## [2026-05-28]
-- fix: ⚙️ Fix syntax error in api_campaigns schema update script
+---
 
-## [2026-05-25]
-- feat: 💸 Multi-Gateway PayPal Integration for Global Transactions
+## [2026-08-02]
+- fix(billing): deduct credits from reseller when creating new sub-user with initial balance (d0ef1e1)
+- style(reports): fix filter squishing when side-by-side with billing card using flex-wrap and min-widths (c6c481c)
+- style(reports): make filter section fully responsive using css grid (443fa42)
+- fix(reports): map actual_reseller_id from resellers table to fix missing reseller clients in superadmin dropdown (ca57619)
 
-## [2026-04-30]
-- feat: 🌍 Meta Language Sync: Expanded to 15+ Indian/Global languages with scrollable UI
-- feat: 📱 Multi-Channel Preview: Unified Phone Mockup frame for WA/RCS/SMS with live state sync
+---
 
-## [2026-04-16]
-- feat: 🏎️ Turbo Indexing: Applied vital composite indexes for 1Cr+ scale performance
-- feat: 🔥 DB Emoji Hardening: Full UTF8MB4 migration for emoji support in messages
-- feat: ⚡ WA Failover (API Level): Immediate failover logic for single/bulk WhatsApp API hits
+## [2026-08-01]
+- feat(reports): revert user category names and add main reseller account selection option (a4d303f)
+- feat(reports): redesign user selection flow to strictly separate direct and reseller clients (e142c4c)
+- feat(reports): add reseller filter dropdown to easily filter clients by reseller (26fe2f0)
+- feat(reports): add reseller indicator to clients list in dropdown (243071a)
+- feat(reports): cascading dropdown for user type and user name in filter card (be0b192)
+- fix(reports): resolve selectedUser reference error (6b5be30)
+- fix(reports): add searchable user dropdown and reorder sidebar items (b40cb21)
+- fix(reports): remove duplicate sidebar and use url tabs for cleaner UI (bc8ef31)
+- feat(reports): completely overhaul super admin reports with sidebar, pricing details, and correct reseller aggregation (b04d894)
 
-## [2026-04-10]
-- feat: ✉️ Email Integration: Reused RCS core logic with SMTP bridge for 10x faster roll-out
-- feat: 📱 UI Responsiveness: Global Mobile-First Tailwind scaling
+---
 
-## [2026-03-13]
-- feat: 🔒 Enhance Auth page: Replace marquee with rotating FeedbackBox next to contact buttons
-- feat: 📊 Complete redesign of Dashboard Analytics with charts and agent performance matching mockups
-- feat: 💰 Implement WhatsApp custom pricing and standardized ₹1.00 billing across all channels
-- feat: 🤖 Add Developer Webhook for automatic WhatsApp replies
+## [2026-07-31]
+- Fix UI bug: Add missing fetchVoiceLogs function to Reports.tsx (fb2ddf3)
+- Add debug-edpl route (fe835fb)
+- Add debug endpoint and leads array size log (468b07a)
+- Refactor edplPollingService voice logs insertion to catch individual errors and fallback on null fields (27f561a)
+- Call ensureVoiceLogsTable on startup to actually apply schema fixes (80fde9f)
+- Fix database schema: campaign_id should be VARCHAR instead of INT (d35f67b)
+- Fix bug where config IDs were lost on campaign resend (361947f)
+- Auto-create voice_logs table on startup (f456bc2)
+- Fix Voice Logs tab trigger visibility (78ad8d1)
+- Add Voice Logs tab to user reports page (844b731)
+- Implement Dedicated Voice Logs Tab (8296854)
+- Implement EDPL Voice Sync Polling (a0ad8f8)
+- Fix syntax error in campaigns.js (2080558)
+- Fix 500 error in EDPL campaigns caused by async csv processing (4fca7b9)
+- Fix race condition bypassing EDPL interceptor on campaign creation (24af13c)
+- Add delete option for voice configs (bbd2fab)
+- Fix EDPL missing allowedPorts payload (0b1624c)
+- Fix EDPL interceptor voiceConfig id fetch from user table (8a16fe6)
+- Fix voiceConfig fallback bug causing 400 on upload (e39d40a)
+- Fix UI tags (57cd2a1)
+- Add AI Voice Config UI to Clients modal (139c8a2)
+- Fix voice config null columns and relax validation (358b9a5)
+- Fix import error in SuperAdminSidebar (21ea7e3)
+- Add Voice Gateways UI in Admin Panel (50f0b6b)
+- Add EDPL assignment script (a118da6)
+- Implement EDPL Bulk processing interceptor (221009c)
+- Support .env.production in migration script (a852e67)
+- Fix migration script dotenv loading (f2272a1)
+- Add EDPL Voice Provider Architecture (03b155f)
+- Update template detail and deletion functions to support Vi provider (adf366c)
+- Fix single send API not logging to api_message_logs (6d01e3e)
 
-## [2026-03-12]
-- feat: 🚀 Finalize WhatsApp APIs: Added Bulk, Single and Status endpoints with polished documentation
-- feat: 🛠️ Fix deployment system: Unique PM2 names (Parent-Folder-Naming) and smart migrations
-- feat: ⚡ Split WhatsApp API into Bulk and Single endpoints
-- feat: 🌐 Add public browser-accessible API documentation page
+---
 
-</details>
+## [2026-07-30]
+- Fix missing Edit2 import in Contacts page (6e5012e)
+- Add edit and delete functionality for labels and lists (d1cc6cf)
+- Add bulk assign and individual contact assignment features (a9d0965)
+- Add contact lists migration to deploy script (6cbf85d)
+- Fix dotenv path in migration script (f867290)
+- Add migration script for contact lists (3fac0be)
+- Fix UI for Campaign Stepper Labels (76d5f46)
+- Add label filtering to Contacts and Campaign UI (d77af01)
+- Add missing backend routes for contact lists (4520f74)
+
+---
+
+## [2026-07-29]
+- Implement Contact Lists feature across Contacts and Campaign pages (d6ac611)
+- Fix UI filter reset bug when clicking All Contacts (43fc5f6)
+- Add Edit Contact functionality and fix Bulk Insert duplicate issue (c550787)
+- Fix Contacts page toLowerCase crash for null values (558db5a)
+
+---
+
+## [2026-07-27]
+- Fix hardcoded UTILITY category for WA20 templates (0687829)
+
+---
+
+## [2026-07-20]
+- perf(whatsapp): Optimize smart matching query to use DB indexes (7416ab7)
+- fix(whatsapp): Add smart matching fallback for WA20 temporary message IDs in DLR webhooks (fdaf821)
+
+---
+
+## [2026-07-18]
+- feat: handle GSM webhook DLR status updates (da75d1a)
+- feat: handle WA20 Template status webhook and update message_templates table (797963a)
+- feat: Add GSM webhook endpoint for DLR testing (cdbe6a1)
+- fix: pass customer_id from DB to sendingService for WA20 (45e14db)
+- fix: route WA20 campaign messages to WA20 api endpoint instead of Meta Graph (a5ba6e2)
+- fix: map WA20 templates to Meta format and bypass waba check (7e3bf07)
+- fix: resolve ReferenceError in WhatsappConfigs.tsx handleSaveConfig (085b1a9)
+- feat: Add complete WA20 integration with dynamic config and webhooks (ebcd4a8)
+
+---
+
+
+> [!NOTE]
+> This log is auto-generated from git commits. To add manual notes, use git commit messages.

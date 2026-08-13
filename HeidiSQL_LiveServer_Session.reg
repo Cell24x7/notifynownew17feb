@@ -1,0 +1,30 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\HeidiSQL\Servers\CELL24X7_C31757_Live]
+"Comment"="NotifyNow Live Production Server Database"
+"Library"="libmariadb.dll"
+"NetType"=dword:00000000
+"Host"="127.0.0.1"
+"Port"="3307"
+"User"="root"
+"Password"="waQ4!r1241Kr"
+"PromptForPassword"=dword:00000000
+"Databases"="notifynow_db"
+"lastUsedDB"="notifynow_db"
+"CompressedProtocol"=dword:00000000
+"SSHtunnelActive"=dword:00000000
+"UseSSHTunnel"=dword:00000000
+
+[HKEY_CURRENT_USER\Software\HeidiSQL\Servers\Live Server]
+"Comment"="NotifyNow Live Production Server Database"
+"Library"="libmariadb.dll"
+"NetType"=dword:00000000
+"Host"="127.0.0.1"
+"Port"="3307"
+"User"="root"
+"Password"="waQ4!r1241Kr"
+"PromptForPassword"=dword:00000000
+"Databases"="notifynow_db"
+"lastUsedDB"="notifynow_db"
+"SSHtunnelActive"=dword:00000000
+"UseSSHTunnel"=dword:00000000

@@ -364,4 +364,72 @@ router.post('/bulk-upload', authenticateToken, upload.single('file'), async (req
     }
 });
 
+// ============================================================================
+// RESELLER ACCOUNT-WISE DLT TEMPLATES AUDIT & MANAGEMENT
+// ============================================================================
+
+// GET /api/dlt-templates/reseller/all
+router.get('/reseller/all', authenticateToken, async (req, res) => {
+    try {
+        const isResellerRole = req.user.role === 'reseller';
+        const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
+
+        if (!isResellerRole && !isAdminRole) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        const resellerId = isResellerRole ? (req.user.actual_reseller_id || req.user.id) : (req.query.resellerId || req.user.id);
+        const targetUserId = req.query.targetUserId;
+        const search = req.query.search;
+        const senderFilter = req.query.sender;
+
+        let sql = `
+            SELECT dt.*, u.name as user_name, u.email as user_email
+            FROM dlt_templates dt
+            JOIN users u ON dt.user_id = u.id
+            WHERE (u.reseller_id = ? OR u.id = ?)
+        `;
+        let params = [resellerId, resellerId];
+
+        if (targetUserId && targetUserId !== 'all') {
+            sql += ' AND dt.user_id = ?';
+            params.push(targetUserId);
+        }
+
+        if (senderFilter) {
+            sql += ' AND dt.sender LIKE ?';
+            params.push(`%${senderFilter}%`);
+        }
+
+        if (search) {
+            sql += ' AND (dt.temp_name LIKE ? OR dt.temp_id LIKE ? OR dt.template_text LIKE ? OR dt.sender LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        sql += ' ORDER BY dt.created_at DESC LIMIT 500';
+
+        const [templates] = await query(sql, params);
+        res.json({ success: true, templates });
+    } catch (error) {
+        console.error('Reseller DLT Templates Audit error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch reseller DLT templates' });
+    }
+});
+
+// PUT /api/dlt-templates/:id/toggle-status
+router.put('/:id/toggle-status', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // 'Y' | 'N' | 'Active' | 'Inactive'
+
+        const dbStatus = (status === 'Active' || status === 'Y' || status === '1' || status === true) ? 'Y' : 'N';
+
+        await query('UPDATE dlt_templates SET status = ? WHERE id = ?', [dbStatus, id]);
+        res.json({ success: true, message: `Template status updated to ${dbStatus === 'Y' ? 'Active' : 'Inactive'}`, status: dbStatus });
+    } catch (error) {
+        console.error('Toggle template status error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to toggle status' });
+    }
+});
+
 module.exports = router;

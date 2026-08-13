@@ -692,4 +692,257 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
+// ============================================================================
+// RESELLER CLIENT MANAGEMENT ENHANCEMENTS (Advanced Reseller Suite)
+// ============================================================================
+
+// GET /api/resellers/clients/list
+router.get('/clients/list', authenticate, async (req, res) => {
+  try {
+    const isResellerRole = req.user.role === 'reseller';
+    const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
+    if (!isResellerRole && !isAdminRole) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const resellerId = isResellerRole ? (req.user.actual_reseller_id || req.user.id) : (req.query.resellerId || req.user.id);
+
+    const [clients] = await query(`
+      SELECT 
+        u.id, u.name, u.email, u.company, u.contact_phone, u.role, u.status, u.plan_id,
+        u.wallet_balance, u.credits_available, u.credits_used, u.channels_enabled,
+        u.sender_type, u.account_expiry_date, u.billing_type, u.postpaid_credit_limit,
+        u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled, u.is_dinstar_enabled,
+        u.created_at, u.updated_at
+      FROM users u
+      WHERE u.reseller_id = ? OR u.id IN (SELECT id FROM users WHERE reseller_id = ?)
+      ORDER BY u.created_at DESC
+    `, [resellerId, resellerId]);
+
+    const formatted = clients.map(c => ({
+      ...c,
+      channels_enabled: typeof c.channels_enabled === 'string' ? JSON.parse(c.channels_enabled || '[]') : c.channels_enabled
+    }));
+
+    res.json({ success: true, clients: formatted });
+  } catch (err) {
+    console.error('RESELLER CLIENTS LIST ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/resellers/clients/create
+router.post('/clients/create', authenticate, async (req, res) => {
+  try {
+    const isResellerRole = req.user.role === 'reseller';
+    const isAdminRole = req.user.role === 'admin' || req.user.role === 'superadmin';
+    if (!isResellerRole && !isAdminRole) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const {
+      name, email, password, company_name, contact_phone, status = 'active',
+      plan_id = 'default', credits_available = 0, channels_enabled = ['sms', 'whatsapp', 'rcs'],
+      sender_type = 'dynamic', account_expiry_date = null, billing_type = 'prepaid', postpaid_credit_limit = 0,
+      pe_id = null, hash_id = null
+    } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ success: false, message: 'Name, Email Address (Username for Login), and Password are required' });
+    }
+
+    const [exists] = await query('SELECT id FROM users WHERE email = ?', [email]);
+    if (exists.length > 0) {
+      return res.status(409).json({ success: false, message: 'Email Address (Username) already exists' });
+    }
+
+    const resellerUserId = isResellerRole ? (req.user.actual_reseller_id || req.user.id) : (req.body.reseller_id || req.user.id);
+
+    // Auto-inherit PE ID & Hash ID from Reseller if omitted
+    let finalPeId = pe_id;
+    let finalHashId = hash_id;
+    if (!finalPeId || !finalHashId) {
+      const [reseller] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [resellerUserId]);
+      if (reseller.length > 0) {
+        if (!finalPeId) finalPeId = reseller[0].pe_id;
+        if (!finalHashId) finalHashId = reseller[0].hash_id;
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [result] = await query(`
+      INSERT INTO users (
+        name, company, contact_phone, email, password, role, status, plan_id,
+        wallet_balance, credits_available, credits_used, channels_enabled, reseller_id,
+        sender_type, account_expiry_date, billing_type, postpaid_credit_limit, pe_id, hash_id
+      ) VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      name, company_name || '', contact_phone || '', email, hashedPassword, status, plan_id,
+      credits_available, credits_available, JSON.stringify(channels_enabled), resellerUserId,
+      sender_type, account_expiry_date || null, billing_type, postpaid_credit_limit, finalPeId, finalHashId
+    ]);
+
+    const newUserId = result.insertId;
+
+    if (credits_available > 0) {
+      await query(
+        `INSERT INTO transactions (user_id, type, amount, credits, description, status) VALUES (?, 'credit', ?, ?, ?, 'completed')`,
+        [newUserId, credits_available, credits_available, `Initial credit allocation by reseller ${req.user.email}`]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Client created successfully',
+      userId: newUserId,
+      usernameHint: `${email} is the Username used for portal login.`
+    });
+  } catch (err) {
+    console.error('CREATE RESELLER CLIENT ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/resellers/clients/:id
+router.put('/clients/:id', authenticate, async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const {
+      name, company, contact_phone, status, sender_type, account_expiry_date,
+      billing_type, postpaid_credit_limit, pe_id, hash_id, password
+    } = req.body;
+
+    let updates = [];
+    let values = [];
+
+    if (name !== undefined) { updates.push('name = ?'); values.push(name); }
+    if (company !== undefined) { updates.push('company = ?'); values.push(company); }
+    if (contact_phone !== undefined) { updates.push('contact_phone = ?'); values.push(contact_phone); }
+    if (status !== undefined) { updates.push('status = ?'); values.push(status); }
+    if (sender_type !== undefined) { updates.push('sender_type = ?'); values.push(sender_type); }
+    if (account_expiry_date !== undefined) { updates.push('account_expiry_date = ?'); values.push(account_expiry_date || null); }
+    if (billing_type !== undefined) { updates.push('billing_type = ?'); values.push(billing_type); }
+    if (postpaid_credit_limit !== undefined) { updates.push('postpaid_credit_limit = ?'); values.push(postpaid_credit_limit); }
+    if (pe_id !== undefined) { updates.push('pe_id = ?'); values.push(pe_id || null); }
+    if (hash_id !== undefined) { updates.push('hash_id = ?'); values.push(hash_id || null); }
+
+    if (password && password.trim().length > 0) {
+      const hashedPassword = await bcrypt.hash(password.trim(), 10);
+      updates.push('password = ?');
+      values.push(hashedPassword);
+    }
+
+    if (updates.length === 0) {
+      return res.json({ success: true, message: 'No fields to update' });
+    }
+
+    values.push(clientId);
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
+
+    res.json({ success: true, message: 'Client details updated successfully' });
+  } catch (err) {
+    console.error('UPDATE RESELLER CLIENT ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/resellers/clients/:id/balance
+router.post('/clients/:id/balance', authenticate, async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const { action, amount, description } = req.body;
+    const numAmount = parseFloat(amount);
+
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Amount must be a positive number' });
+    }
+
+    const [user] = await query('SELECT id, wallet_balance, credits_available FROM users WHERE id = ?', [clientId]);
+    if (user.length === 0) return res.status(404).json({ success: false, message: 'Client not found' });
+
+    const currentBalance = parseFloat(user[0].wallet_balance || 0);
+    let newBalance = currentBalance;
+
+    if (action === 'add') {
+      newBalance += numAmount;
+    } else if (action === 'deduct') {
+      newBalance = Math.max(0, newBalance - numAmount);
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+    }
+
+    await query('UPDATE users SET wallet_balance = ?, credits_available = ? WHERE id = ?', [newBalance, newBalance, clientId]);
+
+    const txType = action === 'add' ? 'credit' : 'debit';
+    const txDesc = description || `${action === 'add' ? 'Credits Added' : 'Credits Deducted'} by Reseller ${req.user.email}`;
+
+    await query(
+      `INSERT INTO transactions (user_id, type, amount, credits, description, status) VALUES (?, ?, ?, ?, ?, 'completed')`,
+      [clientId, txType, numAmount, numAmount, txDesc]
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully ${action === 'add' ? 'added' : 'deducted'} ${numAmount} credits`,
+      previousBalance: currentBalance,
+      newBalance
+    });
+  } catch (err) {
+    console.error('MANAGE CLIENT BALANCE ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/resellers/clients/:id/transactions (Audit Log)
+router.get('/clients/:id/transactions', authenticate, async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const [transactions] = await query(
+      'SELECT id, type, amount, credits, description, status, created_at FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 100',
+      [clientId]
+    );
+    res.json({ success: true, transactions });
+  } catch (err) {
+    console.error('CLIENT TRANSACTIONS ERROR:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Sender ID Mapping Endpoints
+router.get('/clients/:id/senders', authenticate, async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const [senders] = await query('SELECT * FROM user_sender_mappings WHERE user_id = ? ORDER BY created_at DESC', [clientId]);
+    res.json({ success: true, senders });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/clients/:id/senders', authenticate, async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const { sender_id, pe_id, status = 'active' } = req.body;
+    if (!sender_id) return res.status(400).json({ success: false, message: 'Sender ID is required' });
+
+    await query(
+      `INSERT INTO user_sender_mappings (user_id, sender_id, pe_id, status) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE pe_id = VALUES(pe_id), status = VALUES(status)`,
+      [clientId, sender_id.trim().toUpperCase(), pe_id || null, status]
+    );
+    res.json({ success: true, message: 'Sender ID mapped successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.delete('/clients/:id/senders/:mappingId', authenticate, async (req, res) => {
+  try {
+    await query('DELETE FROM user_sender_mappings WHERE id = ? AND user_id = ?', [req.params.mappingId, req.params.id]);
+    res.json({ success: true, message: 'Sender ID mapping removed' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

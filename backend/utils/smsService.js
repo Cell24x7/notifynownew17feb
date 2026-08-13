@@ -92,11 +92,20 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
 
         // 1. Try to fetch user's assigned gateway and DLT defaults
         if (userId && userId !== '0') {
-            const [users] = await query('SELECT sms_gateway_id, pe_id, hash_id FROM users WHERE id = ?', [userId]);
+            const [users] = await query('SELECT reseller_id, sms_gateway_id, pe_id, hash_id FROM users WHERE id = ?', [userId]);
             if (users.length > 0) {
                 // Set defaults if missing in options
                 if (!options.peId) options.peId = users[0].pe_id;
                 if (!options.hashId) options.hashId = users[0].hash_id;
+
+                // Fallback to Reseller's PE ID & Hash ID if still missing
+                if ((!options.peId || !options.hashId) && users[0].reseller_id) {
+                    const [resellers] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [users[0].reseller_id]);
+                    if (resellers.length > 0) {
+                        if (!options.peId) options.peId = resellers[0].pe_id;
+                        if (!options.hashId) options.hashId = resellers[0].hash_id;
+                    }
+                }
 
                 if (users[0].sms_gateway_id) {
                     const [gateways] = await query('SELECT * FROM sms_gateways WHERE id = ? AND status = "active"', [users[0].sms_gateway_id]);
@@ -104,6 +113,15 @@ const sendSMS = async (mobile, message, templateOrOptions = {}) => {
                         gateway = gateways[0];
                     }
                 }
+            }
+        }
+
+        // Master System Fallback if PE ID or Hash ID is still missing
+        if (!options.peId || !options.hashId) {
+            const [adminDefaults] = await query('SELECT pe_id, hash_id FROM users WHERE pe_id IS NOT NULL AND hash_id IS NOT NULL ORDER BY id ASC LIMIT 1');
+            if (adminDefaults.length > 0) {
+                if (!options.peId) options.peId = adminDefaults[0].pe_id;
+                if (!options.hashId) options.hashId = adminDefaults[0].hash_id;
             }
         }
 

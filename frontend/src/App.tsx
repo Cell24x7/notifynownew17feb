@@ -56,6 +56,7 @@ import SuperAdminSystemEngine from "./pages/super-admin/SystemEngine";
 import SuperAdminDevelopmentEfficiency from "./pages/super-admin/DevelopmentEfficiency";
 import ResellerBranding from "./pages/reseller/Branding";
 import ResellerUsers from "./pages/reseller/Users";
+import ResellerDLTTemplates from "./pages/reseller/ResellerDLTTemplates";
 import SuperAdminSupport from "./pages/super-admin/Support";
 
 
@@ -125,6 +126,7 @@ const App = () => (
                       {/* Reseller Specific Routes */}
                       <Route path="/reseller/branding" element={<ResellerBranding />} />
                       <Route path="/reseller/users" element={<ResellerUsers />} />
+                      <Route path="/reseller/dlt-templates" element={<ResellerDLTTemplates />} />
                     </Route>
 
                     {/* Super Admin Routes */}

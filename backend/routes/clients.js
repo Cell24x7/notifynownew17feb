@@ -138,6 +138,26 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
     const [exists] = await query('SELECT id FROM users WHERE email = ?', [email]);
     if (exists.length) return res.status(409).json({ success: false, message: 'Email already exists' });
 
+    let finalPeId = pe_id || null;
+    let finalHashId = hash_id || null;
+
+    // Auto-inherit PE ID & Hash ID from Parent Reseller / Admin if not provided
+    if (!finalPeId || !finalHashId) {
+      const parentId = req.user.role === 'reseller' ? (req.user.actual_reseller_id || req.user.id) : (req.body.reseller_id || req.user.id);
+      const [parent] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [parentId]);
+      if (parent.length > 0) {
+        if (!finalPeId) finalPeId = parent[0].pe_id;
+        if (!finalHashId) finalHashId = parent[0].hash_id;
+      }
+    }
+    if (!finalPeId || !finalHashId) {
+      const [masterAdmin] = await query('SELECT pe_id, hash_id FROM users WHERE pe_id IS NOT NULL AND hash_id IS NOT NULL ORDER BY id ASC LIMIT 1');
+      if (masterAdmin.length > 0) {
+        if (!finalPeId) finalPeId = masterAdmin[0].pe_id;
+        if (!finalHashId) finalHashId = masterAdmin[0].hash_id;
+      }
+    }
+
     const hash = await bcrypt.hash(password, 10);
 
     const [result] = await query(`
@@ -161,7 +181,7 @@ router.post('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       sms_promotional_price, sms_transactional_price, sms_service_price,
       rcs_limit || null, wa_limit || null, sms_limit || null, voice_limit || null,
       req.user.role === 'reseller' ? (req.user.actual_reseller_id || req.user.id) : (req.body.reseller_id || null),
-      pe_id || null, hash_id || null, is_api_allowed || false, is_proero_enabled || 0, is_smm_enabled || 0, is_dinstar_enabled || 0,
+      finalPeId, finalHashId, is_api_allowed || false, is_proero_enabled || 0, is_smm_enabled || 0, is_dinstar_enabled || 0,
       dlr_webhook_url || null, wa_unofficial_webhook_enabled || 0
     ]);
 
