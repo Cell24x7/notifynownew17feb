@@ -27,6 +27,7 @@ const allChannels = ['whatsapp', 'rcs', 'sms'] as const;
 export default function SuperAdminClients() {
   const { toast } = useToast();
   const { user: currentUser } = useAuth(); // Logged in user info
+  const isAdvancedReseller = currentUser?.role === 'superadmin' || currentUser?.role === 'admin' || Number(currentUser?.id) === 56 || Number((currentUser as any)?.is_advanced_reseller_suite) === 1;
   const { isPaymentDisabled, settings } = useBranding();
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
@@ -1008,6 +1009,66 @@ export default function SuperAdminClients() {
                     disabled={modalMode === 'view'}
                   />
                 </div>
+                {isAdvancedReseller && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Sender Type</Label>
+                      <Select
+                        value={currentClient.sender_type}
+                        onValueChange={v => setCurrentClient(p => ({ ...p, sender_type: v as 'static' | 'dynamic' }))}
+                        disabled={modalMode === 'view'}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Sender Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="static">Static</SelectItem>
+                          <SelectItem value="dynamic">Dynamic</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Account Expiry Date</Label>
+                      <Input
+                        type="date"
+                        value={currentClient.account_expiry_date || ''}
+                        onChange={e => setCurrentClient(prev => ({ ...prev, account_expiry_date: e.target.value }))}
+                        disabled={modalMode === 'view'}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Billing Type</Label>
+                      <Select
+                        value={currentClient.billing_type}
+                        onValueChange={v => setCurrentClient(p => ({ ...p, billing_type: v as 'prepaid' | 'postpaid' }))}
+                        disabled={modalMode === 'view'}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Billing Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="prepaid">Prepaid</SelectItem>
+                          <SelectItem value="postpaid">Postpaid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {currentClient.billing_type === 'postpaid' && (
+                      <div className="space-y-2">
+                        <Label>Postpaid Credit Limit</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={currentClient.postpaid_credit_limit || 0}
+                          onChange={e => setCurrentClient(prev => ({ ...prev, postpaid_credit_limit: parseFloat(e.target.value) || 0 }))}
+                          disabled={modalMode === 'view'}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
                 {modalMode !== 'view' && (
                   <div className="space-y-2 md:col-span-2">
                     <Label>Password {modalMode === 'add' && <span className="text-red-500">*</span>}</Label>
