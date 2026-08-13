@@ -692,7 +692,9 @@ export default function SuperAdminClients() {
           title={currentUser?.role === 'reseller' ? "My Credit Pool" : "Available Credits"}
           value={(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') 
             ? "Unlimited" 
-            : (currentUser?.wallet_balance || 0).toLocaleString()}
+            : (isPaymentDisabled || currentUser?.id === 10 || (currentUser as any)?.actual_reseller_id === 10 || (currentUser as any)?.reseller_id === 10 || Boolean(settings?.brand_name?.toLowerCase().includes('boltzm')))
+              ? Math.floor(Number(currentUser?.wallet_balance || currentUser?.credits_available || 0)).toLocaleString()
+              : (currentUser?.wallet_balance || 0).toLocaleString()}
           icon={CreditCard}
           color="text-blue-600"
           bg="bg-blue-500/10"
@@ -858,14 +860,36 @@ export default function SuperAdminClients() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-xs font-medium text-green-600">
-                            {"\u20B9"}{(client.wallet_balance || 0).toLocaleString()}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {client.credits_available.toLocaleString()} units
-                          </span>
-                        </div>
+                        {(() => {
+                          const isBoltzmanClient = isPaymentDisabled || 
+                            currentUser?.id === 10 || 
+                            (currentUser as any)?.actual_reseller_id === 10 || 
+                            (currentUser as any)?.reseller_id === 10 || 
+                            client?.reseller_id === 10 || 
+                            client?.parent_reseller_id === 10 || 
+                            Boolean(settings?.brand_name?.toLowerCase().includes('boltzm'));
+
+                          if (isBoltzmanClient) {
+                            return (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                  {Math.floor(Number(client.wallet_balance ?? client.credits_available ?? 0)).toLocaleString()}
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-xs font-medium text-green-600">
+                                {"\u20B9"}{(client.wallet_balance || 0).toLocaleString()}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {client.credits_available.toLocaleString()} units
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge className={cn('text-[10px] px-2 py-0.5 rounded-full capitalize shadow-none border', getStatusColor(client.status))}>
@@ -1059,7 +1083,9 @@ export default function SuperAdminClients() {
                   <div className="flex justify-between items-center">
                     <Label>Initial Credits</Label>
                     {currentUser?.role === 'reseller' && (
-                       <span className="text-[10px] font-bold text-emerald-600">Pool: {Number(currentUser.wallet_balance).toLocaleString()}</span>
+                       <span className="text-[10px] font-bold text-emerald-600">
+                         Pool: {Math.floor(Number(currentUser.wallet_balance || currentUser.credits_available || 0)).toLocaleString()}
+                       </span>
                     )}
                   </div>
                   <Input
