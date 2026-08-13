@@ -128,6 +128,85 @@ router.get('/transactions', authenticateToken, async (req, res) => {
   }
 });
 
+// GET advanced hierarchical credit ledger (Super Admin & Reseller Only)
+router.get('/ledger', authenticateToken, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'super_admin' || req.user.id === 56;
+    const isReseller = req.user.role === 'reseller';
+
+    if (!isAdmin && !isReseller) {
+      return res.status(403).json({ success: false, message: 'Unauthorized. Ledger access is restricted to Admins and Resellers.' });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    let baseSql = `
+      FROM transactions t
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN users r ON u.reseller_id = r.id
+    `;
+    const params = [];
+    let whereClauses = [];
+
+    // Filter by specific user if provided
+    if (req.query.userId) {
+      whereClauses.push('t.user_id = ?');
+      params.push(req.query.userId);
+    }
+    
+    // Filter by type if provided
+    if (req.query.type) {
+      whereClauses.push('t.type = ?');
+      params.push(req.query.type);
+    }
+
+    // Role-based scoping
+    if (isReseller) {
+      // Resellers can only see transactions for themselves and their direct downline
+      whereClauses.push('(t.user_id = ? OR u.reseller_id = ?)');
+      const resId = req.user.actual_reseller_id || req.user.id;
+      params.push(req.user.id, resId);
+    }
+
+    if (whereClauses.length > 0) {
+      baseSql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    // Get total count
+    const [countResult] = await query(`SELECT COUNT(*) as total ${baseSql}`, params);
+    const total = countResult[0].total;
+
+    // Get enriched data
+    const selectSql = `
+      SELECT 
+        t.id, t.type, t.amount, t.description, t.status, t.created_at,
+        u.name as owner_name, u.email as owner_email, u.role as owner_role,
+        r.name as reseller_name, r.email as reseller_email
+      ${baseSql}
+      ORDER BY t.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await query(selectSql, [...params, limit, offset]);
+
+    res.json({
+      success: true,
+      ledger: rows,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    console.error('LEDGER ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch ledger' });
+  }
+});
+
 // Recharge Wallet (Simulated)
 router.post('/recharge', authenticateToken, async (req, res) => {
   const { amount } = req.body;

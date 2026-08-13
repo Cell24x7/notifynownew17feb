@@ -159,12 +159,81 @@ router.post('/', authenticateToken, async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'DLT Template created successfully',
-            id: result.insertId
+            id: result.insertId,
+            message: 'Template created successfully'
         });
     } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ success: false, message: 'Template ID already exists for this user' });
+        }
         console.error('Create DLT template error:', error);
-        res.status(500).json({ success: false, message: 'Failed to create DLT template' });
+        res.status(500).json({ success: false, message: 'Failed to create template' });
+    }
+});
+
+// CREATE Bulk DLT Templates
+router.post('/bulk-upload', authenticateToken, async (req, res) => {
+    try {
+        let targetUserId = req.user.id;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        if (isAdmin && req.body.userId) {
+            targetUserId = req.body.userId;
+        }
+
+        const { templates } = req.body;
+        if (!Array.isArray(templates) || templates.length === 0) {
+            return res.status(400).json({ success: false, message: 'Templates array is required' });
+        }
+
+        // Fetch user defaults once for all templates
+        const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [targetUserId]);
+        const defaultPeId = user.length > 0 ? user[0].pe_id : null;
+        const defaultHashId = user.length > 0 ? user[0].hash_id : null;
+
+        let successCount = 0;
+        let errors = [];
+
+        for (let i = 0; i < templates.length; i++) {
+            const t = templates[i];
+            const sender = t.sender || t.Sender || t.SenderID;
+            const template_text = t.template_text || t.Message || t.TemplateText;
+            const temp_id = t.temp_id || t.TemplateID || t.ID;
+            const temp_name = t.temp_name || t.TemplateName || '';
+            const status = t.status || t.Status || 'Y';
+            const temp_type = t.temp_type || t.TemplateType || 'Transactional';
+            const pe_id = t.pe_id || t.PEID || defaultPeId;
+            const hash_id = t.hash_id || t.HashID || defaultHashId;
+
+            if (!sender || !template_text || !temp_id) {
+                errors.push(`Row ${i + 1}: Missing required fields (Sender, Template Text, Template ID).`);
+                continue;
+            }
+
+            try {
+                await query(
+                    `INSERT INTO dlt_templates (user_id, sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [targetUserId, sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id]
+                );
+                successCount++;
+            } catch (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    errors.push(`Row ${i + 1}: Template ID ${temp_id} already exists.`);
+                } else {
+                    errors.push(`Row ${i + 1}: Database error (${err.message}).`);
+                }
+            }
+        }
+
+        res.status(201).json({
+            success: true,
+            message: `Successfully uploaded ${successCount} templates.`,
+            successCount,
+            errors
+        });
+    } catch (error) {
+        console.error('Bulk upload DLT templates error:', error);
+        res.status(500).json({ success: false, message: 'Failed to process bulk upload' });
     }
 });
 

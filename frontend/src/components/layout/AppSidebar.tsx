@@ -27,7 +27,8 @@ import {
   Bot,
   LifeBuoy,
   Smartphone,
-  Terminal
+  Terminal,
+  ScrollText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -145,6 +146,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Globe, label: 'Whitelabel & Payments', path: '/reseller/branding', show: hasPermission('Reseller Branding - View') },
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: !isPricingHidden && hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: !isPaymentDisabled && hasPermission('Wallet - View') },
+    { icon: ScrollText, label: 'Credit Ledger', path: '/reseller/credit-ledger', show: user?.role === 'reseller' || hasPermission('Reseller Users - View') },
     { 
       icon: Terminal, 
       label: 'API Hub', 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from '@/components/ui/dialog';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Plus, Loader2, Trash2, Pencil } from 'lucide-react';
+import { FileText, Plus, Loader2, Trash2, Pencil, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ManageDLTModalProps {
@@ -21,6 +21,8 @@ interface ManageDLTModalProps {
 export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps) {
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -135,6 +137,81 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
     setIsAdding(true);
   };
 
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      toast.error('Please upload a valid CSV file');
+      return;
+    }
+
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) {
+          toast.error('CSV file is empty or missing headers');
+          setIsUploading(false);
+          return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const templates = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          // A simple CSV parser (does not handle commas inside quotes perfectly, but sufficient for basic template uploads)
+          const regex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
+          const currentLine = lines[i];
+          let values = [];
+          let match;
+          // Simple split by comma for now, assume clean CSV without commas in text, or using PapaParse if available
+          // To be safe, simple split:
+          values = currentLine.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+          
+          if (values.length < 3) continue;
+
+          let t: any = {};
+          headers.forEach((h, index) => {
+            if (values[index]) t[h] = values[index];
+          });
+          templates.push(t);
+        }
+
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/dlt-templates/bulk-upload', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}` 
+          },
+          body: JSON.stringify({ userId: client.id, templates })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          toast.success(data.message);
+          if (data.errors && data.errors.length > 0) {
+            console.warn('Bulk upload errors:', data.errors);
+            toast.warning(`${data.errors.length} rows had errors. Check console.`);
+          }
+          fetchTemplates();
+        } else {
+          toast.error(data.message || 'Bulk upload failed');
+        }
+      } catch (error) {
+        console.error('Bulk upload error:', error);
+        toast.error('Failed to parse and upload CSV');
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   if (!client) return null;
 
   return (
@@ -151,13 +228,30 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
             </DialogDescription>
           </div>
           {!isAdding && (
-            <Button onClick={() => {
-              setFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', temp_type: 'Transactional', status: 'Y', pe_id: '', hash_id: '' });
-              setEditingId(null);
-              setIsAdding(true);
-            }}>
-              <Plus className="w-4 h-4 mr-2" /> Add Template
-            </Button>
+            <div className="flex items-center gap-2">
+              <input 
+                type="file" 
+                accept=".csv" 
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleBulkUpload} 
+              />
+              <Button 
+                variant="outline" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UploadCloud className="w-4 h-4 mr-2" />}
+                Bulk Upload CSV
+              </Button>
+              <Button onClick={() => {
+                setFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', temp_type: 'Transactional', status: 'Y', pe_id: '', hash_id: '' });
+                setEditingId(null);
+                setIsAdding(true);
+              }}>
+                <Plus className="w-4 h-4 mr-2" /> Add Template
+              </Button>
+            </div>
           )}
         </DialogHeader>
 

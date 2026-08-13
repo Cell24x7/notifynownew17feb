@@ -88,6 +88,7 @@ export function SuperAdminSidebar({ onClose }: SuperAdminSidebarProps) {
     { icon: Users, label: 'Resellers', path: '/super-admin/resellers', permission: 'Resellers - View' },
     { icon: Link2, label: 'Affiliates', path: '/super-admin/affiliates', permission: 'Affiliates - View' },
     { icon: Wallet, label: 'Wallet / Credits', path: '/super-admin/wallet', permission: 'Wallet - View' },
+    { icon: ScrollText, label: 'Credit Ledger', path: '/super-admin/credit-ledger', permission: 'Wallet - View' },
     { icon: FileText, label: 'Usage Ledger', path: '/super-admin/ledger', permission: 'Usage Ledger - View' },
     { icon: Rocket, label: 'System Engine', path: '/super-admin/engine', permission: 'System Engine - View' },
     { icon: Zap, label: 'Development Efficiency', path: '/super-admin/dev-progress', permission: 'System Engine - View' },

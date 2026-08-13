@@ -58,6 +58,7 @@ import ResellerBranding from "./pages/reseller/Branding";
 import ResellerUsers from "./pages/reseller/Users";
 import ResellerDLTTemplates from "./pages/reseller/ResellerDLTTemplates";
 import SuperAdminSupport from "./pages/super-admin/Support";
+import SuperAdminCreditLedger from "./pages/super-admin/CreditLedger";
 
 
 import UserPlans from "./pages/UserPlans";
@@ -127,6 +128,7 @@ const App = () => (
                       <Route path="/reseller/branding" element={<ResellerBranding />} />
                       <Route path="/reseller/users" element={<ResellerUsers />} />
                       <Route path="/reseller/dlt-templates" element={<ResellerDLTTemplates />} />
+                      <Route path="/reseller/credit-ledger" element={<SuperAdminCreditLedger />} />
                     </Route>
 
                     {/* Super Admin Routes */}
@@ -140,6 +142,7 @@ const App = () => (
                       <Route path="/super-admin/resellers" element={<SuperAdminResellers />} />
                       <Route path="/super-admin/affiliates" element={<SuperAdminAffiliates />} />
                       <Route path="/super-admin/wallet" element={<SuperAdminWallet />} />
+                      <Route path="/super-admin/credit-ledger" element={<SuperAdminCreditLedger />} />
                       <Route path="/super-admin/logs" element={<SuperAdminLogs />} />
                        <Route path="/super-admin/reports" element={<SuperAdminReports />} />
                        <Route path="/super-admin/reports/today" element={<TodayReport />} />
