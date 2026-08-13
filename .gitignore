@@ -20,6 +20,8 @@ frontend/.env*
 # Temporary files
 tmp/
 *.timestamp-*.mjs
+.last_install_md5
+*/.last_install_md5
 
 # Scratch & diagnostic scripts
 scratch/
