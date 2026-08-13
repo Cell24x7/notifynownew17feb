@@ -126,7 +126,7 @@ const handleSendSms = async (req, res) => {
             } else {
                 // Check global dlt_templates if not found in personal templates
                 const [dltTmpl] = await query(
-                    'SELECT temp_id, pe_id, hash_id, temp_name FROM dlt_templates WHERE (temp_id = ? OR temp_name = ?) LIMIT 1',
+                    'SELECT temp_id, pe_id, hash_id, temp_name, sender FROM dlt_templates WHERE (temp_id = ? OR temp_name = ?) LIMIT 1',
                     [templateId, templateId]
                 );
                 
@@ -134,6 +134,7 @@ const handleSendSms = async (req, res) => {
                     finalTemplateId = dltTmpl[0].temp_id;
                     finalPeId = dltTmpl[0].pe_id || finalPeId;
                     finalHashId = dltTmpl[0].hash_id || finalHashId;
+                    if (!finalSenderId) finalSenderId = dltTmpl[0].sender; // Auto-resolve sender
                     templateResolved = true;
                 }
             }
@@ -145,7 +146,7 @@ const handleSendSms = async (req, res) => {
             
             // Fetch both user templates and global DLT templates for matching
             const [userTmpls] = await query('SELECT name, body, metadata FROM message_templates WHERE user_id = ?', [req.user.id]);
-            const [dltTmpls] = await query('SELECT temp_id, pe_id, hash_id, body FROM dlt_templates');
+            const [dltTmpls] = await query('SELECT temp_id, pe_id, hash_id, sender, body FROM dlt_templates');
             
             const allTmpls = [
                 ...userTmpls.map(t => ({ ...t, source: 'user' })),
@@ -176,11 +177,13 @@ const handleSendSms = async (req, res) => {
                             finalTemplateId = meta.templateId || meta.dlt_template_id;
                             finalPeId = meta.peId || meta.pe_id;
                             finalHashId = meta.hashId || meta.hash_id;
+                            if (!finalSenderId && meta.sender) finalSenderId = meta.sender;
                         } catch (e) {}
                     } else {
                         finalTemplateId = tmpl.temp_id;
                         finalPeId = tmpl.pe_id;
                         finalHashId = tmpl.hash_id;
+                        if (!finalSenderId && tmpl.sender) finalSenderId = tmpl.sender;
                     }
 
                     if (finalTemplateId) {
