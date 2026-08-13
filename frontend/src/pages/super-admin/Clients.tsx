@@ -985,7 +985,7 @@ export default function SuperAdminClients() {
                   <div className="flex items-center justify-between">
                     <Label className="font-medium">Email Address <span className="text-red-500">*</span></Label>
                     <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
-                      🔑 Username for Login (Isse hi login hoga)
+                      🔑 Username for Login
                     </span>
                   </div>
                   <Input
