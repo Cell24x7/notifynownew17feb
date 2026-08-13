@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranding } from '@/contexts/BrandingContext';
 import { API_BASE_URL } from '@/config/api';
 
 const API_URL = `${API_BASE_URL}/api`;
@@ -26,6 +27,7 @@ const allChannels = ['whatsapp', 'rcs', 'sms'] as const;
 export default function SuperAdminClients() {
   const { toast } = useToast();
   const { user: currentUser } = useAuth(); // Logged in user info
+  const { isPaymentDisabled, settings } = useBranding();
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -692,7 +694,7 @@ export default function SuperAdminClients() {
           title={currentUser?.role === 'reseller' ? "My Credit Pool" : "Available Credits"}
           value={(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') 
             ? "Unlimited" 
-            : (isPaymentDisabled || currentUser?.id === 10 || (currentUser as any)?.actual_reseller_id === 10 || (currentUser as any)?.reseller_id === 10 || Boolean(settings?.brand_name?.toLowerCase().includes('boltzm')))
+            : (isPaymentDisabled || Number(currentUser?.id) === 10 || Number((currentUser as any)?.actual_reseller_id) === 10 || Number((currentUser as any)?.reseller_id) === 10 || Boolean(settings?.brand_name?.toLowerCase().includes('boltzm')))
               ? Math.floor(Number(currentUser?.wallet_balance || currentUser?.credits_available || 0)).toLocaleString()
               : (currentUser?.wallet_balance || 0).toLocaleString()}
           icon={CreditCard}
@@ -862,11 +864,11 @@ export default function SuperAdminClients() {
                       <TableCell className="text-right">
                         {(() => {
                           const isBoltzmanClient = isPaymentDisabled || 
-                            currentUser?.id === 10 || 
-                            (currentUser as any)?.actual_reseller_id === 10 || 
-                            (currentUser as any)?.reseller_id === 10 || 
-                            client?.reseller_id === 10 || 
-                            client?.parent_reseller_id === 10 || 
+                            Number(currentUser?.id) === 10 || 
+                            Number((currentUser as any)?.actual_reseller_id) === 10 || 
+                            Number((currentUser as any)?.reseller_id) === 10 || 
+                            Number(client?.reseller_id) === 10 || 
+                            Number(client?.parent_reseller_id) === 10 || 
                             Boolean(settings?.brand_name?.toLowerCase().includes('boltzm'));
 
                           if (isBoltzmanClient) {
