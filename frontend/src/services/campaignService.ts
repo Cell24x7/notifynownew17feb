@@ -130,8 +130,8 @@ export const campaignService = {
         return response.data;
     },
 
-    async resendCampaign(id: string) {
-        const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/${id}/resend`, {}, { headers: getAuthHeader() });
+    async resendCampaign(id: string, onlyFailed: boolean = false) {
+        const response = await axios.post(`${API_BASE_URL_CAMPAIGNS}/${id}/resend`, { onlyFailed }, { headers: getAuthHeader() });
         return response.data;
     },
 

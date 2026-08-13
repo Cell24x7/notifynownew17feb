@@ -399,7 +399,10 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
    // Get current rate per message
    const getCurrentRate = () => {
-      let costPerMsg = channelConfig?.costPerMessage || 0.25;
+      const isResellerCreditsMode = isPaymentDisabled || user?.role === 'reseller' || user?.role === 'reseller_client' || Boolean((user as any)?.actual_reseller_id) || Boolean((user as any)?.reseller_id);
+      if (isResellerCreditsMode) return 1.0;
+
+      let costPerMsg = 0.25;
       const u = user as any;
 
       if (campaignData.channel === 'rcs') {
@@ -1833,52 +1836,73 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        </CardContent>
                                     </Card>
 
-                                    <Card className={cn(
-                                       "relative overflow-hidden",
-                                       calculateCost() > Number(user?.wallet_balance || 0) && "border-destructive bg-destructive/5"
-                                    )}>
-                                       <CardContent className="p-4 flex flex-col items-center text-center">
-                                          <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Est. Cost</Label>
-                                          <div className="flex items-center gap-1 mb-1">
-                                             <span className="text-sm font-medium text-muted-foreground">₹</span>
-                                             <span className={cn(
-                                                "font-semibold text-2xl",
-                                                calculateCost() > Number(user?.wallet_balance || 0) ? "text-destructive" : "text-primary"
-                                             )}>
-                                                {calculateCost().toFixed(2)}
-                                             </span>
-                                          </div>
-                                          <div className="text-xs text-muted-foreground">@ ₹{getCurrentRate().toFixed(2)}/msg</div>
-                                          {calculateCost() > Number(user?.wallet_balance || 0) && (
-                                             <div className="mt-2 text-[10px] font-bold text-destructive flex items-center gap-1">
-                                                <AlertCircle className="h-3 w-3" />
-                                                INSUFFICIENT BALANCE
-                                             </div>
-                                          )}
-                                       </CardContent>
-                                    </Card>
-                                 </div>
+                                    {(() => {
+                                     const isResellerCreditsMode = isPaymentDisabled || user?.role === 'reseller' || user?.role === 'reseller_client' || Boolean((user as any)?.actual_reseller_id) || Boolean((user as any)?.reseller_id);
+                                     const currentBal = Number(user?.credits_available ?? user?.wallet_balance ?? 0);
+                                     const estCost = calculateCost();
+                                     const isInsufficient = estCost > currentBal;
 
-                                 {calculateCost() > Number(user?.wallet_balance || 0) && (
-                                    <div className="p-4 rounded-lg border border-destructive bg-destructive/10 flex items-start gap-3 animate-pulse">
-                                       <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-                                       <div>
-                                          <p className="font-semibold text-destructive">Insufficient Wallet Balance</p>
-                                          <p className="text-sm text-destructive/80">
-                                             Estimated cost (₹{calculateCost().toFixed(2)}) exceeds your current balance (₹{Number(user?.wallet_balance || 0).toFixed(2)}).
-                                             Please recharge your wallet to continue.
-                                          </p>
-                                          <Button
-                                             variant="outline"
-                                             size="sm"
-                                             className="mt-2 border-destructive text-destructive hover:bg-destructive hover:text-white"
-                                             onClick={() => window.open('/wallet', '_blank')}
-                                          >
-                                             Recharge Wallet
-                                          </Button>
-                                       </div>
-                                    </div>
-                                 )}
+                                     return (
+                                        <>
+                                           <Card className={cn(
+                                              "relative overflow-hidden",
+                                              isInsufficient && "border-destructive bg-destructive/5"
+                                           )}>
+                                              <CardContent className="p-4 flex flex-col items-center text-center">
+                                                 <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
+                                                    {isResellerCreditsMode ? "Est. Credits" : "Est. Cost"}
+                                                 </Label>
+                                                 <div className="flex items-center gap-1 mb-1">
+                                                    {!isResellerCreditsMode && <span className="text-sm font-medium text-muted-foreground">₹</span>}
+                                                    <span className={cn(
+                                                       "font-semibold text-2xl",
+                                                       isInsufficient ? "text-destructive" : "text-primary"
+                                                    )}>
+                                                       {isResellerCreditsMode ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}
+                                                    </span>
+                                                    {isResellerCreditsMode && <span className="text-xs font-semibold text-muted-foreground ml-0.5">Units</span>}
+                                                 </div>
+                                                 <div className="text-xs text-muted-foreground">
+                                                    {isResellerCreditsMode ? "@ 1 Credit/msg" : `@ ₹${getCurrentRate().toFixed(2)}/msg`}
+                                                 </div>
+                                                 {isInsufficient && (
+                                                    <div className="mt-2 text-[10px] font-bold text-destructive flex items-center gap-1">
+                                                       <AlertCircle className="h-3 w-3" />
+                                                       INSUFFICIENT BALANCE
+                                                    </div>
+                                                 )}
+                                              </CardContent>
+                                           </Card>
+
+                                           {isInsufficient && (
+                                              <div className="p-4 rounded-lg border border-destructive bg-destructive/10 flex items-start gap-3 animate-pulse">
+                                                 <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                                                 <div>
+                                                    <p className="font-semibold text-destructive">Insufficient Balance</p>
+                                                    <p className="text-sm text-destructive/80">
+                                                       {isResellerCreditsMode 
+                                                          ? `Required (${Math.floor(estCost).toLocaleString()} Credits) exceeds your current balance (${Math.floor(currentBal).toLocaleString()} Credits).`
+                                                          : `Estimated cost (₹${estCost.toFixed(2)}) exceeds your current balance (₹${currentBal.toFixed(2)}).`
+                                                       }
+                                                       Please recharge your account balance to continue.
+                                                    </p>
+                                                    {!isPaymentDisabled && (
+                                                       <Button
+                                                          variant="outline"
+                                                          size="sm"
+                                                          className="mt-2 border-destructive text-destructive hover:bg-destructive hover:text-white"
+                                                          onClick={() => window.open('/wallet', '_blank')}
+                                                       >
+                                                          Recharge Wallet
+                                                       </Button>
+                                                    )}
+                                                 </div>
+                                              </div>
+                                           )}
+                                        </>
+                                     );
+                                  })()}
+                                 </div>
 
                                  <div className="border rounded-lg p-6 bg-muted/20 mb-6">
                                     <div className="flex items-center justify-between mb-2">

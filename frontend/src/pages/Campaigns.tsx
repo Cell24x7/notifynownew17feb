@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File as FileIcon, Phone, Link, MessageSquare, Smartphone, ChevronRight, ChevronLeft, Check, ChevronsUpDown, IndianRupee, RefreshCw } from 'lucide-react';
+import { Plus, Search, Calendar, Send, Pause, Play, MoreVertical, BarChart3, LayoutGrid, List, Edit, Copy, Trash2, Eye, Zap, Users, FileText, Clock, TrendingUp, Target, Sparkles, X, Image, Video, File as FileIcon, Phone, Link, MessageSquare, Smartphone, ChevronRight, ChevronLeft, Check, ChevronsUpDown, IndianRupee, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -527,17 +527,34 @@ export default function Campaigns() {
     }
   };
 
-  const handleResendCampaign = async (campaign: Campaign) => {
+  const handleResendCampaign = async (campaign: Campaign, onlyFailed: boolean = false) => {
     try {
-      if (!confirm(`Are you sure you want to resend the campaign "${campaign.name}" to the same recipients?`)) {
+      const failedCount = campaign.failed_count || 0;
+      const countMsg = onlyFailed
+        ? `to ONLY the ${failedCount.toLocaleString()} failed contact(s)`
+        : `to ALL contacts`;
+
+      if (!confirm(`Are you sure you want to resend the campaign "${campaign.name}" ${countMsg}?`)) {
         return;
       }
-      toast({ title: '🔄 Resending Campaign', description: 'Triggering retry process...' });
-      const res = await campaignService.resendCampaign(campaign.id);
+      toast({
+        title: onlyFailed ? '🔄 Resending Failed Contacts' : '🔄 Resending Campaign',
+        description: 'Triggering retry process...'
+      });
+      const res = await campaignService.resendCampaign(campaign.id, onlyFailed);
       if (res.success) {
-        toast({ title: '🚀 Campaign Resent', description: 'A new campaign has been created and started.' });
-        await refreshUser(); // NEW: Refresh balance
+        toast({
+          title: '🚀 Campaign Resent',
+          description: res.message || `Campaign ${res.campaignId} started.`,
+        });
+        await refreshUser(); // Refresh balance
         fetchData();
+      } else {
+        toast({
+          title: 'Error',
+          description: res.message || 'Failed to resend campaign.',
+          variant: 'destructive',
+        });
       }
     } catch (err: any) {
       console.error('Resend campaign error:', err);
@@ -674,15 +691,21 @@ export default function Campaigns() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openAnalytics(campaign)}>
-                          <BarChart3 className="h-4 w-4 mr-2" />
-                          View Analytics
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicateCampaign(campaign)}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+                        {(campaign.status === 'completed' || campaign.status === 'sent' || campaign.sent_count > 0) && (
+                          <>
+                            {(campaign.failed_count || 0) > 0 && (
+                              <DropdownMenuItem onClick={() => handleResendCampaign(campaign, true)} className="text-destructive font-medium">
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                                Resend Failed ({(campaign.failed_count || 0).toLocaleString()})
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => handleResendCampaign(campaign, false)}>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Resend to All Contacts
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
@@ -769,16 +792,31 @@ export default function Campaigns() {
                         Resume
                       </Button>
                     )}
-                    {(campaign.status === 'completed' || campaign.sent_count > 0) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleResendCampaign(campaign)}
-                        className="flex-1 bg-success/5 hover:bg-success/10 text-success border-success/20"
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Send Again
-                      </Button>
+                    {(campaign.status === 'completed' || campaign.status === 'sent' || campaign.sent_count > 0) && (
+                      <div className="flex flex-wrap items-center gap-2 flex-1 w-full">
+                        {(campaign.failed_count || 0) > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendCampaign(campaign, true)}
+                            className="flex-1 bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30 font-semibold"
+                            title="Resend campaign to failed contacts only"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-1.5" />
+                            Resend Failed ({(campaign.failed_count || 0).toLocaleString()})
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResendCampaign(campaign, false)}
+                          className="flex-1 bg-success/5 hover:bg-success/10 text-success border-success/20 font-semibold"
+                          title="Resend campaign to all contacts"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-1.5" />
+                          {(campaign.failed_count || 0) > 0 ? 'Send All' : 'Send Again'}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -850,12 +888,35 @@ export default function Campaigns() {
                             Resume
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => openAnalytics(campaign)}>
+                        <Button size="sm" variant="ghost" onClick={() => openAnalytics(campaign)} title="Analytics">
                           <BarChart3 className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleResendCampaign(campaign)} className="text-success hover:text-success hover:bg-success/10">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
+                        {(campaign.status === 'completed' || campaign.status === 'sent' || campaign.sent_count > 0) && (
+                          <>
+                            {(campaign.failed_count || 0) > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleResendCampaign(campaign, true)}
+                                className="h-8 px-2 text-xs bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30 font-semibold"
+                                title={`Resend ${(campaign.failed_count || 0).toLocaleString()} failed contacts`}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                Resend Failed
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleResendCampaign(campaign, false)}
+                              className="h-8 px-2 text-xs bg-success/5 hover:bg-success/10 text-success border-success/20 font-semibold"
+                              title="Resend to all contacts"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                              {(campaign.failed_count || 0) > 0 ? 'Send All' : 'Send Again'}
+                            </Button>
+                          </>
+                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="ghost">
@@ -867,6 +928,21 @@ export default function Campaigns() {
                               <Copy className="h-4 w-4 mr-2" />
                               Duplicate
                             </DropdownMenuItem>
+                            {(campaign.status === 'completed' || campaign.status === 'sent' || campaign.sent_count > 0) && (
+                              <>
+                                {(campaign.failed_count || 0) > 0 && (
+                                  <DropdownMenuItem onClick={() => handleResendCampaign(campaign, true)} className="text-destructive font-medium">
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Resend Failed ({(campaign.failed_count || 0).toLocaleString()})
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => handleResendCampaign(campaign, false)}>
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Resend to All Contacts
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCampaign(campaign.id)}>
                               <Trash2 className="h-4 w-4 mr-2" />
                               Delete

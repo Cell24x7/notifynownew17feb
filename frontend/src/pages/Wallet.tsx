@@ -217,11 +217,15 @@ export default function Wallet() {
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div className="space-y-2">
-                <p className="text-primary-foreground/80 text-sm font-medium">Available Balance</p>
+                <p className="text-primary-foreground/80 text-sm font-medium">
+                  {(isPaymentDisabled || user?.role === 'reseller' || user?.role === 'reseller_client' || Boolean(user?.actual_reseller_id) || Boolean(user?.reseller_id)) ? 'Available Credits' : 'Available Balance'}
+                </p>
                 <div className="text-4xl font-bold">
                   {(user?.role === 'admin' || user?.role === 'superadmin') 
                     ? 'Unlimited' 
-                    : `₹${(user?.wallet_balance || 0).toLocaleString()}`}
+                    : (isPaymentDisabled || user?.role === 'reseller' || user?.role === 'reseller_client' || Boolean(user?.actual_reseller_id) || Boolean(user?.reseller_id))
+                      ? `${Math.floor(Number(user?.credits_available ?? user?.wallet_balance ?? 0)).toLocaleString()} Units`
+                      : `₹${(user?.wallet_balance || 0).toLocaleString()}`}
                 </div>
               </div>
               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">

@@ -473,56 +473,154 @@ router.post('/:id/resend', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
+        const onlyFailed = req.body?.onlyFailed === true || req.query?.onlyFailed === 'true' || req.body?.type === 'failed' || req.query?.type === 'failed';
+
+        let isApi = id.startsWith('CAMP_API_');
+        let campTable = isApi ? 'api_campaigns' : 'campaigns';
+        let queueTable = isApi ? 'api_campaign_queue' : 'campaign_queue';
+        let logsTable = isApi ? 'api_message_logs' : 'message_logs';
 
         // 1. Fetch original campaign
-        const [existing] = await query('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [id, userId]);
-        if (existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
+        let [existing] = await query(`SELECT * FROM ${campTable} WHERE id = ? AND user_id = ?`, [id, userId]);
+        if ((!existing || existing.length === 0) && !isApi) {
+            const [apiExisting] = await query(`SELECT * FROM api_campaigns WHERE id = ? AND user_id = ?`, [id, userId]);
+            if (apiExisting && apiExisting.length > 0) {
+                existing = apiExisting;
+                isApi = true;
+                campTable = 'api_campaigns';
+                queueTable = 'api_campaign_queue';
+                logsTable = 'api_message_logs';
+            }
+        }
+
+        if (!existing || existing.length === 0) return res.status(404).json({ success: false, message: 'Campaign not found' });
 
         const c = existing[0];
-        const newId = `CAMP${Date.now()}`;
+        const newId = isApi ? `CAMP_API_${Date.now()}` : `CAMP${Date.now()}`;
         const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         
-        // Clean original name from previous (Copy) or (Resent) tags to avoid stacking
-        let cleanName = c.name.replace(/\s*\(Copy\)/g, '').replace(/\s*\(Resent\)/g, '');
-        const newName = `${req.user.name || 'User'} - ${dateStr} - ${cleanName} (Resent)`;
+        // Clean original name from previous tags
+        let cleanName = c.name.replace(/\s*\((Copy|Resent|Failed Resent)\)/gi, '').trim();
+        if (!cleanName) cleanName = c.name;
+        const tag = onlyFailed ? '(Failed Resent)' : '(Resent)';
+        const newName = `${cleanName} ${tag}`;
 
-        // 2. Insert new campaign record
-        await query(
-            `INSERT INTO campaigns 
-      (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
-       variable_mapping, template_metadata, template_body, template_type, 
-       schedule_type, scheduling_mode, next_run_at,
-       is_failover_enabled, failover_sms_template, short_link_enabled, rcs_config_id, whatsapp_config_id, ai_voice_config_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                newId, userId, newName, c.channel, c.template_id, c.template_name,
-                c.audience_id, c.recipient_count, c.recipient_count, 'running',
-                typeof c.variable_mapping === 'object' ? JSON.stringify(c.variable_mapping) : (c.variable_mapping || '{}'),
-                typeof c.template_metadata === 'object' ? JSON.stringify(c.template_metadata) : (c.template_metadata || '{}'),
-                c.template_body, c.template_type,
-                'now', 'one-time', (() => { const d = new Date(); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; })(),
-                c.is_failover_enabled, c.failover_sms_template, c.short_link_enabled,
-                c.rcs_config_id, c.whatsapp_config_id, c.ai_voice_config_id
-            ]
-        );
+        // 2. Populate new campaign queue entries first to get accurate recipient count
+        let recipientCount = 0;
 
-        // 3. Copy queue entries
-        await query(
-            `INSERT INTO campaign_queue (campaign_id, user_id, mobile, variables, status)
-             SELECT ?, ?, mobile, variables, 'pending'
-             FROM campaign_queue
-             WHERE campaign_id = ?`,
-            [newId, userId, id]
-        );
+        if (onlyFailed) {
+            // A. Try copying failed entries from queueTable
+            const [copyRes] = await query(
+                `INSERT INTO ${queueTable} (campaign_id, user_id, mobile, variables, status)
+                 SELECT ?, ?, mobile, variables, 'pending'
+                 FROM ${queueTable}
+                 WHERE campaign_id = ? AND user_id = ? AND status = 'failed'`,
+                [newId, userId, id, userId]
+            );
+            recipientCount = copyRes?.affectedRows || 0;
 
-        console.log(`🔄 Campaign ${id} resent as ${newId} (Recipients: ${c.recipient_count})`);
+            // B. If no queue rows, copy failed entries from logsTable
+            if (recipientCount === 0) {
+                const [logCopy] = await query(
+                    `INSERT INTO ${queueTable} (campaign_id, user_id, mobile, variables, status)
+                     SELECT ?, ?, recipient, COALESCE(JSON_EXTRACT(metadata, '$.variables'), '{}'), 'pending'
+                     FROM ${logsTable}
+                     WHERE campaign_id = ? AND user_id = ? AND status = 'failed'
+                     GROUP BY recipient`,
+                    [newId, userId, id, userId]
+                );
+                recipientCount = logCopy?.affectedRows || 0;
+            }
+
+            if (recipientCount === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No failed contacts found for this campaign to resend.'
+                });
+            }
+        } else {
+            // A. Copy all queue entries
+            const [copyRes] = await query(
+                `INSERT INTO ${queueTable} (campaign_id, user_id, mobile, variables, status)
+                 SELECT ?, ?, mobile, variables, 'pending'
+                 FROM ${queueTable}
+                 WHERE campaign_id = ? AND user_id = ?`,
+                [newId, userId, id, userId]
+            );
+            recipientCount = copyRes?.affectedRows || 0;
+
+            // B. Fallback to logsTable
+            if (recipientCount === 0) {
+                const [logCopy] = await query(
+                    `INSERT INTO ${queueTable} (campaign_id, user_id, mobile, variables, status)
+                     SELECT ?, ?, recipient, COALESCE(JSON_EXTRACT(metadata, '$.variables'), '{}'), 'pending'
+                     FROM ${logsTable}
+                     WHERE campaign_id = ? AND user_id = ?
+                     GROUP BY recipient`,
+                    [newId, userId, id, userId]
+                );
+                recipientCount = logCopy?.affectedRows || 0;
+            }
+
+            if (recipientCount === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No contacts found in original campaign to resend.'
+                });
+            }
+        }
+
+        // 3. Create new campaign record with actual recipient count
+        const nowFormatted = (() => { 
+            const d = new Date(); 
+            const pad = (n) => String(n).padStart(2, '0'); 
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; 
+        })();
+
+        if (isApi) {
+            await query(
+                `INSERT INTO api_campaigns 
+                 (id, user_id, name, channel, template_id, template_name, recipient_count, audience_count, status, 
+                  template_metadata, template_body, template_type, is_failover_enabled, failover_sms_template)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    newId, userId, newName, c.channel, c.template_id, c.template_name,
+                    recipientCount, recipientCount, 'running',
+                    typeof c.template_metadata === 'object' ? JSON.stringify(c.template_metadata) : (c.template_metadata || '{}'),
+                    c.template_body, c.template_type,
+                    c.is_failover_enabled, c.failover_sms_template
+                ]
+            );
+        } else {
+            await query(
+                `INSERT INTO campaigns 
+                 (id, user_id, name, channel, template_id, template_name, audience_id, recipient_count, audience_count, status, 
+                  variable_mapping, template_metadata, template_body, template_type, 
+                  schedule_type, scheduling_mode, next_run_at,
+                  is_failover_enabled, failover_sms_template, short_link_enabled, rcs_config_id, whatsapp_config_id, ai_voice_config_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    newId, userId, newName, c.channel, c.template_id, c.template_name,
+                    c.audience_id, recipientCount, recipientCount, 'running',
+                    typeof c.variable_mapping === 'object' ? JSON.stringify(c.variable_mapping) : (c.variable_mapping || '{}'),
+                    typeof c.template_metadata === 'object' ? JSON.stringify(c.template_metadata) : (c.template_metadata || '{}'),
+                    c.template_body, c.template_type,
+                    'now', 'one-time', nowFormatted,
+                    c.is_failover_enabled, c.failover_sms_template, c.short_link_enabled,
+                    c.rcs_config_id, c.whatsapp_config_id, c.ai_voice_config_id
+                ]
+            );
+        }
+
+        console.log(`🔄 Campaign ${id} resent as ${newId} (Only Failed: ${onlyFailed}, Recipients: ${recipientCount})`);
 
         // 4. Deduct credits
         try {
-            const deductionResult = await deductCampaignCredits(newId);
+            const deductionResult = await deductCampaignCredits(newId, campTable);
             if (!deductionResult.success) {
                 console.warn(`❌ Credit deduction failed for resent campaign ${newId}: ${deductionResult.message}`);
-                await query('UPDATE campaigns SET status = "failed" WHERE id = ?', [newId]);
+                await query(`UPDATE ${campTable} SET status = "failed" WHERE id = ?`, [newId]);
+                await query(`DELETE FROM ${queueTable} WHERE campaign_id = ?`, [newId]);
                 return res.status(402).json({
                     success: false,
                     message: deductionResult.message || 'Insufficient wallet balance'
@@ -530,10 +628,9 @@ router.post('/:id/resend', authenticate, async (req, res) => {
             }
         } catch (creditErr) {
             console.error('❌ Wallet deduction exception for resend:', creditErr);
-            // We continue as the campaign is already created, but it might stay failed
         }
 
-        // 5. Trigger Sending immediately (instead of waiting 15s)
+        // 5. Trigger Queue Processing immediately
         try {
             processQueue().catch(err => console.error('Immediate queue trigger error:', err));
         } catch (qErr) {
@@ -541,15 +638,21 @@ router.post('/:id/resend', authenticate, async (req, res) => {
         }
         
         console.log(`✅ Campaign ${id} successfully resent as ${newId}`);
-        res.json({ success: true, message: 'Campaign re-triggered successfully', campaignId: newId });
+        res.json({
+            success: true,
+            message: onlyFailed 
+                ? `Campaign re-triggered for ${recipientCount.toLocaleString()} failed contact(s)`
+                : 'Campaign re-triggered successfully',
+            campaignId: newId,
+            recipientCount
+        });
 
     } catch (error) {
         console.error('❌ FATAL Resend campaign error:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Failed to resend campaign', 
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+            error: error.message
         });
     }
 });
