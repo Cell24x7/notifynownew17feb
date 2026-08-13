@@ -49,7 +49,7 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
     if (!client) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`/api/dlt-templates?userId=${client.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -71,7 +71,7 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const url = editingId ? `/api/dlt-templates/${editingId}` : '/api/dlt-templates';
       const method = editingId ? 'PUT' : 'POST';
       
@@ -103,7 +103,7 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
     if (!confirm('Are you sure you want to delete this template?')) return;
     
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`/api/dlt-templates/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
@@ -180,7 +180,7 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
           templates.push(t);
         }
 
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('authToken');
         const res = await fetch('/api/dlt-templates/bulk-upload', {
           method: 'POST',
           headers: { 

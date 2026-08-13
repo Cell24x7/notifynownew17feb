@@ -36,7 +36,7 @@ export function ManageBalanceModal({ isOpen, onClose, client, onSuccess }: Manag
     if (!client) return;
     setLoadingTx(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`/api/wallet/transactions?clientId=${client.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -68,7 +68,7 @@ export function ManageBalanceModal({ isOpen, onClose, client, onSuccess }: Manag
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`/api/clients/${client.id}`, {
         method: 'PUT',
         headers: { 
