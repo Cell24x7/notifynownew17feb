@@ -47,12 +47,12 @@ const deductCampaignCredits = async (campaignId, campaignTable = 'campaigns') =>
             return { success: true, message: 'No recipients to deduct' };
         }
 
-        const isResellerUnitMode = campaign.role === 'reseller' || campaign.role === 'reseller_client' || Boolean(campaign.reseller_id) || Boolean(campaign.parent_reseller_id);
+        const isBoltzmanUser = campaign.u_id === 10 || campaign.reseller_id === 10 || campaign.parent_reseller_id === 10 || campaign.actual_reseller_id === 10;
 
-        let costPerMsg = isResellerUnitMode ? 1.0 : 0.25; // Resellers & clients use 1 credit/msg
+        let costPerMsg = isBoltzmanUser ? 1.0 : 0.25; // Boltzman & its users use 1 credit/msg
         const channel = (campaign.channel || '').toLowerCase();
 
-        if (!isResellerUnitMode) {
+        if (!isBoltzmanUser) {
             if (channel === 'rcs') {
                 costPerMsg = 0.10; // RCS Default
                 let templateType = (campaign.template_type || 'standard').toLowerCase();
@@ -207,12 +207,12 @@ const deductSingleMessageCredit = async (userId, channel, templateName, template
             return { success: true, message: 'Admin: Unlimited credits', cost: 0 };
         }
 
-        const isResellerUnitMode = user.role === 'reseller' || user.role === 'reseller_client' || Boolean(user.reseller_id) || Boolean(user.parent_reseller_id);
+        const isBoltzmanUser = user.id === 10 || user.reseller_id === 10 || user.parent_reseller_id === 10 || user.actual_reseller_id === 10;
 
-        let cost = isResellerUnitMode ? 1.0 : 0.25; 
+        let cost = isBoltzmanUser ? 1.0 : 0.25; 
         const chan = (channel || '').toLowerCase();
 
-        if (!isResellerUnitMode) {
+        if (!isBoltzmanUser) {
             if (chan === 'rcs') {
                 cost = 0.10; // Default RCS
                 const type = (templateType || 'standard').toLowerCase();

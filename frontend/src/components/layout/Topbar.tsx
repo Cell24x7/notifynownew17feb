@@ -104,38 +104,50 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
             <div className="flex items-center gap-3 ml-auto">
                 {/* Wallet Balance or Credits Display */}
-                {(isPaymentDisabled || user?.role === 'reseller' || user?.role === 'reseller_client' || Boolean(user?.actual_reseller_id) || Boolean(user?.reseller_id)) ? (
-                    <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-indigo-100 dark:border-zinc-800 shadow-sm transition-all">
-                        <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">
-                            <Zap className="h-4 w-4 text-indigo-600 fill-indigo-600" />
+                {(() => {
+                    const isBoltzman = isPaymentDisabled || 
+                        user?.id === 10 || 
+                        user?.actual_reseller_id === 10 || 
+                        user?.reseller_id === 10 || 
+                        Boolean(settings?.brand_name?.toLowerCase().includes('boltzm'));
+
+                    if (isBoltzman) {
+                        return (
+                            <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-indigo-100 dark:border-zinc-800 shadow-sm transition-all">
+                                <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">
+                                    <Wallet className="h-4 w-4 text-indigo-600" />
+                                </div>
+                                <div>
+                                    <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
+                                    <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 leading-tight">
+                                        {(user?.role === 'admin' || user?.role === 'superadmin') 
+                                            ? 'Unlimited' 
+                                            : `₹${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0)).toLocaleString()}`}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
+                            <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
+                                <Wallet className="h-4 w-4 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
+                                <p className="text-sm font-black text-slate-800 dark:text-zinc-100 leading-tight">
+                                    {(user?.role === 'admin' || user?.role === 'superadmin') 
+                                        ? 'Unlimited' 
+                                        : `₹${Number(user?.wallet_balance || 0).toFixed(2)}`}
+                                </p>
+                            </div>
+                            <button className="ml-1 p-1 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700 hidden sm:flex">
+                                <Zap className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                            </button>
                         </div>
-                        <div>
-                            <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Credits</p>
-                            <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 leading-tight">
-                                {(user?.role === 'admin' || user?.role === 'superadmin') 
-                                    ? 'Unlimited' 
-                                    : `${Math.floor(Number(user?.credits_available ?? user?.wallet_balance ?? 0)).toLocaleString()} Units`}
-                            </p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
-                        <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
-                            <Wallet className="h-4 w-4 text-emerald-600" />
-                        </div>
-                        <div>
-                            <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
-                            <p className="text-sm font-black text-slate-800 dark:text-zinc-100 leading-tight">
-                                {(user?.role === 'admin' || user?.role === 'superadmin') 
-                                    ? 'Unlimited' 
-                                    : `₹${Number(user?.wallet_balance || 0).toFixed(2)}`}
-                            </p>
-                        </div>
-                        <button className="ml-1 p-1 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700 hidden sm:flex">
-                            <Zap className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-                        </button>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* User Profile Dropdown */}
                 <DropdownMenu>

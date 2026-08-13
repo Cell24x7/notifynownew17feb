@@ -399,8 +399,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
    // Get current rate per message
    const getCurrentRate = () => {
-      const isResellerCreditsMode = isPaymentDisabled || user?.role === 'reseller' || user?.role === 'reseller_client' || Boolean((user as any)?.actual_reseller_id) || Boolean((user as any)?.reseller_id);
-      if (isResellerCreditsMode) return 1.0;
+      const isBoltzman = isPaymentDisabled || 
+         user?.id === 10 || 
+         (user as any)?.actual_reseller_id === 10 || 
+         (user as any)?.reseller_id === 10;
+      if (isBoltzman) return 1.0;
 
       let costPerMsg = 0.25;
       const u = user as any;
@@ -1837,8 +1840,11 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                     </Card>
 
                                     {(() => {
-                                     const isResellerCreditsMode = isPaymentDisabled || user?.role === 'reseller' || user?.role === 'reseller_client' || Boolean((user as any)?.actual_reseller_id) || Boolean((user as any)?.reseller_id);
-                                     const currentBal = Number(user?.credits_available ?? user?.wallet_balance ?? 0);
+                                     const isBoltzman = isPaymentDisabled || 
+                                        user?.id === 10 || 
+                                        (user as any)?.actual_reseller_id === 10 || 
+                                        (user as any)?.reseller_id === 10;
+                                     const currentBal = Number(user?.wallet_balance || user?.credits_available || 0);
                                      const estCost = calculateCost();
                                      const isInsufficient = estCost > currentBal;
 
@@ -1849,21 +1855,18 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                               isInsufficient && "border-destructive bg-destructive/5"
                                            )}>
                                               <CardContent className="p-4 flex flex-col items-center text-center">
-                                                 <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
-                                                    {isResellerCreditsMode ? "Est. Credits" : "Est. Cost"}
-                                                 </Label>
+                                                 <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Est. Cost</Label>
                                                  <div className="flex items-center gap-1 mb-1">
-                                                    {!isResellerCreditsMode && <span className="text-sm font-medium text-muted-foreground">₹</span>}
+                                                    <span className="text-sm font-medium text-muted-foreground">₹</span>
                                                     <span className={cn(
                                                        "font-semibold text-2xl",
                                                        isInsufficient ? "text-destructive" : "text-primary"
                                                     )}>
-                                                       {isResellerCreditsMode ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}
+                                                       {isBoltzman ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}
                                                     </span>
-                                                    {isResellerCreditsMode && <span className="text-xs font-semibold text-muted-foreground ml-0.5">Units</span>}
                                                  </div>
                                                  <div className="text-xs text-muted-foreground">
-                                                    {isResellerCreditsMode ? "@ 1 Credit/msg" : `@ ₹${getCurrentRate().toFixed(2)}/msg`}
+                                                    {isBoltzman ? "@ ₹1/msg" : `@ ₹${getCurrentRate().toFixed(2)}/msg`}
                                                  </div>
                                                  {isInsufficient && (
                                                     <div className="mt-2 text-[10px] font-bold text-destructive flex items-center gap-1">
@@ -1880,10 +1883,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                  <div>
                                                     <p className="font-semibold text-destructive">Insufficient Balance</p>
                                                     <p className="text-sm text-destructive/80">
-                                                       {isResellerCreditsMode 
-                                                          ? `Required (${Math.floor(estCost).toLocaleString()} Credits) exceeds your current balance (${Math.floor(currentBal).toLocaleString()} Credits).`
-                                                          : `Estimated cost (₹${estCost.toFixed(2)}) exceeds your current balance (₹${currentBal.toFixed(2)}).`
-                                                       }
+                                                       Estimated cost (₹{isBoltzman ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}) exceeds your current balance (₹{isBoltzman ? Math.floor(currentBal).toLocaleString() : currentBal.toFixed(2)}).
                                                        Please recharge your account balance to continue.
                                                     </p>
                                                     {!isPaymentDisabled && (
