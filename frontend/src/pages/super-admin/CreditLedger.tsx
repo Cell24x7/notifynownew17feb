@@ -31,14 +31,22 @@ export default function CreditLedger() {
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const res = await axios.get(`${API_URL}/clients`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setClients(res.data.clients || []);
+      const [clientsRes, resellersRes] = await Promise.allSettled([
+        axios.get(`${API_URL}/clients`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/resellers`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      
+      let allUsers: any[] = [];
+      if (clientsRes.status === 'fulfilled' && clientsRes.value.data.success) {
+        allUsers = [...allUsers, ...clientsRes.value.data.clients];
       }
+      if (resellersRes.status === 'fulfilled' && resellersRes.value.data.success) {
+        allUsers = [...allUsers, ...resellersRes.value.data.resellers];
+      }
+      
+      setClients(allUsers);
     } catch (err) {
-      console.error('Failed to fetch clients:', err);
+      console.error('Failed to fetch users/resellers:', err);
     }
   };
 
