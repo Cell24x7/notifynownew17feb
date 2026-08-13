@@ -258,12 +258,22 @@ export default function Campaigns() {
           setWhatsappError(errorMsg);
         }
       }
-      const isSmsEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'sms') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'sms');
+      let userChannels: string[] = [];
+      try {
+        userChannels = typeof user?.channels_enabled === 'string'
+          ? JSON.parse(user.channels_enabled)
+          : (Array.isArray(user?.channels_enabled) ? user.channels_enabled : []);
+      } catch (e) {
+        userChannels = [];
+      }
+      const allActiveChannels = [...(enabledChannels || []), ...userChannels].map(c => String(c).toLowerCase());
+      const isSmsEnabled = allActiveChannels.includes('sms') || allActiveChannels.length === 0;
+
       if (isSmsEnabled) {
         try {
           const smsData = await dltTemplateService.getTemplates('', 1, 1000);
           const smsList = smsData?.templates || [];
-          if (Array.isArray(smsList)) {
+          if (Array.isArray(smsList) && smsList.length > 0) {
             const mappedSms = smsList.map((t: any) => ({
               id: String(t.temp_id),
               name: String(t.temp_name || t.temp_id),

@@ -57,7 +57,7 @@ export interface PaginatedTemplates {
 }
 
 export const templateService = {
-    async getTemplates(page: number = 1, limit: number = 20) {
+    async getTemplates(page: number = 1, limit: number = 1000) {
         const response = await axios.get(`${API_BASE_URL_TEMPLATES}?page=${page}&limit=${limit}`, { headers: getAuthHeader() });
         return response.data as PaginatedTemplates;
     },

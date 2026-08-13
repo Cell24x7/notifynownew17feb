@@ -134,7 +134,7 @@ router.get('/', authenticate, async (req, res) => {
     try {
         const userId = req.user.id;
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+        const limit = parseInt(req.query.limit) || 1000;
         const offset = (page - 1) * limit;
 
         // Fetch user's current configurations
@@ -160,34 +160,44 @@ router.get('/', authenticate, async (req, res) => {
 
         // 2. Get DLT Templates (SMS Only)
         const [dltTemplates] = await query('SELECT * FROM dlt_templates WHERE user_id = ?', [userId]);
-        const mappedDltTemplates = dltTemplates.map(t => ({
-            id: `DLT_${t.id}`,
-            user_id: t.user_id,
-            whatsapp_config_id: null,
-            rcs_config_id: null,
-            name: t.temp_name || `${t.sender} - ${t.temp_id}`,
-            language: 'en',
-            category: t.temp_type || 'Marketing',
-            channel: 'sms',
-            template_type: 'text_message',
-            header_type: 'text',
-            header_content: t.sender,
-            body: t.template_text,
-            footer: null,
-            status: t.status === 'Y' ? 'approved' : 'rejected',
-            rejection_reason: null,
-            usage_count: 0,
-            created_at: t.created_at,
-            updated_at: t.updated_at,
-            buttons: [],
-            is_dlt: true,
-            dlt_details: {
-                sender: t.sender,
-                temp_id: t.temp_id,
-                pe_id: t.pe_id,
-                hash_id: t.hash_id
-            }
-        }));
+        const mappedDltTemplates = dltTemplates.map(t => {
+            const st = String(t.status || '').toUpperCase();
+            const isApproved = st === 'Y' || st === 'APPROVED' || st === 'ACTIVE' || st === '1';
+            return {
+                id: String(t.temp_id || `DLT_${t.id}`),
+                user_id: t.user_id,
+                whatsapp_config_id: null,
+                rcs_config_id: null,
+                name: t.temp_name || `${t.sender} - ${t.temp_id}`,
+                language: 'en',
+                category: t.temp_type || 'Marketing',
+                channel: 'sms',
+                template_type: 'text_message',
+                header_type: 'text',
+                header_content: t.sender,
+                body: t.template_text || '',
+                footer: null,
+                status: isApproved ? 'approved' : 'rejected',
+                rejection_reason: null,
+                usage_count: 0,
+                created_at: t.created_at,
+                updated_at: t.updated_at,
+                buttons: [],
+                is_dlt: true,
+                metadata: {
+                    dlt_template_id: t.temp_id,
+                    sender: t.sender,
+                    pe_id: t.pe_id || '',
+                    hash_id: t.hash_id || ''
+                },
+                dlt_details: {
+                    sender: t.sender,
+                    temp_id: t.temp_id,
+                    pe_id: t.pe_id,
+                    hash_id: t.hash_id
+                }
+            };
+        });
 
         // 3. Combine and Page
         const allTemplates = [...templatesWithButtons, ...mappedDltTemplates];
