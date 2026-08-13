@@ -72,16 +72,16 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFil
 // GET all DLT templates for user
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const userId = req.user.id;
-        const search = req.query.search || '';
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const offset = (page - 1) * limit;
+        let targetUserId = req.user.id;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        if (isAdmin && req.query.userId) {
+            targetUserId = req.query.userId;
+        }
 
         let sql = 'SELECT * FROM dlt_templates WHERE user_id = ?';
         let countSql = 'SELECT COUNT(*) as total FROM dlt_templates WHERE user_id = ?';
-        const params = [userId];
-        const countParams = [userId];
+        const params = [targetUserId];
+        const countParams = [targetUserId];
 
         if (search) {
             sql += ' AND (sender LIKE ? OR template_text LIKE ? OR temp_id LIKE ? OR temp_name LIKE ?)';
@@ -131,7 +131,11 @@ router.get('/senders', authenticateToken, async (req, res) => {
 // CREATE single DLT template
 router.post('/', authenticateToken, async (req, res) => {
     try {
-        const userId = req.user.id;
+        let targetUserId = req.user.id;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        if (isAdmin && req.body.userId) {
+            targetUserId = req.body.userId;
+        }
         let { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
 
         if (!sender || !template_text || !temp_id) {
@@ -140,7 +144,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
         // Use user defaults if not provided
         if (!pe_id || !hash_id) {
-            const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [userId]);
+            const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [targetUserId]);
             if (user.length > 0) {
                 if (!pe_id) pe_id = user[0].pe_id;
                 if (!hash_id) hash_id = user[0].hash_id;
@@ -150,7 +154,7 @@ router.post('/', authenticateToken, async (req, res) => {
         const [result] = await query(
             `INSERT INTO dlt_templates (user_id, sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, sender, template_text, temp_id, temp_name || '', status || 'Y', temp_type || 'Transactional', pe_id || null, hash_id || null]
+            [targetUserId, sender, template_text, temp_id, temp_name || '', status || 'Y', temp_type || 'Transactional', pe_id || null, hash_id || null]
         );
 
         res.status(201).json({
@@ -167,18 +171,27 @@ router.post('/', authenticateToken, async (req, res) => {
 // UPDATE DLT template
 router.put('/:id', authenticateToken, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
         const { id } = req.params;
         let { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
 
-        const [existing] = await query('SELECT id, pe_id, hash_id FROM dlt_templates WHERE id = ? AND user_id = ?', [id, userId]);
-        if (existing.length === 0) {
-            return res.status(404).json({ success: false, message: 'Template not found' });
+        let sqlQuery = 'SELECT id, user_id, pe_id, hash_id FROM dlt_templates WHERE id = ?';
+        let sqlParams = [id];
+        if (!isAdmin) {
+            sqlQuery += ' AND user_id = ?';
+            sqlParams.push(req.user.id);
         }
+
+        const [existing] = await query(sqlQuery, sqlParams);
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: 'Template not found or access denied' });
+        }
+        
+        const targetUserId = existing[0].user_id;
 
         // Use user defaults if not provided in request AND missing in existing record
         if (!pe_id || !hash_id) {
-            const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [userId]);
+            const [user] = await query('SELECT pe_id, hash_id FROM users WHERE id = ?', [targetUserId]);
             if (user.length > 0) {
                 if (!pe_id && !existing[0].pe_id) pe_id = user[0].pe_id;
                 if (!hash_id && !existing[0].hash_id) hash_id = user[0].hash_id;
@@ -195,8 +208,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 temp_type = COALESCE(?, temp_type),
                 pe_id = COALESCE(?, pe_id),
                 hash_id = COALESCE(?, hash_id)
-             WHERE id = ? AND user_id = ?`,
-            [sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id, id, userId]
+             WHERE id = ?`,
+            [sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id, id]
         );
 
         res.json({ success: true, message: 'DLT Template updated successfully' });
@@ -209,15 +222,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // DELETE DLT template
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
         const { id } = req.params;
 
-        const [existing] = await query('SELECT id FROM dlt_templates WHERE id = ? AND user_id = ?', [id, userId]);
-        if (existing.length === 0) {
-            return res.status(404).json({ success: false, message: 'Template not found' });
+        let sqlQuery = 'SELECT id FROM dlt_templates WHERE id = ?';
+        let sqlParams = [id];
+        if (!isAdmin) {
+            sqlQuery += ' AND user_id = ?';
+            sqlParams.push(req.user.id);
         }
 
-        await query('DELETE FROM dlt_templates WHERE id = ? AND user_id = ?', [id, userId]);
+        const [existing] = await query(sqlQuery, sqlParams);
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: 'Template not found or access denied' });
+        }
+
+        await query('DELETE FROM dlt_templates WHERE id = ?', [id]);
         res.json({ success: true, message: 'DLT Template deleted successfully' });
     } catch (error) {
         console.error('Delete DLT template error:', error);

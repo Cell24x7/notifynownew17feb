@@ -47,24 +47,53 @@ router.get('/debug-config', authenticateToken, async (req, res) => {
     });
 });
 
-// GET wallet transactions (Admin sees all, User sees theirs)
+// GET wallet transactions (Admin sees all, Reseller sees theirs + clients, User sees theirs)
 router.get('/transactions', authenticateToken, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
+    const targetClientId = req.query.clientId;
 
     let baseSql = `
       FROM transactions t
       LEFT JOIN users u ON t.user_id = u.id
     `;
-
     const params = [];
+    let whereClauses = [];
 
-    // If not admin, filter by user_id
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      baseSql += ' WHERE t.user_id = ?';
-      params.push(req.user.id);
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'super_admin';
+    const isReseller = req.user.role === 'reseller';
+
+    if (targetClientId) {
+      // Fetching for a specific client
+      whereClauses.push('t.user_id = ?');
+      params.push(targetClientId);
+
+      if (isReseller) {
+        // Enforce reseller ownership
+        whereClauses.push('u.reseller_id = ?');
+        params.push(req.user.actual_reseller_id || req.user.id);
+      } else if (!isAdmin) {
+        // Normal user trying to fetch another user's data? Deny.
+        return res.status(403).json({ success: false, message: 'Unauthorized' });
+      }
+    } else {
+      // Fetching general transactions
+      if (isReseller) {
+        // Reseller sees their own transactions AND their clients' transactions
+        whereClauses.push('(t.user_id = ? OR u.reseller_id = ?)');
+        const resId = req.user.actual_reseller_id || req.user.id;
+        params.push(req.user.id, resId);
+      } else if (!isAdmin) {
+        // Normal user only sees their own
+        whereClauses.push('t.user_id = ?');
+        params.push(req.user.id);
+      }
+    }
+
+    if (whereClauses.length > 0) {
+      baseSql += ' WHERE ' + whereClauses.join(' AND ');
     }
 
     // Get total count
