@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Eye, EyeOff, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check, ShieldCheck, Zap } from 'lucide-react';
+import { Search, Plus, Eye, EyeOff, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check, ShieldCheck, Zap, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChannelIcon } from '@/components/ui/channel-icon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ManageBalanceModal } from '@/components/clients/ManageBalanceModal';
+import { ManageDLTModal } from '@/components/clients/ManageDLTModal';
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -44,6 +46,9 @@ export default function SuperAdminClients() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
   const [showPassword, setShowPassword] = useState(false);
+  const [isManageBalanceOpen, setIsManageBalanceOpen] = useState(false);
+  const [isManageDLTOpen, setIsManageDLTOpen] = useState(false);
+  const [selectedClientForAction, setSelectedClientForAction] = useState<any>(null);
 
   // Client form state
   const [currentClient, setCurrentClient] = useState({
@@ -920,6 +925,18 @@ export default function SuperAdminClients() {
                             <DropdownMenuItem onClick={() => handleEdit(client)}>
                               <Pencil className="w-4 h-4 mr-2" /> Edit Client
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedClientForAction(client);
+                              setIsManageBalanceOpen(true);
+                            }}>
+                              <CreditCard className="w-4 h-4 mr-2" /> Manage Balance
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedClientForAction(client);
+                              setIsManageDLTOpen(true);
+                            }}>
+                              <FileText className="w-4 h-4 mr-2" /> Manage DLT Templates
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
                               <LogIn className="w-4 h-4 mr-2" /> Login as Client
                             </DropdownMenuItem>
@@ -1612,6 +1629,18 @@ export default function SuperAdminClients() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ManageBalanceModal 
+        isOpen={isManageBalanceOpen} 
+        onClose={() => setIsManageBalanceOpen(false)} 
+        client={selectedClientForAction} 
+        onSuccess={fetchClients} 
+      />
+      <ManageDLTModal 
+        isOpen={isManageDLTOpen} 
+        onClose={() => setIsManageDLTOpen(false)} 
+        client={selectedClientForAction} 
+      />
     </div>
   );
 }
