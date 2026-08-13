@@ -20,11 +20,31 @@ export default function CreditLedger() {
   const [ledger, setLedger] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [selectedUserId, setSelectedUserId] = useState('all');
+  const [clients, setClients] = useState<any[]>([]);
   
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+
+  const fetchClients = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${API_URL}/clients`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setClients(res.data.clients || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch clients:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
 
   const fetchLedger = async () => {
     setLoading(true);
@@ -35,7 +55,8 @@ export default function CreditLedger() {
         params: {
           page,
           limit: 15,
-          type: typeFilter !== 'all' ? typeFilter : undefined
+          type: typeFilter !== 'all' ? typeFilter : undefined,
+          userId: selectedUserId !== 'all' ? selectedUserId : undefined
         }
       });
       if (res.data.success) {
@@ -57,7 +78,7 @@ export default function CreditLedger() {
 
   useEffect(() => {
     fetchLedger();
-  }, [page, typeFilter]);
+  }, [page, typeFilter, selectedUserId]);
 
   const filteredLedger = ledger.filter(item => {
     if (!searchQuery) return true;
@@ -112,8 +133,21 @@ export default function CreditLedger() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
             <Filter className="w-4 h-4 text-muted-foreground hidden sm:block" />
+            <Select value={selectedUserId} onValueChange={(val) => { setSelectedUserId(val); setPage(1); }}>
+              <SelectTrigger className="w-full sm:w-[200px] bg-white rounded-xl">
+                <SelectValue placeholder="All Users" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {clients.map(client => (
+                  <SelectItem key={client.id} value={client.id.toString()}>
+                    {client.name} ({client.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={typeFilter} onValueChange={(val) => { setTypeFilter(val); setPage(1); }}>
               <SelectTrigger className="w-full sm:w-[150px] bg-white rounded-xl">
                 <SelectValue placeholder="All Types" />
