@@ -836,7 +836,14 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
 
    const filteredTemplates = useMemo(() => {
-      return templates.filter(t => t.channel === campaignData.channel && t.status === 'approved');
+      return templates.filter(t => {
+         const ch = (t.channel || '').toLowerCase();
+         const targetCh = (campaignData.channel || '').toLowerCase();
+         const matchChannel = ch === targetCh || (targetCh === 'sms' && (ch === 'dlt' || ch === 'sms_dlt'));
+         const st = (t.status || '').toLowerCase();
+         const matchStatus = st === 'approved' || st === 'active';
+         return matchChannel && matchStatus;
+      });
    }, [templates, campaignData.channel]);
 
 
@@ -975,7 +982,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                 customMessage: val === 'custom' ? prev.customMessage : '',
                                              }));
                                           }}
-                                          className={cn("grid gap-4", (user as any)?.is_dinstar_enabled ? "grid-cols-2" : "grid-cols-1")}
+                                          className={cn("grid gap-4", Boolean((user as any)?.is_dinstar_enabled) ? "grid-cols-2" : "grid-cols-1")}
                                        >
                                           <div>
                                              <RadioGroupItem value="dlt" id="dlt" className="peer sr-only" />
@@ -987,7 +994,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                 <span className="text-xs text-muted-foreground text-center">Use pre-approved templates (Promotional/Transactional)</span>
                                              </Label>
                                           </div>
-                                          {(user as any)?.is_dinstar_enabled && (
+                                          {Boolean((user as any)?.is_dinstar_enabled) && (
                                              <div>
                                                 <RadioGroupItem value="custom" id="custom" className="peer sr-only" />
                                                 <Label
@@ -1081,7 +1088,17 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                              {whatsappError}
                                           </div>
                                        ) : (
-                                          <p className="text-sm text-muted-foreground">Create a template first in the Templates tab</p>
+                                          <div className="mt-3 space-y-3">
+                                             <p className="text-sm text-muted-foreground">You don't have any approved templates for {channelConfig?.label} in your account yet.</p>
+                                             <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="font-semibold"
+                                                onClick={() => window.open('/templates', '_blank')}
+                                             >
+                                                <Plus className="h-4 w-4 mr-1.5" /> Create {channelConfig?.label} Template
+                                             </Button>
+                                          </div>
                                        )}
                                     </div>
                                  )}
