@@ -694,4 +694,106 @@ router.get('/paypal-response', async (req, res) => {
   }
 });
 
+// POST /api/wallet/manage-credits (Super Admin & Reseller can allocate/deduct credits)
+router.post('/manage-credits', authenticateToken, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'super_admin' || req.user.id === 56;
+    const isReseller = req.user.role === 'reseller';
+
+    if (!isAdmin && !isReseller) {
+      return res.status(403).json({ success: false, message: 'Unauthorized. Only Admins and Resellers can manage credits.' });
+    }
+
+    const { targetUserId, action, amount, description } = req.body;
+    const numAmount = parseFloat(amount);
+
+    if (!targetUserId || !action || isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid target user, action, or amount.' });
+    }
+
+    // Fetch target user
+    const [targetRows] = await query('SELECT id, name, email, role, wallet_balance, credits_available, reseller_id FROM users WHERE id = ?', [targetUserId]);
+    if (!targetRows.length) {
+      return res.status(404).json({ success: false, message: 'Target user not found.' });
+    }
+    const targetUser = targetRows[0];
+
+    const currentTargetBal = parseFloat(targetUser.wallet_balance || targetUser.credits_available || 0);
+
+    // Reseller scoping validation
+    if (isReseller) {
+      const resId = req.user.actual_reseller_id || req.user.id;
+      if (Number(targetUser.reseller_id) !== Number(resId)) {
+        return res.status(403).json({ success: false, message: 'You can only manage credits for your own clients.' });
+      }
+
+      const [resellerRows] = await query('SELECT id, name, email, wallet_balance, credits_available FROM users WHERE id = ?', [req.user.id]);
+      const currentResellerBal = parseFloat(resellerRows[0]?.wallet_balance || resellerRows[0]?.credits_available || 0);
+
+      if (action === 'add') {
+        if (currentResellerBal < numAmount) {
+          return res.status(400).json({ success: false, message: `Insufficient balance in your account (₹${currentResellerBal.toFixed(2)}). Cannot allocate ₹${numAmount.toFixed(2)}.` });
+        }
+
+        // Deduct from Reseller
+        await query('UPDATE users SET wallet_balance = wallet_balance - ?, credits_available = credits_available - ? WHERE id = ?', [numAmount, numAmount, req.user.id]);
+        await query('INSERT INTO transactions (user_id, type, amount, description, status) VALUES (?, "debit", ?, ?, "completed")', [
+          req.user.id, numAmount, description ? `Credit allocated to ${targetUser.name} (${targetUser.email}): ${description}` : `Credit allocated to client ${targetUser.name} (${targetUser.email})`
+        ]);
+
+        // Add to Client
+        await query('UPDATE users SET wallet_balance = wallet_balance + ?, credits_available = credits_available + ? WHERE id = ?', [numAmount, numAmount, targetUserId]);
+        await query('INSERT INTO transactions (user_id, type, amount, description, status) VALUES (?, "credit", ?, ?, "completed")', [
+          targetUserId, numAmount, description ? `Credit received from Reseller: ${description}` : `Credit received from Reseller (${req.user.name || req.user.email})`
+        ]);
+      } else if (action === 'deduct') {
+        if (currentTargetBal < numAmount) {
+          return res.status(400).json({ success: false, message: `Client only has ₹${currentTargetBal.toFixed(2)}. Cannot deduct ₹${numAmount.toFixed(2)}.` });
+        }
+
+        // Deduct from Client
+        await query('UPDATE users SET wallet_balance = wallet_balance - ?, credits_available = credits_available - ? WHERE id = ?', [numAmount, numAmount, targetUserId]);
+        await query('INSERT INTO transactions (user_id, type, amount, description, status) VALUES (?, "debit", ?, ?, "completed")', [
+          targetUserId, numAmount, description ? `Credit reclaimed by Reseller: ${description}` : `Credit reclaimed by Reseller`
+        ]);
+
+        // Refund back to Reseller
+        await query('UPDATE users SET wallet_balance = wallet_balance + ?, credits_available = credits_available + ? WHERE id = ?', [numAmount, numAmount, req.user.id]);
+        await query('INSERT INTO transactions (user_id, type, amount, description, status) VALUES (?, "credit", ?, ?, "completed")', [
+          req.user.id, numAmount, description ? `Credit reclaimed from ${targetUser.name}: ${description}` : `Credit reclaimed from client ${targetUser.name}`
+        ]);
+      }
+    } else {
+      // Super Admin execution
+      if (action === 'add') {
+        await query('UPDATE users SET wallet_balance = wallet_balance + ?, credits_available = credits_available + ? WHERE id = ?', [numAmount, numAmount, targetUserId]);
+        await query('INSERT INTO transactions (user_id, type, amount, description, status) VALUES (?, "credit", ?, ?, "completed")', [
+          targetUserId, numAmount, description ? `Credit added by Admin: ${description}` : `Credit allocated by Admin (${req.user.name || req.user.email})`
+        ]);
+      } else if (action === 'deduct') {
+        if (currentTargetBal < numAmount) {
+          return res.status(400).json({ success: false, message: `User only has ₹${currentTargetBal.toFixed(2)}. Cannot deduct ₹${numAmount.toFixed(2)}.` });
+        }
+        await query('UPDATE users SET wallet_balance = wallet_balance - ?, credits_available = credits_available - ? WHERE id = ?', [numAmount, numAmount, targetUserId]);
+        await query('INSERT INTO transactions (user_id, type, amount, description, status) VALUES (?, "debit", ?, ?, "completed")', [
+          targetUserId, numAmount, description ? `Credit deducted by Admin: ${description}` : `Credit deducted by Admin`
+        ]);
+      }
+    }
+
+    // Fetch updated balance
+    const [updatedRows] = await query('SELECT wallet_balance, credits_available FROM users WHERE id = ?', [targetUserId]);
+    const finalBalance = parseFloat(updatedRows[0]?.wallet_balance || updatedRows[0]?.credits_available || 0);
+
+    res.json({
+      success: true,
+      message: `Successfully ${action === 'add' ? 'added' : 'deducted'} ${numAmount.toLocaleString()} credits for ${targetUser.name}.`,
+      newBalance: finalBalance
+    });
+  } catch (err) {
+    console.error('MANAGE CREDITS ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to update user credits', error: err.message });
+  }
+});
+
 module.exports = router;

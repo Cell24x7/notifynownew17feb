@@ -152,7 +152,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Globe, label: 'Whitelabel & Payments', path: '/reseller/branding', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && hasPermission('Reseller Branding - View') },
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: !isPricingHidden && hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: !isPaymentDisabled && hasPermission('Wallet - View') },
-    { icon: ScrollText, label: 'Credit Ledger', path: '/reseller/credit-ledger', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && (hasPermission('Credit Ledger - View') || hasPermission('Usage Ledger - View')) },
+    { icon: ScrollText, label: user?.role === 'reseller' ? 'Manage User Credits' : 'Credit Ledger', path: '/reseller/credit-ledger', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && (hasPermission('Manage User Credits - View') || hasPermission('Credit Ledger - View') || hasPermission('Usage Ledger - View') || hasPermission('Reseller Users - View')) },
     { 
       icon: Terminal, 
       label: 'API Hub', 

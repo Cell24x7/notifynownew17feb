@@ -164,6 +164,7 @@ export const RESELLER_PERMISSIONS: Permission[] = [
     { feature: 'Reseller Users - Manage', admin: true, manager: true, agent: false },
 
     { feature: 'Credit Ledger - View', admin: true, manager: true, agent: false },
+    { feature: 'Manage User Credits - View', admin: true, manager: true, agent: false },
     { feature: 'Support - View', admin: true, manager: true, agent: true },
     { feature: 'Settings - View', admin: true, manager: true, agent: false },
 

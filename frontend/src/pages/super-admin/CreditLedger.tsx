@@ -1,13 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Search, Loader2, ArrowUpRight, ArrowDownRight, CreditCard, ChevronLeft, ChevronRight, Download, Filter, Zap } from 'lucide-react';
+import { 
+  Search, Loader2, ArrowUpRight, ArrowDownRight, CreditCard, ChevronLeft, ChevronRight, 
+  Download, Filter, Zap, PlusCircle, UserPlus, CheckCircle, RefreshCw 
+} from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter 
+} from '@/components/ui/dialog';
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBranding } from '@/contexts/BrandingContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
@@ -15,7 +25,25 @@ import { API_BASE_URL } from '@/config/api';
 const API_URL = `${API_BASE_URL}/api`;
 
 export default function CreditLedger() {
+  const { user } = useAuth();
+  const { isPaymentDisabled, settings } = useBranding();
   const { toast } = useToast();
+
+  const anyUser = user as any;
+  const isBoltzman = isPaymentDisabled || 
+    Number(anyUser?.id) === 10 || 
+    Number(anyUser?.actual_reseller_id) === 10 || 
+    Number(anyUser?.reseller_id) === 10 ||
+    Number(anyUser?.parent_reseller_id) === 10 ||
+    Number(anyUser?.id) === 56 || 
+    Number(anyUser?.actual_reseller_id) === 56 || 
+    Number(anyUser?.reseller_id) === 56 ||
+    Number(anyUser?.parent_reseller_id) === 56 ||
+    Boolean(anyUser?.is_advanced_reseller_suite) ||
+    Boolean(settings?.brand_name?.toLowerCase().includes('boltzm')) ||
+    Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
+    Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
+
   const [loading, setLoading] = useState(false);
   const [ledger, setLedger] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,23 +56,47 @@ export default function CreditLedger() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
+  // Manage Credits Dialog State
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [modalTargetUserId, setModalTargetUserId] = useState('');
+  const [modalAction, setModalAction] = useState<'add' | 'deduct'>('add');
+  const [modalAmount, setModalAmount] = useState('');
+  const [modalDescription, setModalDescription] = useState('');
+  const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
+
+  const isReseller = user?.role === 'reseller';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'super_admin';
+
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const [clientsRes, resellersRes] = await Promise.allSettled([
-        axios.get(`${API_URL}/clients`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/resellers`, { headers: { Authorization: `Bearer ${token}` } })
-      ]);
-      
-      let allUsers: any[] = [];
-      if (clientsRes.status === 'fulfilled' && clientsRes.value.data.success) {
-        allUsers = [...allUsers, ...clientsRes.value.data.clients];
+      if (!token) return;
+
+      if (isReseller) {
+        // Fetch only clients belonging to this reseller
+        const res = await axios.get(`${API_URL}/resellers/clients/list`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        if (res.data.success) {
+          setClients(res.data.clients || []);
+        }
+      } else {
+        // Super Admin fetches all clients and resellers
+        const [clientsRes, resellersRes] = await Promise.allSettled([
+          axios.get(`${API_URL}/clients`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_URL}/resellers`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        
+        let allUsers: any[] = [];
+        if (clientsRes.status === 'fulfilled' && clientsRes.value.data.success) {
+          allUsers = [...allUsers, ...clientsRes.value.data.clients];
+        }
+        if (resellersRes.status === 'fulfilled' && resellersRes.value.data.success) {
+          allUsers = [...allUsers, ...resellersRes.value.data.resellers];
+        }
+        
+        setClients(allUsers);
       }
-      if (resellersRes.status === 'fulfilled' && resellersRes.value.data.success) {
-        allUsers = [...allUsers, ...resellersRes.value.data.resellers];
-      }
-      
-      setClients(allUsers);
     } catch (err) {
       console.error('Failed to fetch users/resellers:', err);
     }
@@ -52,12 +104,13 @@ export default function CreditLedger() {
 
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [user?.role]);
 
   const fetchLedger = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
+      if (!token) return;
       const res = await axios.get(`${API_URL}/wallet/ledger`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
@@ -68,9 +121,9 @@ export default function CreditLedger() {
         }
       });
       if (res.data.success) {
-        setLedger(res.data.ledger);
-        setTotalPages(res.data.pagination.totalPages);
-        setTotalItems(res.data.pagination.total);
+        setLedger(res.data.ledger || []);
+        setTotalPages(res.data.pagination?.totalPages || 1);
+        setTotalItems(res.data.pagination?.total || 0);
       }
     } catch (err) {
       console.error('Failed to fetch ledger:', err);
@@ -88,6 +141,60 @@ export default function CreditLedger() {
     fetchLedger();
   }, [page, typeFilter, selectedUserId]);
 
+  const handleManageCreditsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalTargetUserId) {
+      toast({ title: 'Validation Error', description: 'Please select a user or reseller.', variant: 'destructive' });
+      return;
+    }
+    const numAmt = parseFloat(modalAmount);
+    if (isNaN(numAmt) || numAmt <= 0) {
+      toast({ title: 'Validation Error', description: 'Please enter a valid positive credit amount.', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmittingCredit(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.post(`${API_URL}/wallet/manage-credits`, {
+        targetUserId: modalTargetUserId,
+        action: modalAction,
+        amount: numAmt,
+        description: modalDescription.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.data.success) {
+        toast({
+          title: 'Success',
+          description: res.data.message || 'Credits updated successfully.',
+        });
+        setIsManageModalOpen(false);
+        setModalAmount('');
+        setModalDescription('');
+        setModalTargetUserId('');
+        // Refresh ledger & client list
+        fetchLedger();
+        fetchClients();
+      } else {
+        toast({
+          title: 'Error',
+          description: res.data.message || 'Failed to update credits.',
+          variant: 'destructive'
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to update credits.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmittingCredit(false);
+    }
+  };
+
   const filteredLedger = ledger.filter(item => {
     if (!searchQuery) return true;
     const s = searchQuery.toLowerCase();
@@ -99,44 +206,111 @@ export default function CreditLedger() {
     );
   });
 
+  const selectedTargetClient = clients.find(c => c.id.toString() === modalTargetUserId);
+
+  const totalCreditsAdded = ledger
+    .filter(i => i.type === 'credit')
+    .reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+
+  const totalCreditsDeducted = ledger
+    .filter(i => i.type === 'debit')
+    .reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+
+  const handleExportCSV = () => {
+    if (!ledger.length) return;
+    const headers = ["ID", "Type", "User", "Email", "Role", "Managed By", "Amount", "Description", "Date"];
+    const rows = ledger.map(item => [
+      item.id,
+      item.type,
+      `"${item.owner_name || ''}"`,
+      item.owner_email || '',
+      item.owner_role || '',
+      `"${item.reseller_name || 'System/Admin'}"`,
+      item.amount,
+      `"${(item.description || '').replace(/"/g, '""')}"`,
+      format(new Date(item.created_at), 'yyyy-MM-dd HH:mm:ss')
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `credit_ledger_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-8 min-h-screen">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">Credit Ledger</h2>
+          <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 dark:from-zinc-100 dark:to-zinc-400 bg-clip-text text-transparent">
+            {isReseller ? 'Manage User Credits' : 'Credit Ledger & Management'}
+          </h2>
           <p className="text-muted-foreground mt-1 text-sm">
-            Comprehensive track of all credit allocations, debits, and transfers.
+            {isReseller 
+              ? 'Real-time tracking of credits allocated to your clients and transaction history.'
+              : 'Comprehensive track of all credit allocations, debits, and transfers across all accounts.'}
           </p>
         </div>
-        <Button variant="outline" className="hidden sm:flex">
-          <Download className="w-4 h-4 mr-2" /> Export CSV
-        </Button>
+        <div className="flex items-center gap-3">
+          {(isAdmin || isReseller) && (
+            <Button 
+              onClick={() => setIsManageModalOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md rounded-xl font-medium"
+            >
+              <PlusCircle className="w-4 h-4 mr-2" />
+              {isReseller ? 'Allocate Credits to Client' : 'Manage / Allocate Credits'}
+            </Button>
+          )}
+          <Button variant="outline" onClick={handleExportCSV} className="rounded-xl hidden sm:flex">
+            <Download className="w-4 h-4 mr-2" /> Export CSV
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard 
           title="Total Transactions" 
-          value={totalItems} 
+          value={totalItems.toLocaleString()} 
           icon={CreditCard} 
           color="text-blue-600" 
-          bg="bg-blue-100/50" 
+          bg="bg-blue-100/50 dark:bg-blue-950/30" 
         />
         <StatsCard 
-          title="Recent Activity" 
-          value={ledger.length > 0 ? "Active" : "Quiet"} 
+          title="Credits Added (In)" 
+          value={isBoltzman ? `${Math.floor(totalCreditsAdded).toLocaleString()} Credits` : `₹${totalCreditsAdded.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+          icon={ArrowDownRight} 
+          color="text-emerald-600" 
+          bg="bg-emerald-100/50 dark:bg-emerald-950/30" 
+        />
+        <StatsCard 
+          title="Credits Deducted (Out)" 
+          value={isBoltzman ? `${Math.floor(totalCreditsDeducted).toLocaleString()} Credits` : `₹${totalCreditsDeducted.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+          icon={ArrowUpRight} 
+          color="text-rose-600" 
+          bg="bg-rose-100/50 dark:bg-rose-950/30" 
+        />
+        <StatsCard 
+          title="Active Accounts" 
+          value={clients.length.toLocaleString()} 
           icon={Zap} 
           color="text-amber-600" 
-          bg="bg-amber-100/50" 
+          bg="bg-amber-100/50 dark:bg-amber-950/30" 
         />
       </div>
 
-      <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl">
-        <div className="p-4 border-b flex flex-col sm:flex-row gap-4 items-center justify-between bg-white/50 rounded-t-xl">
+      {/* Main Ledger Table Card */}
+      <Card className="border-none shadow-xl bg-card">
+        <div className="p-4 border-b flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 rounded-t-xl">
           <div className="relative w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by name, email, or description..."
-              className="pl-10 bg-white/80 border-gray-200/60 focus:border-primary/50 transition-all rounded-xl"
+              className="pl-10 bg-background border-border focus:border-primary/50 transition-all rounded-xl"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -144,20 +318,20 @@ export default function CreditLedger() {
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
             <Filter className="w-4 h-4 text-muted-foreground hidden sm:block" />
             <Select value={selectedUserId} onValueChange={(val) => { setSelectedUserId(val); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[200px] bg-white rounded-xl">
-                <SelectValue placeholder="All Users" />
+              <SelectTrigger className="w-full sm:w-[220px] bg-background rounded-xl">
+                <SelectValue placeholder="All Accounts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Users</SelectItem>
+                <SelectItem value="all">All Accounts ({clients.length})</SelectItem>
                 {clients.map(client => (
                   <SelectItem key={client.id} value={client.id.toString()}>
-                    {client.name} ({client.role})
+                    {client.name} ({client.role || 'client'})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={(val) => { setTypeFilter(val); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[150px] bg-white rounded-xl">
+              <SelectTrigger className="w-full sm:w-[150px] bg-background rounded-xl">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
@@ -166,19 +340,22 @@ export default function CreditLedger() {
                 <SelectItem value="debit">Debits (Out)</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant="ghost" size="icon" onClick={() => fetchLedger()} className="rounded-xl">
+              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+            </Button>
           </div>
         </div>
 
         <div className="overflow-x-auto rounded-b-xl">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-b border-gray-100">
-                <TableHead className="font-semibold text-gray-900 w-[100px]">Type</TableHead>
-                <TableHead className="font-semibold text-gray-900">User</TableHead>
-                <TableHead className="font-semibold text-gray-900">Parent/Reseller</TableHead>
-                <TableHead className="font-semibold text-gray-900">Description</TableHead>
-                <TableHead className="font-semibold text-gray-900 text-right">Amount</TableHead>
-                <TableHead className="font-semibold text-gray-900 text-right">Date</TableHead>
+              <TableRow className="hover:bg-transparent border-b border-border/50">
+                <TableHead className="font-semibold text-foreground w-[100px]">Type</TableHead>
+                <TableHead className="font-semibold text-foreground">Account / User</TableHead>
+                <TableHead className="font-semibold text-foreground">Managed By / Source</TableHead>
+                <TableHead className="font-semibold text-foreground">Description</TableHead>
+                <TableHead className="font-semibold text-foreground text-right">Amount</TableHead>
+                <TableHead className="font-semibold text-foreground text-right">Date & Time</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -196,44 +373,54 @@ export default function CreditLedger() {
                 </TableRow>
               ) : (
                 filteredLedger.map((item) => (
-                  <TableRow key={item.id} className="group hover:bg-gray-50/50 transition-colors border-b border-gray-50">
+                  <TableRow key={item.id} className="group hover:bg-muted/30 transition-colors border-b border-border/30">
                     <TableCell>
                       {item.type === 'credit' ? (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 rounded-full px-2">
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30 gap-1 rounded-full px-2">
                           <ArrowDownRight className="w-3 h-3" /> Credit
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 gap-1 rounded-full px-2">
+                        <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200 dark:border-rose-800/30 gap-1 rounded-full px-2">
                           <ArrowUpRight className="w-3 h-3" /> Debit
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-gray-900">{item.owner_name}</div>
-                      <div className="text-xs text-muted-foreground">{item.owner_email}</div>
+                      <div className="font-medium text-foreground">{item.owner_name || 'N/A'}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <span>{item.owner_email || ''}</span>
+                        {item.owner_role && (
+                          <span className="bg-muted px-1.5 py-0.2 rounded text-[10px] uppercase font-semibold text-muted-foreground">
+                            {item.owner_role}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {item.reseller_name ? (
                         <>
-                          <div className="font-medium text-gray-700">{item.reseller_name}</div>
+                          <div className="font-medium text-foreground">{item.reseller_name}</div>
                           <div className="text-xs text-muted-foreground">{item.reseller_email}</div>
                         </>
                       ) : (
-                        <span className="text-xs text-gray-400">System/Admin</span>
+                        <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">System / Super Admin</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={item.description}>
-                      <span className="text-sm text-gray-600">{item.description}</span>
+                    <TableCell className="max-w-[280px]" title={item.description}>
+                      <span className="text-sm text-foreground/80 line-clamp-2">{item.description}</span>
                     </TableCell>
                     <TableCell className="text-right">
                       <span className={cn(
                         "font-semibold text-sm",
-                        item.type === 'credit' ? "text-emerald-600" : "text-gray-900"
+                        item.type === 'credit' ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
                       )}>
-                        {item.type === 'credit' ? '+' : '-'}₹{parseFloat(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {item.type === 'credit' ? '+' : '-'}
+                        {isBoltzman 
+                          ? `${Math.floor(parseFloat(item.amount || 0)).toLocaleString()} Credits` 
+                          : `₹${parseFloat(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right text-sm text-gray-500 whitespace-nowrap">
+                    <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
                       {format(new Date(item.created_at), 'MMM d, yyyy h:mm a')}
                     </TableCell>
                   </TableRow>
@@ -244,9 +431,9 @@ export default function CreditLedger() {
         </div>
         
         {totalPages > 1 && (
-          <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30 rounded-b-xl">
+          <div className="p-4 border-t border-border/50 flex items-center justify-between bg-muted/20 rounded-b-xl">
             <span className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
+              Page {page} of {totalPages} ({totalItems} total)
             </span>
             <div className="flex gap-2">
               <Button
@@ -271,13 +458,118 @@ export default function CreditLedger() {
           </div>
         )}
       </Card>
+
+      {/* Manage / Allocate Credits Modal */}
+      <Dialog open={isManageModalOpen} onOpenChange={setIsManageModalOpen}>
+        <DialogContent className="sm:max-w-[480px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-indigo-600" />
+              {isReseller ? 'Allocate Credits to Client' : 'Manage / Allocate Account Credits'}
+            </DialogTitle>
+            <DialogDescription>
+              {isReseller 
+                ? 'Add or reclaim credits from your registered clients in real time.'
+                : 'Instantly add or deduct credits for any reseller or client account.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleManageCreditsSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Target Account</Label>
+              <Select value={modalTargetUserId} onValueChange={setModalTargetUserId}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Choose account..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name} ({c.email}) - {c.role || 'client'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedTargetClient && (
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/40 text-xs flex justify-between items-center">
+                <span className="text-muted-foreground">Current Available Balance:</span>
+                <span className="font-bold text-sm text-foreground">
+                  {isBoltzman 
+                    ? `${Math.floor(Number(selectedTargetClient.wallet_balance || selectedTargetClient.credits_available || 0)).toLocaleString()} Credits` 
+                    : `₹${Number(selectedTargetClient.wallet_balance || selectedTargetClient.credits_available || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                </span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Action Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={modalAction === 'add' ? 'default' : 'outline'}
+                  onClick={() => setModalAction('add')}
+                  className={cn("rounded-xl", modalAction === 'add' ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "")}
+                >
+                  <ArrowDownRight className="w-4 h-4 mr-1.5" /> Add Credits
+                </Button>
+                <Button
+                  type="button"
+                  variant={modalAction === 'deduct' ? 'default' : 'outline'}
+                  onClick={() => setModalAction('deduct')}
+                  className={cn("rounded-xl", modalAction === 'deduct' ? "bg-rose-600 hover:bg-rose-700 text-white" : "")}
+                >
+                  <ArrowUpRight className="w-4 h-4 mr-1.5" /> Deduct Credits
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {isBoltzman ? 'Credits Amount' : 'Amount (₹)'}
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                step="any"
+                placeholder="Enter credit amount (e.g. 500)"
+                value={modalAmount}
+                onChange={(e) => setModalAmount(e.target.value)}
+                className="rounded-xl text-base font-semibold"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description / Remarks (Optional)</Label>
+              <Textarea
+                placeholder="E.g., Monthly credit allocation, top-up recharge, correction..."
+                value={modalDescription}
+                onChange={(e) => setModalDescription(e.target.value)}
+                className="rounded-xl resize-none text-xs"
+                rows={2}
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsManageModalOpen(false)} className="rounded-xl">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmittingCredit} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
+                {isSubmittingCredit ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                Confirm {modalAction === 'add' ? 'Allocation' : 'Deduction'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function StatsCard({ title, value, icon: Icon, color, bg }: any) {
   return (
-    <Card className="border-none shadow-sm hover:shadow-md transition-all duration-200">
+    <Card className="border-none shadow-sm hover:shadow-md transition-all duration-200 bg-card">
       <CardContent className="p-5 flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
@@ -288,5 +580,5 @@ function StatsCard({ title, value, icon: Icon, color, bg }: any) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

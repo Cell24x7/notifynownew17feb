@@ -84,7 +84,7 @@ const DEFAULT_RESELLER_PERMISSIONS = [
     { feature: 'Chatflows - View', admin: 1, manager: 1, agent: 1 },
     { feature: 'Integrations - View', admin: 1, manager: 1, agent: 1 },
     { feature: 'Reseller Users - View', admin: 1, manager: 1, agent: 1 },
-    { feature: 'Reseller Branding - View', admin: 1, manager: 1, agent: 1 },
+    { feature: 'Reseller Branding - View', admin: 0, manager: 0, agent: 0 },
     { feature: 'Marketplace - View', admin: 1, manager: 1, agent: 1 },
     { feature: 'Wallet - View', admin: 1, manager: 1, agent: 1 },
     { feature: 'Reports - Mask Mobile', admin: 0, manager: 0, agent: 0 },
