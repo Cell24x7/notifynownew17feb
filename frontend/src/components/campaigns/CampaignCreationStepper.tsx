@@ -1897,7 +1897,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                           "font-semibold text-2xl",
                                                           isInsufficient ? "text-destructive" : "text-primary"
                                                        )}>
-                                                          {isBoltzman ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}
+                                                          {isBoltzman ? Math.floor(estCost) : estCost.toFixed(2)}
                                                        </span>
                                                        {isBoltzman && <span className="text-xs font-semibold text-muted-foreground ml-1">Credits</span>}
                                                     </div>
@@ -1919,7 +1919,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                                     <div>
                                                        <p className="font-semibold text-destructive">Insufficient Balance</p>
                                                        <p className="text-sm text-destructive/80">
-                                                          Estimated {isBoltzman ? 'credits' : 'cost'} ({isBoltzman ? `${Math.floor(estCost).toLocaleString()} Credits` : `₹${estCost.toFixed(2)}`}) exceeds your current balance ({isBoltzman ? `${Math.floor(currentBal).toLocaleString()} Credits` : `₹${currentBal.toFixed(2)}`}).
+                                                          Estimated {isBoltzman ? 'credits' : 'cost'} ({isBoltzman ? `${Math.floor(estCost)} Credits` : `₹${estCost.toFixed(2)}`}) exceeds your current balance ({isBoltzman ? `${Math.floor(currentBal)} Credits` : `₹${currentBal.toFixed(2)}`}).
                                                           Please contact support or recharge to continue.
                                                        </p>
                                                        {!isPaymentDisabled && (

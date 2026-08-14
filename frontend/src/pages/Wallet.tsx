@@ -239,7 +239,7 @@ export default function Wallet() {
                         {(user?.role === 'admin' || user?.role === 'superadmin') 
                           ? 'Unlimited' 
                           : isBoltzman
-                            ? `${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0)).toLocaleString()}`
+                            ? `${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0))}`
                             : `₹${(user?.wallet_balance || 0).toLocaleString()}`}
                       </div>
                     </>

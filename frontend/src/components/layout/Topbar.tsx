@@ -131,7 +131,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                                     <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 leading-tight">
                                         {(user?.role === 'admin' || user?.role === 'superadmin') 
                                             ? 'Unlimited' 
-                                            : `${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0)).toLocaleString()}`}
+                                            : `${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0))}`}
                                     </p>
                                 </div>
                             </div>
