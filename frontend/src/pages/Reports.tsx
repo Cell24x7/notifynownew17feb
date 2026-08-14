@@ -172,14 +172,15 @@ export default function Reports() {
         }
     };
 
-    const filteredUsers = users.filter(u => {
+    const [users, setUsers] = useState<any[]>([]);
+
+    const filteredUsers = (users || []).filter(u => {
         if (selectedUserType === 'ALL') return true;
         if (selectedUserType === 'RESELLER') return u.role === 'reseller';
         if (selectedUserType === 'USER') return u.role === 'client' || u.role === 'user';
         return true;
     });
 
-    const [users, setUsers] = useState<any[]>([]);
     const [apiPage, setApiPage] = useState(1);
     const [apiTotal, setApiTotal] = useState(cachedApiTotal);
     const [engagementReports, setEngagementReports] = useState<EngagementReport[]>(cachedEngagementReports || []);
