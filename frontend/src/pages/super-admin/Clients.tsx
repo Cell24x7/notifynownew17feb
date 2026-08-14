@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Eye, EyeOff, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check, ShieldCheck, Zap, FileText } from 'lucide-react';
+import { Search, Plus, Eye, EyeOff, Ban, MoreVertical, Building2, Globe, CreditCard, Users, Loader2, Pencil, Trash2, LogIn, ChevronLeft, ChevronRight, Check, CheckCircle2, ShieldCheck, Zap, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -574,6 +574,26 @@ export default function SuperAdminClients() {
     }
   };
 
+  const handleApprove = async (client: any) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await axios.put(`${API_URL}/clients/${client.id}`, { status: 'active', is_read: 1 }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast({
+        title: 'Client Approved',
+        description: `${client.name || client.email} has been approved and activated. They can now log in.`,
+      });
+      fetchClients();
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to approve client',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleLoginAsClient = async (clientId: string | number | undefined) => {
     if (!clientId || typeof clientId === 'object') {
       toast({
@@ -945,6 +965,11 @@ export default function SuperAdminClients() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56">
+                            {client.status === 'pending' && (
+                              <DropdownMenuItem onClick={() => handleApprove(client)} className="text-emerald-600 focus:text-emerald-600 font-medium bg-emerald-50/60 dark:bg-emerald-950/30">
+                                <CheckCircle2 className="w-4 h-4 mr-2" /> Approve & Activate
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => handleView(client)}>
                               <Eye className="w-4 h-4 mr-2" /> View Details
                             </DropdownMenuItem>
