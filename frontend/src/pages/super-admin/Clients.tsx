@@ -876,16 +876,20 @@ export default function SuperAdminClients() {
                       <TableCell className="text-xs font-mono text-muted-foreground">{client.email}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize font-normal">
-                          {plans.find(p => p.id === client.plan_id)?.name || client.plan_id}
+                          {plans.find(p => String(p.id) === String(client.plan_id))?.name || client.plan_name || client.plan_id || 'Custom'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center -space-x-1.5 hover:space-x-0.5 transition-all">
                           {parseChannels(client.channels_enabled)
-                            .filter((ch: any) => ['whatsapp', 'sms', 'rcs'].includes(ch))
-                            .slice(0, 4)
+                            .map((ch: any) => {
+                              const low = String(ch).toLowerCase().trim();
+                              if (low === 'voice' || low === 'voicebot' || low === 'ai voice') return 'voicebot';
+                              return low;
+                            })
+                            .slice(0, 5)
                             .map((ch: any) => (
-                              <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110">
+                              <div key={ch} className="relative z-0 hover:z-10 transition-all transform hover:scale-110" title={ch.toUpperCase()}>
                                 <div className="bg-background rounded-full p-0.5 shadow-sm border">
                                   <ChannelIcon channel={ch} className="w-5 h-5 shadow-sm" />
                                 </div>

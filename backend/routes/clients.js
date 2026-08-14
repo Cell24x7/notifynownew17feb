@@ -42,41 +42,65 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
   try {
     let sql = `
       SELECT
-        id, name, email, company AS company_name, contact_phone,
-        plan_id, credits_available, wallet_balance, credits_used,
-        IFNULL(channels_enabled, '[]') AS channels_enabled,
-        status, created_at, permissions, rcs_config_id, whatsapp_config_id, ai_voice_config_id, sms_gateway_id,
-        rcs_text_price, rcs_rich_card_price, rcs_carousel_price,
-        wa_marketing_price, wa_utility_price, wa_authentication_price,
-        sms_promotional_price, sms_transactional_price, sms_service_price,
-        rcs_limit, wa_limit, sms_limit, voice_limit,
-        reseller_id, is_read, is_social_signup, pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled, dlr_webhook_url, wa_unofficial_webhook_enabled, is_dinstar_enabled
-      FROM users
-      WHERE role IN ('client', 'user')
+        u.id, u.name, u.email, u.company AS company_name, u.contact_phone,
+        u.plan_id, u.credits_available, u.wallet_balance, u.credits_used,
+        IFNULL(u.channels_enabled, '[]') AS channels_enabled,
+        p.channels_allowed AS plan_channels_allowed,
+        p.name AS plan_name,
+        u.status, u.created_at, u.permissions, u.rcs_config_id, u.whatsapp_config_id, u.ai_voice_config_id, u.sms_gateway_id,
+        u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
+        u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
+        u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
+        u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit,
+        u.reseller_id, u.is_read, u.is_social_signup, u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled, u.dlr_webhook_url, u.wa_unofficial_webhook_enabled, u.is_dinstar_enabled
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      WHERE u.role IN ('client', 'user')
     `;
     let params = [];
 
     if (req.user.role === 'reseller') {
-      sql += ' AND reseller_id = ?';
+      sql += ' AND u.reseller_id = ?';
       params.push(req.user.actual_reseller_id || req.user.id);
     }
 
-    sql += ' ORDER BY id DESC';
+    sql += ' ORDER BY u.id DESC';
 
     const [rows] = await query(sql, params);
 
-    // Parse permissions if they are strings
-    const clients = rows.map(client => ({
-      ...client,
-      credits_available: Number(client.credits_available || 0),
-      wallet_balance: Number(client.wallet_balance || 0),
-      credits_used: Number(client.credits_used || 0),
-      rcs_limit: client.rcs_limit !== null ? Number(client.rcs_limit) : null,
-      wa_limit: client.wa_limit !== null ? Number(client.wa_limit) : null,
-      sms_limit: client.sms_limit !== null ? Number(client.sms_limit) : null,
-      voice_limit: client.voice_limit !== null ? Number(client.voice_limit) : null,
-      permissions: typeof client.permissions === 'string' ? JSON.parse(client.permissions) : client.permissions
-    }));
+    // Parse permissions and inherit plan channels if empty
+    const clients = rows.map(client => {
+      let channels = [];
+      if (client.channels_enabled) {
+        try {
+          channels = typeof client.channels_enabled === 'string' ? JSON.parse(client.channels_enabled) : client.channels_enabled;
+        } catch (e) { channels = []; }
+      }
+      if ((!channels || channels.length === 0) && client.plan_channels_allowed) {
+        try {
+          channels = typeof client.plan_channels_allowed === 'string' ? JSON.parse(client.plan_channels_allowed) : client.plan_channels_allowed;
+        } catch (e) { channels = []; }
+      }
+      if (!Array.isArray(channels)) channels = [];
+      channels = channels.map(c => {
+        const low = String(c).toLowerCase().trim();
+        if (low === 'voice' || low === 'voicebot' || low === 'ai voice') return 'voicebot';
+        return low;
+      });
+
+      return {
+        ...client,
+        channels_enabled: channels,
+        credits_available: Number(client.credits_available || 0),
+        wallet_balance: Number(client.wallet_balance || 0),
+        credits_used: Number(client.credits_used || 0),
+        rcs_limit: client.rcs_limit !== null ? Number(client.rcs_limit) : null,
+        wa_limit: client.wa_limit !== null ? Number(client.wa_limit) : null,
+        sms_limit: client.sms_limit !== null ? Number(client.sms_limit) : null,
+        voice_limit: client.voice_limit !== null ? Number(client.voice_limit) : null,
+        permissions: typeof client.permissions === 'string' ? JSON.parse(client.permissions) : client.permissions
+      };
+    });
 
     res.json({ success: true, clients });
   } catch (err) {
