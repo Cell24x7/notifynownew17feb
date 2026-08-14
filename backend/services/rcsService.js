@@ -134,9 +134,18 @@ const getDotgoAdminToken = async () => {
   return getRcsToken(adminConfig);
 };
 
+const formatE164Mobile = (mob) => {
+  let cleaned = String(mob || '').replace(/[^\d+]/g, '').trim();
+  if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
+  if (cleaned.length === 10) {
+    cleaned = `91${cleaned}`;
+  }
+  return `+${cleaned}`;
+};
+
 /**
  * Send RCS Template Message using Dotgo
- * @param {string} mobile - Recipient phone number
+ * @param {string} mobile - Recipient phone number (e.g., +919876543210 or 9876543210)
  * @param {string} templateName - Dotgo templateCode
  * @param {object} [config] - Optional configuration override
  * @returns {Promise<object>}
@@ -149,7 +158,7 @@ const sendRcsTemplate = async (mobile, templateName, config, customParams = [], 
     if (!token) return { success: false, error: "Authentication failed" };
 
     const { api_base_url: apiBaseUrl, bot_id: botId, provider } = config;
-    const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
+    const formattedMobile = formatE164Mobile(mobile);
     const templateCode = templateName;
 
     // Route based on provider
@@ -245,7 +254,7 @@ const sendRcsMessage = async (mobile, message, config) => {
 
     const { api_base_url: apiBaseUrl, bot_id: botId, provider } = config;
 
-    const formattedMobile = mobile.startsWith('+') ? mobile : `+${mobile}`;
+    const formattedMobile = formatE164Mobile(mobile);
     
     // Route based on provider
     let url;
