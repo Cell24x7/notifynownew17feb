@@ -15,7 +15,9 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
         return (data.components || []).find((c: any) => c.type === type);
     };
 
-    const header = getComponent('HEADER');
+    const rawHeader = getComponent('HEADER');
+    const headerFormat = (rawHeader?.format || '').toUpperCase();
+    const header = rawHeader;
     const body = getComponent('BODY');
     const footer = getComponent('FOOTER');
     const buttonsFromComp = getComponent('BUTTONS')?.buttons || [];
@@ -68,15 +70,15 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                     <div className="bg-white dark:bg-[#1f2c33] rounded-xl shadow-md overflow-hidden animate-in zoom-in-95 duration-500 origin-top-left max-w-[95%] border border-black/5">
 
                         {/* Template Header Preview */}
-                        {header && header.format !== 'NONE' && (
+                        {header && headerFormat && headerFormat !== 'NONE' && (
                             <div className="bg-gray-100 dark:bg-black/10 relative min-h-[40px] flex items-center justify-center border-b border-gray-50 dark:border-white/5">
-                                {header.format === 'TEXT' && (
+                                {headerFormat === 'TEXT' && (
                                     <div className="p-3 text-sm font-extrabold text-[#111b21] dark:text-[#e9edef] w-full">{header.text || 'Header Text'}</div>
                                 )}
-                                 {header.format === 'IMAGE' && (
+                                 {(headerFormat === 'IMAGE' || headerFormat === 'MEDIA') && (
                                     <div className="w-full h-auto min-h-[120px] max-h-[220px] flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-400 overflow-hidden">
-                                        {header.previewUrl || (header.handle && header.handle.startsWith('http')) ? (
-                                            <img src={header.previewUrl || header.handle} alt="Header" className="w-full h-full object-contain bg-black/5" />
+                                        {header.previewUrl || (header.handle && String(header.handle).startsWith('http')) || header.url ? (
+                                            <img src={header.previewUrl || header.url || header.handle} alt="Header" className="w-full h-full object-contain bg-black/5" />
                                         ) : (
                                             <>
                                                 <ImageIcon className="h-10 w-10 mb-2 opacity-30" />
@@ -85,10 +87,10 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                                         )}
                                     </div>
                                 )}
-                                {header.format === 'VIDEO' && (
+                                {headerFormat === 'VIDEO' && (
                                     <div className="w-full aspect-video flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 overflow-hidden">
-                                        {header.previewUrl || (header.handle && header.handle.startsWith('http')) ? (
-                                            <video src={header.previewUrl || header.handle} className="w-full h-full object-cover" controls={false} autoPlay muted loop />
+                                        {header.previewUrl || (header.handle && String(header.handle).startsWith('http')) || header.url ? (
+                                            <video src={header.previewUrl || header.url || header.handle} className="w-full h-full object-cover" controls={false} autoPlay muted loop />
                                         ) : (
                                             <>
                                                 <Video className="h-10 w-10 mb-2 opacity-30" />
@@ -97,7 +99,7 @@ export const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ data }) => {
                                         )}
                                     </div>
                                 )}
-                                {header.format === 'DOCUMENT' && (
+                                {headerFormat === 'DOCUMENT' && (
                                     <div className="w-full h-20 flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/10 text-blue-400">
                                         <FileText className="h-8 w-8 mb-1 opacity-50" />
                                         <span className="text-[10px] uppercase font-bold tracking-widest">{(header.example?.header_handle?.[0] || header.handle) ? 'Document Provided' : 'Document'}</span>

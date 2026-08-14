@@ -337,10 +337,26 @@ router.post('/templates', authenticate, async (req, res) => {
         if (config.isWa20) {
             let bodyText = "";
             let footerText = "";
+            let headerText = "";
+            let headerAreaType = "none";
+            let headerMediaType = "";
+            let sampleMedia = "";
             let buttons = [];
             
             components.forEach(comp => {
                 const typeUC = (comp.type || '').toUpperCase();
+                const formatUC = (comp.format || '').toUpperCase();
+                
+                if (typeUC === 'HEADER') {
+                    if (['IMAGE', 'VIDEO', 'DOCUMENT', 'MEDIA'].includes(formatUC)) {
+                        headerAreaType = "media";
+                        headerMediaType = formatUC === 'MEDIA' ? 'image' : formatUC.toLowerCase();
+                        sampleMedia = comp.example?.header_handle?.[0] || comp.example?.sampleMediaUrl || comp.sampleMediaUrl || comp.url || comp.previewUrl || "";
+                    } else if (formatUC === 'TEXT' || comp.text) {
+                        headerAreaType = "text";
+                        headerText = comp.text || "";
+                    }
+                }
                 if (typeUC === 'BODY') bodyText = comp.text || "";
                 if (typeUC === 'FOOTER') footerText = comp.text || "";
                 if (typeUC === 'BUTTONS' && comp.buttons) {
@@ -371,8 +387,11 @@ router.post('/templates', authenticate, async (req, res) => {
                 template_name: sanitizedName,
                 category: wa20Category,
                 language: 14, // 14 = English for WA20
-                header_area_type: "none",
-                header_media_type: "",
+                header_area_type: headerAreaType,
+                header_media_type: headerMediaType,
+                header_text: headerText,
+                sample_media: sampleMedia,
+                header_sample_media: sampleMedia,
                 template_body: bodyText,
                 template_footer: footerText
             };
