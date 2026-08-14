@@ -91,32 +91,41 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
 
   // Permissions check
-  // Default to true if no permissions found to avoid locking out users during transition
   const hasPermission = (featureName: string) => {
     if (!user) return false;
     if (user.role === 'admin' || user.role === 'superadmin') return true;
 
     // Check custom permissions list
-    const permissions: string[] = user.permissions || [];
-    if (permissions.length === 0) return true; // Default fallback to allow all if not set
-
+    const permissions: any[] = user.permissions || [];
     const target = featureName.trim();
 
+    // Whitelabel & Payments (Reseller Branding) MUST be explicitly granted; NEVER allow by default/empty fallback
+    if (target === 'Reseller Branding - View' || target.toLowerCase().includes('branding')) {
+      if (!permissions || permissions.length === 0) return false;
+    }
+
+    if (permissions.length === 0) return true; // Default fallback to allow standard features if not set
+
     return permissions.some((perm) => {
-      const rawFeature = (typeof perm === 'string' ? perm : (perm as any).feature_name || '').trim();
+      const rawFeature = (typeof perm === 'string' ? perm : (perm as any).feature_name || (perm as any).feature || '').trim();
       if (!rawFeature) return false;
       
+      // If object form with boolean check
+      if (typeof perm === 'object' && perm !== null) {
+        if (perm.admin === false && perm.manager === false && perm.agent === false && perm.admin !== 1) return false;
+      }
+
       // 1. Direct match
-      if (rawFeature === target) return true;
+      if (rawFeature.toLowerCase() === target.toLowerCase()) return true;
 
       // 2. Base name match (ignoring ' - view', ' - manage', etc.)
-      const baseRaw = rawFeature.split(' - ')[0].trim();
-      const baseTarget = target.split(' - ')[0].trim();
+      const baseRaw = rawFeature.split(' - ')[0].trim().toLowerCase();
+      const baseTarget = target.split(' - ')[0].trim().toLowerCase();
       if (baseRaw === baseTarget) return true;
 
       // 3. Singular/Plural support & Fuzzy matching
       // Normalize by removing 's' at the end and spaces/dashes
-      const normalize = (s: string) => s.replace(/s\b/g, '').replace(/[\s-]/g, '');
+      const normalize = (s: string) => s.replace(/s\b/g, '').replace(/[\s-]/g, '').toLowerCase();
       if (normalize(baseRaw) === normalize(baseTarget)) return true;
 
       return false;
