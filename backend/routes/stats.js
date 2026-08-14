@@ -203,14 +203,15 @@ async function fetchSuperAdminStatsData(isReseller, resellerId) {
         GROUP BY channel
     `, isReseller ? [resellerId] : []);
 
-    // 10. Recent Campaigns (Aggregate for Admin)
+    // 10. Today's Recent Campaigns (Aggregate for Admin)
     const [recentCampaigns] = await query(`
         SELECT id, name, channel, recipient_count, GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0)) as audience_count, 
                sent_count, delivered_count, read_count, failed_count, status, created_at, template_id
         FROM campaigns 
-        ${isReseller ? 'WHERE user_id IN (SELECT id FROM users WHERE reseller_id = ?)' : ''}
+        WHERE created_at >= CURDATE()
+        ${isReseller ? 'AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)' : ''}
         ORDER BY created_at DESC 
-        LIMIT 10
+        LIMIT 20
     `, isReseller ? [resellerId] : []);
 
     const channelStatsMap = {};
@@ -416,14 +417,14 @@ async function fetchClientStatsData(userId) {
         WHERE user_id = ? AND created_at >= CURDATE()
     `, [userId]);
 
-    // 6. Recent Campaigns
+    // 6. Today's Recent Campaigns
     const [recentCampaigns] = await query(`
         SELECT id, name, channel, recipient_count, GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0)) as audience_count, 
                sent_count, delivered_count, read_count, failed_count, status, created_at, template_id
         FROM campaigns 
-        WHERE user_id = ? 
+        WHERE user_id = ? AND created_at >= CURDATE()
         ORDER BY created_at DESC 
-        LIMIT 10
+        LIMIT 20
     `, [userId]);
 
     // 7. Active Chats for User

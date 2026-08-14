@@ -149,6 +149,36 @@ export default function Reports() {
     useEffect(() => {
         setTargetUserId(selectedClientId);
     }, [selectedClientId]);
+    const [selectedUserType, setSelectedUserType] = useState<'ALL' | 'USER' | 'RESELLER'>('ALL');
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const years = [2024, 2025, 2026, 2027];
+
+    const handleSelectMonth = (monthIdx: number, year?: number) => {
+        const y = year || selectedYear;
+        const start = new Date(y, monthIdx, 1);
+        const end = new Date(y, monthIdx + 1, 0, 23, 59, 59);
+        setSelectedMonth(monthIdx);
+        setStartDate(start);
+        setEndDate(end);
+    };
+
+    const handleSelectYear = (y: number) => {
+        setSelectedYear(y);
+        if (selectedMonth !== null) {
+            handleSelectMonth(selectedMonth, y);
+        }
+    };
+
+    const filteredUsers = users.filter(u => {
+        if (selectedUserType === 'ALL') return true;
+        if (selectedUserType === 'RESELLER') return u.role === 'reseller';
+        if (selectedUserType === 'USER') return u.role === 'client' || u.role === 'user';
+        return true;
+    });
+
     const [users, setUsers] = useState<any[]>([]);
     const [apiPage, setApiPage] = useState(1);
     const [apiTotal, setApiTotal] = useState(cachedApiTotal);
@@ -651,102 +681,169 @@ export default function Reports() {
             </div>
 
             <Card className="rounded-xl border-border shadow-sm bg-card overflow-hidden">
-                <CardHeader className="py-2.5 px-6 border-b bg-muted/30">
+                <CardHeader className="py-2.5 px-6 border-b bg-muted/30 flex flex-row items-center justify-between">
                     <CardTitle className="text-[11px] font-black text-muted-foreground uppercase flex items-center gap-2">
-                      <ListFilter className="h-3 w-3" /> Search & Filters
+                      <ListFilter className="h-3 w-3" /> Monthly & Custom Report Filters
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-wrap items-center gap-4 px-6 py-4">
-                    <div className="flex items-center gap-2">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-[180px] h-9 justify-start text-left font-semibold text-xs bg-muted/20 border-border",
-                                        !startDate && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {startDate ? format(startDate, "dd MMM yyyy") : <span>Start Date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                            </PopoverContent>
-                        </Popover>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-[180px] h-9 justify-start text-left font-semibold text-xs bg-muted/20 border-border",
-                                        !endDate && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {endDate ? format(endDate, "dd MMM yyyy") : <span>End Date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                            </PopoverContent>
-                        </Popover>
-                        {(startDate || endDate) && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
-                                className="text-rose-500 font-bold text-[10px] h-8 px-2 hover:bg-rose-50"
-                            >
-                                Reset
-                            </Button>
+                <CardContent className="space-y-4 px-6 py-4">
+                    {/* Top Row: User Type, User Name, Channel, Search */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') && (
+                            <>
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">User Type</Label>
+                                    <Select value={selectedUserType} onValueChange={(v: any) => { setSelectedUserType(v); setTargetUserId('all'); }}>
+                                        <SelectTrigger className="w-full h-9 text-xs font-semibold bg-muted/20 border-border">
+                                            <SelectValue placeholder="Select User Type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">ALL</SelectItem>
+                                            <SelectItem value="USER">USER</SelectItem>
+                                            {user?.role !== 'reseller' && <SelectItem value="RESELLER">RESELLER</SelectItem>}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">User Name</Label>
+                                    <Select value={targetUserId} onValueChange={setTargetUserId}>
+                                        <SelectTrigger className="w-full h-9 text-xs font-semibold bg-muted/20 border-border">
+                                            <SelectValue placeholder="Select User" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">{user?.role === 'reseller' ? 'All My Clients' : 'All Users'}</SelectItem>
+                                            {filteredUsers.map(u => (
+                                                <SelectItem key={u.id} value={u.id.toString()}>
+                                                    {u.company || u.username || u.name || u.email}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </>
                         )}
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                        <Select value={channelFilter} onValueChange={setChannelFilter}>
-                            <SelectTrigger className="w-[180px] h-9 text-xs font-semibold bg-muted/20 border-border">
-                                <SelectValue placeholder="All Channels" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-card border-border">
-                                <SelectItem value="all">All Channels</SelectItem>
-                                <SelectItem value="whatsapp">WhatsApp (Official)</SelectItem>
-                                <SelectItem value="whatsapp_unofficial">WhatsApp (Unofficial)</SelectItem>
-                                <SelectItem value="rcs">RCS</SelectItem>
-                                <SelectItem value="sms">SMS</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="flex-1 max-w-sm relative">
-                        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
-                            placeholder="Search mobile, campaign..."
-                            className="pl-9 h-9 text-xs font-semibold bg-muted/20 border-border placeholder:text-muted-foreground/40"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-
-                    {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller') && (
-                        <div className="flex items-center gap-2 ml-auto">
-                            <Label className="text-[10px] font-bold text-muted-foreground uppercase">View As:</Label>
-                            <Select value={targetUserId} onValueChange={setTargetUserId}>
-                                <SelectTrigger className="w-[180px] h-9 text-xs font-semibold border-border bg-muted/10 shadow-sm">
-                                    <SelectValue placeholder={user?.role === 'reseller' ? 'All My Clients' : 'All Users'} />
+                        <div className="space-y-1">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Channel</Label>
+                            <Select value={channelFilter} onValueChange={setChannelFilter}>
+                                <SelectTrigger className="w-full h-9 text-xs font-semibold bg-muted/20 border-border">
+                                    <SelectValue placeholder="All Channels" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-card border-border text-foreground">
-                                    <SelectItem value="all">{user?.role === 'reseller' ? 'All My Clients' : 'All Users (Admin)'}</SelectItem>
-                                    {users.map(u => (
-                                        <SelectItem key={u.id} value={u.id.toString()}>
-                                            {u.company || u.username || u.email}
-                                        </SelectItem>
-                                    ))}
+                                <SelectContent>
+                                    <SelectItem value="all">All Channels</SelectItem>
+                                    <SelectItem value="whatsapp">WhatsApp (Official)</SelectItem>
+                                    <SelectItem value="whatsapp_unofficial">WhatsApp (Unofficial)</SelectItem>
+                                    <SelectItem value="rcs">RCS</SelectItem>
+                                    <SelectItem value="sms">SMS</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                    )}
+
+                        <div className="space-y-1">
+                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Search</Label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search campaign, template..."
+                                    className="pl-9 h-9 text-xs font-semibold bg-muted/20 border-border placeholder:text-muted-foreground/40"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Year Tabs & Month Selector Bar */}
+                    <div className="pt-2 border-t border-border/40 space-y-3">
+                        <div className="flex items-center gap-6">
+                            {/* Years */}
+                            <div className="flex items-center gap-4">
+                                {years.map(y => (
+                                    <button
+                                        key={y}
+                                        onClick={() => handleSelectYear(y)}
+                                        className={cn(
+                                            "text-xs font-bold pb-1 transition-all border-b-2",
+                                            selectedYear === y 
+                                                ? "text-primary border-primary" 
+                                                : "text-muted-foreground border-transparent hover:text-foreground"
+                                        )}
+                                    >
+                                        {y}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Months Horizontal Bar */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            {months.map((m, idx) => (
+                                <button
+                                    key={m}
+                                    onClick={() => handleSelectMonth(idx)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                        selectedMonth === idx && startDate?.getMonth() === idx && startDate?.getFullYear() === selectedYear
+                                            ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                                            : "bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40"
+                                    )}
+                                >
+                                    {m}
+                                </button>
+                            ))}
+
+                            {/* Custom Date Pickers & Reset */}
+                            <div className="flex items-center gap-2 ml-auto">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            size="sm"
+                                            className={cn(
+                                                "h-8 text-xs font-semibold bg-muted/20 border-border",
+                                                !startDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                                            {startDate ? format(startDate, "dd MMM yyyy") : <span>Start</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={startDate} onSelect={(d) => { setStartDate(d); setSelectedMonth(null); }} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            size="sm"
+                                            className={cn(
+                                                "h-8 text-xs font-semibold bg-muted/20 border-border",
+                                                !endDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                                            {endDate ? format(endDate, "dd MMM yyyy") : <span>End</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={endDate} onSelect={(d) => { setEndDate(d); setSelectedMonth(null); }} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                {(startDate || endDate || selectedMonth !== null) && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => { setStartDate(undefined); setEndDate(undefined); setSelectedMonth(null); }}
+                                        className="text-rose-500 font-bold text-[11px] h-8 px-2 hover:bg-rose-50"
+                                    >
+                                        Reset
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
