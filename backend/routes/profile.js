@@ -28,6 +28,7 @@ router.get('/', authenticate, async (req, res) => {
               u.rcs_config_id, u.whatsapp_config_id, u.pe_id, u.hash_id,
               u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit, u.is_proero_enabled, u.is_smm_enabled, u.api_key, u.dlr_webhook_url, u.is_dinstar_enabled,
               p.permissions as plan_permissions,
+              p.channels_allowed as plan_channels_allowed,
               COALESCE(r.id, u.reseller_id) as actual_reseller_id,
               r.brand_name as reseller_brand_name, r.logo_url as reseller_logo_url
        FROM users u
@@ -40,6 +41,29 @@ router.get('/', authenticate, async (req, res) => {
     if (!rows.length) return res.status(404).json({ success: false });
 
     const user = rows[0];
+
+    // Channels resolution
+    let finalChannels = [];
+    if (user.channels_enabled) {
+      try {
+        const parsed = typeof user.channels_enabled === 'string' ? JSON.parse(user.channels_enabled) : user.channels_enabled;
+        if (Array.isArray(parsed) && parsed.length > 0) finalChannels = parsed;
+      } catch (e) {}
+    }
+
+    if (finalChannels.length === 0 && user.plan_channels_allowed) {
+      try {
+        const parsed = typeof user.plan_channels_allowed === 'string' ? JSON.parse(user.plan_channels_allowed) : user.plan_channels_allowed;
+        if (Array.isArray(parsed)) finalChannels = parsed;
+      } catch (e) {}
+    }
+
+    // Normalize channel names to lowercase
+    finalChannels = finalChannels.map(c => {
+      const low = String(c).toLowerCase().trim();
+      if (low === 'voice' || low === 'voicebot' || low === 'ai voice' || low === 'ai_voice') return 'voicebot';
+      return low;
+    });
 
     // Standardized compression logic (same as auth.js)
     const compressPermissions = (perms) => {
@@ -96,11 +120,9 @@ router.get('/', authenticate, async (req, res) => {
       // // console.log(`[PROFILE] Using explicit permissions for user ${user.email} (Count: ${finalPermissions.length})`);
     }
 
-    const compressed = compressPermissions(finalPermissions);
-    // // console.log(`[PROFILE] Final compressed permissions for ${user.email}: ${JSON.stringify(compressed)}`);
-
     const userWithPermissions = {
       ...user,
+      channels_enabled: finalChannels,
       permissions: compressPermissions(finalPermissions),
       plan_permissions: undefined
     };

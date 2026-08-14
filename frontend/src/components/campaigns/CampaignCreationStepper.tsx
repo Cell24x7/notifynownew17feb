@@ -121,7 +121,28 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
    const { user } = useAuth();
    const { isPaymentDisabled } = useBranding();
    const { toast } = useToast();
-   const enabledChannels = user?.channels_enabled || [];
+   
+   const rawChannels = Array.isArray(user?.channels_enabled) 
+     ? user.channels_enabled 
+     : typeof user?.channels_enabled === 'string' 
+       ? (() => { try { return JSON.parse(user.channels_enabled); } catch (e) { return []; } })() 
+       : [];
+
+   const enabledChannels: string[] = rawChannels.map((c: any) => {
+     const low = String(c).toLowerCase().trim();
+     if (low === 'voice' || low === 'voicebot' || low === 'ai voice' || low === 'ai_voice') return 'voicebot';
+     return low;
+   });
+
+   const isChannelAllowed = (channelValue: string) => {
+     if (user?.role === 'superadmin' || user?.role === 'admin') return true;
+     if (enabledChannels.length === 0) return true;
+     const normVal = channelValue.toLowerCase().trim();
+     return enabledChannels.some((c: string) => {
+       if (normVal === 'voicebot' && (c === 'voice' || c === 'voicebot' || c === 'ai voice')) return true;
+       return c === normVal;
+     });
+   };
 
    const [currentStep, setCurrentStep] = useState(1);
    const [campaignData, setCampaignData] = useState<CampaignData>({
@@ -924,7 +945,7 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                               <div className="space-y-2">
                                  <Label>Select Channel *</Label>
                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {channelOptions.filter(opt => enabledChannels.includes(opt.value)).map((channel) => (
+                                    {channelOptions.filter(opt => isChannelAllowed(opt.value)).map((channel) => (
                                        <button
                                           key={channel.value}
                                           onClick={() => {
