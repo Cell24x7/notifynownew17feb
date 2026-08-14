@@ -1,3 +1,11 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Auto-load production or standard .env
+dotenv.config({ path: path.join(__dirname, '../.env.production') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
 const { query } = require('../config/db');
 const Redis = require('ioredis');
 const { redisConnection } = require('../queues/campaignQueue');
