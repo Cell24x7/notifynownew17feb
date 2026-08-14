@@ -45,6 +45,9 @@ import { useBranding } from '@/contexts/BrandingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/assets/veloxaio.png';
 
+import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
+
 interface AppSidebarProps {
   onClose?: () => void;
 }
@@ -57,14 +60,18 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const { settings, isPaymentDisabled, isPricingHidden } = useBranding();
+  const anyUser = user as any;
 
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const isDark = theme === 'dark';
 
   const fetchOpenTicketsCount = async () => {
-    if (user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'staff') {
+    if (anyUser?.role === 'superadmin' || anyUser?.role === 'admin' || anyUser?.role === 'staff') {
       try {
-        const response = await api.get('/support/admin/tickets');
+        const token = localStorage.getItem('authToken');
+        const response = await axios.get(`${API_BASE_URL}/api/support/admin/tickets`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         if (response.data.success) {
           const openCount = response.data.tickets.filter((t: any) => t.status === 'open').length;
           setOpenTicketsCount(openCount);
@@ -119,7 +126,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: hasPermission('Dashboard - View') },
     { icon: CreditCard, label: 'Plans', path: '/user-plans', show: !isPricingHidden && hasPermission('User Plans - View') },
-    { icon: FileText, label: 'Templates', path: '/templates', show: hasPermission('Template - View') },
+    { icon: FileText, label: 'Templates', path: '/templates', show: hasPermission('Template - View') || hasPermission('Templates - View') },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
     { 
       icon: BarChart3, 
@@ -133,31 +140,26 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       ]
     },
     { icon: MessageSquare, label: 'Chats', path: '/chats', show: hasPermission('Chat - View') },
-    { icon: Smartphone, label: 'Channels', path: '/channels', show: Boolean(Number(user?.is_proero_enabled)) || user?.impersonatedBy === 'superadmin' || localStorage.getItem('impersonating') === 'true' },
-    { icon: Globe, label: 'Social Media', path: '/social-media', show: Boolean(Number(user?.is_smm_enabled)) || user?.impersonatedBy === 'superadmin' || localStorage.getItem('impersonating') === 'true' },
+    { icon: Smartphone, label: 'Channels', path: '/channels', show: Boolean(Number(anyUser?.is_proero_enabled)) || anyUser?.impersonatedBy === 'superadmin' || localStorage.getItem('impersonating') === 'true' },
+    { icon: Globe, label: 'Social Media', path: '/social-media', show: Boolean(Number(anyUser?.is_smm_enabled)) || anyUser?.impersonatedBy === 'superadmin' || localStorage.getItem('impersonating') === 'true' },
     { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
-    { icon: Tag, label: 'Manage Tags', path: '/manage-tags', show: hasPermission('Contacts - View') },
+    { icon: Tag, label: 'Manage Tags', path: '/manage-tags', show: hasPermission('Manage Tags - View') },
     { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: hasPermission('DLT Templates - View') },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Bot, label: 'Chatflows', path: '/chatflows', show: hasPermission('Chatflows - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
-    { icon: Users, label: 'Manage Users', path: '/reseller/users', show: hasPermission('Reseller Users - View') },
-    { icon: Package, label: 'Client DLT Templates', path: '/reseller/dlt-templates', show: user?.role === 'reseller' || hasPermission('Reseller Users - View') },
-    { icon: Globe, label: 'Whitelabel & Payments', path: '/reseller/branding', show: hasPermission('Reseller Branding - View') },
+    { icon: Users, label: 'Manage Users', path: '/reseller/users', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && hasPermission('Reseller Users - View') },
+    { icon: Globe, label: 'Whitelabel & Payments', path: '/reseller/branding', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && hasPermission('Reseller Branding - View') },
     { icon: ShoppingCart, label: 'Marketplace', path: '/marketplace', show: !isPricingHidden && hasPermission('Marketplace - View') },
     { icon: Wallet, label: 'Wallet', path: '/wallet', show: !isPaymentDisabled && hasPermission('Wallet - View') },
-    { icon: ScrollText, label: 'Credit Ledger', path: '/reseller/credit-ledger', show: user?.role === 'reseller' || hasPermission('Reseller Users - View') },
+    { icon: ScrollText, label: 'Credit Ledger', path: '/reseller/credit-ledger', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && (hasPermission('Credit Ledger - View') || hasPermission('Usage Ledger - View')) },
     { 
       icon: Terminal, 
       label: 'API Hub', 
       path: '/api-docs', 
-      show: Number(user?.is_api_allowed) === 1 || 
-            user?.role === 'superadmin' || 
-            user?.role === 'admin' || 
-            user?.role === 'reseller' || 
-            user?.impersonatedBy === 'superadmin'
+      show: (Number((user as any)?.is_api_allowed) === 1 || user?.role === 'superadmin' || user?.role === 'admin') && (hasPermission('API & Webhooks - View') || hasPermission('API - View'))
     },
-    { icon: LifeBuoy, label: 'Support', path: '/support', show: true },
+    { icon: LifeBuoy, label: 'Support', path: '/support', show: hasPermission('Support - View') },
     { icon: Settings, label: 'Settings', path: '/settings', show: hasPermission('Settings - View') },
   ];
 

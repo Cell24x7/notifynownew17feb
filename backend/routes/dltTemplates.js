@@ -73,10 +73,15 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFil
 router.get('/', authenticateToken, async (req, res) => {
     try {
         let targetUserId = req.user.id;
-        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.role === 'reseller' || req.user.id === 56;
         if (isAdmin && req.query.userId) {
             targetUserId = req.query.userId;
         }
+
+        const search = req.query.search || '';
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = (page - 1) * limit;
 
         let sql = 'SELECT * FROM dlt_templates WHERE user_id = ?';
         let countSql = 'SELECT COUNT(*) as total FROM dlt_templates WHERE user_id = ?';
@@ -132,7 +137,7 @@ router.get('/senders', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
     try {
         let targetUserId = req.user.id;
-        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.role === 'reseller' || req.user.id === 56;
         if (isAdmin && req.body.userId) {
             targetUserId = req.body.userId;
         }
@@ -175,7 +180,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.post('/bulk-upload', authenticateToken, async (req, res) => {
     try {
         let targetUserId = req.user.id;
-        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.role === 'reseller' || req.user.id === 56;
         if (isAdmin && req.body.userId) {
             targetUserId = req.body.userId;
         }
@@ -240,7 +245,7 @@ router.post('/bulk-upload', authenticateToken, async (req, res) => {
 // UPDATE DLT template
 router.put('/:id', authenticateToken, async (req, res) => {
     try {
-        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.role === 'reseller' || req.user.id === 56;
         const { id } = req.params;
         let { sender, template_text, temp_id, temp_name, status, temp_type, pe_id, hash_id } = req.body;
 
@@ -291,7 +296,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // DELETE DLT template
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
-        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.id === 56;
+        const isAdmin = req.user.role === 'super_admin' || req.user.role === 'admin' || req.user.role === 'reseller' || req.user.id === 56;
         const { id } = req.params;
 
         let sqlQuery = 'SELECT id FROM dlt_templates WHERE id = ?';

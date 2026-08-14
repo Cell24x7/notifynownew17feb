@@ -399,10 +399,19 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
 
    // Get current rate per message
    const getCurrentRate = () => {
+      const anyUser = user as any;
       const isBoltzman = isPaymentDisabled || 
-         user?.id === 10 || 
-         (user as any)?.actual_reseller_id === 10 || 
-         (user as any)?.reseller_id === 10;
+         Number(anyUser?.id) === 10 || 
+         Number(anyUser?.actual_reseller_id) === 10 || 
+         Number(anyUser?.reseller_id) === 10 ||
+         Number(anyUser?.parent_reseller_id) === 10 ||
+         Number(anyUser?.id) === 56 || 
+         Number(anyUser?.actual_reseller_id) === 56 || 
+         Number(anyUser?.reseller_id) === 56 ||
+         Number(anyUser?.parent_reseller_id) === 56 ||
+         Boolean(anyUser?.is_advanced_reseller_suite) ||
+         Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
+         Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
       if (isBoltzman) return 1.0;
 
       let costPerMsg = 0.25;
@@ -1856,70 +1865,80 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
                                        </CardContent>
                                     </Card>
 
-                                    {(() => {
-                                     const isBoltzman = isPaymentDisabled || 
-                                        user?.id === 10 || 
-                                        (user as any)?.actual_reseller_id === 10 || 
-                                        (user as any)?.reseller_id === 10;
-                                     const currentBal = Number(user?.wallet_balance || user?.credits_available || 0);
-                                     const estCost = calculateCost();
-                                     const isInsufficient = estCost > currentBal;
+                                     {(() => {
+                                        const anyUser = user as any;
+                                        const isBoltzman = isPaymentDisabled || 
+                                           Number(anyUser?.id) === 10 || 
+                                           Number(anyUser?.actual_reseller_id) === 10 || 
+                                           Number(anyUser?.reseller_id) === 10 ||
+                                           Number(anyUser?.parent_reseller_id) === 10 ||
+                                           Number(anyUser?.id) === 56 || 
+                                           Number(anyUser?.actual_reseller_id) === 56 || 
+                                           Number(anyUser?.reseller_id) === 56 ||
+                                           Number(anyUser?.parent_reseller_id) === 56 ||
+                                           Boolean(anyUser?.is_advanced_reseller_suite) ||
+                                           Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
+                                           Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
+                                        const currentBal = Number(user?.wallet_balance || user?.credits_available || 0);
+                                        const estCost = calculateCost();
+                                        const isInsufficient = estCost > currentBal;
 
-                                     return (
-                                        <>
-                                           <Card className={cn(
-                                              "relative overflow-hidden",
-                                              isInsufficient && "border-destructive bg-destructive/5"
-                                           )}>
-                                              <CardContent className="p-4 flex flex-col items-center text-center">
-                                                 <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Est. Cost</Label>
-                                                 <div className="flex items-center gap-1 mb-1">
-                                                    <span className="text-sm font-medium text-muted-foreground">₹</span>
-                                                    <span className={cn(
-                                                       "font-semibold text-2xl",
-                                                       isInsufficient ? "text-destructive" : "text-primary"
-                                                    )}>
-                                                       {isBoltzman ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}
-                                                    </span>
-                                                 </div>
-                                                 <div className="text-xs text-muted-foreground">
-                                                    {isBoltzman ? "@ ₹1/msg" : `@ ₹${getCurrentRate().toFixed(2)}/msg`}
-                                                 </div>
-                                                 {isInsufficient && (
-                                                    <div className="mt-2 text-[10px] font-bold text-destructive flex items-center gap-1">
-                                                       <AlertCircle className="h-3 w-3" />
-                                                       INSUFFICIENT BALANCE
+                                        return (
+                                           <>
+                                              <Card className={cn(
+                                                 "relative overflow-hidden",
+                                                 isInsufficient && "border-destructive bg-destructive/5"
+                                              )}>
+                                                 <CardContent className="p-4 flex flex-col items-center text-center">
+                                                    <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{isBoltzman ? 'Est. Credits' : 'Est. Cost'}</Label>
+                                                    <div className="flex items-center gap-1 mb-1">
+                                                       {!isBoltzman && <span className="text-sm font-medium text-muted-foreground">₹</span>}
+                                                       <span className={cn(
+                                                          "font-semibold text-2xl",
+                                                          isInsufficient ? "text-destructive" : "text-primary"
+                                                       )}>
+                                                          {isBoltzman ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}
+                                                       </span>
+                                                       {isBoltzman && <span className="text-xs font-semibold text-muted-foreground ml-1">Credits</span>}
                                                     </div>
-                                                 )}
-                                              </CardContent>
-                                           </Card>
-
-                                           {isInsufficient && (
-                                              <div className="p-4 rounded-lg border border-destructive bg-destructive/10 flex items-start gap-3 animate-pulse">
-                                                 <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-                                                 <div>
-                                                    <p className="font-semibold text-destructive">Insufficient Balance</p>
-                                                    <p className="text-sm text-destructive/80">
-                                                       Estimated cost (₹{isBoltzman ? Math.floor(estCost).toLocaleString() : estCost.toFixed(2)}) exceeds your current balance (₹{isBoltzman ? Math.floor(currentBal).toLocaleString() : currentBal.toFixed(2)}).
-                                                       Please recharge your account balance to continue.
-                                                    </p>
-                                                    {!isPaymentDisabled && (
-                                                       <Button
-                                                          variant="outline"
-                                                          size="sm"
-                                                          className="mt-2 border-destructive text-destructive hover:bg-destructive hover:text-white"
-                                                          onClick={() => window.open('/wallet', '_blank')}
-                                                       >
-                                                          Recharge Wallet
-                                                       </Button>
+                                                    <div className="text-xs text-muted-foreground">
+                                                       {isBoltzman ? "@ 1 Credit/msg" : `@ ₹${getCurrentRate().toFixed(2)}/msg`}
+                                                    </div>
+                                                    {isInsufficient && (
+                                                       <div className="mt-2 text-[10px] font-bold text-destructive flex items-center gap-1">
+                                                          <AlertCircle className="h-3 w-3" />
+                                                          INSUFFICIENT BALANCE
+                                                       </div>
                                                     )}
+                                                 </CardContent>
+                                              </Card>
+
+                                              {isInsufficient && (
+                                                 <div className="p-4 rounded-lg border border-destructive bg-destructive/10 flex items-start gap-3 animate-pulse">
+                                                    <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                                                    <div>
+                                                       <p className="font-semibold text-destructive">Insufficient Balance</p>
+                                                       <p className="text-sm text-destructive/80">
+                                                          Estimated {isBoltzman ? 'credits' : 'cost'} ({isBoltzman ? `${Math.floor(estCost).toLocaleString()} Credits` : `₹${estCost.toFixed(2)}`}) exceeds your current balance ({isBoltzman ? `${Math.floor(currentBal).toLocaleString()} Credits` : `₹${currentBal.toFixed(2)}`}).
+                                                          Please contact support or recharge to continue.
+                                                       </p>
+                                                       {!isPaymentDisabled && (
+                                                          <Button
+                                                             variant="outline"
+                                                             size="sm"
+                                                             className="mt-2 border-destructive text-destructive hover:bg-destructive hover:text-white"
+                                                             onClick={() => window.open('/wallet', '_blank')}
+                                                          >
+                                                             Recharge Wallet
+                                                          </Button>
+                                                       )}
+                                                    </div>
                                                  </div>
-                                              </div>
-                                           )}
-                                        </>
-                                     );
-                                  })()}
-                                 </div>
+                                              )}
+                                           </>
+                                        );
+                                     })()}
+                                  </div>
 
                                  <div className="border rounded-lg p-6 bg-muted/20 mb-6">
                                     <div className="flex items-center justify-between mb-2">

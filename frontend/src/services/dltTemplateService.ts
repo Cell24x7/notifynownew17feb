@@ -31,10 +31,10 @@ export interface DLTPagination {
 }
 
 export const dltTemplateService = {
-    async getTemplates(search = '', page = 1, limit = 50) {
+    async getTemplates(search = '', page = 1, limit = 50, userId?: string | null) {
         const response = await axios.get(API_URL, {
             headers: getAuthHeader(),
-            params: { search, page, limit }
+            params: { search, page, limit, userId: userId === 'all' ? undefined : userId }
         });
         return response.data as { success: boolean; templates: DLTTemplate[]; pagination: DLTPagination };
     },
@@ -44,8 +44,9 @@ export const dltTemplateService = {
         return response.data as { success: boolean; senders: string[] };
     },
 
-    async createTemplate(data: Partial<DLTTemplate>) {
-        const response = await axios.post(API_URL, data, { headers: getAuthHeader() });
+    async createTemplate(data: Partial<DLTTemplate>, userId?: string | null) {
+        const payload = userId && userId !== 'all' ? { ...data, userId } : data;
+        const response = await axios.post(API_URL, payload, { headers: getAuthHeader() });
         return response.data;
     },
 
@@ -59,10 +60,13 @@ export const dltTemplateService = {
         return response.data;
     },
 
-    async bulkUpload(file: File, deleteOld: boolean = false) {
+    async bulkUpload(file: File, deleteOld: boolean = false, userId?: string | null) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('deleteOld', String(deleteOld));
+        if (userId && userId !== 'all') {
+            formData.append('userId', userId);
+        }
         const response = await axios.post(`${API_URL}/bulk-upload`, formData, {
             headers: {
                 ...getAuthHeader(),

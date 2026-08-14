@@ -218,19 +218,28 @@ export default function Wallet() {
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 {(() => {
+                  const anyUser = user as any;
                   const isBoltzman = isPaymentDisabled || 
-                    user?.id === 10 || 
-                    user?.actual_reseller_id === 10 || 
-                    user?.reseller_id === 10;
+                    Number(anyUser?.id) === 10 || 
+                    Number(anyUser?.actual_reseller_id) === 10 || 
+                    Number(anyUser?.reseller_id) === 10 ||
+                    Number(anyUser?.parent_reseller_id) === 10 ||
+                    Number(anyUser?.id) === 56 || 
+                    Number(anyUser?.actual_reseller_id) === 56 || 
+                    Number(anyUser?.reseller_id) === 56 ||
+                    Number(anyUser?.parent_reseller_id) === 56 ||
+                    Boolean(anyUser?.is_advanced_reseller_suite) ||
+                    Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
+                    Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
                   
                   return (
                     <>
-                      <p className="text-primary-foreground/80 text-sm font-medium">Available Balance</p>
+                      <p className="text-primary-foreground/80 text-sm font-medium">{isBoltzman ? 'Available Credits' : 'Available Balance'}</p>
                       <div className="text-4xl font-bold">
                         {(user?.role === 'admin' || user?.role === 'superadmin') 
                           ? 'Unlimited' 
                           : isBoltzman
-                            ? `₹${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0)).toLocaleString()}`
+                            ? `${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0)).toLocaleString()}`
                             : `₹${(user?.wallet_balance || 0).toLocaleString()}`}
                       </div>
                     </>

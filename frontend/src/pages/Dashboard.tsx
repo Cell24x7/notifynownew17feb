@@ -189,6 +189,20 @@ export default function Dashboard() {
     </span>
   );
 
+  const anyUser = user as any;
+  const isBoltzman = 
+    Number(anyUser?.id) === 10 || 
+    Number(anyUser?.actual_reseller_id) === 10 || 
+    Number(anyUser?.reseller_id) === 10 || 
+    Number(anyUser?.parent_reseller_id) === 10 ||
+    Number(anyUser?.id) === 56 || 
+    Number(anyUser?.actual_reseller_id) === 56 || 
+    Number(anyUser?.reseller_id) === 56 || 
+    Number(anyUser?.parent_reseller_id) === 56 ||
+    Boolean(anyUser?.is_advanced_reseller_suite) ||
+    Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
+    Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
+
   return (
     <div className="p-4 md:p-8 space-y-6 bg-background min-h-screen font-sans text-foreground">
       
@@ -204,57 +218,65 @@ export default function Dashboard() {
           <CardContent className="p-5 flex flex-col justify-between h-full">
             <div className="flex justify-between items-start mb-4">
               <MessageSquare className="h-5 w-5 text-emerald-500" />
-              {renderTrend("+12.5%", true)}
+              <Badge variant="outline" className="text-[10px] font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/30 flex items-center gap-1">
+                <Activity className="h-3 w-3 animate-pulse" /> Live
+              </Badge>
             </div>
             <div>
-              <h3 className="text-2xl font-semibold text-slate-900">{totalConvos.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900 dark:text-zinc-100">{totalConvos.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Total Conversations</p>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="rounded-xl border-slate-200 shadow-sm hover:shadow-md transition-all">
+        <Card className="rounded-xl border-slate-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
           <CardContent className="p-5 flex flex-col justify-between h-full">
             <div className="flex justify-between items-start mb-4">
               <Users className="h-5 w-5 text-indigo-500" />
-              {renderTrend("+8.2%", true)}
+              <Badge variant="outline" className="text-[10px] font-medium text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800/30 flex items-center gap-1">
+                <Activity className="h-3 w-3" /> Real-time
+              </Badge>
             </div>
             <div>
-              <h3 className="text-2xl font-semibold text-slate-900">{activeChats.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900 dark:text-zinc-100">{activeChats.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Active Chats</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-slate-200 shadow-sm hover:shadow-md transition-all">
+        <Card className="rounded-xl border-slate-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
           <CardContent className="p-5 flex flex-col justify-between h-full">
             <div className="flex justify-between items-start mb-4">
               <Zap className="h-5 w-5 text-amber-500" />
-              {renderTrend("+23.1%", true)}
+              <Badge variant="outline" className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 flex items-center gap-1">
+                <Zap className="h-3 w-3" /> Automated
+              </Badge>
             </div>
             <div>
-              <h3 className="text-2xl font-semibold text-slate-900">{automationsTriggered.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900 dark:text-zinc-100">{automationsTriggered.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Automations Triggered</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-slate-200 shadow-sm hover:shadow-md transition-all">
+        <Card className="rounded-xl border-slate-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
           <CardContent className="p-5 flex flex-col justify-between h-full">
             <div className="flex justify-between items-start mb-4">
               <Send className="h-5 w-5 text-rose-500" />
-              {renderTrend("-2.4%", false)}
+              <Badge variant="outline" className="text-[10px] font-medium text-rose-600 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/30 flex items-center gap-1">
+                <Send className="h-3 w-3" /> Sent
+              </Badge>
             </div>
             <div>
-              <h3 className="text-2xl font-semibold text-slate-900">{campaignsSent.toLocaleString()}</h3>
+              <h3 className="text-2xl font-semibold text-slate-900 dark:text-zinc-100">{campaignsSent.toLocaleString()}</h3>
               <p className="text-xs text-slate-500 font-medium">Campaigns Sent</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Channel Credit Allocation (Fresh from API, not stale JWT) */}
-      {stats && (stats.rcs_limit !== null || stats.wa_limit !== null || stats.sms_limit !== null || stats.voice_limit !== null) && (
+      {/* Channel Credit Allocation (Hidden for Boltzmann, visible for standard users if configured) */}
+      {!isBoltzman && stats && (stats.rcs_limit !== null || stats.wa_limit !== null || stats.sms_limit !== null || stats.voice_limit !== null) && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {stats?.rcs_limit !== null && (
             <Card className="bg-purple-50 border-purple-100 shadow-none">

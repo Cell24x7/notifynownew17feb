@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { dltTemplateService, type DLTTemplate, type DLTPagination } from '@/services/dltTemplateService';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DLTTemplates() {
     const { toast } = useToast();
@@ -24,6 +25,35 @@ export default function DLTTemplates() {
     const [pagination, setPagination] = useState<DLTPagination>({ total: 0, page: 1, limit: 20, totalPages: 0 });
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'reseller';
+    const [clients, setClients] = useState<any[]>([]);
+    const [selectedUserId, setSelectedUserId] = useState<string>('all');
+
+    useEffect(() => {
+        if (isAdmin) {
+            const fetchClients = async () => {
+                try {
+                    const token = localStorage.getItem('authToken');
+                    const endpoint = user?.role === 'reseller' 
+                        ? `${API_BASE_URL}/api/resellers/clients/list` 
+                        : `${API_BASE_URL}/api/clients`;
+                    
+                    const res = await fetch(endpoint, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        setClients(data.clients || []);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch clients', err);
+                }
+            };
+            fetchClients();
+        }
+    }, [isAdmin, user?.role]);
 
     // Upload state
     const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -53,7 +83,7 @@ export default function DLTTemplates() {
     const fetchTemplates = useCallback(async (page = 1) => {
         setLoading(true);
         try {
-            const data = await dltTemplateService.getTemplates(searchQuery, page, 20);
+            const data = await dltTemplateService.getTemplates(searchQuery, page, 20, selectedUserId);
             setTemplates(data.templates);
             setPagination(data.pagination);
         } catch (err: any) {
@@ -62,7 +92,7 @@ export default function DLTTemplates() {
         } finally {
             setLoading(false);
         }
-    }, [searchQuery, toast]);
+    }, [searchQuery, toast, selectedUserId]);
 
     useEffect(() => {
         const timer = setTimeout(() => fetchTemplates(1), 300);
@@ -77,7 +107,7 @@ export default function DLTTemplates() {
         }
         setUploading(true);
         try {
-            const result = await dltTemplateService.bulkUpload(uploadFile, deleteOldData);
+            const result = await dltTemplateService.bulkUpload(uploadFile, deleteOldData, selectedUserId);
             toast({
                 title: '✅ Upload Successful',
                 description: result.message || `${result.count} templates uploaded`,
@@ -134,7 +164,7 @@ export default function DLTTemplates() {
                 await dltTemplateService.updateTemplate(editingTemplate.id, formData);
                 toast({ title: '✅ Template Updated', description: 'DLT template updated successfully' });
             } else {
-                await dltTemplateService.createTemplate(formData);
+                await dltTemplateService.createTemplate(formData, selectedUserId);
                 toast({ title: '✅ Template Created', description: 'DLT template created successfully' });
             }
             setIsModalOpen(false);
@@ -227,7 +257,22 @@ export default function DLTTemplates() {
                     <h1 className="text-2xl font-bold tracking-tight">DLT Template Management</h1>
                     <p className="text-muted-foreground mt-1">Upload and manage DLT template header data for SMS campaigns</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                    {isAdmin && (
+                        <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                            <SelectTrigger className="w-[200px] h-9">
+                                <SelectValue placeholder="Select Client" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Clients</SelectItem>
+                                {clients.map(c => (
+                                    <SelectItem key={c.id} value={String(c.id)}>
+                                        {c.name} ({c.email})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                     <Badge variant="outline" className="text-sm py-1 px-3">
                         <FileText className="h-3.5 w-3.5 mr-1.5" />
                         {pagination.total} Templates

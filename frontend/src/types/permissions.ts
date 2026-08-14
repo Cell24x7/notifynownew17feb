@@ -30,6 +30,8 @@ export const USER_PERMISSIONS: Permission[] = [
     { feature: 'Contacts - Export', admin: true, manager: true, agent: false },
     { feature: 'Contacts - Import', admin: true, manager: true, agent: false },
 
+    { feature: 'Manage Tags - View', admin: true, manager: true, agent: true },
+
     { feature: 'Chat - View', admin: true, manager: true, agent: true },
     { feature: 'Chat - Reply', admin: true, manager: true, agent: true },
     { feature: 'Chat - Assign', admin: true, manager: true, agent: true },
@@ -68,6 +70,8 @@ export const USER_PERMISSIONS: Permission[] = [
     { feature: 'Wallet - View', admin: true, manager: true, agent: true },
     { feature: 'Wallet - Manage', admin: true, manager: true, agent: false },
 
+    { feature: 'Support - View', admin: true, manager: true, agent: true },
+
     { feature: 'Settings - View', admin: true, manager: true, agent: false },
     { feature: 'Settings - Edit', admin: true, manager: true, agent: false },
 ];
@@ -92,6 +96,8 @@ export const RESELLER_PERMISSIONS: Permission[] = [
     { feature: 'Contacts - Edit', admin: true, manager: true, agent: true },
     { feature: 'Contacts - Delete', admin: true, manager: true, agent: false },
 
+    { feature: 'Manage Tags - View', admin: true, manager: true, agent: true },
+
     { feature: 'Chat - View', admin: true, manager: true, agent: true },
     { feature: 'Chat - Reply', admin: true, manager: true, agent: true },
     { feature: 'Chat - Assign', admin: true, manager: true, agent: true },
@@ -102,6 +108,14 @@ export const RESELLER_PERMISSIONS: Permission[] = [
     { feature: 'Templates - Edit', admin: true, manager: true, agent: false },
     { feature: 'Templates - Delete', admin: true, manager: true, agent: false },
     { feature: 'Templates - Approve', admin: true, manager: true, agent: false },
+
+    { feature: 'DLT Templates - View', admin: true, manager: true, agent: true },
+
+    { feature: 'Automations - View', admin: true, manager: true, agent: true },
+    { feature: 'Chatflows - View', admin: true, manager: true, agent: true },
+    { feature: 'Integrations - View', admin: true, manager: true, agent: true },
+
+    { feature: 'API & Webhooks - View', admin: true, manager: true, agent: false },
 
     { feature: 'Plans - View', admin: true, manager: true, agent: true },
     { feature: 'Plans - Create', admin: true, manager: true, agent: false },
@@ -148,6 +162,10 @@ export const RESELLER_PERMISSIONS: Permission[] = [
     { feature: 'Reseller Branding - Manage', admin: true, manager: true, agent: false },
     { feature: 'Reseller Users - View', admin: true, manager: true, agent: false },
     { feature: 'Reseller Users - Manage', admin: true, manager: true, agent: false },
+
+    { feature: 'Credit Ledger - View', admin: true, manager: true, agent: false },
+    { feature: 'Support - View', admin: true, manager: true, agent: true },
+    { feature: 'Settings - View', admin: true, manager: true, agent: false },
 
     { feature: 'System Logs - View', admin: true, manager: true, agent: false },
     { feature: 'Usage Ledger - View', admin: true, manager: true, agent: false },

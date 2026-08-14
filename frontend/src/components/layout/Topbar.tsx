@@ -105,11 +105,20 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             <div className="flex items-center gap-3 ml-auto">
                 {/* Wallet Balance or Credits Display */}
                 {(() => {
+                    const anyUser = user as any;
                     const isBoltzman = isPaymentDisabled || 
-                        user?.id === 10 || 
-                        user?.actual_reseller_id === 10 || 
-                        user?.reseller_id === 10 || 
-                        Boolean(settings?.brand_name?.toLowerCase().includes('boltzm'));
+                        Number(anyUser?.id) === 10 || 
+                        Number(anyUser?.actual_reseller_id) === 10 || 
+                        Number(anyUser?.reseller_id) === 10 || 
+                        Number(anyUser?.parent_reseller_id) === 10 ||
+                        Number(anyUser?.id) === 56 || 
+                        Number(anyUser?.actual_reseller_id) === 56 || 
+                        Number(anyUser?.reseller_id) === 56 || 
+                        Number(anyUser?.parent_reseller_id) === 56 ||
+                        Boolean(anyUser?.is_advanced_reseller_suite) ||
+                        Boolean(settings?.brand_name?.toLowerCase().includes('boltzm')) ||
+                        Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
+                        Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
 
                     if (isBoltzman) {
                         return (
@@ -118,11 +127,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                                     <Wallet className="h-4 w-4 text-indigo-600" />
                                 </div>
                                 <div>
-                                    <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">Balance</p>
+                                    <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">CREDIT BALANCE</p>
                                     <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 leading-tight">
                                         {(user?.role === 'admin' || user?.role === 'superadmin') 
                                             ? 'Unlimited' 
-                                            : `₹${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0)).toLocaleString()}`}
+                                            : `${Math.floor(Number(user?.wallet_balance || user?.credits_available || 0)).toLocaleString()}`}
                                     </p>
                                 </div>
                             </div>
