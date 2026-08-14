@@ -127,7 +127,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                                     <Wallet className="h-4 w-4 text-indigo-600" />
                                 </div>
                                 <div>
-                                    <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">CREDIT BALANCE</p>
+                                    <p className="text-[8px] uppercase font-black text-slate-400 tracking-widest leading-none mb-0.5">AVAILABLE CREDITS</p>
                                     <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 leading-tight">
                                         {(user?.role === 'admin' || user?.role === 'superadmin') 
                                             ? 'Unlimited' 
