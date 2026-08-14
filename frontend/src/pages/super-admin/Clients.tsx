@@ -31,6 +31,20 @@ export default function SuperAdminClients() {
   const { user: currentUser } = useAuth(); // Logged in user info
   const isAdvancedReseller = currentUser?.role === 'superadmin' || currentUser?.role === 'admin' || Number(currentUser?.id) === 56 || Number((currentUser as any)?.is_advanced_reseller_suite) === 1;
   const { isPaymentDisabled, settings } = useBranding();
+  const anyUser = currentUser as any;
+  const isBoltzman = isPaymentDisabled || 
+    Number(anyUser?.id) === 10 || 
+    Number(anyUser?.actual_reseller_id) === 10 || 
+    Number(anyUser?.reseller_id) === 10 ||
+    Number(anyUser?.parent_reseller_id) === 10 ||
+    Number(anyUser?.id) === 56 || 
+    Number(anyUser?.actual_reseller_id) === 56 || 
+    Number(anyUser?.reseller_id) === 56 ||
+    Number(anyUser?.parent_reseller_id) === 56 ||
+    Boolean(anyUser?.is_advanced_reseller_suite) ||
+    Boolean(settings?.brand_name?.toLowerCase().includes('boltzm')) ||
+    Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
+    Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -97,7 +111,7 @@ export default function SuperAdminClients() {
   const fetchPlans = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const res = await axios.get(`${API_URL}/plans`, {
+      const res = await axios.get(`${API_URL}/plans?admin=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data) {
@@ -251,13 +265,21 @@ export default function SuperAdminClients() {
 
   // Handle Plan Change - Auto-assign channels
   const handlePlanChange = (planId: string) => {
-    const selectedPlan = plans.find(p => p.id === planId);
+    const selectedPlan = plans.find(p => String(p.id) === String(planId));
     let newChannels: string[] = [];
 
-    if (selectedPlan && selectedPlan.channelsAllowed) {
-      // Normalize channelsAllowed from plan (it might be camelCase or mixed)
-      // Backend plans usually return channelsAllowed as array of strings
-      newChannels = selectedPlan.channelsAllowed;
+    if (selectedPlan) {
+      const allowed = selectedPlan.channelsAllowed || selectedPlan.channels_allowed;
+      if (Array.isArray(allowed)) {
+        newChannels = allowed.map((c: any) => String(c).toLowerCase());
+      } else if (typeof allowed === 'string') {
+        try {
+          const parsed = JSON.parse(allowed);
+          if (Array.isArray(parsed)) newChannels = parsed.map((c: any) => String(c).toLowerCase());
+        } catch (e) {
+          newChannels = [allowed.toLowerCase()];
+        }
+      }
     }
 
     setCurrentClient(prev => ({
@@ -1135,7 +1157,7 @@ export default function SuperAdminClients() {
                 <div className="space-y-2">
                   <Label>Assign Plan <span className="text-red-500">*</span></Label>
                   <Select
-                    value={currentClient.plan_id}
+                    value={String(currentClient.plan_id || '')}
                     onValueChange={handlePlanChange}
                     disabled={modalMode === 'view'}
                   >
@@ -1143,7 +1165,11 @@ export default function SuperAdminClients() {
                       <SelectValue placeholder="Select Plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      {plans.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (${p.price})</SelectItem>)}
+                      {plans.map(p => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name} ({isBoltzman ? `${p.monthlyCredits || p.price} Credits` : `₹${p.price}`})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
