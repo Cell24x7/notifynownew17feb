@@ -818,7 +818,7 @@ router.post('/manage-credits', authenticateToken, async (req, res) => {
 
 /**
  * GET /api/wallet/reseller-monthly-summary
- * Fetches monthly credit allocation, spending, channel breakdown, and client breakdown for a reseller
+ * Fetches monthly credit allocation, spending, channel breakdown, and client breakdown for resellers & clients
  */
 router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
   try {
@@ -842,24 +842,27 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
     const lastDay = new Date(year, m, 0).getDate();
     const endDate = `${targetMonth}-${String(lastDay).padStart(2, '0')} 23:59:59`;
 
-    let activeResellerId = reqResellerId;
-    if (isReseller) {
-      activeResellerId = req.user.id.toString();
-    }
-
-    // Fetch all resellers for dropdown list (Super Admin view)
+    // 1. Fetch list of resellers (for Super Admin dropdown)
     let resellersList = [];
     if (isAdmin) {
       const [rRows] = await query(`
-        SELECT u.id, u.name, u.email, u.wallet_balance, u.credits_available 
+        SELECT DISTINCT u.id, u.name, u.email, u.wallet_balance, u.credits_available 
         FROM users u 
-        WHERE u.role = 'reseller' OR u.id IN (SELECT DISTINCT reseller_id FROM users WHERE reseller_id IS NOT NULL)
+        LEFT JOIN resellers r ON u.email = r.email
+        WHERE u.role = 'reseller' 
+           OR r.id IS NOT NULL 
+           OR u.id IN (SELECT DISTINCT reseller_id FROM users WHERE reseller_id IS NOT NULL)
         ORDER BY u.name ASC
       `);
       resellersList = rRows;
     }
 
-    // Determine target reseller user row
+    let activeResellerId = reqResellerId;
+    if (isReseller) {
+      activeResellerId = req.user.id.toString();
+    }
+
+    // Determine target reseller user object if a specific reseller ID is provided
     let resellerObj = null;
     if (activeResellerId && activeResellerId !== 'all') {
       const [rRows] = await query(`
@@ -867,21 +870,14 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
         FROM users 
         WHERE id = ? 
            OR email = (SELECT email FROM resellers WHERE id = ?)
-           OR email = ?
-      `, [activeResellerId, activeResellerId, req.user.email]);
+      `, [activeResellerId, activeResellerId]);
       resellerObj = rRows[0] || null;
-    }
-
-    if (!resellerObj && isReseller) {
+    } else if (isReseller) {
       const [rRows] = await query('SELECT id, name, email, wallet_balance, credits_available FROM users WHERE id = ? OR email = ?', [req.user.id, req.user.email]);
       resellerObj = rRows[0] || null;
     }
 
-    if (!resellerObj && isAdmin && resellersList.length > 0) {
-      resellerObj = resellersList[0];
-    }
-
-    // 2. Fetch clients matching the target reseller
+    // 2. Fetch clients matching the target reseller and client filter
     let clientWhere = [];
     let clientParams = [];
 
@@ -892,6 +888,9 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
       const resId = req.user.actual_reseller_id || req.user.id;
       clientWhere.push("(reseller_id = ? OR reseller_id IN (SELECT id FROM resellers WHERE email = ?) OR reseller_id = ?)");
       clientParams.push(resId, req.user.email, req.user.id);
+    } else if (isAdmin) {
+      // If Admin and "All Resellers" is selected, select all client users
+      clientWhere.push("role = 'user'");
     }
 
     // Filter by specific client if requested
@@ -911,7 +910,7 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
 
     const clientIds = clients.map(c => c.id);
 
-    // 3. Admin Allocated Credits (Credits given to Reseller in month)
+    // 3. Admin Allocated Credits (Credits given to Reseller/All Resellers in month)
     let adminAllocatedCredits = 0;
     if (resellerObj) {
       const [adminAllocRows] = await query(`
@@ -920,6 +919,16 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
         WHERE user_id = ? AND type = 'credit' AND created_at >= ? AND created_at <= ?
       `, [resellerObj.id, startDate, endDate]);
       adminAllocatedCredits = parseFloat(adminAllocRows[0]?.total || 0);
+    } else if (isAdmin) {
+      const resellerUserIds = resellersList.map(r => r.id);
+      if (resellerUserIds.length > 0) {
+        const [adminAllocRows] = await query(`
+          SELECT COALESCE(SUM(amount), 0) as total
+          FROM transactions
+          WHERE user_id IN (?) AND type = 'credit' AND created_at >= ? AND created_at <= ?
+        `, [resellerUserIds, startDate, endDate]);
+        adminAllocatedCredits = parseFloat(adminAllocRows[0]?.total || 0);
+      }
     }
 
     let resellerAllocatedCredits = 0;

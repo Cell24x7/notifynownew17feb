@@ -579,11 +579,12 @@ export default function CreditLedger() {
                 {isAdmin && (
                   <div className="space-y-1 w-full sm:w-[240px]">
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Reseller</Label>
-                    <Select value={summaryResellerId} onValueChange={setSummaryResellerId}>
+                    <Select value={summaryResellerId} onValueChange={(val) => { setSummaryResellerId(val); setSummaryClientId('all'); }}>
                       <SelectTrigger className="rounded-xl">
                         <SelectValue placeholder="Choose Reseller" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="all">All Resellers ({monthlyData?.resellers?.length || 0})</SelectItem>
                         {monthlyData?.resellers?.map((r: any) => (
                           <SelectItem key={r.id} value={r.id.toString()}>
                             {r.name} ({r.email})
@@ -601,8 +602,8 @@ export default function CreditLedger() {
                       <SelectValue placeholder="All Clients" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Clients ({monthlyData?.clients?.length || clients.length})</SelectItem>
-                      {(monthlyData?.clients || clients).map((c: any) => (
+                      <SelectItem value="all">All Clients ({monthlyData?.clients?.length || 0})</SelectItem>
+                      {monthlyData?.clients?.map((c: any) => (
                         <SelectItem key={c.id} value={c.id.toString()}>
                           {c.name} ({c.email})
                         </SelectItem>
@@ -631,12 +632,20 @@ export default function CreditLedger() {
                 </Button>
               </div>
 
-              {monthlyData?.reseller && (
+              {monthlyData?.reseller ? (
                 <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border/40 w-full sm:w-auto">
                   <Building2 className="w-8 h-8 text-indigo-600" />
                   <div>
                     <p className="font-bold text-sm text-foreground">{monthlyData.reseller.name}</p>
                     <p className="text-xs text-muted-foreground">{monthlyData.reseller.email}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200/50 dark:border-indigo-800/30 w-full sm:w-auto">
+                  <Building2 className="w-8 h-8 text-indigo-600" />
+                  <div>
+                    <p className="font-bold text-sm text-indigo-700 dark:text-indigo-300">All Resellers Overview</p>
+                    <p className="text-xs text-muted-foreground">Combined System-wide Monthly Stats</p>
                   </div>
                 </div>
               )}
