@@ -64,6 +64,8 @@ export default function CreditLedger() {
   const [modalDescription, setModalDescription] = useState('');
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
 
+  const [summaryTotals, setSummaryTotals] = useState<{ totalAdded: number; totalDeducted: number }>({ totalAdded: 0, totalDeducted: 0 });
+
   const isReseller = user?.role === 'reseller';
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'super_admin';
 
@@ -124,6 +126,12 @@ export default function CreditLedger() {
         setLedger(res.data.ledger || []);
         setTotalPages(res.data.pagination?.totalPages || 1);
         setTotalItems(res.data.pagination?.total || 0);
+        if (res.data.summary) {
+          setSummaryTotals({
+            totalAdded: res.data.summary.totalAdded || 0,
+            totalDeducted: res.data.summary.totalDeducted || 0
+          });
+        }
       }
     } catch (err) {
       console.error('Failed to fetch ledger:', err);
@@ -208,11 +216,11 @@ export default function CreditLedger() {
 
   const selectedTargetClient = clients.find(c => c.id.toString() === modalTargetUserId);
 
-  const totalCreditsAdded = ledger
+  const totalCreditsAdded = summaryTotals.totalAdded || ledger
     .filter(i => i.type === 'credit')
     .reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
 
-  const totalCreditsDeducted = ledger
+  const totalCreditsDeducted = summaryTotals.totalDeducted || ledger
     .filter(i => i.type === 'debit')
     .reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
 
@@ -225,7 +233,7 @@ export default function CreditLedger() {
       `"${item.owner_name || ''}"`,
       item.owner_email || '',
       item.owner_role || '',
-      `"${item.reseller_name || 'System/Admin'}"`,
+      `"${item.reseller_name || (isReseller ? (user?.name || 'Reseller') : 'System/Admin')}"`,
       item.amount,
       `"${(item.description || '').replace(/"/g, '""')}"`,
       format(new Date(item.created_at), 'yyyy-MM-dd HH:mm:ss')
@@ -400,7 +408,12 @@ export default function CreditLedger() {
                       {item.reseller_name ? (
                         <>
                           <div className="font-medium text-foreground">{item.reseller_name}</div>
-                          <div className="text-xs text-muted-foreground">{item.reseller_email}</div>
+                          {item.reseller_email && <div className="text-xs text-muted-foreground">{item.reseller_email}</div>}
+                        </>
+                      ) : isReseller ? (
+                        <>
+                          <div className="font-medium text-foreground">{user?.name || 'Reseller'}</div>
+                          <div className="text-xs text-muted-foreground">{user?.email || ''}</div>
                         </>
                       ) : (
                         <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">System / Super Admin</span>

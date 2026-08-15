@@ -164,26 +164,42 @@ router.get('/ledger', authenticateToken, async (req, res) => {
 
     // Role-based scoping
     if (isReseller) {
-      // Resellers can only see transactions for themselves and their direct downline
-      whereClauses.push('(t.user_id = ? OR u.reseller_id = ?)');
       const resId = req.user.actual_reseller_id || req.user.id;
-      params.push(req.user.id, resId);
+      const resEmail = req.user.email;
+
+      // Reseller ONLY sees transactions for their own clients (not reseller's own account transactions with Super Admin)
+      whereClauses.push('(u.reseller_id = ? OR u.reseller_id IN (SELECT id FROM resellers WHERE email = ?) OR u.reseller_id = ?)');
+      params.push(resId, resEmail, req.user.id);
+
+      // Exclude reseller's own user ID so reseller doesn't see their own transactions with Super Admin
+      whereClauses.push('t.user_id != ?');
+      params.push(req.user.id);
     }
 
     if (whereClauses.length > 0) {
       baseSql += ' WHERE ' + whereClauses.join(' AND ');
     }
 
-    // Get total count
-    const [countResult] = await query(`SELECT COUNT(*) as total ${baseSql}`, params);
-    const total = countResult[0].total;
+    // Get total count & totals across all pages
+    const [statsResult] = await query(`
+      SELECT 
+        COUNT(*) as total,
+        COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE 0 END), 0) as total_added,
+        COALESCE(SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE 0 END), 0) as total_deducted
+      ${baseSql}
+    `, params);
+
+    const total = statsResult[0]?.total || 0;
+    const overallAdded = parseFloat(statsResult[0]?.total_added || 0);
+    const overallDeducted = parseFloat(statsResult[0]?.total_deducted || 0);
 
     // Get enriched data
     const selectSql = `
       SELECT 
         t.id, t.type, t.amount, t.description, t.status, t.created_at,
         u.name as owner_name, u.email as owner_email, u.role as owner_role,
-        r.name as reseller_name, r.email as reseller_email
+        COALESCE(r.name, (SELECT name FROM users WHERE id = u.reseller_id LIMIT 1), (SELECT name FROM resellers WHERE id = u.reseller_id LIMIT 1)) as reseller_name,
+        COALESCE(r.email, (SELECT email FROM users WHERE id = u.reseller_id LIMIT 1), (SELECT email FROM resellers WHERE id = u.reseller_id LIMIT 1)) as reseller_email
       ${baseSql}
       ORDER BY t.created_at DESC
       LIMIT ? OFFSET ?
@@ -194,6 +210,10 @@ router.get('/ledger', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       ledger: rows,
+      summary: {
+        totalAdded: overallAdded,
+        totalDeducted: overallDeducted
+      },
       pagination: {
         total,
         page,
