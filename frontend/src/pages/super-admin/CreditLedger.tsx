@@ -71,6 +71,7 @@ export default function CreditLedger() {
   // Monthly Reseller Billing Summary State
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
   const [summaryResellerId, setSummaryResellerId] = useState<string>('all');
+  const [summaryClientId, setSummaryClientId] = useState<string>('all');
   const [monthlyData, setMonthlyData] = useState<any>(null);
   const [loadingMonthlySummary, setLoadingMonthlySummary] = useState<boolean>(false);
 
@@ -162,7 +163,8 @@ export default function CreditLedger() {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           month: selectedMonth,
-          resellerId: summaryResellerId !== 'all' ? summaryResellerId : undefined
+          resellerId: summaryResellerId !== 'all' ? summaryResellerId : undefined,
+          clientId: summaryClientId !== 'all' ? summaryClientId : undefined
         }
       });
       if (res.data.success) {
@@ -184,7 +186,7 @@ export default function CreditLedger() {
     if (activeTab === 'monthly_summary') {
       fetchMonthlySummary();
     }
-  }, [activeTab, selectedMonth, summaryResellerId]);
+  }, [activeTab, selectedMonth, summaryResellerId, summaryClientId]);
 
   useEffect(() => {
     fetchLedger();
@@ -575,7 +577,7 @@ export default function CreditLedger() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
                 {isAdmin && (
-                  <div className="space-y-1 w-full sm:w-[260px]">
+                  <div className="space-y-1 w-full sm:w-[240px]">
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Reseller</Label>
                     <Select value={summaryResellerId} onValueChange={setSummaryResellerId}>
                       <SelectTrigger className="rounded-xl">
@@ -592,7 +594,24 @@ export default function CreditLedger() {
                   </div>
                 )}
 
-                <div className="space-y-1 w-full sm:w-[200px]">
+                <div className="space-y-1 w-full sm:w-[240px]">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Client Account</Label>
+                  <Select value={summaryClientId} onValueChange={setSummaryClientId}>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="All Clients" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Clients ({monthlyData?.clients?.length || clients.length})</SelectItem>
+                      {(monthlyData?.clients || clients).map((c: any) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          {c.name} ({c.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1 w-full sm:w-[180px]">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Billing Month</Label>
                   <Input 
                     type="month"

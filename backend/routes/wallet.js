@@ -829,7 +829,7 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
-    const { month, resellerId: reqResellerId } = req.query;
+    const { month, resellerId: reqResellerId, clientId: reqClientId } = req.query;
 
     // Default to current month YYYY-MM if not provided
     const targetMonth = month && /^\d{4}-\d{2}$/.test(month) 
@@ -844,7 +844,7 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
 
     let activeResellerId = reqResellerId;
     if (isReseller) {
-      activeResellerId = (req.user.actual_reseller_id || req.user.id).toString();
+      activeResellerId = req.user.id.toString();
     }
 
     // Fetch all resellers for dropdown list (Super Admin view)
@@ -859,47 +859,68 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
       resellersList = rRows;
     }
 
-    if (!activeResellerId || activeResellerId === 'all') {
-      if (resellersList.length > 0) {
-        activeResellerId = resellersList[0].id.toString();
-      }
+    // Determine target reseller user row
+    let resellerObj = null;
+    if (activeResellerId && activeResellerId !== 'all') {
+      const [rRows] = await query(`
+        SELECT id, name, email, wallet_balance, credits_available 
+        FROM users 
+        WHERE id = ? 
+           OR email = (SELECT email FROM resellers WHERE id = ?)
+           OR email = ?
+      `, [activeResellerId, activeResellerId, req.user.email]);
+      resellerObj = rRows[0] || null;
     }
 
-    if (!activeResellerId) {
-      return res.json({
-        success: true,
-        month: targetMonth,
-        resellers: resellersList,
-        summary: null,
-        message: 'No reseller found.'
-      });
+    if (!resellerObj && isReseller) {
+      const [rRows] = await query('SELECT id, name, email, wallet_balance, credits_available FROM users WHERE id = ? OR email = ?', [req.user.id, req.user.email]);
+      resellerObj = rRows[0] || null;
     }
 
-    // 1. Fetch Reseller Details
-    const [resellerRows] = await query('SELECT id, name, email, wallet_balance, credits_available FROM users WHERE id = ?', [activeResellerId]);
-    const resellerObj = resellerRows[0] || null;
-
-    if (!resellerObj) {
-      return res.status(404).json({ success: false, message: 'Reseller not found.' });
+    if (!resellerObj && isAdmin && resellersList.length > 0) {
+      resellerObj = resellersList[0];
     }
 
-    const resellerCurrentBalance = parseFloat(resellerObj.wallet_balance || resellerObj.credits_available || 0);
+    // 2. Fetch clients matching the target reseller
+    let clientWhere = [];
+    let clientParams = [];
 
-    // 2. Fetch all clients belonging to this reseller
-    const [clients] = await query(
-      'SELECT id, name, email, role, wallet_balance, credits_available, created_at FROM users WHERE reseller_id = ? OR reseller_id IN (SELECT id FROM resellers WHERE email = ?)',
-      [activeResellerId, resellerObj.email]
-    );
+    if (resellerObj) {
+      clientWhere.push("(reseller_id = ? OR reseller_id IN (SELECT id FROM resellers WHERE email = ?) OR reseller_id = ?)");
+      clientParams.push(resellerObj.id, resellerObj.email, resellerObj.id);
+    } else if (isReseller) {
+      const resId = req.user.actual_reseller_id || req.user.id;
+      clientWhere.push("(reseller_id = ? OR reseller_id IN (SELECT id FROM resellers WHERE email = ?) OR reseller_id = ?)");
+      clientParams.push(resId, req.user.email, req.user.id);
+    }
+
+    // Filter by specific client if requested
+    if (reqClientId && reqClientId !== 'all') {
+      clientWhere.push("id = ?");
+      clientParams.push(reqClientId);
+    }
+
+    const whereSql = clientWhere.length > 0 ? 'WHERE ' + clientWhere.join(' AND ') : '';
+
+    const [clients] = await query(`
+      SELECT id, name, email, role, wallet_balance, credits_available, created_at 
+      FROM users 
+      ${whereSql}
+      ORDER BY name ASC
+    `, clientParams);
 
     const clientIds = clients.map(c => c.id);
 
-    // 3. Calculate Credits Allocated by Admin to Reseller in target month
-    const [adminAllocRows] = await query(`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM transactions
-      WHERE user_id = ? AND type = 'credit' AND created_at >= ? AND created_at <= ?
-    `, [activeResellerId, startDate, endDate]);
-    const adminAllocatedCredits = parseFloat(adminAllocRows[0]?.total || 0);
+    // 3. Admin Allocated Credits (Credits given to Reseller in month)
+    let adminAllocatedCredits = 0;
+    if (resellerObj) {
+      const [adminAllocRows] = await query(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM transactions
+        WHERE user_id = ? AND type = 'credit' AND created_at >= ? AND created_at <= ?
+      `, [resellerObj.id, startDate, endDate]);
+      adminAllocatedCredits = parseFloat(adminAllocRows[0]?.total || 0);
+    }
 
     let resellerAllocatedCredits = 0;
     let totalSpentCredits = 0;
@@ -909,7 +930,7 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
     let clientBreakdown = [];
 
     if (clientIds.length > 0) {
-      // 4. Calculate Credits Allocated by Reseller to Clients in target month
+      // 4. Credits Allocated by Reseller to Clients in target month
       const [resellerAllocRows] = await query(`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM transactions
@@ -972,6 +993,7 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
       });
     }
 
+    const resellerCurrentBalance = resellerObj ? parseFloat(resellerObj.wallet_balance || resellerObj.credits_available || 0) : 0;
     const otherSpent = Math.max(0, totalSpentCredits - (whatsappSpent + rcsSpent + smsSpent));
 
     res.json({
@@ -979,6 +1001,7 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
       month: targetMonth,
       reseller: resellerObj,
       resellers: resellersList,
+      clients: clients.map(c => ({ id: c.id, name: c.name, email: c.email })),
       summary: {
         adminAllocatedCredits,
         resellerAllocatedCredits,
