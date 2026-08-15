@@ -265,6 +265,31 @@ export default function CreditLedger() {
     .filter(i => i.type === 'debit')
     .reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
 
+  const handleExportCSV = () => {
+    if (!ledger.length) return;
+    const headers = ["ID", "Type", "User", "Email", "Role", "Managed By", "Amount", "Description", "Date"];
+    const rows = ledger.map(item => [
+      item.id,
+      item.type,
+      `"${item.owner_name || ''}"`,
+      item.owner_email || '',
+      item.owner_role || '',
+      `"${item.reseller_name || (isReseller ? (user?.name || 'Reseller') : 'System/Admin')}"`,
+      item.amount,
+      `"${(item.description || '').replace(/"/g, '""')}"`,
+      format(new Date(item.created_at), 'yyyy-MM-dd HH:mm:ss')
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `credit_ledger_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleExportMonthlyCSV = () => {
     if (!monthlyData?.summary?.clientBreakdown?.length) return;
     const headers = ["Client Name", "Email", "Monthly Allocated Credits", "WhatsApp Spent", "RCS Spent", "SMS Spent", "Total Spent", "Current Balance"];
