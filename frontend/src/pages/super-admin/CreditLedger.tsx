@@ -572,19 +572,23 @@ export default function CreditLedger() {
       ) : (
         /* Monthly Reseller Billing Summary View */
         <div className="space-y-6">
-          {/* Monthly Filters */}
-          <Card className="border-none shadow-md bg-card p-4 rounded-2xl">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+          {/* Filter Bar & Header */}
+          <Card className="border border-border/50 shadow-md bg-card/80 backdrop-blur-md p-5 rounded-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
                 {isAdmin && (
-                  <div className="space-y-1 w-full sm:w-[240px]">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Reseller</Label>
+                  <div className="space-y-1.5 w-full sm:w-[250px]">
+                    <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-indigo-500" /> Select Reseller
+                    </Label>
                     <Select value={summaryResellerId} onValueChange={(val) => { setSummaryResellerId(val); setSummaryClientId('all'); }}>
-                      <SelectTrigger className="rounded-xl">
+                      <SelectTrigger className="rounded-xl h-10 border-border/60 bg-background/50 font-medium">
                         <SelectValue placeholder="Choose Reseller" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Resellers ({monthlyData?.resellers?.length || 0})</SelectItem>
+                        <SelectItem value="all" className="font-semibold text-indigo-600">
+                          ✨ All Resellers ({monthlyData?.resellers?.length || 0})
+                        </SelectItem>
                         {monthlyData?.resellers?.map((r: any) => (
                           <SelectItem key={r.id} value={r.id.toString()}>
                             {r.name} ({r.email})
@@ -595,14 +599,18 @@ export default function CreditLedger() {
                   </div>
                 )}
 
-                <div className="space-y-1 w-full sm:w-[240px]">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Client Account</Label>
+                <div className="space-y-1.5 w-full sm:w-[250px]">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-indigo-500" /> Select Client Account
+                  </Label>
                   <Select value={summaryClientId} onValueChange={setSummaryClientId}>
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger className="rounded-xl h-10 border-border/60 bg-background/50 font-medium">
                       <SelectValue placeholder="All Clients" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Clients ({monthlyData?.clients?.length || 0})</SelectItem>
+                      <SelectItem value="all" className="font-semibold text-indigo-600">
+                        👥 All Clients ({monthlyData?.clients?.length || 0})
+                      </SelectItem>
                       {monthlyData?.clients?.map((c: any) => (
                         <SelectItem key={c.id} value={c.id.toString()}>
                           {c.name} ({c.email})
@@ -612,40 +620,54 @@ export default function CreditLedger() {
                   </Select>
                 </div>
 
-                <div className="space-y-1 w-full sm:w-[180px]">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Billing Month</Label>
+                <div className="space-y-1.5 w-full sm:w-[180px]">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Billing Month
+                  </Label>
                   <Input 
                     type="month"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="rounded-xl"
+                    className="rounded-xl h-10 border-border/60 bg-background/50 font-medium"
                   />
                 </div>
 
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => fetchMonthlySummary()} 
-                  className="rounded-xl mt-5"
-                >
-                  <RefreshCw className={cn("w-4 h-4", loadingMonthlySummary && "animate-spin")} />
-                </Button>
+                <div className="flex items-end">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => fetchMonthlySummary()} 
+                    className="rounded-xl h-10 w-10 border-border/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600"
+                    title="Refresh Data"
+                  >
+                    <RefreshCw className={cn("w-4 h-4", loadingMonthlySummary && "animate-spin")} />
+                  </Button>
+                </div>
               </div>
 
               {monthlyData?.reseller ? (
-                <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border/40 w-full sm:w-auto">
-                  <Building2 className="w-8 h-8 text-indigo-600" />
+                <div className="flex items-center gap-3 p-3 px-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent rounded-2xl border border-indigo-200/40 dark:border-indigo-800/30">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-indigo-500/20">
+                    {monthlyData.reseller.name?.charAt(0)?.toUpperCase() || 'R'}
+                  </div>
                   <div>
-                    <p className="font-bold text-sm text-foreground">{monthlyData.reseller.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm text-foreground">{monthlyData.reseller.name}</p>
+                      <Badge className="bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] px-2 py-0.5 border-none font-semibold">
+                        Reseller
+                      </Badge>
+                    </div>
                     <p className="text-xs text-muted-foreground">{monthlyData.reseller.email}</p>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 p-3 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200/50 dark:border-indigo-800/30 w-full sm:w-auto">
-                  <Building2 className="w-8 h-8 text-indigo-600" />
+                <div className="flex items-center gap-3 p-3 px-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent rounded-2xl border border-indigo-200/40 dark:border-indigo-800/30">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-indigo-500/20">
+                    <Building2 className="w-5 h-5" />
+                  </div>
                   <div>
-                    <p className="font-bold text-sm text-indigo-700 dark:text-indigo-300">All Resellers Overview</p>
-                    <p className="text-xs text-muted-foreground">Combined System-wide Monthly Stats</p>
+                    <p className="font-bold text-sm text-indigo-900 dark:text-indigo-200">All Resellers System Overview</p>
+                    <p className="text-xs text-muted-foreground">Aggregated monthly analytics & client usage</p>
                   </div>
                 </div>
               )}
@@ -653,151 +675,288 @@ export default function CreditLedger() {
           </Card>
 
           {loadingMonthlySummary ? (
-            <Card className="border-none shadow-lg p-12 text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600" />
-              <p className="text-sm text-muted-foreground mt-3">Loading monthly billing breakdown...</p>
+            <Card className="border-none shadow-lg p-16 text-center rounded-2xl bg-card">
+              <Loader2 className="w-10 h-10 animate-spin mx-auto text-indigo-600" />
+              <p className="text-base font-medium text-foreground mt-4">Generating Monthly Billing Breakdown...</p>
+              <p className="text-xs text-muted-foreground mt-1">Fetching credit transfers, campaign usage, and channel distribution.</p>
             </Card>
           ) : !monthlyData?.summary ? (
-            <Card className="border-none shadow-lg p-12 text-center text-muted-foreground">
-              No summary data found for selected month.
+            <Card className="border-none shadow-lg p-16 text-center text-muted-foreground rounded-2xl bg-card">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                <Calendar className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <h4 className="font-bold text-lg text-foreground">No Billing Data Found</h4>
+              <p className="text-sm mt-1">There are no records for the selected reseller or month.</p>
             </Card>
           ) : (
             <>
-              {/* Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatsCard 
-                  title="Admin Allocated (In)" 
-                  value={isBoltzman ? `${Math.floor(monthlyData.summary.adminAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.adminAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-                  icon={ArrowDownRight} 
-                  color="text-emerald-600" 
-                  bg="bg-emerald-100/50 dark:bg-emerald-950/30" 
-                />
-                <StatsCard 
-                  title="Reseller Allocated to Clients" 
-                  value={isBoltzman ? `${Math.floor(monthlyData.summary.resellerAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-                  icon={PlusCircle} 
-                  color="text-blue-600" 
-                  bg="bg-blue-100/50 dark:bg-blue-950/30" 
-                />
-                <StatsCard 
-                  title="Total Spent by Clients" 
-                  value={isBoltzman ? `${Math.floor(monthlyData.summary.totalSpentCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.totalSpentCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-                  icon={ArrowUpRight} 
-                  color="text-rose-600" 
-                  bg="bg-rose-100/50 dark:bg-rose-950/30" 
-                />
-                <StatsCard 
-                  title="Reseller Available Balance" 
-                  value={isBoltzman ? `${Math.floor(monthlyData.summary.resellerCurrentBalance).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerCurrentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-                  icon={CreditCard} 
-                  color="text-indigo-600" 
-                  bg="bg-indigo-100/50 dark:bg-indigo-950/30" 
-                />
+              {/* Premium KPI Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <Card className="relative overflow-hidden border border-emerald-200/60 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
+                  <div className="flex items-center justify-between relative z-10 mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Admin Transferred (In)</span>
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
+                      <ArrowDownRight className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="relative z-10 space-y-1">
+                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-emerald-700 dark:text-emerald-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.adminAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.adminAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                    </h3>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Credits Received</span>
+                      <span className="text-[11px] bg-emerald-100/60 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium">Monthly Inflow</span>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="relative overflow-hidden border border-blue-200/60 dark:border-blue-900/40 bg-gradient-to-br from-blue-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
+                  <div className="flex items-center justify-between relative z-10 mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Allocated to Clients</span>
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
+                      <PlusCircle className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="relative z-10 space-y-1">
+                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-blue-700 dark:text-blue-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.resellerAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                    </h3>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold text-blue-600 dark:text-blue-400">Client Distributions</span>
+                      <span className="text-[11px] bg-blue-100/60 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md font-medium">Monthly Outflow</span>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="relative overflow-hidden border border-rose-200/60 dark:border-rose-900/40 bg-gradient-to-br from-rose-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
+                  <div className="flex items-center justify-between relative z-10 mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Spent by Clients</span>
+                    <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-inner">
+                      <ArrowUpRight className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="relative z-10 space-y-1">
+                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-rose-700 dark:text-rose-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.totalSpentCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.totalSpentCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                    </h3>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">Campaign Usage</span>
+                      <span className="text-[11px] bg-rose-100/60 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded-md font-medium">Consumed</span>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="relative overflow-hidden border border-indigo-200/60 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
+                  <div className="flex items-center justify-between relative z-10 mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Available Wallet Balance</span>
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-inner">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="relative z-10 space-y-1">
+                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-indigo-700 dark:text-indigo-300">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.resellerCurrentBalance).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerCurrentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                    </h3>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">Current Reserve</span>
+                      <span className="text-[11px] bg-indigo-100/60 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium">Active Balance</span>
+                    </div>
+                  </div>
+                </Card>
               </div>
 
               {/* Channel Breakdown Cards */}
-              <Card className="border-none shadow-xl bg-card p-6">
-                <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
-                  <PieChart className="w-5 h-5 text-indigo-600" />
-                  Channel Consumption Breakdown ({format(new Date(`${selectedMonth}-01`), 'MMMM yyyy')})
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/30 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-1">
-                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
-                      <span className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp</span>
-                      <Badge variant="outline" className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">WA</Badge>
+              <Card className="border border-border/50 shadow-md bg-card/80 backdrop-blur-md p-6 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3 border-b border-border/40">
+                  <div>
+                    <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                      <PieChart className="w-5 h-5 text-indigo-600" />
+                      Channel Consumption Breakdown
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Detailed credit expenditure by channel for {format(new Date(`${selectedMonth}-01`), 'MMMM yyyy')}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="w-fit bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-800/40 px-3 py-1 font-semibold rounded-xl">
+                    Total Spent: {isBoltzman ? `${Math.floor(monthlyData.summary.totalSpentCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.totalSpentCredits.toLocaleString()}`}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* WhatsApp Card */}
+                  <div className="p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/40 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent space-y-2 relative overflow-hidden">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
+                        <MessageSquare className="w-4 h-4 text-emerald-600" /> WhatsApp
+                      </span>
+                      <Badge className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 border-none font-bold">WA</Badge>
                     </div>
-                    <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                    <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">
                       {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.whatsapp).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.whatsapp.toLocaleString()}`}
                     </p>
+                    <div className="w-full bg-emerald-200/50 dark:bg-emerald-950/60 h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${monthlyData.summary.totalSpentCredits ? Math.min(100, Math.round((monthlyData.summary.channelBreakdown.whatsapp / monthlyData.summary.totalSpentCredits) * 100)) : 0}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 font-medium text-right">
+                      {monthlyData.summary.totalSpentCredits ? Math.round((monthlyData.summary.channelBreakdown.whatsapp / monthlyData.summary.totalSpentCredits) * 100) : 0}% of total spent
+                    </p>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-800/30 bg-blue-50/50 dark:bg-blue-950/20 space-y-1">
-                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
-                      <span className="flex items-center gap-1.5"><Send className="w-3.5 h-3.5 text-blue-600" /> RCS Messages</span>
-                      <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">RCS</Badge>
+                  {/* RCS Card */}
+                  <div className="p-4 rounded-2xl border border-blue-200/80 dark:border-blue-800/40 bg-gradient-to-b from-blue-500/10 via-blue-500/5 to-transparent space-y-2 relative overflow-hidden">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-blue-800 dark:text-blue-300">
+                        <Send className="w-4 h-4 text-blue-600" /> RCS Messages
+                      </span>
+                      <Badge className="bg-blue-600 text-white text-[10px] px-2 py-0.5 border-none font-bold">RCS</Badge>
                     </div>
-                    <p className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                    <p className="text-2xl font-extrabold text-blue-700 dark:text-blue-400">
                       {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.rcs).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.rcs.toLocaleString()}`}
                     </p>
-                  </div>
-
-                  <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-800/30 bg-amber-50/50 dark:bg-amber-950/20 space-y-1">
-                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
-                      <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-amber-600" /> SMS / DLT</span>
-                      <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300">SMS</Badge>
+                    <div className="w-full bg-blue-200/50 dark:bg-blue-950/60 h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-blue-600 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${monthlyData.summary.totalSpentCredits ? Math.min(100, Math.round((monthlyData.summary.channelBreakdown.rcs / monthlyData.summary.totalSpentCredits) * 100)) : 0}%` }}
+                      />
                     </div>
-                    <p className="text-xl font-bold text-amber-700 dark:text-amber-400">
-                      {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.sms).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.sms.toLocaleString()}`}
+                    <p className="text-[11px] text-blue-700/80 dark:text-blue-400/80 font-medium text-right">
+                      {monthlyData.summary.totalSpentCredits ? Math.round((monthlyData.summary.channelBreakdown.rcs / monthlyData.summary.totalSpentCredits) * 100) : 0}% of total spent
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800/30 bg-slate-50/50 dark:bg-slate-950/20 space-y-1">
-                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
-                      <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-slate-600" /> Other / Adjustments</span>
-                      <Badge variant="outline" className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300">Misc</Badge>
+                  {/* SMS Card */}
+                  <div className="p-4 rounded-2xl border border-amber-200/80 dark:border-amber-800/40 bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent space-y-2 relative overflow-hidden">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                        <FileText className="w-4 h-4 text-amber-600" /> SMS / DLT
+                      </span>
+                      <Badge className="bg-amber-600 text-white text-[10px] px-2 py-0.5 border-none font-bold">SMS</Badge>
                     </div>
-                    <p className="text-xl font-bold text-slate-700 dark:text-slate-400">
+                    <p className="text-2xl font-extrabold text-amber-700 dark:text-amber-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.sms).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.sms.toLocaleString()}`}
+                    </p>
+                    <div className="w-full bg-amber-200/50 dark:bg-amber-950/60 h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-amber-600 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${monthlyData.summary.totalSpentCredits ? Math.min(100, Math.round((monthlyData.summary.channelBreakdown.sms / monthlyData.summary.totalSpentCredits) * 100)) : 0}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 font-medium text-right">
+                      {monthlyData.summary.totalSpentCredits ? Math.round((monthlyData.summary.channelBreakdown.sms / monthlyData.summary.totalSpentCredits) * 100) : 0}% of total spent
+                    </p>
+                  </div>
+
+                  {/* Other Card */}
+                  <div className="p-4 rounded-2xl border border-purple-200/80 dark:border-purple-800/40 bg-gradient-to-b from-purple-500/10 via-purple-500/5 to-transparent space-y-2 relative overflow-hidden">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-purple-800 dark:text-purple-300">
+                        <Zap className="w-4 h-4 text-purple-600" /> Other / Adjustments
+                      </span>
+                      <Badge className="bg-purple-600 text-white text-[10px] px-2 py-0.5 border-none font-bold">Misc</Badge>
+                    </div>
+                    <p className="text-2xl font-extrabold text-purple-700 dark:text-purple-400">
                       {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.other).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.other.toLocaleString()}`}
+                    </p>
+                    <div className="w-full bg-purple-200/50 dark:bg-purple-950/60 h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-purple-600 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${monthlyData.summary.totalSpentCredits ? Math.min(100, Math.round((monthlyData.summary.channelBreakdown.other / monthlyData.summary.totalSpentCredits) * 100)) : 0}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-purple-700/80 dark:text-purple-400/80 font-medium text-right">
+                      {monthlyData.summary.totalSpentCredits ? Math.round((monthlyData.summary.channelBreakdown.other / monthlyData.summary.totalSpentCredits) * 100) : 0}% of total spent
                     </p>
                   </div>
                 </div>
               </Card>
 
               {/* Per-Client Monthly Breakdown Table */}
-              <Card className="border-none shadow-xl bg-card">
-                <div className="p-4 border-b flex justify-between items-center bg-muted/30 rounded-t-xl">
-                  <h3 className="font-bold text-base flex items-center gap-2">
-                    <Users className="w-4 h-4 text-indigo-600" />
-                    Client-Wise Monthly Consumption ({monthlyData.summary.clientBreakdown?.length || 0} Clients)
-                  </h3>
-                  <Button variant="outline" size="sm" onClick={handleExportMonthlyCSV} className="rounded-xl text-xs">
-                    <Download className="w-3.5 h-3.5 mr-1.5" /> Export Client Report
+              <Card className="border border-border/50 shadow-md bg-card rounded-2xl overflow-hidden">
+                <div className="p-4 px-6 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/20">
+                  <div>
+                    <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
+                      <Users className="w-4 h-4 text-indigo-600" />
+                      Client-Wise Monthly Consumption ({monthlyData.summary.clientBreakdown?.length || 0} Clients)
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Individual allocation and usage report for each client</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleExportMonthlyCSV} 
+                    className="rounded-xl border-border/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 font-medium"
+                  >
+                    <Download className="w-4 h-4 mr-2" /> Export Client Report (CSV)
                   </Button>
                 </div>
-                <div className="overflow-x-auto rounded-b-xl">
+                <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/40">
                       <TableRow className="border-b border-border/50">
-                        <TableHead className="font-semibold text-foreground">Client Name</TableHead>
-                        <TableHead className="font-semibold text-foreground">Email</TableHead>
-                        <TableHead className="font-semibold text-foreground text-right">Allocated (Month)</TableHead>
-                        <TableHead className="font-semibold text-foreground text-right">WhatsApp Spent</TableHead>
-                        <TableHead className="font-semibold text-foreground text-right">RCS Spent</TableHead>
-                        <TableHead className="font-semibold text-foreground text-right">SMS Spent</TableHead>
-                        <TableHead className="font-semibold text-foreground text-right">Total Spent</TableHead>
-                        <TableHead className="font-semibold text-foreground text-right">Current Balance</TableHead>
+                        <TableHead className="font-bold text-foreground py-3.5 pl-6">Client Account</TableHead>
+                        <TableHead className="font-bold text-foreground text-right">Allocated (Month)</TableHead>
+                        <TableHead className="font-bold text-emerald-700 dark:text-emerald-400 text-right">WhatsApp</TableHead>
+                        <TableHead className="font-bold text-blue-700 dark:text-blue-400 text-right">RCS</TableHead>
+                        <TableHead className="font-bold text-amber-700 dark:text-amber-400 text-right">SMS</TableHead>
+                        <TableHead className="font-bold text-rose-700 dark:text-rose-400 text-right">Total Spent</TableHead>
+                        <TableHead className="font-bold text-foreground text-right pr-6">Current Balance</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {!monthlyData.summary.clientBreakdown?.length ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                            No clients registered under this reseller.
+                          <TableCell colSpan={7} className="h-36 text-center text-muted-foreground">
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <Users className="w-8 h-8 text-muted-foreground/50 mb-1" />
+                              <p className="font-medium text-sm">No client accounts found under this reseller.</p>
+                              <p className="text-xs text-muted-foreground">Clients created by this reseller will appear here automatically.</p>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ) : (
                         monthlyData.summary.clientBreakdown.map((client: any) => (
-                          <TableRow key={client.id} className="hover:bg-muted/30 border-b border-border/30">
-                            <TableCell className="font-medium text-foreground">{client.name}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{client.email}</TableCell>
-                            <TableCell className="text-right font-medium text-emerald-600">
-                              +{isBoltzman ? Math.floor(client.allocated).toLocaleString() : `₹${client.allocated.toLocaleString()}`}
+                          <TableRow key={client.id} className="hover:bg-muted/30 transition-colors border-b border-border/30">
+                            <TableCell className="pl-6 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+                                  {client.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-sm text-foreground">{client.name}</p>
+                                  <p className="text-xs text-muted-foreground">{client.email}</p>
+                                </div>
+                              </div>
                             </TableCell>
-                            <TableCell className="text-right text-xs font-semibold text-emerald-600">
-                              {isBoltzman ? Math.floor(client.whatsappSpent).toLocaleString() : `₹${client.whatsappSpent.toLocaleString()}`}
+                            <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                              <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200/50 dark:border-emerald-800/40 text-xs">
+                                +{isBoltzman ? `${Math.floor(client.allocated).toLocaleString()} Credits` : `₹${client.allocated.toLocaleString()}`}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-right text-xs font-semibold text-blue-600">
-                              {isBoltzman ? Math.floor(client.rcsSpent).toLocaleString() : `₹${client.rcsSpent.toLocaleString()}`}
+                            <TableCell className="text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                              {isBoltzman ? `${Math.floor(client.whatsappSpent).toLocaleString()} Credits` : `₹${client.whatsappSpent.toLocaleString()}`}
                             </TableCell>
-                            <TableCell className="text-right text-xs font-semibold text-amber-600">
-                              {isBoltzman ? Math.floor(client.smsSpent).toLocaleString() : `₹${client.smsSpent.toLocaleString()}`}
+                            <TableCell className="text-right text-xs font-semibold text-blue-700 dark:text-blue-400">
+                              {isBoltzman ? `${Math.floor(client.rcsSpent).toLocaleString()} Credits` : `₹${client.rcsSpent.toLocaleString()}`}
                             </TableCell>
-                            <TableCell className="text-right font-bold text-rose-600">
-                              -{isBoltzman ? Math.floor(client.spent).toLocaleString() : `₹${client.spent.toLocaleString()}`}
+                            <TableCell className="text-right text-xs font-semibold text-amber-700 dark:text-amber-400">
+                              {isBoltzman ? `${Math.floor(client.smsSpent).toLocaleString()} Credits` : `₹${client.smsSpent.toLocaleString()}`}
                             </TableCell>
-                            <TableCell className="text-right font-semibold text-foreground">
-                              {isBoltzman ? `${Math.floor(client.currentBalance).toLocaleString()} Credits` : `₹${client.currentBalance.toLocaleString()}`}
+                            <TableCell className="text-right font-bold text-rose-600 dark:text-rose-400">
+                              <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1 rounded-lg border border-rose-200/50 dark:border-rose-800/40 text-xs">
+                                -{isBoltzman ? `${Math.floor(client.spent).toLocaleString()} Credits` : `₹${client.spent.toLocaleString()}`}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-foreground pr-6">
+                              <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-lg border border-indigo-200/50 dark:border-indigo-800/40 text-xs text-indigo-700 dark:text-indigo-300">
+                                {isBoltzman ? `${Math.floor(client.currentBalance).toLocaleString()} Credits` : `₹${client.currentBalance.toLocaleString()}`}
+                              </span>
                             </TableCell>
                           </TableRow>
                         ))
