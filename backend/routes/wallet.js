@@ -881,6 +881,9 @@ router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
     let clientWhere = [];
     let clientParams = [];
 
+    // Exclude pending, suspended, or inactive users
+    clientWhere.push("(status IS NULL OR LOWER(status) NOT IN ('pending', 'suspended', 'inactive'))");
+
     if (resellerObj) {
       clientWhere.push("(reseller_id = ? OR reseller_id IN (SELECT id FROM resellers WHERE email = ?) OR reseller_id = ?)");
       clientParams.push(resellerObj.id, resellerObj.email, resellerObj.id);

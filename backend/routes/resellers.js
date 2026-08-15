@@ -715,7 +715,8 @@ router.get('/clients/list', authenticate, async (req, res) => {
         u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled, u.is_dinstar_enabled,
         u.created_at, u.updated_at
       FROM users u
-      WHERE u.reseller_id = ? OR u.id IN (SELECT id FROM users WHERE reseller_id = ?)
+      WHERE (u.reseller_id = ? OR u.id IN (SELECT id FROM users WHERE reseller_id = ?))
+        AND (u.status IS NULL OR LOWER(u.status) NOT IN ('pending', 'suspended', 'inactive'))
       ORDER BY u.created_at DESC
     `, [resellerId, resellerId]);
 
