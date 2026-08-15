@@ -690,80 +690,76 @@ export default function CreditLedger() {
             </Card>
           ) : (
             <>
-              {/* Premium KPI Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <Card className="relative overflow-hidden border border-emerald-200/60 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
-                  <div className="flex items-center justify-between relative z-10 mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Admin Transferred (In)</span>
-                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
-                      <ArrowDownRight className="w-5 h-5" />
+              {/* Compact & Premium KPI Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="relative overflow-hidden border border-emerald-200/60 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-500/5 via-card to-card p-4 rounded-xl shadow-xs hover:shadow-sm transition-all duration-300 group">
+                  <div className="flex items-center justify-between relative z-10 mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Admin Transferred (In)</span>
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <ArrowDownRight className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="relative z-10 space-y-1">
-                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-emerald-700 dark:text-emerald-400">
+                  <div className="relative z-10 space-y-0.5">
+                    <h3 className="text-xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
                       {isBoltzman ? `${Math.floor(monthlyData.summary.adminAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.adminAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </h3>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Credits Received</span>
-                      <span className="text-[11px] bg-emerald-100/60 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-medium">Monthly Inflow</span>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">Credits Inflow</span>
+                      <span className="text-[10px] bg-emerald-100/60 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-medium">Received</span>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="relative overflow-hidden border border-blue-200/60 dark:border-blue-900/40 bg-gradient-to-br from-blue-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
-                  <div className="flex items-center justify-between relative z-10 mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Allocated to Clients</span>
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
-                      <PlusCircle className="w-5 h-5" />
+                <Card className="relative overflow-hidden border border-blue-200/60 dark:border-blue-900/40 bg-gradient-to-br from-blue-500/5 via-card to-card p-4 rounded-xl shadow-xs hover:shadow-sm transition-all duration-300 group">
+                  <div className="flex items-center justify-between relative z-10 mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Allocated to Clients</span>
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <PlusCircle className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="relative z-10 space-y-1">
-                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-blue-700 dark:text-blue-400">
+                  <div className="relative z-10 space-y-0.5">
+                    <h3 className="text-xl font-bold tracking-tight text-blue-700 dark:text-blue-400">
                       {isBoltzman ? `${Math.floor(monthlyData.summary.resellerAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </h3>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-semibold text-blue-600 dark:text-blue-400">Client Distributions</span>
-                      <span className="text-[11px] bg-blue-100/60 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md font-medium">Monthly Outflow</span>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                      <span className="font-medium text-blue-600 dark:text-blue-400">Client Allocation</span>
+                      <span className="text-[10px] bg-blue-100/60 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-medium">Distributed</span>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="relative overflow-hidden border border-rose-200/60 dark:border-rose-900/40 bg-gradient-to-br from-rose-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
-                  <div className="flex items-center justify-between relative z-10 mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Spent by Clients</span>
-                    <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-inner">
-                      <ArrowUpRight className="w-5 h-5" />
+                <Card className="relative overflow-hidden border border-rose-200/60 dark:border-rose-900/40 bg-gradient-to-br from-rose-500/5 via-card to-card p-4 rounded-xl shadow-xs hover:shadow-sm transition-all duration-300 group">
+                  <div className="flex items-center justify-between relative z-10 mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Spent by Clients</span>
+                    <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                      <ArrowUpRight className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="relative z-10 space-y-1">
-                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-rose-700 dark:text-rose-400">
+                  <div className="relative z-10 space-y-0.5">
+                    <h3 className="text-xl font-bold tracking-tight text-rose-700 dark:text-rose-400">
                       {isBoltzman ? `${Math.floor(monthlyData.summary.totalSpentCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.totalSpentCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </h3>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-semibold text-rose-600 dark:text-rose-400">Campaign Usage</span>
-                      <span className="text-[11px] bg-rose-100/60 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded-md font-medium">Consumed</span>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                      <span className="font-medium text-rose-600 dark:text-rose-400">Campaign Usage</span>
+                      <span className="text-[10px] bg-rose-100/60 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 px-1.5 py-0.5 rounded font-medium">Consumed</span>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="relative overflow-hidden border border-indigo-200/60 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-500/5 via-card to-card p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500" />
-                  <div className="flex items-center justify-between relative z-10 mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Available Wallet Balance</span>
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-inner">
-                      <CreditCard className="w-5 h-5" />
+                <Card className="relative overflow-hidden border border-indigo-200/60 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-500/5 via-card to-card p-4 rounded-xl shadow-xs hover:shadow-sm transition-all duration-300 group">
+                  <div className="flex items-center justify-between relative z-10 mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Available Wallet Balance</span>
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="relative z-10 space-y-1">
-                    <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-indigo-700 dark:text-indigo-300">
+                  <div className="relative z-10 space-y-0.5">
+                    <h3 className="text-xl font-bold tracking-tight text-indigo-700 dark:text-indigo-300">
                       {isBoltzman ? `${Math.floor(monthlyData.summary.resellerCurrentBalance).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerCurrentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </h3>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">Current Reserve</span>
-                      <span className="text-[11px] bg-indigo-100/60 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-medium">Active Balance</span>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                      <span className="font-medium text-indigo-600 dark:text-indigo-400">Current Reserve</span>
+                      <span className="text-[10px] bg-indigo-100/60 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-medium">Active</span>
                     </div>
                   </div>
                 </Card>
