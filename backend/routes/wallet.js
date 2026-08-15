@@ -816,4 +816,189 @@ router.post('/manage-credits', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/wallet/reseller-monthly-summary
+ * Fetches monthly credit allocation, spending, channel breakdown, and client breakdown for a reseller
+ */
+router.get('/reseller-monthly-summary', authenticateToken, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'super_admin' || req.user.id === 56;
+    const isReseller = req.user.role === 'reseller';
+
+    if (!isAdmin && !isReseller) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    const { month, resellerId: reqResellerId } = req.query;
+
+    // Default to current month YYYY-MM if not provided
+    const targetMonth = month && /^\d{4}-\d{2}$/.test(month) 
+      ? month 
+      : new Date().toISOString().slice(0, 7);
+
+    const startDate = `${targetMonth}-01 00:00:00`;
+    const year = parseInt(targetMonth.split('-')[0]);
+    const m = parseInt(targetMonth.split('-')[1]);
+    const lastDay = new Date(year, m, 0).getDate();
+    const endDate = `${targetMonth}-${String(lastDay).padStart(2, '0')} 23:59:59`;
+
+    let activeResellerId = reqResellerId;
+    if (isReseller) {
+      activeResellerId = (req.user.actual_reseller_id || req.user.id).toString();
+    }
+
+    // Fetch all resellers for dropdown list (Super Admin view)
+    let resellersList = [];
+    if (isAdmin) {
+      const [rRows] = await query(`
+        SELECT u.id, u.name, u.email, u.wallet_balance, u.credits_available 
+        FROM users u 
+        WHERE u.role = 'reseller' OR u.id IN (SELECT DISTINCT reseller_id FROM users WHERE reseller_id IS NOT NULL)
+        ORDER BY u.name ASC
+      `);
+      resellersList = rRows;
+    }
+
+    if (!activeResellerId || activeResellerId === 'all') {
+      if (resellersList.length > 0) {
+        activeResellerId = resellersList[0].id.toString();
+      }
+    }
+
+    if (!activeResellerId) {
+      return res.json({
+        success: true,
+        month: targetMonth,
+        resellers: resellersList,
+        summary: null,
+        message: 'No reseller found.'
+      });
+    }
+
+    // 1. Fetch Reseller Details
+    const [resellerRows] = await query('SELECT id, name, email, wallet_balance, credits_available FROM users WHERE id = ?', [activeResellerId]);
+    const resellerObj = resellerRows[0] || null;
+
+    if (!resellerObj) {
+      return res.status(404).json({ success: false, message: 'Reseller not found.' });
+    }
+
+    const resellerCurrentBalance = parseFloat(resellerObj.wallet_balance || resellerObj.credits_available || 0);
+
+    // 2. Fetch all clients belonging to this reseller
+    const [clients] = await query(
+      'SELECT id, name, email, role, wallet_balance, credits_available, created_at FROM users WHERE reseller_id = ? OR reseller_id IN (SELECT id FROM resellers WHERE email = ?)',
+      [activeResellerId, resellerObj.email]
+    );
+
+    const clientIds = clients.map(c => c.id);
+
+    // 3. Calculate Credits Allocated by Admin to Reseller in target month
+    const [adminAllocRows] = await query(`
+      SELECT COALESCE(SUM(amount), 0) as total
+      FROM transactions
+      WHERE user_id = ? AND type = 'credit' AND created_at >= ? AND created_at <= ?
+    `, [activeResellerId, startDate, endDate]);
+    const adminAllocatedCredits = parseFloat(adminAllocRows[0]?.total || 0);
+
+    let resellerAllocatedCredits = 0;
+    let totalSpentCredits = 0;
+    let whatsappSpent = 0;
+    let rcsSpent = 0;
+    let smsSpent = 0;
+    let clientBreakdown = [];
+
+    if (clientIds.length > 0) {
+      // 4. Calculate Credits Allocated by Reseller to Clients in target month
+      const [resellerAllocRows] = await query(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM transactions
+        WHERE user_id IN (?) AND type = 'credit' AND created_at >= ? AND created_at <= ?
+      `, [clientIds, startDate, endDate]);
+      resellerAllocatedCredits = parseFloat(resellerAllocRows[0]?.total || 0);
+
+      // 5. Total Spent by Clients in target month
+      const [spentRows] = await query(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM transactions
+        WHERE user_id IN (?) AND type = 'debit' AND created_at >= ? AND created_at <= ?
+      `, [clientIds, startDate, endDate]);
+      totalSpentCredits = parseFloat(spentRows[0]?.total || 0);
+
+      // 6. Channel Breakdown in target month
+      const [channelRows] = await query(`
+        SELECT 
+          COALESCE(SUM(CASE WHEN LOWER(description) LIKE '%whatsapp%' THEN amount ELSE 0 END), 0) as wa_spent,
+          COALESCE(SUM(CASE WHEN LOWER(description) LIKE '%rcs%' THEN amount ELSE 0 END), 0) as rcs_spent,
+          COALESCE(SUM(CASE WHEN LOWER(description) LIKE '%sms%' OR LOWER(description) LIKE '%dlt%' THEN amount ELSE 0 END), 0) as sms_spent
+        FROM transactions
+        WHERE user_id IN (?) AND type = 'debit' AND created_at >= ? AND created_at <= ?
+      `, [clientIds, startDate, endDate]);
+
+      whatsappSpent = parseFloat(channelRows[0]?.wa_spent || 0);
+      rcsSpent = parseFloat(channelRows[0]?.rcs_spent || 0);
+      smsSpent = parseFloat(channelRows[0]?.sms_spent || 0);
+
+      // 7. Per-Client Breakdown in target month
+      const [clientStats] = await query(`
+        SELECT 
+          user_id,
+          COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) as allocated,
+          COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0) as spent,
+          COALESCE(SUM(CASE WHEN type = 'debit' AND LOWER(description) LIKE '%whatsapp%' THEN amount ELSE 0 END), 0) as wa_spent,
+          COALESCE(SUM(CASE WHEN type = 'debit' AND LOWER(description) LIKE '%rcs%' THEN amount ELSE 0 END), 0) as rcs_spent,
+          COALESCE(SUM(CASE WHEN type = 'debit' AND (LOWER(description) LIKE '%sms%' OR LOWER(description) LIKE '%dlt%') THEN amount ELSE 0 END), 0) as sms_spent
+        FROM transactions
+        WHERE user_id IN (?) AND created_at >= ? AND created_at <= ?
+        GROUP BY user_id
+      `, [clientIds, startDate, endDate]);
+
+      const statsMap = new Map();
+      clientStats.forEach(st => statsMap.set(st.user_id, st));
+
+      clientBreakdown = clients.map(c => {
+        const st = statsMap.get(c.id) || {};
+        return {
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          allocated: parseFloat(st.allocated || 0),
+          spent: parseFloat(st.spent || 0),
+          whatsappSpent: parseFloat(st.wa_spent || 0),
+          rcsSpent: parseFloat(st.rcs_spent || 0),
+          smsSpent: parseFloat(st.sms_spent || 0),
+          currentBalance: parseFloat(c.wallet_balance || c.credits_available || 0)
+        };
+      });
+    }
+
+    const otherSpent = Math.max(0, totalSpentCredits - (whatsappSpent + rcsSpent + smsSpent));
+
+    res.json({
+      success: true,
+      month: targetMonth,
+      reseller: resellerObj,
+      resellers: resellersList,
+      summary: {
+        adminAllocatedCredits,
+        resellerAllocatedCredits,
+        totalSpentCredits,
+        resellerCurrentBalance,
+        totalClients: clients.length,
+        channelBreakdown: {
+          whatsapp: whatsappSpent,
+          rcs: rcsSpent,
+          sms: smsSpent,
+          other: otherSpent
+        },
+        clientBreakdown
+      }
+    });
+
+  } catch (err) {
+    console.error('RESELLER MONTHLY SUMMARY ERROR:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch reseller monthly summary', error: err.message });
+  }
+});
+
 module.exports = router;

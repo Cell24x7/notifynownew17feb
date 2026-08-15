@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { 
   Search, Loader2, ArrowUpRight, ArrowDownRight, CreditCard, ChevronLeft, ChevronRight, 
-  Download, Filter, Zap, PlusCircle, UserPlus, CheckCircle, RefreshCw 
+  Download, Filter, Zap, PlusCircle, UserPlus, CheckCircle, RefreshCw,
+  Calendar, PieChart, Building2, MessageSquare, Send, FileText, Users
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ export default function CreditLedger() {
     Boolean(anyUser?.email?.toLowerCase().includes('boltzm')) ||
     Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
 
+  const [activeTab, setActiveTab] = useState<'ledger' | 'monthly_summary'>('ledger');
   const [loading, setLoading] = useState(false);
   const [ledger, setLedger] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +67,12 @@ export default function CreditLedger() {
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
 
   const [summaryTotals, setSummaryTotals] = useState<{ totalAdded: number; totalDeducted: number }>({ totalAdded: 0, totalDeducted: 0 });
+
+  // Monthly Reseller Billing Summary State
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [summaryResellerId, setSummaryResellerId] = useState<string>('all');
+  const [monthlyData, setMonthlyData] = useState<any>(null);
+  const [loadingMonthlySummary, setLoadingMonthlySummary] = useState<boolean>(false);
 
   const isReseller = user?.role === 'reseller';
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'super_admin';
@@ -145,6 +153,39 @@ export default function CreditLedger() {
     }
   };
 
+  const fetchMonthlySummary = async () => {
+    setLoadingMonthlySummary(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const res = await axios.get(`${API_URL}/wallet/reseller-monthly-summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          month: selectedMonth,
+          resellerId: summaryResellerId !== 'all' ? summaryResellerId : undefined
+        }
+      });
+      if (res.data.success) {
+        setMonthlyData(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch monthly summary:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load monthly reseller summary.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingMonthlySummary(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'monthly_summary') {
+      fetchMonthlySummary();
+    }
+  }, [activeTab, selectedMonth, summaryResellerId]);
+
   useEffect(() => {
     fetchLedger();
   }, [page, typeFilter, selectedUserId]);
@@ -224,26 +265,25 @@ export default function CreditLedger() {
     .filter(i => i.type === 'debit')
     .reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
 
-  const handleExportCSV = () => {
-    if (!ledger.length) return;
-    const headers = ["ID", "Type", "User", "Email", "Role", "Managed By", "Amount", "Description", "Date"];
-    const rows = ledger.map(item => [
-      item.id,
-      item.type,
-      `"${item.owner_name || ''}"`,
-      item.owner_email || '',
-      item.owner_role || '',
-      `"${item.reseller_name || (isReseller ? (user?.name || 'Reseller') : 'System/Admin')}"`,
-      item.amount,
-      `"${(item.description || '').replace(/"/g, '""')}"`,
-      format(new Date(item.created_at), 'yyyy-MM-dd HH:mm:ss')
+  const handleExportMonthlyCSV = () => {
+    if (!monthlyData?.summary?.clientBreakdown?.length) return;
+    const headers = ["Client Name", "Email", "Monthly Allocated Credits", "WhatsApp Spent", "RCS Spent", "SMS Spent", "Total Spent", "Current Balance"];
+    const rows = monthlyData.summary.clientBreakdown.map((item: any) => [
+      `"${item.name || ''}"`,
+      item.email || '',
+      item.allocated || 0,
+      item.whatsappSpent || 0,
+      item.rcsSpent || 0,
+      item.smsSpent || 0,
+      item.spent || 0,
+      item.currentBalance || 0
     ]);
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `credit_ledger_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.setAttribute("download", `monthly_billing_${monthlyData.reseller?.name || 'reseller'}_${selectedMonth}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -273,204 +313,450 @@ export default function CreditLedger() {
               {isReseller ? 'Allocate Credits to Client' : 'Manage / Allocate Credits'}
             </Button>
           )}
-          <Button variant="outline" onClick={handleExportCSV} className="rounded-xl hidden sm:flex">
+          <Button variant="outline" onClick={activeTab === 'ledger' ? handleExportCSV : handleExportMonthlyCSV} className="rounded-xl hidden sm:flex">
             <Download className="w-4 h-4 mr-2" /> Export CSV
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard 
-          title="Total Transactions" 
-          value={totalItems.toLocaleString()} 
-          icon={CreditCard} 
-          color="text-blue-600" 
-          bg="bg-blue-100/50 dark:bg-blue-950/30" 
-        />
-        <StatsCard 
-          title="Credits Added (In)" 
-          value={isBoltzman ? `${Math.floor(totalCreditsAdded).toLocaleString()} Credits` : `₹${totalCreditsAdded.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-          icon={ArrowDownRight} 
-          color="text-emerald-600" 
-          bg="bg-emerald-100/50 dark:bg-emerald-950/30" 
-        />
-        <StatsCard 
-          title="Credits Deducted (Out)" 
-          value={isBoltzman ? `${Math.floor(totalCreditsDeducted).toLocaleString()} Credits` : `₹${totalCreditsDeducted.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-          icon={ArrowUpRight} 
-          color="text-rose-600" 
-          bg="bg-rose-100/50 dark:bg-rose-950/30" 
-        />
-        <StatsCard 
-          title="Active Accounts" 
-          value={clients.length.toLocaleString()} 
-          icon={Zap} 
-          color="text-amber-600" 
-          bg="bg-amber-100/50 dark:bg-amber-950/30" 
-        />
+      {/* Tab Switcher */}
+      <div className="flex border-b border-border/60 space-x-4 pt-1">
+        <button
+          onClick={() => setActiveTab('ledger')}
+          className={cn(
+            "pb-3 text-sm font-semibold transition-all border-b-2 flex items-center gap-2",
+            activeTab === 'ledger'
+              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <CreditCard className="w-4 h-4" />
+          {isReseller ? 'Transaction History & Allocation' : 'Live Credit Ledger & Transactions'}
+        </button>
+        <button
+          onClick={() => setActiveTab('monthly_summary')}
+          className={cn(
+            "pb-3 text-sm font-semibold transition-all border-b-2 flex items-center gap-2",
+            activeTab === 'monthly_summary'
+              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Calendar className="w-4 h-4" />
+          Monthly Reseller Billing & Usage Summary
+        </button>
       </div>
 
-      {/* Main Ledger Table Card */}
-      <Card className="border-none shadow-xl bg-card">
-        <div className="p-4 border-b flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 rounded-t-xl">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email, or description..."
-              className="pl-10 bg-background border-border focus:border-primary/50 transition-all rounded-xl"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+      {activeTab === 'ledger' ? (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard 
+              title="Total Transactions" 
+              value={totalItems.toLocaleString()} 
+              icon={CreditCard} 
+              color="text-blue-600" 
+              bg="bg-blue-100/50 dark:bg-blue-950/30" 
+            />
+            <StatsCard 
+              title="Credits Added (In)" 
+              value={isBoltzman ? `${Math.floor(totalCreditsAdded).toLocaleString()} Credits` : `₹${totalCreditsAdded.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+              icon={ArrowDownRight} 
+              color="text-emerald-600" 
+              bg="bg-emerald-100/50 dark:bg-emerald-950/30" 
+            />
+            <StatsCard 
+              title="Credits Deducted (Out)" 
+              value={isBoltzman ? `${Math.floor(totalCreditsDeducted).toLocaleString()} Credits` : `₹${totalCreditsDeducted.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+              icon={ArrowUpRight} 
+              color="text-rose-600" 
+              bg="bg-rose-100/50 dark:bg-rose-950/30" 
+            />
+            <StatsCard 
+              title="Active Accounts" 
+              value={clients.length.toLocaleString()} 
+              icon={Zap} 
+              color="text-amber-600" 
+              bg="bg-amber-100/50 dark:bg-amber-950/30" 
             />
           </div>
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-            <Filter className="w-4 h-4 text-muted-foreground hidden sm:block" />
-            <Select value={selectedUserId} onValueChange={(val) => { setSelectedUserId(val); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[220px] bg-background rounded-xl">
-                <SelectValue placeholder="All Accounts" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Accounts ({clients.length})</SelectItem>
-                {clients.map(client => (
-                  <SelectItem key={client.id} value={client.id.toString()}>
-                    {client.name} ({client.role || 'client'})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={typeFilter} onValueChange={(val) => { setTypeFilter(val); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[150px] bg-background rounded-xl">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="credit">Credits (In)</SelectItem>
-                <SelectItem value="debit">Debits (Out)</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="ghost" size="icon" onClick={() => fetchLedger()} className="rounded-xl">
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-            </Button>
-          </div>
-        </div>
 
-        <div className="overflow-x-auto rounded-b-xl">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-b border-border/50">
-                <TableHead className="font-semibold text-foreground w-[100px]">Type</TableHead>
-                <TableHead className="font-semibold text-foreground">Account / User</TableHead>
-                <TableHead className="font-semibold text-foreground">Managed By / Source</TableHead>
-                <TableHead className="font-semibold text-foreground">Description</TableHead>
-                <TableHead className="font-semibold text-foreground text-right">Amount</TableHead>
-                <TableHead className="font-semibold text-foreground text-right">Date & Time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading && ledger.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/50" />
-                  </TableCell>
-                </TableRow>
-              ) : filteredLedger.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                    No transactions found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredLedger.map((item) => (
-                  <TableRow key={item.id} className="group hover:bg-muted/30 transition-colors border-b border-border/30">
-                    <TableCell>
-                      {item.type === 'credit' ? (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30 gap-1 rounded-full px-2">
-                          <ArrowDownRight className="w-3 h-3" /> Credit
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200 dark:border-rose-800/30 gap-1 rounded-full px-2">
-                          <ArrowUpRight className="w-3 h-3" /> Debit
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{item.owner_name || 'N/A'}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                        <span>{item.owner_email || ''}</span>
-                        {item.owner_role && (
-                          <span className="bg-muted px-1.5 py-0.2 rounded text-[10px] uppercase font-semibold text-muted-foreground">
-                            {item.owner_role}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {item.reseller_name ? (
-                        <>
-                          <div className="font-medium text-foreground">{item.reseller_name}</div>
-                          {item.reseller_email && <div className="text-xs text-muted-foreground">{item.reseller_email}</div>}
-                        </>
-                      ) : isReseller ? (
-                        <>
-                          <div className="font-medium text-foreground">{user?.name || 'Reseller'}</div>
-                          <div className="text-xs text-muted-foreground">{user?.email || ''}</div>
-                        </>
-                      ) : (
-                        <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">System / Super Admin</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[280px]" title={item.description}>
-                      <span className="text-sm text-foreground/80 line-clamp-2">{item.description}</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className={cn(
-                        "font-semibold text-sm",
-                        item.type === 'credit' ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
-                      )}>
-                        {item.type === 'credit' ? '+' : '-'}
-                        {isBoltzman 
-                          ? `${Math.floor(parseFloat(item.amount || 0)).toLocaleString()} Credits` 
-                          : `₹${parseFloat(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
-                      {format(new Date(item.created_at), 'MMM d, yyyy h:mm a')}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-border/50 flex items-center justify-between bg-muted/20 rounded-b-xl">
-            <span className="text-sm text-muted-foreground">
-              Page {page} of {totalPages} ({totalItems} total)
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className="h-8 w-8 p-0 rounded-lg"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === totalPages}
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className="h-8 w-8 p-0 rounded-lg"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+          {/* Main Ledger Table Card */}
+          <Card className="border-none shadow-xl bg-card">
+            <div className="p-4 border-b flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 rounded-t-xl">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or description..."
+                  className="pl-10 bg-background border-border focus:border-primary/50 transition-all rounded-xl"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                <Filter className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                <Select value={selectedUserId} onValueChange={(val) => { setSelectedUserId(val); setPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[220px] bg-background rounded-xl">
+                    <SelectValue placeholder="All Accounts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Accounts ({clients.length})</SelectItem>
+                    {clients.map(client => (
+                      <SelectItem key={client.id} value={client.id.toString()}>
+                        {client.name} ({client.role || 'client'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={typeFilter} onValueChange={(val) => { setTypeFilter(val); setPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[150px] bg-background rounded-xl">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="credit">Credits (In)</SelectItem>
+                    <SelectItem value="debit">Debits (Out)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="icon" onClick={() => fetchLedger()} className="rounded-xl">
+                  <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-      </Card>
+
+            <div className="overflow-x-auto rounded-b-xl">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-b border-border/50">
+                    <TableHead className="font-semibold text-foreground w-[100px]">Type</TableHead>
+                    <TableHead className="font-semibold text-foreground">Account / User</TableHead>
+                    <TableHead className="font-semibold text-foreground">Managed By / Source</TableHead>
+                    <TableHead className="font-semibold text-foreground">Description</TableHead>
+                    <TableHead className="font-semibold text-foreground text-right">Amount</TableHead>
+                    <TableHead className="font-semibold text-foreground text-right">Date & Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading && ledger.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/50" />
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredLedger.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                        No transactions found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredLedger.map((item) => (
+                      <TableRow key={item.id} className="group hover:bg-muted/30 transition-colors border-b border-border/30">
+                        <TableCell>
+                          {item.type === 'credit' ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30 gap-1 rounded-full px-2">
+                              <ArrowDownRight className="w-3 h-3" /> Credit
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200 dark:border-rose-800/30 gap-1 rounded-full px-2">
+                              <ArrowUpRight className="w-3 h-3" /> Debit
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-foreground">{item.owner_name || 'N/A'}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                            <span>{item.owner_email || ''}</span>
+                            {item.owner_role && (
+                              <span className="bg-muted px-1.5 py-0.2 rounded text-[10px] uppercase font-semibold text-muted-foreground">
+                                {item.owner_role}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {item.reseller_name ? (
+                            <>
+                              <div className="font-medium text-foreground">{item.reseller_name}</div>
+                              {item.reseller_email && <div className="text-xs text-muted-foreground">{item.reseller_email}</div>}
+                            </>
+                          ) : isReseller ? (
+                            <>
+                              <div className="font-medium text-foreground">{user?.name || 'Reseller'}</div>
+                              <div className="text-xs text-muted-foreground">{user?.email || ''}</div>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">System / Super Admin</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-[280px]" title={item.description}>
+                          <span className="text-sm text-foreground/80 line-clamp-2">{item.description}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={cn(
+                            "font-semibold text-sm",
+                            item.type === 'credit' ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+                          )}>
+                            {item.type === 'credit' ? '+' : '-'}
+                            {isBoltzman 
+                              ? `${Math.floor(parseFloat(item.amount || 0)).toLocaleString()} Credits` 
+                              : `₹${parseFloat(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
+                          {format(new Date(item.created_at), 'MMM d, yyyy h:mm a')}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-border/50 flex items-center justify-between bg-muted/20 rounded-b-xl">
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages} ({totalItems} total)
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === 1}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    className="h-8 w-8 p-0 rounded-lg"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === totalPages}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    className="h-8 w-8 p-0 rounded-lg"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </>
+      ) : (
+        /* Monthly Reseller Billing Summary View */
+        <div className="space-y-6">
+          {/* Monthly Filters */}
+          <Card className="border-none shadow-md bg-card p-4 rounded-2xl">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+                {isAdmin && (
+                  <div className="space-y-1 w-full sm:w-[260px]">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Reseller</Label>
+                    <Select value={summaryResellerId} onValueChange={setSummaryResellerId}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Choose Reseller" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthlyData?.resellers?.map((r: any) => (
+                          <SelectItem key={r.id} value={r.id.toString()}>
+                            {r.name} ({r.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-1 w-full sm:w-[200px]">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Billing Month</Label>
+                  <Input 
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => fetchMonthlySummary()} 
+                  className="rounded-xl mt-5"
+                >
+                  <RefreshCw className={cn("w-4 h-4", loadingMonthlySummary && "animate-spin")} />
+                </Button>
+              </div>
+
+              {monthlyData?.reseller && (
+                <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border/40 w-full sm:w-auto">
+                  <Building2 className="w-8 h-8 text-indigo-600" />
+                  <div>
+                    <p className="font-bold text-sm text-foreground">{monthlyData.reseller.name}</p>
+                    <p className="text-xs text-muted-foreground">{monthlyData.reseller.email}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {loadingMonthlySummary ? (
+            <Card className="border-none shadow-lg p-12 text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600" />
+              <p className="text-sm text-muted-foreground mt-3">Loading monthly billing breakdown...</p>
+            </Card>
+          ) : !monthlyData?.summary ? (
+            <Card className="border-none shadow-lg p-12 text-center text-muted-foreground">
+              No summary data found for selected month.
+            </Card>
+          ) : (
+            <>
+              {/* Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatsCard 
+                  title="Admin Allocated (In)" 
+                  value={isBoltzman ? `${Math.floor(monthlyData.summary.adminAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.adminAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+                  icon={ArrowDownRight} 
+                  color="text-emerald-600" 
+                  bg="bg-emerald-100/50 dark:bg-emerald-950/30" 
+                />
+                <StatsCard 
+                  title="Reseller Allocated to Clients" 
+                  value={isBoltzman ? `${Math.floor(monthlyData.summary.resellerAllocatedCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerAllocatedCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+                  icon={PlusCircle} 
+                  color="text-blue-600" 
+                  bg="bg-blue-100/50 dark:bg-blue-950/30" 
+                />
+                <StatsCard 
+                  title="Total Spent by Clients" 
+                  value={isBoltzman ? `${Math.floor(monthlyData.summary.totalSpentCredits).toLocaleString()} Credits` : `₹${monthlyData.summary.totalSpentCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+                  icon={ArrowUpRight} 
+                  color="text-rose-600" 
+                  bg="bg-rose-100/50 dark:bg-rose-950/30" 
+                />
+                <StatsCard 
+                  title="Reseller Available Balance" 
+                  value={isBoltzman ? `${Math.floor(monthlyData.summary.resellerCurrentBalance).toLocaleString()} Credits` : `₹${monthlyData.summary.resellerCurrentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+                  icon={CreditCard} 
+                  color="text-indigo-600" 
+                  bg="bg-indigo-100/50 dark:bg-indigo-950/30" 
+                />
+              </div>
+
+              {/* Channel Breakdown Cards */}
+              <Card className="border-none shadow-xl bg-card p-6">
+                <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
+                  <PieChart className="w-5 h-5 text-indigo-600" />
+                  Channel Consumption Breakdown ({format(new Date(`${selectedMonth}-01`), 'MMMM yyyy')})
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/30 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-1">
+                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
+                      <span className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp</span>
+                      <Badge variant="outline" className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">WA</Badge>
+                    </div>
+                    <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.whatsapp).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.whatsapp.toLocaleString()}`}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-800/30 bg-blue-50/50 dark:bg-blue-950/20 space-y-1">
+                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
+                      <span className="flex items-center gap-1.5"><Send className="w-3.5 h-3.5 text-blue-600" /> RCS Messages</span>
+                      <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">RCS</Badge>
+                    </div>
+                    <p className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.rcs).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.rcs.toLocaleString()}`}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-800/30 bg-amber-50/50 dark:bg-amber-950/20 space-y-1">
+                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
+                      <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-amber-600" /> SMS / DLT</span>
+                      <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300">SMS</Badge>
+                    </div>
+                    <p className="text-xl font-bold text-amber-700 dark:text-amber-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.sms).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.sms.toLocaleString()}`}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800/30 bg-slate-50/50 dark:bg-slate-950/20 space-y-1">
+                    <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
+                      <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-slate-600" /> Other / Adjustments</span>
+                      <Badge variant="outline" className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300">Misc</Badge>
+                    </div>
+                    <p className="text-xl font-bold text-slate-700 dark:text-slate-400">
+                      {isBoltzman ? `${Math.floor(monthlyData.summary.channelBreakdown.other).toLocaleString()} Credits` : `₹${monthlyData.summary.channelBreakdown.other.toLocaleString()}`}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Per-Client Monthly Breakdown Table */}
+              <Card className="border-none shadow-xl bg-card">
+                <div className="p-4 border-b flex justify-between items-center bg-muted/30 rounded-t-xl">
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-600" />
+                    Client-Wise Monthly Consumption ({monthlyData.summary.clientBreakdown?.length || 0} Clients)
+                  </h3>
+                  <Button variant="outline" size="sm" onClick={handleExportMonthlyCSV} className="rounded-xl text-xs">
+                    <Download className="w-3.5 h-3.5 mr-1.5" /> Export Client Report
+                  </Button>
+                </div>
+                <div className="overflow-x-auto rounded-b-xl">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-border/50">
+                        <TableHead className="font-semibold text-foreground">Client Name</TableHead>
+                        <TableHead className="font-semibold text-foreground">Email</TableHead>
+                        <TableHead className="font-semibold text-foreground text-right">Allocated (Month)</TableHead>
+                        <TableHead className="font-semibold text-foreground text-right">WhatsApp Spent</TableHead>
+                        <TableHead className="font-semibold text-foreground text-right">RCS Spent</TableHead>
+                        <TableHead className="font-semibold text-foreground text-right">SMS Spent</TableHead>
+                        <TableHead className="font-semibold text-foreground text-right">Total Spent</TableHead>
+                        <TableHead className="font-semibold text-foreground text-right">Current Balance</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {!monthlyData.summary.clientBreakdown?.length ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                            No clients registered under this reseller.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        monthlyData.summary.clientBreakdown.map((client: any) => (
+                          <TableRow key={client.id} className="hover:bg-muted/30 border-b border-border/30">
+                            <TableCell className="font-medium text-foreground">{client.name}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{client.email}</TableCell>
+                            <TableCell className="text-right font-medium text-emerald-600">
+                              +{isBoltzman ? Math.floor(client.allocated).toLocaleString() : `₹${client.allocated.toLocaleString()}`}
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-emerald-600">
+                              {isBoltzman ? Math.floor(client.whatsappSpent).toLocaleString() : `₹${client.whatsappSpent.toLocaleString()}`}
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-blue-600">
+                              {isBoltzman ? Math.floor(client.rcsSpent).toLocaleString() : `₹${client.rcsSpent.toLocaleString()}`}
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-amber-600">
+                              {isBoltzman ? Math.floor(client.smsSpent).toLocaleString() : `₹${client.smsSpent.toLocaleString()}`}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-rose-600">
+                              -{isBoltzman ? Math.floor(client.spent).toLocaleString() : `₹${client.spent.toLocaleString()}`}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-foreground">
+                              {isBoltzman ? `${Math.floor(client.currentBalance).toLocaleString()} Credits` : `₹${client.currentBalance.toLocaleString()}`}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Manage / Allocate Credits Modal */}
       <Dialog open={isManageModalOpen} onOpenChange={setIsManageModalOpen}>
