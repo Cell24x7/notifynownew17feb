@@ -982,6 +982,12 @@ export default function SuperAdminClients() {
                             }}>
                               <CreditCard className="w-4 h-4 mr-2" /> Manage Balance
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedClientForAction(client);
+                              setIsManageDLTOpen(true);
+                            }}>
+                              <FileText className="w-4 h-4 mr-2" /> Manage DLT Templates
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleLoginAsClient(client.id)}>
                               <LogIn className="w-4 h-4 mr-2" /> Login as Client
                             </DropdownMenuItem>

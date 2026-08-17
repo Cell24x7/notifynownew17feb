@@ -133,7 +133,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   };
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', show: hasPermission('Dashboard - View') },
+    { icon: LayoutDashboard, label: 'Dashboard', path: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') ? '/super-admin/dashboard' : '/dashboard', show: hasPermission('Dashboard - View') },
     { icon: CreditCard, label: 'Plans', path: '/user-plans', show: !isPricingHidden && hasPermission('User Plans - View') },
     { icon: FileText, label: 'Templates', path: '/templates', show: hasPermission('Template - View') || hasPermission('Templates - View') },
     { icon: Send, label: 'Campaigns', path: '/campaigns', show: hasPermission('Campaigns - View') },
@@ -153,7 +153,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Globe, label: 'Social Media', path: '/social-media', show: Boolean(Number(anyUser?.is_smm_enabled)) || anyUser?.impersonatedBy === 'superadmin' || localStorage.getItem('impersonating') === 'true' },
     { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
     { icon: Tag, label: 'Manage Tags', path: '/manage-tags', show: hasPermission('Manage Tags - View') },
-    { icon: Package, label: 'DLT Templates', path: '/dlt-templates', show: hasPermission('DLT Templates - View') },
+    { icon: Package, label: 'DLT Templates', path: user?.role === 'reseller' ? '/reseller/dlt-templates' : '/dlt-templates', show: hasPermission('DLT Templates - View') },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Bot, label: 'Chatflows', path: '/chatflows', show: hasPermission('Chatflows - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },

@@ -334,18 +334,20 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-wrap gap-2 mb-6 bg-muted p-1.5 rounded-xl w-fit border border-border/50">
-            {['All', 'Whatsapp', 'Sms', 'Instagram', 'Messenger', 'Rcs', 'Email', 'Voice'].filter(tab => {
+            {['All', 'Whatsapp', 'Sms', 'Rcs', 'Email', 'Voice'].filter(tab => {
                if (!user) return false;
                if (tab === 'All') return true;
-               const isAdmin = user.role === 'superadmin' || user.role === 'admin' || user.role === 'reseller';
-               if (isAdmin) return true;
                
                const enabledList = Array.isArray(user?.channels_enabled)
                 ? user.channels_enabled.map((ch: any) => ch.toLowerCase())
-                : typeof user?.channels_enabled === 'string'
+                : typeof user?.channels_enabled === 'string' && (user.channels_enabled as string).trim() !== ''
                   ? (user.channels_enabled as string).split(',').map(ch => ch.trim().toLowerCase())
                   : ['whatsapp', 'sms', 'rcs'];
-               return enabledList.includes(tab.toLowerCase());
+
+               if (enabledList && enabledList.length > 0 && !enabledList.includes('all')) {
+                 return enabledList.includes(tab.toLowerCase());
+               }
+               return true;
             }).map((tab) => (
               <button
                 key={tab}
@@ -358,8 +360,6 @@ export default function Dashboard() {
                 {tab === 'All' && <Activity className="h-3 w-3"/>}
                 {tab === 'Whatsapp' && <MessageSquare className="h-3 w-3 text-emerald-500" />}
                 {tab === 'Sms' && <MessageCircle className="h-3 w-3 text-blue-500" />}
-                {tab === 'Instagram' && <Instagram className="h-3 w-3 text-pink-500" />}
-                {tab === 'Messenger' && <Facebook className="h-3 w-3 text-blue-600" />}
                 {tab === 'Rcs' && <Smartphone className="h-3 w-3 text-purple-500" />}
                 {tab === 'Email' && <Mail className="h-3 w-3 text-slate-500" />}
                 {tab === 'Voice' && <Phone className="h-3 w-3 text-slate-500" />}

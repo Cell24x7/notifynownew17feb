@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Plus, Loader2, Trash2, Pencil, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 interface ManageDLTModalProps {
   isOpen: boolean;
@@ -141,75 +142,64 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.csv')) {
-      toast.error('Please upload a valid CSV file');
-      return;
-    }
-
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target?.result as string;
-        const lines = text.split('\n').filter(line => line.trim() !== '');
-        if (lines.length < 2) {
-          toast.error('CSV file is empty or missing headers');
-          setIsUploading(false);
-          return;
-        }
+    try {
+      const dataBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(dataBuffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        const templates = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          // A simple CSV parser (does not handle commas inside quotes perfectly, but sufficient for basic template uploads)
-          const regex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
-          const currentLine = lines[i];
-          let values = [];
-          let match;
-          // Simple split by comma for now, assume clean CSV without commas in text, or using PapaParse if available
-          // To be safe, simple split:
-          values = currentLine.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-          
-          if (values.length < 3) continue;
-
-          let t: any = {};
-          headers.forEach((h, index) => {
-            if (values[index]) t[h] = values[index];
-          });
-          templates.push(t);
-        }
-
-        const token = localStorage.getItem('authToken');
-        const res = await fetch('/api/dlt-templates/bulk-upload', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}` 
-          },
-          body: JSON.stringify({ userId: client.id, templates })
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          toast.success(data.message);
-          if (data.errors && data.errors.length > 0) {
-            console.warn('Bulk upload errors:', data.errors);
-            toast.warning(`${data.errors.length} rows had errors. Check console.`);
-          }
-          fetchTemplates();
-        } else {
-          toast.error(data.message || 'Bulk upload failed');
-        }
-      } catch (error) {
-        console.error('Bulk upload error:', error);
-        toast.error('Failed to parse and upload CSV');
-      } finally {
+      if (!rawRows || rawRows.length === 0) {
+        toast.error('File is empty or contains no readable rows');
         setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
       }
-    };
-    reader.readAsText(file);
+
+      const templatesList = rawRows.map(row => ({
+        sender: String(row.sender || row.Sender || row.SenderID || row.Header || row.HEADER || '').trim(),
+        temp_id: String(row.temp_id || row.TemplateID || row.DLT_ID || row.ID || row.Template_ID || '').trim(),
+        temp_name: String(row.temp_name || row.TemplateName || row.Name || row.TEMPLATE_NAME || '').trim(),
+        temp_type: String(row.temp_type || row.TemplateType || row.Type || 'Transactional').trim(),
+        template_text: String(row.template_text || row.Message || row.TemplateText || row.Content || row.TEXT || '').trim(),
+        pe_id: String(row.pe_id || row.PEID || row.EntityID || '').trim(),
+        hash_id: String(row.hash_id || row.HashID || '').trim(),
+        status: String(row.status || row.Status || 'Y').trim().toUpperCase() === 'Y' ? 'Y' : 'Y'
+      })).filter(t => t.sender && t.temp_id && t.template_text);
+
+      if (templatesList.length === 0) {
+        toast.error('No valid DLT templates found. Check column names (Sender, TemplateID, TemplateText).');
+        setIsUploading(false);
+        return;
+      }
+
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/dlt-templates/bulk-upload', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ userId: client.id, templates: templatesList })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || 'Templates uploaded successfully');
+        if (data.errors && data.errors.length > 0) {
+          console.warn('Bulk upload warnings:', data.errors);
+        }
+        fetchTemplates();
+      } else {
+        toast.error(data.message || 'Bulk upload failed');
+      }
+    } catch (error) {
+      console.error('Bulk upload error:', error);
+      toast.error('Failed to parse Excel/CSV file');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   if (!client) return null;
@@ -231,7 +221,7 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
             <div className="flex items-center gap-2">
               <input 
                 type="file" 
-                accept=".csv" 
+                accept=".xlsx,.xls,.csv" 
                 className="hidden" 
                 ref={fileInputRef} 
                 onChange={handleBulkUpload} 
@@ -242,7 +232,7 @@ export function ManageDLTModal({ isOpen, onClose, client }: ManageDLTModalProps)
                 disabled={isUploading}
               >
                 {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UploadCloud className="w-4 h-4 mr-2" />}
-                Bulk Upload CSV
+                Bulk Upload (Excel/CSV)
               </Button>
               <Button onClick={() => {
                 setFormData({ sender: '', template_text: '', temp_id: '', temp_name: '', temp_type: 'Transactional', status: 'Y', pe_id: '', hash_id: '' });
