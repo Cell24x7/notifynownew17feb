@@ -204,12 +204,12 @@ export default function Dashboard() {
     Boolean(anyUser?.username?.toLowerCase().includes('boltzm'));
 
   return (
-    <div className="p-4 md:p-8 space-y-6 bg-background min-h-screen font-sans text-foreground">
+    <div className="p-3.5 sm:p-5 space-y-4 bg-background min-h-screen font-sans text-foreground max-w-[1600px] mx-auto">
       
       {/* Header */}
-      <div className="mb-6 px-1">
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Analytics Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Comprehensive insights across all your communication channels.</p>
+      <div className="mb-4 px-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Analytics Dashboard</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Comprehensive insights across all communication channels.</p>
       </div>
 
       {/* Top 4 Cards Grid */}

@@ -11,14 +11,7 @@ import {
   Search,
   Activity,
   Send,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Radio,
-  FileSpreadsheet,
-  Layers,
-  ArrowUpRight,
-  Filter
+  Layers
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -81,18 +74,18 @@ export default function SuperAdminDashboard() {
 
   if (loading && !stats) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 space-y-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-        <p className="text-sm text-muted-foreground font-medium animate-pulse">Loading Reseller Dashboard & Live Activity...</p>
+      <div className="flex flex-col items-center justify-center p-16 space-y-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="text-xs text-muted-foreground font-medium animate-pulse">Loading Reseller Dashboard & Live Activity...</p>
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="p-6 text-center text-red-500 bg-red-50 dark:bg-red-950/20 rounded-xl mx-6 mt-6 border border-red-200">
-        <p className="font-semibold">{error || 'No data available'}</p>
-        <button onClick={() => fetchStats()} className="mt-3 text-sm text-primary underline font-medium">Retry Loading</button>
+      <div className="p-4 text-center text-red-500 bg-red-50 dark:bg-red-950/20 rounded-xl mx-4 mt-4 border border-red-200">
+        <p className="font-semibold text-xs">{error || 'No data available'}</p>
+        <button onClick={() => fetchStats()} className="mt-2 text-xs text-primary underline font-medium">Retry Loading</button>
       </div>
     );
   }
@@ -101,17 +94,17 @@ export default function SuperAdminDashboard() {
 
   const statCards = [
     {
-      title: 'Total Customer Accounts',
+      title: 'Customer Accounts',
       value: stats.totalClients.toLocaleString(),
-      change: `${stats.activeClients} Active Accounts`,
+      change: `${stats.activeClients} Active`,
       trend: 'neutral',
       icon: Building2,
       accent: 'border-blue-500/20 bg-blue-500/5'
     },
     {
-      title: 'Active Subscription Plans',
+      title: 'Subscription Plans',
       value: stats.activePlans.toString(),
-      change: 'Active Plans Configured',
+      change: 'Active Plans',
       trend: 'neutral',
       icon: CreditCard,
       accent: 'border-purple-500/20 bg-purple-500/5'
@@ -129,7 +122,7 @@ export default function SuperAdminDashboard() {
     {
       title: 'Revenue (Total)',
       value: `\u20B9${stats.revenueTotal.toLocaleString()}`,
-      change: `\u20B9${stats.revenueMonth.toLocaleString()} this month`,
+      change: `\u20B9${stats.revenueMonth.toLocaleString()} month`,
       trend: 'up',
       icon: CreditCard,
       accent: 'border-amber-500/20 bg-amber-500/5'
@@ -157,75 +150,75 @@ export default function SuperAdminDashboard() {
   });
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
+    <div className="p-3.5 sm:p-5 space-y-4 max-w-[1600px] mx-auto">
       {/* Header with Live Status & Manual Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
               {isReseller ? 'Reseller Live Dashboard' : 'Platform Control Dashboard'}
             </h1>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
               Live Syncing
             </div>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {isReseller 
               ? 'Real-time performance metrics, client activities, and campaign progress' 
               : 'Global platform operations and live queue health'}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground hidden md:inline">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[11px] text-muted-foreground hidden md:inline">
             Updated {format(lastUpdated, 'HH:mm:ss')}
           </span>
-          <Button variant="outline" size="sm" onClick={() => fetchStats(false)} disabled={isRefreshing} className="shadow-sm">
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh Live
+          <Button variant="outline" size="sm" onClick={() => fetchStats(false)} disabled={isRefreshing} className="h-8 text-xs px-3 shadow-sm">
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh Live
           </Button>
         </div>
       </div>
 
       {/* Queue Health Overview (Admin only) */}
       {!isReseller && stats.queuePending !== undefined && (
-        <Card className="border-primary/20 bg-gradient-to-r from-background via-primary/5 to-background">
-          <CardContent className="p-5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-primary animate-pulse" />
+        <Card className="border-primary/20 bg-gradient-to-r from-background via-primary/5 to-background shadow-xs">
+          <CardContent className="p-3.5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-primary animate-pulse" />
                 </div>
                 <div>
-                  <CardTitle className="text-base font-bold">Queue Processing Engine</CardTitle>
-                  <CardDescription className="text-xs">
-                    Real-time status of message queues across {stats.activeCampaignsInQueue || 0} active campaigns
+                  <CardTitle className="text-sm font-bold">Queue Processing Engine</CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Status across {stats.activeCampaignsInQueue || 0} active campaigns
                   </CardDescription>
                 </div>
               </div>
               
-              <div className="grid grid-cols-3 gap-2 md:gap-4 flex-1 max-w-lg">
-                <div className="bg-background/80 backdrop-blur-sm border rounded-lg p-3 text-center">
-                  <span className="block text-xs text-muted-foreground font-medium">Pending</span>
-                  <span className="text-lg md:text-xl font-bold text-primary">
+              <div className="grid grid-cols-3 gap-2 flex-1 max-w-md">
+                <div className="bg-background/80 backdrop-blur-sm border rounded-md p-2 text-center">
+                  <span className="block text-[10px] text-muted-foreground font-medium uppercase">Pending</span>
+                  <span className="text-base font-bold text-primary">
                     {stats.queuePending.toLocaleString()}
                   </span>
                 </div>
                 
-                <div className="bg-background/80 backdrop-blur-sm border rounded-lg p-3 text-center">
-                  <span className="block text-xs text-muted-foreground font-medium">Processing</span>
-                  <span className="text-lg md:text-xl font-bold text-blue-500">
+                <div className="bg-background/80 backdrop-blur-sm border rounded-md p-2 text-center">
+                  <span className="block text-[10px] text-muted-foreground font-medium uppercase">Processing</span>
+                  <span className="text-base font-bold text-blue-500">
                     {stats.queueProcessing.toLocaleString()}
                   </span>
                 </div>
 
-                <div className={`border rounded-lg p-3 text-center transition-all ${
+                <div className={`border rounded-md p-2 text-center transition-all ${
                   stats.queueStuck && stats.queueStuck > 0 
                     ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse font-bold" 
                     : "bg-background/80 backdrop-blur-sm"
                 }`}>
-                  <span className="block text-xs text-muted-foreground font-medium text-red-500">Stuck</span>
-                  <span className={`text-lg md:text-xl font-bold ${stats.queueStuck && stats.queueStuck > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                  <span className="block text-[10px] text-muted-foreground font-medium uppercase text-red-500">Stuck</span>
+                  <span className={`text-base font-bold ${stats.queueStuck && stats.queueStuck > 0 ? "text-red-500" : "text-emerald-500"}`}>
                     {(stats.queueStuck || 0).toLocaleString()}
                   </span>
                 </div>
@@ -235,23 +228,23 @@ export default function SuperAdminDashboard() {
         </Card>
       )}
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* Metric Cards (Compact 5-column grid) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {statCards.map((stat) => (
-          <Card key={stat.title} className={`relative overflow-hidden transition-all duration-200 border ${stat.accent}`}>
-            <CardContent className="p-4">
+          <Card key={stat.title} className={`relative overflow-hidden transition-all duration-200 border shadow-2xs ${stat.accent}`}>
+            <CardContent className="p-3 sm:p-3.5">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{stat.title}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <div className="flex items-center gap-1 text-xs">
-                    {stat.trend === 'up' && <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />}
-                    {stat.trend === 'neutral' && <TrendingDown className="w-3.5 h-3.5 text-muted-foreground rotate-0" />}
-                    <span className="text-muted-foreground font-medium">{stat.change}</span>
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider truncate">{stat.title}</p>
+                  <p className="text-xl font-bold tracking-tight text-foreground truncate">{stat.value}</p>
+                  <div className="flex items-center gap-1 text-[11px]">
+                    {stat.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500 shrink-0" />}
+                    {stat.trend === 'neutral' && <TrendingDown className="w-3 h-3 text-muted-foreground rotate-0 shrink-0" />}
+                    <span className="text-muted-foreground font-medium truncate">{stat.change}</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <stat.icon className="w-5 h-5 text-primary" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <stat.icon className="w-4 h-4 text-primary" />
                 </div>
               </div>
             </CardContent>
@@ -259,33 +252,34 @@ export default function SuperAdminDashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Charts Row (Compact Height) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Weekly Message Volume */}
-        <Card className="border shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" /> Weekly Message Traffic
+        <Card className="border shadow-xs">
+          <CardHeader className="p-3.5 pb-1">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-primary" /> Weekly Message Traffic
             </CardTitle>
-            <CardDescription className="text-xs">Daily messages processed across all customer accounts</CardDescription>
+            <CardDescription className="text-[11px]">Daily messages processed across customer accounts</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[260px]">
+          <CardContent className="p-3.5 pt-0">
+            <div className="h-[190px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.weeklyMessages}>
+                <BarChart data={stats.weeklyMessages} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted/40" />
-                  <XAxis dataKey="day" className="text-xs" />
-                  <YAxis className="text-xs" tickFormatter={(v) => v >= 1000 ? `${v / 1000}K` : v} />
+                  <XAxis dataKey="day" className="text-[10px]" tick={{ fontSize: 10 }} />
+                  <YAxis className="text-[10px]" tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${v / 1000}K` : v} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      padding: '6px 10px'
                     }}
                     formatter={(value: number) => [value.toLocaleString(), 'Messages']}
                   />
-                  <Bar dataKey="messages" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="messages" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -293,16 +287,16 @@ export default function SuperAdminDashboard() {
         </Card>
 
         {/* Channel Distribution */}
-        <Card className="border shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Layers className="w-4 h-4 text-primary" /> Channel Breakdown
+        <Card className="border shadow-xs">
+          <CardHeader className="p-3.5 pb-1">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Layers className="w-3.5 h-3.5 text-primary" /> Channel Breakdown
             </CardTitle>
-            <CardDescription className="text-xs">Distribution of message traffic by channel</CardDescription>
+            <CardDescription className="text-[11px]">Distribution of message traffic by channel</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[260px] flex items-center">
-              <ResponsiveContainer width="50%" height="100%">
+          <CardContent className="p-3.5 pt-0">
+            <div className="h-[190px] flex items-center">
+              <ResponsiveContainer width="45%" height="100%">
                 <PieChart>
                   <Pie
                     data={stats.channelUsage}
@@ -310,8 +304,8 @@ export default function SuperAdminDashboard() {
                     nameKey="channel"
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
+                    innerRadius={42}
+                    outerRadius={65}
                     paddingAngle={3}
                   >
                     {stats.channelUsage.map((entry, index) => (
@@ -326,24 +320,25 @@ export default function SuperAdminDashboard() {
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      padding: '6px 10px'
                     }}
                     formatter={(value: number) => [value.toLocaleString(), 'Messages']}
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex-1 space-y-3 px-2 max-h-[240px] overflow-y-auto">
+              <div className="flex-1 space-y-2 px-2 max-h-[180px] overflow-y-auto">
                 {stats.channelUsage.filter(i => i.percentage > 0).length === 0 ? (
-                  <div className="text-center text-muted-foreground text-xs py-8">
-                    No channel activity recorded yet today.
+                  <div className="text-center text-muted-foreground text-xs py-6">
+                    No channel activity recorded today.
                   </div>
                 ) : (
                   stats.channelUsage.filter(i => i.percentage > 0).map((item, index) => (
-                    <div key={item.channel} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/20">
+                    <div key={item.channel} className="flex items-center justify-between text-[11px] p-1.5 rounded-md bg-muted/20">
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-3 h-3 rounded-full"
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: channelColors[item.channel.toLowerCase()] || COLORS_LIST[index % COLORS_LIST.length] }}
                         />
                         <span className="capitalize font-semibold">{item.channel}</span>
@@ -362,31 +357,31 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* TODAY'S CAMPAIGNS REPORT SECTION (ACCOUNT-WISE) */}
-      <Card className="border shadow-sm">
-        <CardHeader className="p-4 sm:p-6 pb-2 border-b bg-muted/10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <Card className="border shadow-xs">
+        <CardHeader className="p-3.5 sm:p-4 pb-2 border-b bg-muted/10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Send className="w-5 h-5 text-primary" /> Today's Live Campaigns Report
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Send className="w-4 h-4 text-primary" /> Today's Live Campaigns Report
               </CardTitle>
-              <CardDescription className="text-xs mt-1">
+              <CardDescription className="text-[11px] mt-0.5">
                 Real-time tracking of campaigns launched today by your customer accounts
               </CardDescription>
             </div>
             
-            <div className="flex items-center gap-3">
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2">
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search user or campaign..."
                   value={campaignSearch}
                   onChange={(e) => setCampaignSearch(e.target.value)}
-                  className="pl-9 h-9 text-xs bg-background"
+                  className="pl-8 h-8 text-xs bg-background"
                 />
               </div>
 
               <Select value={channelFilter} onValueChange={setChannelFilter}>
-                <SelectTrigger className="h-9 w-32 text-xs bg-background">
+                <SelectTrigger className="h-8 w-28 text-xs bg-background">
                   <SelectValue placeholder="All Channels" />
                 </SelectTrigger>
                 <SelectContent>
@@ -403,19 +398,19 @@ export default function SuperAdminDashboard() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead>Customer Account</TableHead>
-                <TableHead>Campaign Name & Channel</TableHead>
-                <TableHead className="text-center">Target Audience</TableHead>
-                <TableHead className="min-w-[200px]">Delivery Progress</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Time Created</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="py-2 text-[10px] font-bold uppercase">Customer Account</TableHead>
+                <TableHead className="py-2 text-[10px] font-bold uppercase">Campaign Name & Channel</TableHead>
+                <TableHead className="py-2 text-[10px] font-bold uppercase text-center">Audience</TableHead>
+                <TableHead className="py-2 text-[10px] font-bold uppercase min-w-[180px]">Delivery Progress</TableHead>
+                <TableHead className="py-2 text-[10px] font-bold uppercase text-center">Status</TableHead>
+                <TableHead className="py-2 text-[10px] font-bold uppercase text-right">Time</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCampaigns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground text-xs">
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground text-xs">
                     No active or completed campaigns found for today matching your search filters.
                   </TableCell>
                 </TableRow>
@@ -428,35 +423,35 @@ export default function SuperAdminDashboard() {
 
                   return (
                     <TableRow key={c.id} className="hover:bg-muted/10 transition-colors">
-                      <TableCell>
+                      <TableCell className="py-2.5 px-3">
                         <div className="font-semibold text-xs text-foreground">{c.user_name || 'Client Account'}</div>
                         <div className="text-[10px] text-muted-foreground font-mono">{c.user_email || `User ID: ${c.user_id}`}</div>
                       </TableCell>
-                      <TableCell>
-                        <div className="font-semibold text-xs flex items-center gap-2">
-                          <span>{c.name || 'Untitled Campaign'}</span>
-                          <Badge variant="outline" className="text-[10px] uppercase font-mono px-1.5 py-0 border-primary/30 text-primary">
+                      <TableCell className="py-2.5 px-3">
+                        <div className="font-semibold text-xs flex items-center gap-1.5">
+                          <span className="truncate max-w-[200px]">{c.name || 'Untitled Campaign'}</span>
+                          <Badge variant="outline" className="text-[9px] uppercase font-mono px-1 py-0 border-primary/30 text-primary shrink-0">
                             {c.channel || 'SMS'}
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center font-bold text-xs font-mono">
+                      <TableCell className="py-2.5 px-3 text-center font-bold text-xs font-mono">
                         {total.toLocaleString()}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-2.5 px-3">
                         <div className="space-y-1">
-                          <div className="flex items-center justify-between text-[11px]">
+                          <div className="flex items-center justify-between text-[10px]">
                             <span className="text-emerald-600 font-semibold">{delivered.toLocaleString()} Deliv.</span>
                             {failed > 0 && <span className="text-rose-500 font-semibold">{failed.toLocaleString()} Fail</span>}
-                            <span className="text-muted-foreground font-mono text-[10px]">{progress}%</span>
+                            <span className="text-muted-foreground font-mono">{progress}%</span>
                           </div>
                           <Progress value={progress} className="h-1.5" />
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="py-2.5 px-3 text-center">
                         <Badge 
                           variant={c.status === 'completed' ? 'default' : c.status === 'running' || c.status === 'processing' ? 'secondary' : 'outline'}
-                          className={`text-[10px] px-2.5 py-0.5 capitalize font-semibold ${
+                          className={`text-[9px] px-2 py-0.5 capitalize font-semibold ${
                             c.status === 'completed' || c.status === 'sent'
                               ? 'bg-green-600 hover:bg-green-700 text-white'
                               : c.status === 'running' || c.status === 'processing'
@@ -469,7 +464,7 @@ export default function SuperAdminDashboard() {
                           {c.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right text-xs font-mono text-muted-foreground">
+                      <TableCell className="py-2.5 px-3 text-right text-[11px] font-mono text-muted-foreground">
                         {c.created_at ? format(new Date(c.created_at), 'HH:mm:ss') : 'Today'}
                       </TableCell>
                     </TableRow>
@@ -483,40 +478,40 @@ export default function SuperAdminDashboard() {
 
       {/* TODAY'S ACTIVE CLIENT ACCOUNTS GRID */}
       {stats.todayActiveClients && stats.todayActiveClients.length > 0 && (
-        <Card className="border shadow-sm">
-          <CardHeader className="p-4 sm:p-6 pb-2 border-b bg-muted/10">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" /> Active Customer Accounts Today
+        <Card className="border shadow-xs">
+          <CardHeader className="p-3.5 sm:p-4 pb-2 border-b bg-muted/10">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" /> Active Customer Accounts Today
             </CardTitle>
-            <CardDescription className="text-xs mt-1">
-              Top customer accounts generating campaign traffic and credit usage today
+            <CardDescription className="text-[11px] mt-0.5">
+              Customer accounts generating campaign traffic and credit usage today
             </CardDescription>
           </CardHeader>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
-                <TableRow>
-                  <TableHead>Customer / Company</TableHead>
-                  <TableHead>Email Address</TableHead>
-                  <TableHead className="text-center">Today's Campaigns</TableHead>
-                  <TableHead className="text-right">Today's Messages</TableHead>
-                  <TableHead className="text-right">Available Wallet Balance</TableHead>
-                  <TableHead className="text-right">Last Activity</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="py-2 text-[10px] font-bold uppercase">Customer / Company</TableHead>
+                  <TableHead className="py-2 text-[10px] font-bold uppercase">Email Address</TableHead>
+                  <TableHead className="py-2 text-[10px] font-bold uppercase text-center">Today's Campaigns</TableHead>
+                  <TableHead className="py-2 text-[10px] font-bold uppercase text-right">Today's Messages</TableHead>
+                  <TableHead className="py-2 text-[10px] font-bold uppercase text-right">Wallet Balance</TableHead>
+                  <TableHead className="py-2 text-[10px] font-bold uppercase text-right">Last Activity</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stats.todayActiveClients.map(u => (
                   <TableRow key={u.id} className="hover:bg-muted/10">
-                    <TableCell className="font-semibold text-xs">
+                    <TableCell className="py-2 px-3 font-semibold text-xs">
                       {u.name} {u.company && u.company !== u.name ? `(${u.company})` : ''}
                     </TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">{u.email}</TableCell>
-                    <TableCell className="text-center font-semibold text-xs">{u.today_campaigns}</TableCell>
-                    <TableCell className="text-right font-bold text-xs text-primary font-mono">{u.today_messages.toLocaleString()}</TableCell>
-                    <TableCell className="text-right font-semibold text-xs text-emerald-600">
+                    <TableCell className="py-2 px-3 text-xs font-mono text-muted-foreground">{u.email}</TableCell>
+                    <TableCell className="py-2 px-3 text-center font-semibold text-xs">{u.today_campaigns}</TableCell>
+                    <TableCell className="py-2 px-3 text-right font-bold text-xs text-primary font-mono">{u.today_messages.toLocaleString()}</TableCell>
+                    <TableCell className="py-2 px-3 text-right font-semibold text-xs text-emerald-600">
                       {Math.floor(u.wallet_balance).toLocaleString()} credits
                     </TableCell>
-                    <TableCell className="text-right text-xs font-mono text-muted-foreground">
+                    <TableCell className="py-2 px-3 text-right text-[11px] font-mono text-muted-foreground">
                       {u.last_activity ? format(new Date(u.last_activity), 'HH:mm:ss') : 'Active'}
                     </TableCell>
                   </TableRow>
