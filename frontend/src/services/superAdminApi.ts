@@ -19,6 +19,8 @@ export interface SuperAdminStats {
     queueStuck?: number;
     queueProcessing?: number;
     activeCampaignsInQueue?: number;
+    recentCampaigns?: any[];
+    todayActiveClients?: any[];
 }
 
 export const superAdminApi = {

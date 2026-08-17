@@ -203,15 +203,17 @@ async function fetchSuperAdminStatsData(isReseller, resellerId) {
         GROUP BY channel
     `, isReseller ? [resellerId] : []);
 
-    // 10. Today's Recent Campaigns (Aggregate for Admin)
+    // 10. Today's Recent Campaigns (Aggregate for Admin/Reseller with User details)
     const [recentCampaigns] = await query(`
-        SELECT id, name, channel, recipient_count, GREATEST(COALESCE(audience_count, 0), COALESCE(recipient_count, 0)) as audience_count, 
-               sent_count, delivered_count, read_count, failed_count, status, created_at, template_id
-        FROM campaigns 
-        WHERE created_at >= CURDATE()
-        ${isReseller ? 'AND user_id IN (SELECT id FROM users WHERE reseller_id = ?)' : ''}
-        ORDER BY created_at DESC 
-        LIMIT 20
+        SELECT c.id, c.name, c.channel, c.user_id, u.name as user_name, u.email as user_email, u.company as user_company,
+               c.recipient_count, GREATEST(COALESCE(c.audience_count, 0), COALESCE(c.recipient_count, 0)) as audience_count, 
+               c.sent_count, c.delivered_count, c.read_count, c.failed_count, c.status, c.created_at, c.template_id
+        FROM campaigns c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.created_at >= CURDATE()
+        ${isReseller ? 'AND c.user_id IN (SELECT id FROM users WHERE reseller_id = ?)' : ''}
+        ORDER BY c.created_at DESC 
+        LIMIT 30
     `, isReseller ? [resellerId] : []);
 
     const channelStatsMap = {};
@@ -271,6 +273,36 @@ async function fetchSuperAdminStatsData(isReseller, resellerId) {
         console.error('Queue health query error:', e.message);
     }
 
+    // 11. Today's Active Client Accounts Summary
+    let todayActiveClients = [];
+    try {
+        let activeSql = `
+            SELECT u.id, u.name, u.email, u.company, u.wallet_balance,
+                   COALESCE(SUM(GREATEST(COALESCE(c.audience_count, 0), COALESCE(c.recipient_count, 0))), 0) as today_messages,
+                   COUNT(c.id) as today_campaigns,
+                   MAX(c.created_at) as last_activity
+            FROM users u
+            JOIN campaigns c ON c.user_id = u.id AND c.created_at >= CURDATE()
+            ${isReseller ? 'WHERE u.reseller_id = ?' : ''}
+            GROUP BY u.id
+            ORDER BY today_messages DESC
+            LIMIT 15
+        `;
+        const [rows] = await query(activeSql, isReseller ? [resellerId] : []);
+        todayActiveClients = rows.map(r => ({
+            id: r.id,
+            name: r.name || 'Client',
+            email: r.email,
+            company: r.company || r.name,
+            today_messages: Number(r.today_messages || 0),
+            today_campaigns: Number(r.today_campaigns || 0),
+            wallet_balance: Number(r.wallet_balance || 0),
+            last_activity: r.last_activity
+        }));
+    } catch (e) {
+        console.error('Today active clients query error:', e.message);
+    }
+
     const responseData = {
         success: true,
         stats: {
@@ -301,6 +333,7 @@ async function fetchSuperAdminStatsData(isReseller, resellerId) {
             planDistribution,
             topClients,
             recentCampaigns,
+            todayActiveClients,
             activeChats: activeChats, 
             automationsTriggered: automationsTriggered,
             whatsappResponses: incomingWaCount,
