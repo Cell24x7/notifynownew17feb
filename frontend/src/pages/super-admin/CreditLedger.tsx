@@ -317,59 +317,59 @@ export default function CreditLedger() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-8 min-h-screen">
+    <div className="space-y-4 p-3.5 sm:p-5 min-h-screen max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 dark:from-zinc-100 dark:to-zinc-400 bg-clip-text text-transparent">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 dark:from-zinc-100 dark:to-zinc-400 bg-clip-text text-transparent">
             {isReseller ? 'Manage User Credits' : 'Credit Ledger & Management'}
           </h2>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground mt-0.5 text-xs">
             {isReseller 
               ? 'Real-time tracking of credits allocated to your clients and transaction history.'
               : 'Comprehensive track of all credit allocations, debits, and transfers across all accounts.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {(isAdmin || isReseller) && (
             <Button 
               onClick={() => setIsManageModalOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md rounded-xl font-medium"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs rounded-lg h-8 text-xs px-3 font-medium"
             >
-              <PlusCircle className="w-4 h-4 mr-2" />
+              <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
               {isReseller ? 'Allocate Credits to Client' : 'Manage / Allocate Credits'}
             </Button>
           )}
-          <Button variant="outline" onClick={activeTab === 'ledger' ? handleExportCSV : handleExportMonthlyCSV} className="rounded-xl hidden sm:flex">
-            <Download className="w-4 h-4 mr-2" /> Export CSV
+          <Button variant="outline" onClick={activeTab === 'ledger' ? handleExportCSV : handleExportMonthlyCSV} className="rounded-lg h-8 text-xs px-3 hidden sm:flex">
+            <Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV
           </Button>
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex border-b border-border/60 space-x-4 pt-1">
+      <div className="flex border-b border-border/60 space-x-4 pt-0.5">
         <button
           onClick={() => setActiveTab('ledger')}
           className={cn(
-            "pb-3 text-sm font-semibold transition-all border-b-2 flex items-center gap-2",
+            "pb-2 text-xs font-semibold transition-all border-b-2 flex items-center gap-1.5",
             activeTab === 'ledger'
               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold"
               : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
-          <CreditCard className="w-4 h-4" />
+          <CreditCard className="w-3.5 h-3.5" />
           {isReseller ? 'Transaction History & Allocation' : 'Live Credit Ledger & Transactions'}
         </button>
         <button
           onClick={() => setActiveTab('monthly_summary')}
           className={cn(
-            "pb-3 text-sm font-semibold transition-all border-b-2 flex items-center gap-2",
+            "pb-2 text-xs font-semibold transition-all border-b-2 flex items-center gap-1.5",
             activeTab === 'monthly_summary'
               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold"
               : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
-          <Calendar className="w-4 h-4" />
+          <Calendar className="w-3.5 h-3.5" />
           Monthly Reseller Billing & Usage Summary
         </button>
       </div>
@@ -377,7 +377,7 @@ export default function CreditLedger() {
       {activeTab === 'ledger' ? (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <StatsCard 
               title="Total Transactions" 
               value={totalItems.toLocaleString()} 
@@ -409,21 +409,21 @@ export default function CreditLedger() {
           </div>
 
           {/* Main Ledger Table Card */}
-          <Card className="border-none shadow-xl bg-card">
-            <div className="p-4 border-b flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 rounded-t-xl">
+          <Card className="border shadow-xs bg-card">
+            <div className="p-3 border-b flex flex-col sm:flex-row gap-3 items-center justify-between bg-muted/20 rounded-t-xl">
               <div className="relative w-full sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search by name, email, or description..."
-                  className="pl-10 bg-background border-border focus:border-primary/50 transition-all rounded-xl"
+                  className="pl-8 h-8 text-xs bg-background border-border focus:border-primary/50 transition-all rounded-lg"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                <Filter className="w-4 h-4 text-muted-foreground hidden sm:block" />
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                <Filter className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
                 <Select value={selectedUserId} onValueChange={(val) => { setSelectedUserId(val); setPage(1); }}>
-                  <SelectTrigger className="w-full sm:w-[220px] bg-background rounded-xl">
+                  <SelectTrigger className="w-full sm:w-[200px] h-8 text-xs bg-background rounded-lg">
                     <SelectValue placeholder="All Accounts" />
                   </SelectTrigger>
                   <SelectContent>
@@ -436,7 +436,7 @@ export default function CreditLedger() {
                   </SelectContent>
                 </Select>
                 <Select value={typeFilter} onValueChange={(val) => { setTypeFilter(val); setPage(1); }}>
-                  <SelectTrigger className="w-full sm:w-[150px] bg-background rounded-xl">
+                  <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs bg-background rounded-lg">
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
                   <SelectContent>
@@ -445,22 +445,22 @@ export default function CreditLedger() {
                     <SelectItem value="debit">Debits (Out)</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="ghost" size="icon" onClick={() => fetchLedger()} className="rounded-xl">
-                  <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                <Button variant="ghost" size="icon" onClick={() => fetchLedger()} className="h-8 w-8 rounded-lg">
+                  <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
                 </Button>
               </div>
             </div>
 
             <div className="overflow-x-auto rounded-b-xl">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent border-b border-border/50">
-                    <TableHead className="font-semibold text-foreground w-[100px]">Type</TableHead>
-                    <TableHead className="font-semibold text-foreground">Account / User</TableHead>
-                    <TableHead className="font-semibold text-foreground">Managed By / Source</TableHead>
-                    <TableHead className="font-semibold text-foreground">Description</TableHead>
-                    <TableHead className="font-semibold text-foreground text-right">Amount</TableHead>
-                    <TableHead className="font-semibold text-foreground text-right">Date & Time</TableHead>
+                    <TableHead className="py-2 text-[10px] font-bold uppercase text-muted-foreground w-[90px]">Type</TableHead>
+                    <TableHead className="py-2 text-[10px] font-bold uppercase text-muted-foreground">Account / User</TableHead>
+                    <TableHead className="py-2 text-[10px] font-bold uppercase text-muted-foreground">Managed By / Source</TableHead>
+                    <TableHead className="py-2 text-[10px] font-bold uppercase text-muted-foreground">Description</TableHead>
+                    <TableHead className="py-2 text-[10px] font-bold uppercase text-muted-foreground text-right">Amount</TableHead>
+                    <TableHead className="py-2 text-[10px] font-bold uppercase text-muted-foreground text-right">Date & Time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -479,49 +479,49 @@ export default function CreditLedger() {
                   ) : (
                     filteredLedger.map((item) => (
                       <TableRow key={item.id} className="group hover:bg-muted/30 transition-colors border-b border-border/30">
-                        <TableCell>
+                        <TableCell className="py-2.5 px-3">
                           {item.type === 'credit' ? (
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30 gap-1 rounded-full px-2">
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30 gap-1 rounded-full text-[10px] px-2 py-0.5">
                               <ArrowDownRight className="w-3 h-3" /> Credit
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200 dark:border-rose-800/30 gap-1 rounded-full px-2">
+                            <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200 dark:border-rose-800/30 gap-1 rounded-full text-[10px] px-2 py-0.5">
                               <ArrowUpRight className="w-3 h-3" /> Debit
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-foreground">{item.owner_name || 'N/A'}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <TableCell className="py-2.5 px-3">
+                          <div className="font-semibold text-xs text-foreground">{item.owner_name || 'N/A'}</div>
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 font-mono">
                             <span>{item.owner_email || ''}</span>
                             {item.owner_role && (
-                              <span className="bg-muted px-1.5 py-0.2 rounded text-[10px] uppercase font-semibold text-muted-foreground">
+                              <span className="bg-muted px-1.5 py-0.2 rounded text-[9px] uppercase font-semibold text-muted-foreground">
                                 {item.owner_role}
                               </span>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-2.5 px-3">
                           {item.reseller_name ? (
                             <>
-                              <div className="font-medium text-foreground">{item.reseller_name}</div>
-                              {item.reseller_email && <div className="text-xs text-muted-foreground">{item.reseller_email}</div>}
+                              <div className="font-medium text-xs text-foreground">{item.reseller_name}</div>
+                              {item.reseller_email && <div className="text-[10px] text-muted-foreground font-mono">{item.reseller_email}</div>}
                             </>
                           ) : isReseller ? (
                             <>
-                              <div className="font-medium text-foreground">{user?.name || 'Reseller'}</div>
-                              <div className="text-xs text-muted-foreground">{user?.email || ''}</div>
+                              <div className="font-medium text-xs text-foreground">{user?.name || 'Reseller'}</div>
+                              <div className="text-[10px] text-muted-foreground font-mono">{user?.email || ''}</div>
                             </>
                           ) : (
-                            <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">System / Super Admin</span>
+                            <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">System / Super Admin</span>
                           )}
                         </TableCell>
-                        <TableCell className="max-w-[280px]" title={item.description}>
-                          <span className="text-sm text-foreground/80 line-clamp-2">{item.description}</span>
+                        <TableCell className="py-2.5 px-3 max-w-[280px]" title={item.description}>
+                          <span className="text-xs text-foreground/80 line-clamp-2">{item.description}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="py-2.5 px-3 text-right">
                           <span className={cn(
-                            "font-semibold text-sm",
+                            "font-bold text-xs font-mono",
                             item.type === 'credit' ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
                           )}>
                             {item.type === 'credit' ? '+' : '-'}
@@ -530,7 +530,7 @@ export default function CreditLedger() {
                               : `₹${parseFloat(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
+                        <TableCell className="py-2.5 px-3 text-right text-[11px] font-mono text-muted-foreground whitespace-nowrap">
                           {format(new Date(item.created_at), 'MMM d, yyyy h:mm a')}
                         </TableCell>
                       </TableRow>
@@ -571,26 +571,26 @@ export default function CreditLedger() {
         </>
       ) : (
         /* Monthly Reseller Billing Summary View */
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Filter Bar & Header */}
-          <Card className="border border-border/50 shadow-md bg-card/80 backdrop-blur-md p-5 rounded-2xl">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-              <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+          <Card className="border border-border/50 shadow-xs bg-card/80 backdrop-blur-md p-3.5 rounded-xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                 {isAdmin && (
-                  <div className="space-y-1.5 w-full sm:w-[250px]">
-                    <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-indigo-500" /> Select Reseller
+                  <div className="space-y-1 w-full sm:w-[220px]">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      <Building2 className="w-3 h-3 text-indigo-500" /> Select Reseller
                     </Label>
                     <Select value={summaryResellerId} onValueChange={(val) => { setSummaryResellerId(val); setSummaryClientId('all'); }}>
-                      <SelectTrigger className="rounded-xl h-10 border-border/60 bg-background/50 font-medium">
+                      <SelectTrigger className="rounded-lg h-8 text-xs border-border/60 bg-background/50 font-medium">
                         <SelectValue placeholder="Choose Reseller" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all" className="font-semibold text-indigo-600">
+                        <SelectItem value="all" className="font-semibold text-indigo-600 text-xs">
                           ✨ All Resellers ({monthlyData?.resellers?.length || 0})
                         </SelectItem>
                         {monthlyData?.resellers?.map((r: any) => (
-                          <SelectItem key={r.id} value={r.id.toString()}>
+                          <SelectItem key={r.id} value={r.id.toString()} className="text-xs">
                             {r.name} ({r.email})
                           </SelectItem>
                         ))}
@@ -599,20 +599,20 @@ export default function CreditLedger() {
                   </div>
                 )}
 
-                <div className="space-y-1.5 w-full sm:w-[250px]">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-indigo-500" /> Select Client Account
+                <div className="space-y-1 w-full sm:w-[220px]">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <Users className="w-3 h-3 text-indigo-500" /> Select Client Account
                   </Label>
                   <Select value={summaryClientId} onValueChange={setSummaryClientId}>
-                    <SelectTrigger className="rounded-xl h-10 border-border/60 bg-background/50 font-medium">
+                    <SelectTrigger className="rounded-lg h-8 text-xs border-border/60 bg-background/50 font-medium">
                       <SelectValue placeholder="All Clients" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all" className="font-semibold text-indigo-600">
+                      <SelectItem value="all" className="font-semibold text-indigo-600 text-xs">
                         👥 All Clients ({monthlyData?.clients?.length || 0})
                       </SelectItem>
                       {monthlyData?.clients?.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id.toString()}>
+                        <SelectItem key={c.id} value={c.id.toString()} className="text-xs">
                           {c.name} ({c.email})
                         </SelectItem>
                       ))}
@@ -620,15 +620,15 @@ export default function CreditLedger() {
                   </Select>
                 </div>
 
-                <div className="space-y-1.5 w-full sm:w-[180px]">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Billing Month
+                <div className="space-y-1 w-full sm:w-[160px]">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-indigo-500" /> Billing Month
                   </Label>
                   <Input 
                     type="month"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="rounded-xl h-10 border-border/60 bg-background/50 font-medium"
+                    className="rounded-lg h-8 text-xs border-border/60 bg-background/50 font-medium"
                   />
                 </div>
 
@@ -637,37 +637,37 @@ export default function CreditLedger() {
                     variant="outline" 
                     size="icon" 
                     onClick={() => fetchMonthlySummary()} 
-                    className="rounded-xl h-10 w-10 border-border/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600"
+                    className="rounded-lg h-8 w-8 border-border/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600"
                     title="Refresh Data"
                   >
-                    <RefreshCw className={cn("w-4 h-4", loadingMonthlySummary && "animate-spin")} />
+                    <RefreshCw className={cn("w-3.5 h-3.5", loadingMonthlySummary && "animate-spin")} />
                   </Button>
                 </div>
               </div>
 
               {monthlyData?.reseller ? (
-                <div className="flex items-center gap-3 p-3 px-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent rounded-2xl border border-indigo-200/40 dark:border-indigo-800/30">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-indigo-500/20">
+                <div className="flex items-center gap-2.5 p-2 px-3 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent rounded-xl border border-indigo-200/40 dark:border-indigo-800/30">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
                     {monthlyData.reseller.name?.charAt(0)?.toUpperCase() || 'R'}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm text-foreground">{monthlyData.reseller.name}</p>
-                      <Badge className="bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] px-2 py-0.5 border-none font-semibold">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-xs text-foreground">{monthlyData.reseller.name}</p>
+                      <Badge className="bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[9px] px-1.5 py-0 border-none font-semibold">
                         Reseller
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">{monthlyData.reseller.email}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">{monthlyData.reseller.email}</p>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 p-3 px-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent rounded-2xl border border-indigo-200/40 dark:border-indigo-800/30">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-indigo-500/20">
-                    <Building2 className="w-5 h-5" />
+                <div className="flex items-center gap-2.5 p-2 px-3 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent rounded-xl border border-indigo-200/40 dark:border-indigo-800/30">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                    <Building2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-indigo-900 dark:text-indigo-200">All Resellers System Overview</p>
-                    <p className="text-xs text-muted-foreground">Aggregated monthly analytics & client usage</p>
+                    <p className="font-bold text-xs text-indigo-900 dark:text-indigo-200">System Reseller Overview</p>
+                    <p className="text-[10px] text-muted-foreground">Aggregated monthly analytics & client usage</p>
                   </div>
                 </div>
               )}
@@ -1076,14 +1076,14 @@ export default function CreditLedger() {
 
 function StatsCard({ title, value, icon: Icon, color, bg }: any) {
   return (
-    <Card className="border-none shadow-sm hover:shadow-md transition-all duration-200 bg-card">
-      <CardContent className="p-5 flex items-center justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
-          <p className={cn("text-2xl font-bold", color)}>{value}</p>
+    <Card className="border shadow-xs hover:shadow-sm transition-all duration-200 bg-card">
+      <CardContent className="p-3.5 flex items-center justify-between">
+        <div className="space-y-0.5 min-w-0">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">{title}</p>
+          <p className={cn("text-xl font-bold tracking-tight truncate", color)}>{value}</p>
         </div>
-        <div className={cn("p-3 rounded-xl", bg)}>
-          <Icon className={cn("w-6 h-6", color)} />
+        <div className={cn("p-2 rounded-lg shrink-0", bg)}>
+          <Icon className={cn("w-4 h-4", color)} />
         </div>
       </CardContent>
     </Card>
