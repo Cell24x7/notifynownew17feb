@@ -99,6 +99,8 @@ export default function SuperAdminClients() {
     is_proero_enabled: false,
     is_dinstar_enabled: false,
     is_smm_enabled: false,
+    is_wa_templates_enabled: false,
+    is_rcs_templates_enabled: false,
     dlr_webhook_url: '',
     wa_unofficial_webhook_enabled: false,
     sender_type: 'dynamic' as 'static' | 'dynamic',
@@ -1484,6 +1486,28 @@ export default function SuperAdminClients() {
                   <Checkbox 
                     checked={currentClient.is_dinstar_enabled}
                     onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_dinstar_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-green-600 font-bold">Enable WhatsApp Templates View</Label>
+                    <p className="text-xs text-muted-foreground">Show WhatsApp Templates menu option in sidebar</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentClient.is_wa_templates_enabled}
+                    onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_wa_templates_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-purple-600 font-bold">Enable RCS Templates View</Label>
+                    <p className="text-xs text-muted-foreground">Show RCS Templates menu option in sidebar</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentClient.is_rcs_templates_enabled}
+                    onCheckedChange={(checked) => setCurrentClient(p => ({ ...p, is_rcs_templates_enabled: !!checked }))}
                     disabled={modalMode === 'view'}
                   />
                 </div>
