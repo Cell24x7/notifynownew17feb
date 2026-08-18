@@ -52,7 +52,7 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
         u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
         u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
         u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit,
-        u.reseller_id, u.is_read, u.is_social_signup, u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled, u.dlr_webhook_url, u.wa_unofficial_webhook_enabled, u.is_dinstar_enabled
+        u.reseller_id, u.is_read, u.is_social_signup, u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled, u.is_wa_templates_enabled, u.is_rcs_templates_enabled, u.dlr_webhook_url, u.wa_unofficial_webhook_enabled, u.is_dinstar_enabled
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
       WHERE u.role IN ('client', 'user')
@@ -259,6 +259,7 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
     sms_promotional_price, sms_transactional_price, sms_service_price,
     rcs_limit, wa_limit, sms_limit, voice_limit,
     pe_id, hash_id, is_api_allowed, is_proero_enabled, is_smm_enabled, is_dinstar_enabled,
+    is_wa_templates_enabled, is_rcs_templates_enabled,
     dlr_webhook_url, wa_unofficial_webhook_enabled
   } = req.body;
 
@@ -317,6 +318,8 @@ router.put('/:id', authenticateToken, isResellerOrAdmin, async (req, res) => {
   if (is_proero_enabled !== undefined) { fields.push('is_proero_enabled = ?'); values.push(is_proero_enabled); }
   if (is_dinstar_enabled !== undefined) { fields.push('is_dinstar_enabled = ?'); values.push(is_dinstar_enabled); }
   if (is_smm_enabled !== undefined) { fields.push('is_smm_enabled = ?'); values.push(is_smm_enabled); }
+  if (is_wa_templates_enabled !== undefined) { fields.push('is_wa_templates_enabled = ?'); values.push(is_wa_templates_enabled ? 1 : 0); }
+  if (is_rcs_templates_enabled !== undefined) { fields.push('is_rcs_templates_enabled = ?'); values.push(is_rcs_templates_enabled ? 1 : 0); }
   if (dlr_webhook_url !== undefined) { fields.push('dlr_webhook_url = ?'); values.push(dlr_webhook_url || null); }
   if (wa_unofficial_webhook_enabled !== undefined) { fields.push('wa_unofficial_webhook_enabled = ?'); values.push(wa_unofficial_webhook_enabled); }
 

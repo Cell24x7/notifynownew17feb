@@ -87,6 +87,7 @@ router.get('/', authenticate, async (req, res) => {
         u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
         u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
         u.is_dinstar_enabled, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled,
+        u.is_wa_templates_enabled, u.is_rcs_templates_enabled,
         u.dlr_webhook_url, u.wa_unofficial_webhook_enabled
       FROM resellers r
       LEFT JOIN users u ON r.email = u.email

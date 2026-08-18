@@ -507,6 +507,8 @@ export default function SuperAdminClients() {
       is_proero_enabled: !!client.is_proero_enabled,
       is_dinstar_enabled: !!client.is_dinstar_enabled,
       is_smm_enabled: !!client.is_smm_enabled,
+      is_wa_templates_enabled: !!client.is_wa_templates_enabled,
+      is_rcs_templates_enabled: !!client.is_rcs_templates_enabled,
       dlr_webhook_url: client.dlr_webhook_url || '',
       wa_unofficial_webhook_enabled: !!client.wa_unofficial_webhook_enabled,
     });
@@ -552,6 +554,8 @@ export default function SuperAdminClients() {
       is_proero_enabled: !!client.is_proero_enabled,
       is_dinstar_enabled: !!client.is_dinstar_enabled,
       is_smm_enabled: !!client.is_smm_enabled,
+      is_wa_templates_enabled: !!client.is_wa_templates_enabled,
+      is_rcs_templates_enabled: !!client.is_rcs_templates_enabled,
       dlr_webhook_url: client.dlr_webhook_url || '',
       wa_unofficial_webhook_enabled: !!client.wa_unofficial_webhook_enabled,
     });

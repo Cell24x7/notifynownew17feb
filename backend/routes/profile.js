@@ -26,7 +26,7 @@ router.get('/', authenticate, async (req, res) => {
               u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
               u.sms_transactional_price, u.sms_promotional_price, u.sms_service_price, 
               u.rcs_config_id, u.whatsapp_config_id, u.pe_id, u.hash_id,
-              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit, u.is_proero_enabled, u.is_smm_enabled, u.api_key, u.dlr_webhook_url, u.is_dinstar_enabled,
+              u.rcs_limit, u.wa_limit, u.sms_limit, u.voice_limit, u.is_proero_enabled, u.is_smm_enabled, u.is_wa_templates_enabled, u.is_rcs_templates_enabled, u.api_key, u.dlr_webhook_url, u.is_dinstar_enabled,
               p.permissions as plan_permissions,
               p.channels_allowed as plan_channels_allowed,
               COALESCE(r.id, u.reseller_id) as actual_reseller_id,

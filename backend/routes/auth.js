@@ -388,7 +388,9 @@ router.post('/login', async (req, res) => {
         sms_service_price: user.sms_service_price,
         is_api_allowed: user.is_api_allowed,
         is_proero_enabled: user.is_proero_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
-        is_smm_enabled: user.is_smm_enabled
+        is_smm_enabled: user.is_smm_enabled,
+        is_wa_templates_enabled: user.is_wa_templates_enabled,
+        is_rcs_templates_enabled: user.is_rcs_templates_enabled
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -441,7 +443,9 @@ router.post('/login', async (req, res) => {
         sms_service_price: user.sms_service_price,
         is_api_allowed: user.is_api_allowed,
         is_proero_enabled: user.is_proero_enabled, is_dinstar_enabled: user.is_dinstar_enabled,
-        is_smm_enabled: user.is_smm_enabled
+        is_smm_enabled: user.is_smm_enabled,
+        is_wa_templates_enabled: user.is_wa_templates_enabled,
+        is_rcs_templates_enabled: user.is_rcs_templates_enabled
       }
     });
 
