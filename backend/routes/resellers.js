@@ -720,7 +720,7 @@ router.get('/clients/list', authenticate, async (req, res) => {
 
     const [clients] = await query(`
       SELECT 
-        u.id, u.name, u.email, u.username, u.company, u.contact_phone, u.role, u.status, u.plan_id,
+        u.id, u.name, u.email, u.company, u.contact_phone, u.role, u.status, u.plan_id,
         u.wallet_balance, u.credits_available, u.credits_used, u.channels_enabled,
         u.sender_type, u.account_expiry_date, u.billing_type, u.postpaid_credit_limit,
         u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled, u.is_dinstar_enabled,

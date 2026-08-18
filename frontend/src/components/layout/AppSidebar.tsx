@@ -205,13 +205,21 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
             <img
               src={settings?.logo_url || logo}
               alt={settings?.brand_name || "NotifyNow"}
-              className="w-16 h-16 rounded-lg object-contain"
+              className="w-10 h-10 rounded-lg object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).onerror = null;
+                (e.target as HTMLImageElement).src = logo;
+              }}
             />
           ) : (
             <img
               src={settings?.logo_url || logo}
               alt={settings?.brand_name || "NotifyNow"}
-              className="h-24 w-64 object-contain"
+              className="h-12 max-w-[190px] object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).onerror = null;
+                (e.target as HTMLImageElement).src = logo;
+              }}
             />
           )}
         </div>
