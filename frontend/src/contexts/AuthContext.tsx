@@ -43,6 +43,8 @@ interface User {
   is_proero_enabled?: number | boolean;
   is_smm_enabled?: number | boolean;
   is_dinstar_enabled?: number | boolean;
+  is_wa_templates_enabled?: number | boolean;
+  is_rcs_templates_enabled?: number | boolean;
   api_key?: string;
   dlr_webhook_url?: string;
   wa_unofficial_webhook_enabled?: number | boolean;

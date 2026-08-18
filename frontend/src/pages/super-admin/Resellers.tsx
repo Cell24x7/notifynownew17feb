@@ -68,6 +68,8 @@ export default function SuperAdminResellers() {
     is_api_allowed: false,
     is_proero_enabled: false,
     is_smm_enabled: false,
+    is_wa_templates_enabled: false,
+    is_rcs_templates_enabled: false,
     dlr_webhook_url: '',
     wa_unofficial_webhook_enabled: false,
   });
@@ -277,6 +279,8 @@ export default function SuperAdminResellers() {
       is_api_allowed: !!reseller.is_api_allowed,
       is_proero_enabled: !!reseller.is_proero_enabled,
       is_smm_enabled: !!reseller.is_smm_enabled,
+      is_wa_templates_enabled: !!reseller.is_wa_templates_enabled,
+      is_rcs_templates_enabled: !!reseller.is_rcs_templates_enabled,
       dlr_webhook_url: reseller.dlr_webhook_url || '',
       wa_unofficial_webhook_enabled: !!reseller.wa_unofficial_webhook_enabled,
       password: '',
@@ -328,6 +332,8 @@ export default function SuperAdminResellers() {
       is_api_allowed: !!reseller.is_api_allowed,
       is_proero_enabled: !!reseller.is_proero_enabled,
       is_smm_enabled: !!reseller.is_smm_enabled,
+      is_wa_templates_enabled: !!reseller.is_wa_templates_enabled,
+      is_rcs_templates_enabled: !!reseller.is_rcs_templates_enabled,
       dlr_webhook_url: reseller.dlr_webhook_url || '',
       wa_unofficial_webhook_enabled: !!reseller.wa_unofficial_webhook_enabled,
       password: '', 
@@ -1106,6 +1112,28 @@ export default function SuperAdminResellers() {
                   <Checkbox 
                     checked={currentReseller.is_dinstar_enabled}
                     onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, is_dinstar_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-green-600 font-bold">Enable Client WhatsApp Templates View</Label>
+                    <p className="text-xs text-muted-foreground">Allow reseller to view & manage WhatsApp Templates of under-users</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentReseller.is_wa_templates_enabled}
+                    onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, is_wa_templates_enabled: !!checked }))}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base text-purple-600 font-bold">Enable Client RCS Templates View</Label>
+                    <p className="text-xs text-muted-foreground">Allow reseller to view & manage RCS Templates of under-users</p>
+                  </div>
+                  <Checkbox 
+                    checked={currentReseller.is_rcs_templates_enabled}
+                    onCheckedChange={(checked) => setCurrentReseller(p => ({ ...p, is_rcs_templates_enabled: !!checked }))}
                     disabled={modalMode === 'view'}
                   />
                 </div>

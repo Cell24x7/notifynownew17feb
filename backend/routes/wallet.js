@@ -174,6 +174,11 @@ router.get('/ledger', authenticateToken, async (req, res) => {
       // Exclude reseller's own user ID so reseller doesn't see their own transactions with Super Admin
       whereClauses.push('t.user_id != ?');
       params.push(req.user.id);
+
+      // Filter out automatic campaign debits so reseller ONLY sees credit allocations & manual deductions/reclaims
+      if (req.query.showAll !== 'true') {
+        whereClauses.push("(t.description NOT LIKE 'Campaign (%' AND t.description NOT LIKE 'RCS Campaign%' AND t.description NOT LIKE 'WhatsApp Campaign%')");
+      }
     }
 
     if (whereClauses.length > 0) {
@@ -197,7 +202,7 @@ router.get('/ledger', authenticateToken, async (req, res) => {
     const selectSql = `
       SELECT 
         t.id, t.type, t.amount, t.description, t.status, t.created_at,
-        u.name as owner_name, u.email as owner_email, u.role as owner_role,
+        u.name as owner_name, u.username as owner_username, u.email as owner_email, u.role as owner_role,
         COALESCE(r.name, (SELECT name FROM users WHERE id = u.reseller_id LIMIT 1), (SELECT name FROM resellers WHERE id = u.reseller_id LIMIT 1)) as reseller_name,
         COALESCE(r.email, (SELECT email FROM users WHERE id = u.reseller_id LIMIT 1), (SELECT email FROM resellers WHERE id = u.reseller_id LIMIT 1)) as reseller_email
       ${baseSql}

@@ -430,7 +430,7 @@ export default function CreditLedger() {
                     <SelectItem value="all">All Accounts ({clients.length})</SelectItem>
                     {clients.map(client => (
                       <SelectItem key={client.id} value={client.id.toString()}>
-                        {client.name} ({client.role || 'client'})
+                        {client.username || client.email || client.name} ({client.role || 'user'})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -491,7 +491,9 @@ export default function CreditLedger() {
                           )}
                         </TableCell>
                         <TableCell className="py-2.5 px-3">
-                          <div className="font-semibold text-xs text-foreground">{item.owner_name || 'N/A'}</div>
+                          <div className="font-semibold text-xs text-foreground">
+                            {item.owner_username || item.owner_name || 'N/A'}
+                          </div>
                           <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 font-mono">
                             <span>{item.owner_email || ''}</span>
                             {item.owner_role && (

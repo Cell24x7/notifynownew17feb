@@ -6,6 +6,12 @@ const authenticate = require('../middleware/authMiddleware'); // Moved to top
 
 const router = express.Router();
 
+// Auto-migration for template permission columns
+query("ALTER TABLE resellers ADD COLUMN is_wa_templates_enabled TINYINT(1) DEFAULT 0").catch(()=>{});
+query("ALTER TABLE resellers ADD COLUMN is_rcs_templates_enabled TINYINT(1) DEFAULT 0").catch(()=>{});
+query("ALTER TABLE users ADD COLUMN is_wa_templates_enabled TINYINT(1) DEFAULT 0").catch(()=>{});
+query("ALTER TABLE users ADD COLUMN is_rcs_templates_enabled TINYINT(1) DEFAULT 0").catch(()=>{});
+
 router.get('/cleanup-zombies', async (req, res) => {
   try {
     const searchEmail = req.query.email;
@@ -364,6 +370,7 @@ router.put('/:id', authenticate, async (req, res) => {
     wa_marketing_price, wa_utility_price, wa_authentication_price,
     sms_promotional_price, sms_transactional_price, sms_service_price,
     is_dinstar_enabled, is_api_allowed, is_proero_enabled, is_smm_enabled,
+    is_wa_templates_enabled, is_rcs_templates_enabled,
     dlr_webhook_url, wa_unofficial_webhook_enabled
   } = req.body;
  
@@ -406,6 +413,8 @@ router.put('/:id', authenticate, async (req, res) => {
   if (paypal_client_id !== undefined) { fields.push('paypal_client_id = ?'); values.push(paypal_client_id); }
   if (paypal_secret_key !== undefined) { fields.push('paypal_secret_key = ?'); values.push(paypal_secret_key); }
   if (paypal_mode !== undefined) { fields.push('paypal_mode = ?'); values.push(paypal_mode); }
+  if (is_wa_templates_enabled !== undefined) { fields.push('is_wa_templates_enabled = ?'); values.push(is_wa_templates_enabled ? 1 : 0); }
+  if (is_rcs_templates_enabled !== undefined) { fields.push('is_rcs_templates_enabled = ?'); values.push(is_rcs_templates_enabled ? 1 : 0); }
 
   if (!fields.length && !password) { // If no fields AND no password
     return res.status(400).json({ success: false, message: 'No fields to update' });
@@ -420,7 +429,7 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 
     // Handle Password / User Account Update
-    if (password || name || email || status || permissions || rcs_text_price !== undefined || wa_marketing_price !== undefined || sms_promotional_price !== undefined || is_dinstar_enabled !== undefined || is_api_allowed !== undefined || is_proero_enabled !== undefined || is_smm_enabled !== undefined || dlr_webhook_url !== undefined || wa_unofficial_webhook_enabled !== undefined) {
+    if (password || name || email || status || permissions || rcs_text_price !== undefined || wa_marketing_price !== undefined || sms_promotional_price !== undefined || is_dinstar_enabled !== undefined || is_api_allowed !== undefined || is_proero_enabled !== undefined || is_smm_enabled !== undefined || is_wa_templates_enabled !== undefined || is_rcs_templates_enabled !== undefined || dlr_webhook_url !== undefined || wa_unofficial_webhook_enabled !== undefined) {
       // Need to find which user corresponds to this reseller.
       // Usually checked by email. 
       // Note: If email is being changed, we need the OLD email to find the user, or we assume the frontend sends the *original* email if it hasn't changed.
@@ -469,6 +478,8 @@ router.put('/:id', authenticate, async (req, res) => {
           if (is_api_allowed !== undefined) { userFields.push('is_api_allowed = ?'); userValues.push(is_api_allowed); }
           if (is_proero_enabled !== undefined) { userFields.push('is_proero_enabled = ?'); userValues.push(is_proero_enabled); }
           if (is_smm_enabled !== undefined) { userFields.push('is_smm_enabled = ?'); userValues.push(is_smm_enabled); }
+          if (is_wa_templates_enabled !== undefined) { userFields.push('is_wa_templates_enabled = ?'); userValues.push(is_wa_templates_enabled ? 1 : 0); }
+          if (is_rcs_templates_enabled !== undefined) { userFields.push('is_rcs_templates_enabled = ?'); userValues.push(is_rcs_templates_enabled ? 1 : 0); }
           if (dlr_webhook_url !== undefined) { userFields.push('dlr_webhook_url = ?'); userValues.push(dlr_webhook_url || null); }
           if (wa_unofficial_webhook_enabled !== undefined) { userFields.push('wa_unofficial_webhook_enabled = ?'); userValues.push(wa_unofficial_webhook_enabled); }
 
@@ -709,7 +720,7 @@ router.get('/clients/list', authenticate, async (req, res) => {
 
     const [clients] = await query(`
       SELECT 
-        u.id, u.name, u.email, u.company, u.contact_phone, u.role, u.status, u.plan_id,
+        u.id, u.name, u.email, u.username, u.company, u.contact_phone, u.role, u.status, u.plan_id,
         u.wallet_balance, u.credits_available, u.credits_used, u.channels_enabled,
         u.sender_type, u.account_expiry_date, u.billing_type, u.postpaid_credit_limit,
         u.pe_id, u.hash_id, u.is_api_allowed, u.is_proero_enabled, u.is_smm_enabled, u.is_dinstar_enabled,

@@ -154,6 +154,8 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
     { icon: Users, label: 'Contacts', path: '/contacts', show: hasPermission('Contacts - View') },
     { icon: Tag, label: 'Manage Tags', path: '/manage-tags', show: hasPermission('Manage Tags - View') },
     { icon: Package, label: 'DLT Templates', path: user?.role === 'reseller' ? '/reseller/dlt-templates' : '/dlt-templates', show: hasPermission('DLT Templates - View') },
+    { icon: MessageSquare, label: 'WhatsApp Templates', path: '/super-admin/whatsapp-configs', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && (Boolean(Number(anyUser?.is_wa_templates_enabled)) || anyUser?.impersonatedBy === 'superadmin' || localStorage.getItem('impersonating') === 'true') },
+    { icon: FileText, label: 'RCS Templates', path: '/super-admin/rcs-configs', show: (user?.role === 'reseller' || user?.role === 'admin' || user?.role === 'superadmin') && (Boolean(Number(anyUser?.is_rcs_templates_enabled)) || anyUser?.impersonatedBy === 'superadmin' || localStorage.getItem('impersonating') === 'true') },
     { icon: Zap, label: 'Automations', path: '/automations', show: hasPermission('Automations - View') },
     { icon: Bot, label: 'Chatflows', path: '/chatflows', show: hasPermission('Chatflows - View') },
     { icon: Puzzle, label: 'Integrations', path: '/integrations', show: hasPermission('Integrations - View') },
