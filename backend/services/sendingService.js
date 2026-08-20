@@ -331,7 +331,7 @@ const sendUniversalMessage = async (item) => {
         else if (channelParsed === 'whatsapp') {
             let processedMessage = item.template_body || '';
             let waConfig = null;
-            if (item.wa_provider && (item.wa_api_key || item.wa_token) && (item.wa_ph_no_id || item.wa_provider === 'wa20')) {
+            if (item.wa_provider && (item.wa_api_key || item.wa_token) && (item.wa_ph_no_id || item.wa_provider === 'wa20' || item.customer_id)) {
                 waConfig = {
                     provider: item.wa_provider,
                     api_key: item.wa_api_key,
@@ -369,7 +369,7 @@ const sendUniversalMessage = async (item) => {
             if (!waConfig) return { success: false, error: 'No WhatsApp configuration available' };
 
             const isPinbot = waConfig.provider === 'vendor2';
-            const isWa20 = waConfig.provider === 'wa20';
+            const isWa20 = waConfig.provider === 'wa20' || waConfig.provider === 'nuke' || !!waConfig.customer_id;
             
             const headers = { 'Content-Type': 'application/json' };
             if (isPinbot) headers.apikey = waConfig.api_key;
