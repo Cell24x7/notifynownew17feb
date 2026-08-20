@@ -1365,11 +1365,13 @@ export default function SuperAdminClients() {
                     <SelectContent>
                       <SelectItem value="default">None (Select a configuration)</SelectItem>
                       {whatsappConfigs.map(config => (
-                        <SelectItem key={config.id} value={String(config.id)}>{config.chatbot_name || 'Unnamed Bot'} ({config.ph_no_id})</SelectItem>
+                        <SelectItem key={config.id} value={String(config.id)}>
+                          {config.chatbot_name || 'Unnamed Bot'} {config.provider === 'wa20' ? `[WA20: ${config.customer_id || 'Active'}]` : config.ph_no_id ? `(${config.ph_no_id})` : `(${config.provider || 'WhatsApp'})`}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground">Each user must have a Meta WhatsApp business account assigned to send messages.</p>
+                  <p className="text-[10px] text-muted-foreground">Assign WhatsApp configuration (Meta Graph API, Pinbot, or WA20 Nuke) for this user.</p>
                 </div>
 
                 <div className="space-y-2">
