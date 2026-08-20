@@ -1278,13 +1278,16 @@ router.post('/send-campaign', authenticate, async (req, res) => {
         if (contacts && contacts.length > 0) {
             if (!campaignId) {
                 campaignId = `CAMP${Date.now()}`;
+                const [userRows] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [userId]);
+                const userWaConfigId = req.body.whatsapp_config_id || userRows[0]?.whatsapp_config_id || null;
                 await query(
-                    `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at, template_metadata, template_body)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW(), ?, ?)`,
+                    `INSERT INTO campaigns (id, user_id, name, channel, template_id, template_name, recipient_count, sent_count, failed_count, status, created_at, template_metadata, template_body, whatsapp_config_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', NOW(), ?, ?, ?)`,
                     [
                         campaignId, userId, campaignName, 'whatsapp', finalTemplate, finalTemplate, contacts.length,
                         template_metadata ? JSON.stringify(template_metadata) : null,
-                        template_body || null
+                        template_body || null,
+                        userWaConfigId
                     ]
                 );
                 // console.log(`✅ Created WhatsApp campaign ${campaignId} for ${contacts.length} contacts`);
