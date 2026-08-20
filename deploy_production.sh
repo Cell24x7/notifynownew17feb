@@ -187,7 +187,8 @@ NODE_OPTIONS="--max-old-space-size=1024" VITE_API_URL="$APP_URL" npm run build -
 chmod -R 755 "$FRONTEND_DIR/dist"
 chmod o+x "$PROJECT_DIR" || true
 chmod o+x "$FRONTEND_DIR" || true
-ok "Frontend build complete."
+sudo systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || true
+ok "Frontend build complete & Nginx reloaded."
 
 # ── Step 6: PM2 Restart Application ───────────────────────
 log "[6/7] PM2 Clean Restart..."
