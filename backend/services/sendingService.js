@@ -171,6 +171,7 @@ const getOrderedVariables = (text, resolvedVars) => {
     if (allNumeric && baseKeys.length > 0) {
         const indices = baseKeys.map(k => parseInt(k));
         const maxIdx = Math.max(...indices);
+        const result = [];
         for (let i = 1; i <= maxIdx; i++) {
             const val = resolvedVars[i] !== undefined ? resolvedVars[i] : (resolvedVars[String(i)] !== undefined ? resolvedVars[String(i)] : (resolvedVars[`var${i}`] !== undefined ? resolvedVars[`var${i}`] : '-'));
             result.push(String(val || '-'));
