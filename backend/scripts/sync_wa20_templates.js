@@ -82,6 +82,13 @@ async function syncAllWA20Templates() {
                     if (t.category === 1 || t.category === '1' || String(t.category).toLowerCase() === 'marketing') category = 'MARKETING';
                     else if (t.category === 3 || t.category === '3' || String(t.category).toLowerCase() === 'authentication') category = 'AUTHENTICATION';
 
+                    // Update globally any existing message_templates row with matching name
+                    await query(`
+                        UPDATE message_templates 
+                        SET status = ?, body = ?, footer = ?, category = ?, whatsapp_config_id = COALESCE(whatsapp_config_id, ?), updated_at = NOW()
+                        WHERE name = ? AND channel = 'whatsapp'
+                    `, [status, body, footer, category, config.id, templateName]);
+
                     for (const userId of targetUserIds) {
                         const templateId = `WA20_${config.id}_${templateName}`;
                         await query(`
@@ -97,13 +104,6 @@ async function syncAllWA20Templates() {
                                 whatsapp_config_id = VALUES(whatsapp_config_id),
                                 updated_at = NOW()
                         `, [templateId, userId, config.id, templateName, category, body, footer, status]);
-
-                        // Also update by name if exists
-                        await query(`
-                            UPDATE message_templates 
-                            SET status = ?, body = ?, footer = ?, category = ?, whatsapp_config_id = ?, updated_at = NOW()
-                            WHERE user_id = ? AND name = ? AND channel = 'whatsapp'
-                        `, [status, body, footer, category, config.id, userId, templateName]);
 
                         totalSynced++;
                     }
