@@ -447,6 +447,13 @@ app.use('/', (req, res, next) => {
 
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');
+app.use('/assets', express.static(path.join(frontendPath, 'assets'), {
+  maxAge: '1d',
+  immutable: true,
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+}));
 app.use(express.static(frontendPath));
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
