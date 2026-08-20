@@ -169,7 +169,13 @@ if [ -f "$BACKEND_DIR/scripts/turbo_speed_optimize.js" ]; then
     NODE_ENV=production node "$BACKEND_DIR/scripts/turbo_speed_optimize.js" 2>&1 | grep -v "already exists\|Skipping\|^$" || true
 fi
 
-ok "Database migrations complete."
+# Sync live WA20 templates into database
+if [ -f "$BACKEND_DIR/scripts/sync_wa20_templates.js" ]; then
+    step "Syncing live WhatsApp 2.0 templates..."
+    NODE_ENV=production node "$BACKEND_DIR/scripts/sync_wa20_templates.js" 2>&1 || true
+fi
+
+ok "Database migrations and template sync complete."
 
 # ─── 5b: Frontend Build (sequential, memory-limited) ───
 step "Building frontend (Vite build)..."
