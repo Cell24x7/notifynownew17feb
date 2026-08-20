@@ -197,19 +197,22 @@ export default function Templates() {
       }
 
       // Fetch external WhatsApp templates in the background
-      const waConfigId = (user as any)?.whatsapp_config_id;
-      if (waConfigId) {
+      const isWhatsappEnabled = (user as any)?.whatsapp_config_id || 
+        (user?.channels_enabled || []).some((ch: string) => ch.toLowerCase() === 'whatsapp') || 
+        true;
+      if (isWhatsappEnabled) {
         try {
           const externalWaData = await whatsappService.getTemplates();
           if (externalWaData && externalWaData.success && Array.isArray(externalWaData.templates)) {
             const externalWaTemplates = externalWaData.templates.map((t: any) => {
               const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
-              const bodyText = bodyComponent ? bodyComponent.text : (t.components?.length ? 'Media-only Template' : 'External Template');
+              const bodyText = bodyComponent?.text || t.body || (t.components?.length ? 'Media-only Template' : 'External Template');
+              const tStatus = String(t.status || '').toUpperCase();
               return {
                 id: t.name || t.id,
                 name: t.name,
                 channel: 'whatsapp',
-                status: t.status === 'APPROVED' ? 'approved' : t.status === 'REJECTED' ? 'rejected' : 'pending',
+                status: tStatus === 'APPROVED' ? 'approved' : tStatus === 'REJECTED' ? 'rejected' : 'pending',
                 language: t.language || 'en_US',
                 category: t.category || 'MARKETING',
                 body: bodyText,

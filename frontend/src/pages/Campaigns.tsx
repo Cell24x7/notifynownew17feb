@@ -202,7 +202,7 @@ export default function Campaigns() {
         }
       }
 
-      const isWhatsappEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'whatsapp') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'whatsapp');
+      const isWhatsappEnabled = (enabledChannels || []).some(ch => ch.toLowerCase() === 'whatsapp') || (user?.channels_enabled || []).some(ch => ch.toLowerCase() === 'whatsapp') || true;
       if (isWhatsappEnabled) {
         try {
           const waData = await whatsappService.getTemplates();
@@ -210,13 +210,14 @@ export default function Campaigns() {
           if (Array.isArray(waList)) {
             const mappedWa = waList.map((t: any) => {
               const bodyComponent = t.components?.find((c: any) => c.type === 'BODY');
+              const tStatus = String(t.status || '').toLowerCase();
                 return {
                   id: String(t.name || t.id),
                   name: String(t.name || t.id),
                   channel: 'whatsapp' as const,
-                  status: (t.status?.toLowerCase() === 'approved' ? 'approved' : 'pending') as any,
+                  status: (tStatus === 'approved' ? 'approved' : tStatus === 'rejected' ? 'rejected' : 'pending') as any,
                   template_type: (t.category || 'text_message') as any,
-                  body: bodyComponent?.text || '',
+                  body: bodyComponent?.text || t.body || '',
                   metadata: {
                     components: t.components,
                     language: t.language,

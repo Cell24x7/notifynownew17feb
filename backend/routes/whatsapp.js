@@ -34,22 +34,54 @@ const uploadDisk = multer({ storage });
 const uploadMemory = multer({ storage: multer.memoryStorage() });
 
 /**
- * Helper: Get WhatsApp config + detect provider
+ * Helper: Get WhatsApp config + detect provider with fallback resolution
  */
 const getWhatsAppConfig = async (userId) => {
-    const [users] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [userId]);
-    if (!users.length || !users[0].whatsapp_config_id) {
-        return null; // Return null instead of throwing
+    let configId = null;
+
+    if (userId) {
+        const [users] = await query('SELECT whatsapp_config_id, reseller_id FROM users WHERE id = ?', [userId]);
+        if (users.length) {
+            configId = users[0].whatsapp_config_id;
+
+            // 1. If not directly assigned, check user_gateways table
+            if (!configId) {
+                const [gateways] = await query(
+                    'SELECT gateway_id, config_id FROM user_gateways WHERE user_id = ? AND channel = "whatsapp" AND is_active = 1 LIMIT 1',
+                    [userId]
+                );
+                if (gateways.length) {
+                    configId = gateways[0].config_id || gateways[0].gateway_id;
+                }
+            }
+
+            // 2. If still not found, check user's reseller
+            if (!configId && users[0].reseller_id) {
+                const [resellers] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [users[0].reseller_id]);
+                if (resellers.length && resellers[0].whatsapp_config_id) {
+                    configId = resellers[0].whatsapp_config_id;
+                }
+            }
+        }
     }
 
-    const [configs] = await query('SELECT * FROM whatsapp_configs WHERE id = ? AND is_active = 1', [users[0].whatsapp_config_id]);
+    let configs = [];
+    if (configId) {
+        [configs] = await query('SELECT * FROM whatsapp_configs WHERE id = ? AND is_active = 1', [configId]);
+    }
+
+    // 3. Fallback to any active WhatsApp config
+    if (!configs.length) {
+        [configs] = await query('SELECT * FROM whatsapp_configs WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
+    }
+
     if (!configs.length) {
         return null;
     }
 
     const config = configs[0];
     config.isPinbot = config.provider === 'vendor2';
-    config.isWa20 = config.provider === 'wa20';
+    config.isWa20 = config.provider === 'wa20' || config.provider === 'nuke' || !!config.customer_id || (config.chatbot_name && config.chatbot_name.toLowerCase().includes('wa2'));
     return config;
 };
 
@@ -57,6 +89,9 @@ const getWhatsAppConfig = async (userId) => {
  * Helper: Build auth headers based on provider
  */
 const getHeaders = (config) => {
+    if (config.isWa20) {
+        return { Authorization: `Bearer ${config.wa_token || ''}`, 'Content-Type': 'application/json' };
+    }
     if (config.isPinbot) {
         return { apikey: config.api_key, 'Content-Type': 'application/json' };
     }
@@ -152,7 +187,7 @@ router.get('/diagnose', async (req, res) => {
 
 /**
  * GET /api/whatsapp/templates
- * Fetch all templates (works for both Meta & Pinbot)
+ * Fetch all templates (works for both Meta & Pinbot & WA20)
  */
 router.get('/templates', authenticate, async (req, res) => {
     try {
@@ -168,13 +203,31 @@ router.get('/templates', authenticate, async (req, res) => {
         if (req.query.limit) params.limit = req.query.limit;
         if (req.query.status) params.status = req.query.status;
 
-        const response = await axios.get(getTemplatesUrl(config), {
-            headers: getHeaders(config),
-            params
-        });
+        let response;
+        try {
+            response = await axios.get(getTemplatesUrl(config), {
+                headers: getHeaders(config),
+                params
+            });
+        } catch (apiErr) {
+            console.error('WhatsApp template API error:', apiErr.response?.data || apiErr.message);
+            // Handle Meta Bad Signature / OAuth error fallback to WA20 if customer_id is available
+            if (!config.isWa20 && config.customer_id) {
+                try {
+                    config.isWa20 = true;
+                    response = await axios.get(`https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`, {
+                        headers: { Authorization: `Bearer ${config.wa_token || ''}` }
+                    });
+                } catch (nukeErr) {
+                    return res.json({ success: true, templates: [], warning: nukeErr.message });
+                }
+            } else {
+                return res.json({ success: true, templates: [], warning: apiErr.response?.data?.error?.message || apiErr.message });
+            }
+        }
 
-        // Pinbot returns { data: [...] } same as Graph
-        let templates = response.data.data || response.data || [];
+        // Pinbot/Nuke/Meta normalized templates
+        let templates = response?.data?.data || response?.data || [];
         
         if (config.isWa20 && Array.isArray(templates)) {
             templates = templates.map(t => {
@@ -182,11 +235,12 @@ router.get('/templates', authenticate, async (req, res) => {
                 if (t.header_area_type && t.header_area_type !== 'none') {
                     components.push({ type: 'HEADER', format: (t.header_media_type || t.header_area_type).toUpperCase(), text: t.header_text });
                 }
-                if (t.template_body) {
-                    components.push({ type: 'BODY', text: t.template_body });
+                const bodyText = t.template_body || t.body || t.text || t.template_text || t.message || t.content || '';
+                if (bodyText) {
+                    components.push({ type: 'BODY', text: bodyText });
                 }
-                if (t.template_footer) {
-                    components.push({ type: 'FOOTER', text: t.template_footer });
+                if (t.template_footer || t.footer) {
+                    components.push({ type: 'FOOTER', text: t.template_footer || t.footer });
                 }
                 let rawBtns = [];
                 const parseBtn = (val) => {
@@ -247,9 +301,13 @@ router.get('/templates', authenticate, async (req, res) => {
                 }
                 
                 // Map WA20 status (1=approved, 0=pending, 2=rejected/failed) to Meta status
+                const rawStatus = String(t.status ?? '').trim().toLowerCase();
                 let metaStatus = 'PENDING';
-                if (t.status === 1) metaStatus = 'APPROVED';
-                else if (t.status === 2) metaStatus = 'REJECTED';
+                if (rawStatus === '1' || rawStatus === 'approved' || rawStatus === 'active' || rawStatus === 'y' || t.status === 1) {
+                    metaStatus = 'APPROVED';
+                } else if (rawStatus === '2' || rawStatus === 'rejected' || rawStatus === 'failed' || rawStatus === 'n' || t.status === 2) {
+                    metaStatus = 'REJECTED';
+                }
                 
                 let metaCategory = 'UTILITY';
                 if (t.category) {
@@ -268,11 +326,12 @@ router.get('/templates', authenticate, async (req, res) => {
                 }
                 
                 return {
-                    id: t.id,
-                    name: t.template_name,
+                    id: t.id || t.template_name || t.name,
+                    name: t.template_name || t.name,
                     status: metaStatus,
                     language: 'en_US', // WA20 language 14 -> en_US
                     category: metaCategory,
+                    body: bodyText,
                     components
                 };
             });
