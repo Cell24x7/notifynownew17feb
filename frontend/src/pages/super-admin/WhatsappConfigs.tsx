@@ -311,7 +311,7 @@ export default function WhatsappConfigs() {
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold">WhatsApp Configurations</h1>
                         <p className="text-muted-foreground text-sm sm:text-base mt-1">
-                            Manage credentials for Meta Graph API and Pinbot (Pinnacle Partners API v3)
+                            Manage credentials for Meta Graph API, Pinbot (Pinnacle), and WhatsApp 2.0 (WA20 Nuke)
                         </p>
                     </div>
                     <Button className="w-full sm:w-auto bg-green-600 hover:bg-green-700" onClick={() => handleOpenDialog()}>
@@ -320,7 +320,7 @@ export default function WhatsappConfigs() {
                 </div>
 
                 {/* Provider Info Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {Object.values(PROVIDERS).map((p) => (
                         <div key={p.id} className={cn('rounded-lg border-2 p-4', p.color)}>
                             <div className="flex items-center gap-2 mb-1">
@@ -383,15 +383,23 @@ export default function WhatsappConfigs() {
                                                     </TableCell>
                                                     <TableCell className="font-mono text-sm">{config.wanumber || '-'}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary" className="font-mono text-xs">{config.ph_no_id}</Badge>
+                                                        {config.provider === 'wa20' ? (
+                                                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">WA20 Nuke</Badge>
+                                                        ) : (
+                                                            <Badge variant="secondary" className="font-mono text-xs">{config.ph_no_id || '-'}</Badge>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-xs font-mono text-muted-foreground max-w-[120px] truncate">
-                                                        <Tooltip>
-                                                            <TooltipTrigger>{config.wa_biz_accnt_id}</TooltipTrigger>
-                                                            <TooltipContent>{config.wa_biz_accnt_id}</TooltipContent>
-                                                        </Tooltip>
+                                                        {config.provider === 'wa20' ? (
+                                                            <span className="text-xs text-green-600 font-medium">JWT Token Set</span>
+                                                        ) : (
+                                                            <Tooltip>
+                                                                <TooltipTrigger>{config.wa_biz_accnt_id || '-'}</TooltipTrigger>
+                                                                <TooltipContent>{config.wa_biz_accnt_id}</TooltipContent>
+                                                            </Tooltip>
+                                                        )}
                                                     </TableCell>
-                                                    <TableCell className="text-sm">{config.customer_id || '-'}</TableCell>
+                                                    <TableCell className="text-sm font-semibold">{config.customer_id || '-'}</TableCell>
                                                     <TableCell>
                                                         <Badge className={config.is_active ? 'bg-green-500/10 text-green-600' : 'bg-gray-500/10 text-gray-600'}>
                                                             {config.is_active ? (
