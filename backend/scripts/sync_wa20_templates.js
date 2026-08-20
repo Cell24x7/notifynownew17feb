@@ -31,19 +31,11 @@ async function syncAllWA20Templates() {
                 [config.id]
             );
 
-            // If no direct user found, check user_gateways or assign to admin / config user
             let targetUserIds = users.map(u => u.id);
             if (targetUserIds.length === 0) {
-                const [gwUsers] = await query(
-                    'SELECT user_id FROM user_gateways WHERE config_id = ? OR gateway_id = ?',
-                    [config.id, config.id]
-                );
-                targetUserIds = gwUsers.map(u => u.user_id);
-            }
-            if (targetUserIds.length === 0) {
-                // Fallback to admin user
-                const [adminUser] = await query("SELECT id FROM users WHERE role IN ('superadmin', 'admin') LIMIT 1");
-                if (adminUser.length) targetUserIds = [adminUser[0].id];
+                // Fallback to admin/superadmin user
+                const [adminUser] = await query("SELECT id FROM users WHERE role IN ('superadmin', 'admin')");
+                targetUserIds = adminUser.map(a => a.id);
             }
 
             console.log(`   Target Users: ${targetUserIds.join(', ') || 'None'}`);
