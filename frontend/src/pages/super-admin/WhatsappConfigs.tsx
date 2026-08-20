@@ -446,7 +446,7 @@ export default function WhatsappConfigs() {
                             {/* Provider Selection */}
                             <div className="space-y-2">
                                 <Label className="text-sm font-semibold">Provider *</Label>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     {Object.values(PROVIDERS).map((p) => (
                                         <button
                                             key={p.id}
