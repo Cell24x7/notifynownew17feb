@@ -420,32 +420,7 @@ app.get('/api/turbo-diagnostics', async (req, res) => {
   res.json(results);
 });
 
-// API 404 handler — any unmatched /api/* route returns JSON not HTML
-app.use('/api', (req, res) => {
-  res.status(404).json({ success: false, message: `API endpoint not found: ${req.method} ${req.originalUrl}` });
-});
-
-// Global JSON error handler — prevents Express from sending HTML error pages
-app.use((err, req, res, next) => {
-  console.error('❌ Global Error:', err.stack || err.message);
-  const status = err.status || err.statusCode || 500;
-  if (req.originalUrl.startsWith('/api')) {
-    return res.status(status).json({ success: false, message: err.message || 'Internal Server Error' });
-  }
-  next(err);
-});
-
-// Short Link Redirector Catch-All
-// Must be placed before the React frontend catch-all
-app.use('/', (req, res, next) => {
-    // Check if it's exactly an 8-character short code at the root path
-    if (/^\/[A-Za-z0-9]{8}$/.test(req.path)) {
-        return require('./routes/links')(req, res, next);
-    }
-    next();
-});
-
-// Serve frontend
+// Serve frontend static assets BEFORE API 404 handler
 const frontendPath = path.join(__dirname, '../frontend/dist');
 app.use('/assets', express.static(path.join(frontendPath, 'assets'), {
   maxAge: '1d',
@@ -455,6 +430,21 @@ app.use('/assets', express.static(path.join(frontendPath, 'assets'), {
   }
 }));
 app.use(express.static(frontendPath));
+
+// Short Link Redirector Catch-All
+app.use('/', (req, res, next) => {
+    if (/^\/[A-Za-z0-9]{8}$/.test(req.path)) {
+        return require('./routes/links')(req, res, next);
+    }
+    next();
+});
+
+// API 404 handler — any unmatched /api/* route returns JSON not HTML
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: `API endpoint not found: ${req.method} ${req.originalUrl}` });
+});
+
+// SPA Catch-All fallback for React routes
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -464,6 +454,14 @@ app.get('*', (req, res) => {
   });
 });
 
-// End diagnostics route block
+// Global JSON error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Global Error:', err.stack || err.message);
+  const status = err.status || err.statusCode || 500;
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(status).json({ success: false, message: err.message || 'Internal Server Error' });
+  }
+  next(err);
+});
 
 module.exports = app;
