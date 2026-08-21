@@ -81,6 +81,7 @@ interface HierarchyUser {
     sms_service_price: number;
     reseller_id?: number | null;
     actual_reseller_id?: number | null;
+    status?: string;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -161,7 +162,10 @@ export default function SuperAdminReports() {
             });
             const data = await response.json();
             if (data.success) {
-                setUsers(data.users);
+                const activeOnly = (data.users || []).filter((u: any) => 
+                    u.status === 'active' || u.status === 'approved' || u.status === '1' || !u.status
+                );
+                setUsers(activeOnly);
             }
         } catch (error) {
             console.error('Failed to fetch users', error);
@@ -418,11 +422,11 @@ export default function SuperAdminReports() {
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-[450px] p-0" align="start">
-                                            <Command>
-                                                <CommandInput placeholder="Search users by name, email, or company..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No user found.</CommandEmpty>
+                                        <PopoverContent className="w-[450px] p-0 shadow-2xl border-border bg-card rounded-xl overflow-hidden" align="start">
+                                            <Command className="bg-card text-foreground">
+                                                <CommandInput placeholder="Search users by name, email, or company..." className="border-b border-border text-foreground" />
+                                                <CommandList className="max-h-[360px] p-1.5">
+                                                    <CommandEmpty className="p-4 text-center text-sm text-muted-foreground">No active user found.</CommandEmpty>
                                                     <CommandGroup>
                                                         <CommandItem
                                                             value="all"
@@ -430,52 +434,95 @@ export default function SuperAdminReports() {
                                                                 setSelectedUserId('all');
                                                                 setUserDropdownOpen(false);
                                                             }}
-                                                            className="font-bold text-blue-600"
+                                                            className={cn(
+                                                                "font-bold py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150 mb-1",
+                                                                selectedUserId === 'all'
+                                                                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold"
+                                                                    : "text-emerald-600 hover:bg-emerald-500/10"
+                                                            )}
                                                         >
-                                                            <Check className={cn("mr-2 h-4 w-4", selectedUserId === 'all' ? "opacity-100" : "opacity-0")} />
+                                                            <Check className={cn("mr-2.5 h-4 w-4 text-emerald-600 font-bold", selectedUserId === 'all' ? "opacity-100" : "opacity-0")} />
                                                             -- ALL SYSTEM USERS --
                                                         </CommandItem>
                                                     </CommandGroup>
                                                     {userType === 'all' && (
                                                         <CommandGroup heading="Resellers">
-                                                            {users.filter(u => u.role === 'reseller').map(user => (
-                                                                <CommandItem
-                                                                    key={user.id}
-                                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
-                                                                    onSelect={() => {
-                                                                        setSelectedUserId(user.id.toString());
-                                                                        setUserDropdownOpen(false);
-                                                                    }}
-                                                                >
-                                                                    <Check className={cn("mr-2 h-4 w-4", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                                    {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs">({user.email})</span>
-                                                                </CommandItem>
-                                                            ))}
+                                                            {users.filter(u => u.role === 'reseller').map(user => {
+                                                                const isSelected = selectedUserId === user.id.toString();
+                                                                return (
+                                                                    <CommandItem
+                                                                        key={user.id}
+                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                                        onSelect={() => {
+                                                                            setSelectedUserId(user.id.toString());
+                                                                            setUserDropdownOpen(false);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "flex items-start py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150 mb-0.5",
+                                                                            isSelected
+                                                                                ? "bg-emerald-500/15 text-foreground border border-emerald-500/30"
+                                                                                : "hover:bg-muted/70 text-foreground"
+                                                                        )}
+                                                                    >
+                                                                        <Check className={cn("mr-2.5 h-4 w-4 mt-0.5 shrink-0 text-emerald-600 font-bold", isSelected ? "opacity-100" : "opacity-0")} />
+                                                                        <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                <span className="font-semibold text-sm text-foreground">
+                                                                                    {user.company_name || user.name}
+                                                                                </span>
+                                                                                <span className="text-xs text-muted-foreground font-normal">
+                                                                                    ({user.email})
+                                                                                </span>
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 uppercase tracking-wider">
+                                                                                    Main Reseller Account
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                );
+                                                            })}
                                                         </CommandGroup>
                                                     )}
                                                     {userType === 'reseller' && selectedFilterResellerId !== 'all' && (
                                                         <CommandGroup heading="Reseller Account">
-                                                            {users.filter(u => (u.actual_reseller_id?.toString() === selectedFilterResellerId) || (u.id.toString() === selectedFilterResellerId)).filter(u => u.role === 'reseller').map(user => (
-                                                                <CommandItem
-                                                                    key={user.id}
-                                                                    value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
-                                                                    onSelect={() => {
-                                                                        setSelectedUserId(user.id.toString());
-                                                                        setUserDropdownOpen(false);
-                                                                    }}
-                                                                    className="flex items-start py-2"
-                                                                >
-                                                                    <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                                    <div className="flex flex-col gap-0.5">
-                                                                        <span className="font-medium text-slate-800">
-                                                                            {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
-                                                                        </span>
-                                                                        <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
-                                                                            Main Reseller Account
-                                                                        </span>
-                                                                    </div>
-                                                                </CommandItem>
-                                                            ))}
+                                                            {users.filter(u => (u.actual_reseller_id?.toString() === selectedFilterResellerId) || (u.id.toString() === selectedFilterResellerId)).filter(u => u.role === 'reseller').map(user => {
+                                                                const isSelected = selectedUserId === user.id.toString();
+                                                                return (
+                                                                    <CommandItem
+                                                                        key={user.id}
+                                                                        value={`${user.company_name} ${user.name} ${user.email} ${user.id}`}
+                                                                        onSelect={() => {
+                                                                            setSelectedUserId(user.id.toString());
+                                                                            setUserDropdownOpen(false);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "flex items-start py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150 mb-0.5",
+                                                                            isSelected
+                                                                                ? "bg-emerald-500/15 text-foreground border border-emerald-500/30"
+                                                                                : "hover:bg-muted/70 text-foreground"
+                                                                        )}
+                                                                    >
+                                                                        <Check className={cn("mr-2.5 h-4 w-4 mt-0.5 shrink-0 text-emerald-600 font-bold", isSelected ? "opacity-100" : "opacity-0")} />
+                                                                        <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                <span className="font-semibold text-sm text-foreground">
+                                                                                    {user.company_name || user.name}
+                                                                                </span>
+                                                                                <span className="text-xs text-muted-foreground font-normal">
+                                                                                    ({user.email})
+                                                                                </span>
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 uppercase tracking-wider">
+                                                                                    Main Reseller Account
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                );
+                                                            })}
                                                         </CommandGroup>
                                                     )}
                                                     <CommandGroup heading="Clients / Users">
@@ -494,6 +541,7 @@ export default function SuperAdminReports() {
                                                             })
                                                             .map(user => {
                                                             const parentName = getResellerName(user.reseller_id);
+                                                            const isSelected = selectedUserId === user.id.toString();
                                                             return (
                                                                 <CommandItem
                                                                     key={user.id}
@@ -502,22 +550,34 @@ export default function SuperAdminReports() {
                                                                         setSelectedUserId(user.id.toString());
                                                                         setUserDropdownOpen(false);
                                                                     }}
-                                                                    className="flex items-start py-2"
+                                                                    className={cn(
+                                                                        "flex items-start py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150 mb-0.5",
+                                                                        isSelected
+                                                                            ? "bg-emerald-500/15 text-foreground border border-emerald-500/30"
+                                                                            : "hover:bg-muted/70 text-foreground"
+                                                                    )}
                                                                 >
-                                                                    <Check className={cn("mr-2 h-4 w-4 mt-1", selectedUserId === user.id.toString() ? "opacity-100" : "opacity-0")} />
-                                                                    <div className="flex flex-col gap-0.5">
-                                                                        <span className="font-medium text-slate-800">
-                                                                            {user.company_name || user.name} <span className="text-muted-foreground ml-1 text-xs font-normal">({user.email})</span>
-                                                                        </span>
-                                                                        {parentName ? (
-                                                                            <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">
-                                                                                via Reseller: {parentName}
+                                                                    <Check className={cn("mr-2.5 h-4 w-4 mt-0.5 shrink-0 text-emerald-600 font-bold", isSelected ? "opacity-100" : "opacity-0")} />
+                                                                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                                            <span className="font-semibold text-sm text-foreground">
+                                                                                {user.company_name || user.name}
                                                                             </span>
-                                                                        ) : (
-                                                                            <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
-                                                                                Direct Admin User
+                                                                            <span className="text-xs text-muted-foreground font-normal">
+                                                                                ({user.email})
                                                                             </span>
-                                                                        )}
+                                                                        </div>
+                                                                        <div>
+                                                                            {parentName ? (
+                                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 uppercase tracking-wider">
+                                                                                    via Reseller: {parentName}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wider">
+                                                                                    Direct Admin User
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </CommandItem>
                                                             );

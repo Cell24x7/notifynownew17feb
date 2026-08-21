@@ -589,7 +589,7 @@ router.get('/all-hierarchy', authenticateToken, isResellerOrAdmin, async (req, r
   try {
     let sql = `
       SELECT
-        u.id, u.name, u.email, u.company AS company_name, u.role,
+        u.id, u.name, u.email, u.company AS company_name, u.role, u.status,
         u.rcs_text_price, u.rcs_rich_card_price, u.rcs_carousel_price,
         u.wa_marketing_price, u.wa_utility_price, u.wa_authentication_price,
         u.sms_promotional_price, u.sms_transactional_price, u.sms_service_price,
@@ -598,6 +598,7 @@ router.get('/all-hierarchy', authenticateToken, isResellerOrAdmin, async (req, r
       FROM users u
       LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
       WHERE u.role IN ('client', 'user', 'reseller', 'admin', 'superadmin')
+        AND (u.status = 'active' OR u.status = 'approved' OR u.status = '1' OR u.status IS NULL)
     `;
     let params = [];
 
