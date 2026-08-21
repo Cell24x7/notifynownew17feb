@@ -498,21 +498,44 @@ router.post('/templates', authenticate, async (req, res) => {
 
             const createUrl = `https://wa20.nuke.co.in/webhook/api/createTemplates.php?username=${config.customer_id}`;
 
-            const response = await axios.post(createUrl, wa20Payload, {
-                headers: {
-                    Authorization: `Bearer ${config.wa_token}`,
-                    'Content-Type': 'application/json'
+            let response;
+            try {
+                response = await axios.post(createUrl, wa20Payload, {
+                    headers: {
+                        Authorization: `Bearer ${config.wa_token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                console.log('📥 WA20 createTemplates response:', JSON.stringify(response.data));
+
+                // If this template was previously marked deleted for this user, restore it
+                try {
+                    await query('DELETE FROM deleted_whatsapp_templates WHERE user_id = ? AND template_name = ?', [req.user.id, sanitizedName]);
+                } catch (e) {}
+
+                return res.json({
+                    success: true,
+                    message: 'Template created successfully',
+                    data: response.data,
+                    provider: 'wa20'
+                });
+            } catch (createErr) {
+                console.error('❌ WA20 createTemplates error:', createErr.response?.data || createErr.message);
+                const status = createErr.response?.status;
+                const errData = createErr.response?.data;
+                let userMsg = errData?.message || errData?.error?.message || createErr.message;
+
+                if (status === 409 || (typeof userMsg === 'string' && userMsg.toLowerCase().includes('already exists'))) {
+                    userMsg = `A template named "${sanitizedName}" already exists on Meta/WhatsApp. Please use a unique name (e.g. ${sanitizedName}_v2).`;
                 }
-            });
 
-            console.log('📥 WA20 createTemplates response:', JSON.stringify(response.data));
-
-            return res.json({
-                success: true,
-                message: 'Template created successfully',
-                data: response.data,
-                provider: 'wa20'
-            });
+                return res.status(status || 400).json({
+                    success: false,
+                    message: userMsg,
+                    error: errData || createErr.message
+                });
+            }
         }
 
 /**
