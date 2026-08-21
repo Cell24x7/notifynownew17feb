@@ -40,41 +40,31 @@ const getWhatsAppConfig = async (userId) => {
     let configId = null;
 
     if (userId) {
-        const [users] = await query('SELECT whatsapp_config_id, reseller_id FROM users WHERE id = ?', [userId]);
+        const [users] = await query('SELECT whatsapp_config_id, reseller_id, role FROM users WHERE id = ?', [userId]);
         if (users.length) {
             configId = users[0].whatsapp_config_id;
 
-            // 1. If not directly assigned, check user_gateways table
-            if (!configId) {
-                const [gateways] = await query(
-                    'SELECT gateway_id, config_id FROM user_gateways WHERE user_id = ? AND channel = "whatsapp" AND is_active = 1 LIMIT 1',
-                    [userId]
-                );
-                if (gateways.length) {
-                    configId = gateways[0].config_id || gateways[0].gateway_id;
-                }
-            }
-
-            // 2. If still not found, check user's reseller
+            // Check user's reseller if user is a client under a reseller
             if (!configId && users[0].reseller_id) {
                 const [resellers] = await query('SELECT whatsapp_config_id FROM users WHERE id = ?', [users[0].reseller_id]);
                 if (resellers.length && resellers[0].whatsapp_config_id) {
                     configId = resellers[0].whatsapp_config_id;
                 }
             }
+
+            // Fallback for Admin/Superadmin only
+            if (!configId && (users[0].role === 'admin' || users[0].role === 'superadmin')) {
+                const [adminConfigs] = await query('SELECT id FROM whatsapp_configs WHERE is_active = 1 ORDER BY id ASC LIMIT 1');
+                if (adminConfigs.length) configId = adminConfigs[0].id;
+            }
         }
     }
 
-    let configs = [];
-    if (configId) {
-        [configs] = await query('SELECT * FROM whatsapp_configs WHERE id = ? AND is_active = 1', [configId]);
+    if (!configId) {
+        return null;
     }
 
-    // 3. Fallback to any active WhatsApp config
-    if (!configs.length) {
-        [configs] = await query('SELECT * FROM whatsapp_configs WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
-    }
-
+    const [configs] = await query('SELECT * FROM whatsapp_configs WHERE id = ? AND is_active = 1', [configId]);
     if (!configs.length) {
         return null;
     }
