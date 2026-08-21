@@ -325,6 +325,20 @@ router.get('/templates', authenticate, async (req, res) => {
                     }
                 }
                 
+                let cleanReason = null;
+                if (t.reason && t.reason !== 'NONE') {
+                    if (typeof t.reason === 'object') {
+                        cleanReason = t.reason.error?.error_user_msg || t.reason.error?.error_user_title || t.reason.error?.message || JSON.stringify(t.reason);
+                    } else if (typeof t.reason === 'string') {
+                        try {
+                            const parsed = JSON.parse(t.reason);
+                            cleanReason = parsed.error?.error_user_msg || parsed.error?.error_user_title || parsed.error?.message || t.reason;
+                        } catch (e) {
+                            cleanReason = t.reason;
+                        }
+                    }
+                }
+                
                 return {
                     id: t.id || t.template_name || t.name,
                     name: t.template_name || t.name,
@@ -332,6 +346,7 @@ router.get('/templates', authenticate, async (req, res) => {
                     language: 'en_US', // WA20 language 14 -> en_US
                     category: metaCategory,
                     body: bodyText,
+                    rejection_reason: cleanReason,
                     components
                 };
             });

@@ -74,28 +74,43 @@ async function syncAllWA20Templates() {
                     if (t.category === 1 || t.category === '1' || String(t.category).toLowerCase() === 'marketing') category = 'MARKETING';
                     else if (t.category === 3 || t.category === '3' || String(t.category).toLowerCase() === 'authentication') category = 'AUTHENTICATION';
 
+                    let cleanReason = null;
+                    if (t.reason && t.reason !== 'NONE') {
+                        if (typeof t.reason === 'object') {
+                            cleanReason = t.reason.error?.error_user_msg || t.reason.error?.error_user_title || t.reason.error?.message || JSON.stringify(t.reason);
+                        } else if (typeof t.reason === 'string') {
+                            try {
+                                const parsed = JSON.parse(t.reason);
+                                cleanReason = parsed.error?.error_user_msg || parsed.error?.error_user_title || parsed.error?.message || t.reason;
+                            } catch (e) {
+                                cleanReason = t.reason;
+                            }
+                        }
+                    }
+
                     // Update globally any existing message_templates row with matching name
                     await query(`
                         UPDATE message_templates 
-                        SET status = ?, body = ?, footer = ?, category = ?, whatsapp_config_id = COALESCE(whatsapp_config_id, ?), updated_at = NOW()
+                        SET status = ?, rejection_reason = ?, body = ?, footer = ?, category = ?, whatsapp_config_id = COALESCE(whatsapp_config_id, ?), updated_at = NOW()
                         WHERE name = ? AND channel = 'whatsapp'
-                    `, [status, body, footer, category, config.id, templateName]);
+                    `, [status, cleanReason, body, footer, category, config.id, templateName]);
 
                     for (const userId of targetUserIds) {
                         const templateId = `WA20_${config.id}_${templateName}`;
                         await query(`
                             INSERT INTO message_templates (
                                 id, user_id, whatsapp_config_id, name, language, category, channel,
-                                template_type, header_type, body, footer, status, updated_at
-                            ) VALUES (?, ?, ?, ?, 'en', ?, 'whatsapp', 'text_message', 'none', ?, ?, ?, NOW())
+                                template_type, header_type, body, footer, status, rejection_reason, updated_at
+                            ) VALUES (?, ?, ?, ?, 'en', ?, 'whatsapp', 'text_message', 'none', ?, ?, ?, ?, NOW())
                             ON DUPLICATE KEY UPDATE
                                 status = VALUES(status),
+                                rejection_reason = VALUES(rejection_reason),
                                 body = VALUES(body),
                                 footer = VALUES(footer),
                                 category = VALUES(category),
                                 whatsapp_config_id = VALUES(whatsapp_config_id),
                                 updated_at = NOW()
-                        `, [templateId, userId, config.id, templateName, category, body, footer, status]);
+                        `, [templateId, userId, config.id, templateName, category, body, footer, status, cleanReason]);
 
                         totalSynced++;
                     }
