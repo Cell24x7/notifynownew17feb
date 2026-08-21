@@ -163,9 +163,50 @@ export function SMSCampaignDialog({ open, onOpenChange, onSuccess }: SMSCampaign
                 }
                 setExcelSampleData(sampleRows);
 
+                // Smart Auto-Mapping
+                const isPhoneCol = (colName: string) => {
+                    const clean = colName.trim().toLowerCase();
+                    return /^(mobile|phone|contact|number|msisdn|to|receiver|dest|recipient|cell|whatsapp|mob|tel)$/i.test(clean) ||
+                           /(mobile|phone|msisdn)/i.test(clean);
+                };
+
+                const nonPhoneColumns = headers.filter(col => !isPhoneCol(col));
+                const candidateColumns = nonPhoneColumns.length > 0 ? nonPhoneColumns : headers;
+                const newMapping: any = { ...fieldMapping };
+                const usedColumns = new Set<string>();
+
+                // Pass 1: Name matching
+                templateVariables.forEach(v => {
+                    const vNorm = v.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const matchedCol = candidateColumns.find(col => {
+                        const cNorm = col.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        return cNorm === vNorm && !usedColumns.has(col);
+                    });
+                    if (matchedCol) {
+                        newMapping[v] = { type: 'field', value: matchedCol };
+                        usedColumns.add(matchedCol);
+                    }
+                });
+
+                // Pass 2: Sequential matching
+                let colIdx = 0;
+                templateVariables.forEach(v => {
+                    if (newMapping[v]?.value) return;
+                    while (colIdx < candidateColumns.length && usedColumns.has(candidateColumns[colIdx])) {
+                        colIdx++;
+                    }
+                    if (colIdx < candidateColumns.length) {
+                        newMapping[v] = { type: 'field', value: candidateColumns[colIdx] };
+                        usedColumns.add(candidateColumns[colIdx]);
+                        colIdx++;
+                    }
+                });
+
+                setFieldMapping(newMapping);
+
                 toast({
                     title: 'File Parsed',
-                    description: `Found ${headers.length} columns & ${json.length - 1} contacts in ${file.name}`,
+                    description: `Found ${headers.length} columns & ${json.length - 1} contacts in ${file.name}. Smart mapping applied.`,
                 });
             }
         };

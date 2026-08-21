@@ -163,18 +163,48 @@ export function WhatsAppCampaignDialog({ open, onOpenChange, onSuccess }: WhatsA
                 setExcelColumns(headers);
                 
                 // Smart Auto-Mapping
+                const isPhoneCol = (colName: string) => {
+                    const clean = colName.trim().toLowerCase();
+                    return /^(mobile|phone|contact|number|msisdn|to|receiver|dest|recipient|cell|whatsapp|mob|tel)$/i.test(clean) ||
+                           /(mobile|phone|msisdn)/i.test(clean);
+                };
+
+                const nonPhoneColumns = headers.filter(col => !isPhoneCol(col));
+                const candidateColumns = nonPhoneColumns.length > 0 ? nonPhoneColumns : headers;
                 const newMapping: any = { ...fieldMapping };
-                headers.forEach(h => {
-                    const lowHeader = h.toLowerCase();
-                    if (lowHeader.includes('name')) newMapping['1'] = { type: 'field', value: h };
-                    if (lowHeader.includes('date')) newMapping['2'] = { type: 'field', value: h };
-                    if (lowHeader.includes('id') || lowHeader.includes('ticket')) newMapping['3'] = { type: 'field', value: h };
-                    if (lowHeader.includes('guest')) newMapping['4'] = { type: 'field', value: h };
+                const usedColumns = new Set<string>();
+
+                // Pass 1: Name matching
+                templateVariables.forEach(v => {
+                    const vNorm = v.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const matchedCol = candidateColumns.find(col => {
+                        const cNorm = col.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        return cNorm === vNorm && !usedColumns.has(col);
+                    });
+                    if (matchedCol) {
+                        newMapping[v] = { type: 'field', value: matchedCol };
+                        usedColumns.add(matchedCol);
+                    }
                 });
+
+                // Pass 2: Sequential matching
+                let colIdx = 0;
+                templateVariables.forEach(v => {
+                    if (newMapping[v]?.value) return;
+                    while (colIdx < candidateColumns.length && usedColumns.has(candidateColumns[colIdx])) {
+                        colIdx++;
+                    }
+                    if (colIdx < candidateColumns.length) {
+                        newMapping[v] = { type: 'field', value: candidateColumns[colIdx] };
+                        usedColumns.add(candidateColumns[colIdx]);
+                        colIdx++;
+                    }
+                });
+
                 setFieldMapping(newMapping);
                 toast({
                     title: 'Excel Columns Parsed',
-                    description: `Found ${headers.length} columns. Smart mapping applied.`,
+                    description: `Found ${headers.length} columns. Smart mapping applied automatically.`,
                 });
             }
         };

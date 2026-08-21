@@ -382,39 +382,90 @@ export default function CampaignCreationStepper({ templates, onComplete, onCance
       }
    }, [currentStep, campaignData.contactSource, listFilter]);
 
-   // Auto-mapping logic
+   // Smart Auto-mapping logic for CSV / Excel columns to template variables
    useEffect(() => {
       if (detectedColumns.length > 0 && templateVariables.length > 0) {
-         console.log('🤖 Attempting auto-mapping for columns:', detectedColumns);
+         console.log('🤖 Running smart auto-mapping for columns:', detectedColumns, 'variables:', templateVariables);
          setCampaignData(prev => {
             const newMapping = { ...prev.fieldMapping };
             let mappedCount = 0;
 
+            const isPhoneCol = (colName: string) => {
+               const clean = colName.trim().toLowerCase();
+               return /^(mobile|phone|contact|number|msisdn|to|receiver|dest|recipient|cell|whatsapp|mob|tel|ph|contact_no|mobile_no|phone_no)$/i.test(clean) ||
+                      /(mobile|phone|msisdn|contact_no|mob_no)/i.test(clean);
+            };
+
+            const nonPhoneColumns = detectedColumns.filter(col => !isPhoneCol(col));
+            const candidateColumns = nonPhoneColumns.length > 0 ? nonPhoneColumns : detectedColumns;
+            const usedColumns = new Set<string>();
+
+            // Preserve any existing valid mappings
             templateVariables.forEach(v => {
-               // Skip if already mapped manually
+               if (newMapping[v]?.value && detectedColumns.includes(newMapping[v].value)) {
+                  usedColumns.add(newMapping[v].value);
+               } else if (newMapping[v]?.type !== 'custom') {
+                  delete newMapping[v];
+               }
+            });
+
+            // Pass 1: Exact & Normalized Name Matching (e.g. 'name' -> 'Name', 'ref_no' -> 'ref. no.', 'service' -> 'Service')
+            templateVariables.forEach(v => {
                if (newMapping[v]?.value) return;
 
-               const matchedCol = detectedColumns.find(col =>
-                  col.toLowerCase().trim() === v.toLowerCase().trim() ||
-                  col.toLowerCase().trim().replace(/\s/g, '_') === v.toLowerCase().trim()
-               );
+               const vNorm = v.toLowerCase().replace(/[^a-z0-9]/g, '');
+               const matchedCol = candidateColumns.find(col => {
+                  const cNorm = col.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  return cNorm === vNorm && !usedColumns.has(col);
+               });
 
                if (matchedCol) {
                   newMapping[v] = { type: 'field', value: matchedCol };
+                  usedColumns.add(matchedCol);
                   mappedCount++;
                }
             });
 
+            // Pass 2: Sequential / Positional Matching for generic/numbered variables (e.g. {{dynamic}}, {{dynamic_2}}, {{1}}, {{2}}, {{var1}})
+            let colIndex = 0;
+            templateVariables.forEach(v => {
+               if (newMapping[v]?.value) return;
+
+               while (colIndex < candidateColumns.length && usedColumns.has(candidateColumns[colIndex])) {
+                  colIndex++;
+               }
+
+               if (colIndex < candidateColumns.length) {
+                  const assignedCol = candidateColumns[colIndex];
+                  newMapping[v] = { type: 'field', value: assignedCol };
+                  usedColumns.add(assignedCol);
+                  mappedCount++;
+                  colIndex++;
+               }
+            });
+
+            // Pass 3: Fallback to any detected column if non-phone columns were fewer than variables
+            if (templateVariables.some(v => !newMapping[v]?.value) && detectedColumns.length > 0) {
+               let fallbackIdx = 0;
+               templateVariables.forEach(v => {
+                  if (!newMapping[v]?.value && detectedColumns[fallbackIdx]) {
+                     newMapping[v] = { type: 'field', value: detectedColumns[fallbackIdx] };
+                     mappedCount++;
+                     fallbackIdx = (fallbackIdx + 1) % detectedColumns.length;
+                  }
+               });
+            }
+
             if (mappedCount > 0) {
                toast({
                   title: "Auto-mapping complete",
-                  description: `Automatically matched ${mappedCount} fields from your file.`
+                  description: `Automatically matched ${mappedCount} variable${mappedCount > 1 ? 's' : ''} with your file columns.`
                });
             }
             return { ...prev, fieldMapping: newMapping };
          });
       }
-   }, [detectedColumns, templateVariables]);
+   }, [detectedColumns, templateVariables, currentStep]);
 
    const channelConfig = channelOptions.find(c => c.value === campaignData.channel);
 
