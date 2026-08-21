@@ -1152,7 +1152,7 @@ router.post('/whatsapp/callback', async (req, res) => {
                                         let [logs] = [];
                                         let isApiLog = false;
                                         let attempts = 0;
-                                        while (attempts < 3) { // Reduced retry count from 10 to 3
+                                        while (attempts < 3) {
                                             [logs] = await query('SELECT * FROM message_logs WHERE message_id = ?', [messageId]);
                                             if (logs.length === 0) {
                                                 [logs] = await query('SELECT * FROM api_message_logs WHERE message_id = ?', [messageId]);
@@ -1165,37 +1165,36 @@ router.post('/whatsapp/callback', async (req, res) => {
                                             }
                                             
                                             attempts++;
-                                            if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 150)); // Reduced delay from 500ms to 150ms
+                                            if (attempts < 3) await new Promise(resolve => setTimeout(resolve, 150));
                                         }
 
-                                        // 🧠 SMART MATCHING: Fallback for WA20 Temporary IDs
-                                        if (logs.length === 0 && status === 'sent' && messageId.startsWith('wamid.')) {
+                                        // 🧠 SMART MATCHING: Fallback for WA20 / Vendor Temporary IDs
+                                        if (logs.length === 0 && recipientId) {
                                             const cleanRecipient = String(recipientId).replace(/\D/g, '').slice(-10);
                                             const possibleRecipients = [cleanRecipient, `91${cleanRecipient}`, `+91${cleanRecipient}`];
                                             
-                                            // Search api_message_logs (Indexed on recipient)
-                                            let [recentLogs] = await query(
-                                                'SELECT id, message_id FROM api_message_logs WHERE recipient IN (?, ?, ?) AND status = "sent" AND channel = "whatsapp" AND message_id LIKE "wa_%" ORDER BY send_time DESC LIMIT 1',
+                                            // 1. Check api_message_logs first (Direct API / Campaign API)
+                                            let [recentApiLogs] = await query(
+                                                'SELECT id, message_id, status, campaign_id, user_id FROM api_message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY id DESC LIMIT 1',
                                                 possibleRecipients
                                             );
                                             
-                                            if (recentLogs.length > 0) {
-                                                console.log(`🧠 Smart Match API: Found temporary ID ${recentLogs[0].message_id} for ${recipientId}, updating to ${messageId}`);
-                                                await query('UPDATE api_message_logs SET message_id = ? WHERE id = ?', [messageId, recentLogs[0].id]);
+                                            // 2. Check message_logs (Manual Campaign / UI)
+                                            let [recentManualLogs] = await query(
+                                                'SELECT id, message_id, status, campaign_id, user_id FROM message_logs WHERE recipient IN (?, ?, ?) AND channel = "whatsapp" ORDER BY id DESC LIMIT 1',
+                                                possibleRecipients
+                                            );
+
+                                            if (recentApiLogs.length > 0) {
+                                                console.log(`🧠 Smart Match API: Linking MsgID ${messageId} to api_message_logs ID ${recentApiLogs[0].id} for ${recipientId}`);
+                                                await query('UPDATE api_message_logs SET message_id = ? WHERE id = ?', [messageId, recentApiLogs[0].id]);
                                                 isApiLog = true;
-                                                [logs] = await query('SELECT * FROM api_message_logs WHERE id = ?', [recentLogs[0].id]);
-                                            } else {
-                                                // Search message_logs (Indexed on recipient)
-                                                [recentLogs] = await query(
-                                                    'SELECT id, message_id FROM message_logs WHERE recipient IN (?, ?, ?) AND status = "sent" AND channel = "whatsapp" AND message_id LIKE "wa_%" ORDER BY created_at DESC LIMIT 1',
-                                                    possibleRecipients
-                                                );
-                                                if (recentLogs.length > 0) {
-                                                    console.log(`🧠 Smart Match UI: Found temporary ID ${recentLogs[0].message_id} for ${recipientId}, updating to ${messageId}`);
-                                                    await query('UPDATE message_logs SET message_id = ? WHERE id = ?', [messageId, recentLogs[0].id]);
-                                                    isApiLog = false;
-                                                    [logs] = await query('SELECT * FROM message_logs WHERE id = ?', [recentLogs[0].id]);
-                                                }
+                                                [logs] = await query('SELECT * FROM api_message_logs WHERE id = ?', [recentApiLogs[0].id]);
+                                            } else if (recentManualLogs.length > 0) {
+                                                console.log(`🧠 Smart Match UI: Linking MsgID ${messageId} to message_logs ID ${recentManualLogs[0].id} for ${recipientId}`);
+                                                await query('UPDATE message_logs SET message_id = ? WHERE id = ?', [messageId, recentManualLogs[0].id]);
+                                                isApiLog = false;
+                                                [logs] = await query('SELECT * FROM message_logs WHERE id = ?', [recentManualLogs[0].id]);
                                             }
                                         }
 
@@ -1211,63 +1210,62 @@ router.post('/whatsapp/callback', async (req, res) => {
                                             const oldStatus = (log.status || 'sent').toLowerCase();
 
                                             if ((weights[finalStatus] || 0) > (weights[oldStatus] || 0)) {
-                                                // 1. UPDATE DB LOG STATUS
-                                                await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE message_id = ?`, [finalStatus, messageId]);
+                                                // 1. UPDATE DB LOG STATUS BY PRIMARY KEY ID
+                                                await query(`UPDATE ${logsTable} SET status = ?, updated_at = NOW() WHERE id = ?`, [finalStatus, log.id]);
 
-                                                // 2. INCREMENT CAMPAIGN COUNTERS ATOMICALLY
-                                                if (log.campaign_id) {
-                                                    if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
-                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                                        await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE message_id = ?`, [messageId]);
-                                                    } 
-                                                    else if (finalStatus === 'read' && oldStatus !== 'read') {
-                                                        // If directly moved from sent to read, increment both
+                                                // 2. INCREMENT CAMPAIGN COUNTERS & UPDATE TIMESTAMPS
+                                                if (finalStatus === 'delivered' && oldStatus !== 'delivered' && oldStatus !== 'read') {
+                                                    if (log.campaign_id) incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
+                                                    await query(`UPDATE ${logsTable} SET delivery_time = NOW() WHERE id = ?`, [log.id]);
+                                                } 
+                                                else if (finalStatus === 'read' && oldStatus !== 'read') {
+                                                    if (log.campaign_id) {
                                                         if (oldStatus !== 'delivered') {
                                                             incrementCampaignCount(campaignsTable, log.campaign_id, 'delivered_count');
-                                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
-                                                        } else {
-                                                            incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
                                                         }
-                                                        await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE message_id = ?`, [messageId]);
-                                                    } 
-                                                    else if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
-                                                        await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE message_id = ?`, [errorReason, messageId]);
+                                                        incrementCampaignCount(campaignsTable, log.campaign_id, 'read_count');
                                                     }
+                                                    await query(`UPDATE ${logsTable} SET read_time = NOW(), delivery_time = COALESCE(delivery_time, NOW()) WHERE id = ?`, [log.id]);
+                                                } 
+                                                else if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                                    if (log.campaign_id) incrementCampaignCount(campaignsTable, log.campaign_id, 'failed_count');
+                                                    await query(`UPDATE ${logsTable} SET failure_reason = ? WHERE id = ?`, [errorReason, log.id]);
                                                 }
+                                                console.log(`✅ [WA DLR] Successfully updated ${logsTable} ID ${log.id} to ${finalStatus}`);
+                                            }
 
-                                                // 🤖 WHATSAPP -> SMS FAILOVER TRIGGER (If Failed)
-                                                if (finalStatus === 'failed' && oldStatus !== 'failed') {
-                                                    if (log.is_failover_enabled && log.failover_sms_template) {
-                                                        console.log(`🤖 Whatsapp Failover Triggered via webhook for ${log.recipient}. Template=${log.failover_sms_template}`);
-                                                        const { processAutomation } = require('../services/automationService');
-                                                        
-                                                        // We mock the IO instance if not available
-                                                        const ioDummy = io || { to: () => ({ emit: () => {} }) };
-                                                        
-                                                        try {
-                                                            console.log(`[WEBHOOK-DEBUG] Raw Metadata from DB for ${messageId}: ${JSON.stringify(log.metadata)}`);
-                                                            let parsedMetadata = log.metadata || {};
-                                                            if (typeof parsedMetadata === 'string') {
-                                                                try { parsedMetadata = JSON.parse(parsedMetadata); } catch(e) {
-                                                                    console.error(`[WEBHOOK-DEBUG] JSON Parse failed for metadata: ${e.message}`);
-                                                                }
+                                            // 🤖 WHATSAPP -> SMS FAILOVER TRIGGER (If Failed)
+                                            if (finalStatus === 'failed' && oldStatus !== 'failed') {
+                                                if (log.is_failover_enabled && log.failover_sms_template) {
+                                                    console.log(`🤖 Whatsapp Failover Triggered via webhook for ${log.recipient}. Template=${log.failover_sms_template}`);
+                                                    const { processAutomation } = require('../services/automationService');
+                                                    
+                                                    // We mock the IO instance if not available
+                                                    const ioDummy = io || { to: () => ({ emit: () => {} }) };
+                                                    
+                                                    try {
+                                                        console.log(`[WEBHOOK-DEBUG] Raw Metadata from DB for ${messageId}: ${JSON.stringify(log.metadata)}`);
+                                                        let parsedMetadata = log.metadata || {};
+                                                        if (typeof parsedMetadata === 'string') {
+                                                            try { parsedMetadata = JSON.parse(parsedMetadata); } catch(e) {
+                                                                console.error(`[WEBHOOK-DEBUG] JSON Parse failed for metadata: ${e.message}`);
                                                             }
-                                                            console.log(`[WEBHOOK-DEBUG] Parsed Metadata: ${JSON.stringify(parsedMetadata)}`);
-
-                                                            await processAutomation(log.user_id, 'message_failed', {
-                                                                ...log,
-                                                                is_api: isApiLog,
-                                                                metadata: parsedMetadata,
-                                                                original_channel: 'whatsapp',
-                                                                failover_template_id: log.failover_sms_template
-                                                            }, ioDummy);
-                                                        } catch (e) {
-                                                            console.error('[AutomationService] WA failover trigger error:', e.message);
                                                         }
+                                                        console.log(`[WEBHOOK-DEBUG] Parsed Metadata: ${JSON.stringify(parsedMetadata)}`);
+
+                                                        await processAutomation(log.user_id, 'message_failed', {
+                                                            ...log,
+                                                            is_api: isApiLog,
+                                                            metadata: parsedMetadata,
+                                                            original_channel: 'whatsapp',
+                                                            failover_template_id: log.failover_sms_template
+                                                        }, ioDummy);
+                                                    } catch (e) {
+                                                        console.error('[AutomationService] WA failover trigger error:', e.message);
                                                     }
                                                 }
                                             }
+
                                             // 📡 REAL-TIME CHAT STATUS UPDATE (Manual only)
                                             if (['delivered', 'read', 'failed'].includes(finalStatus) && io && !log.campaign_id) {
                                                 io.to(`user_${log.user_id}`).emit('message_status_update', {
@@ -2045,16 +2043,16 @@ async function processWa20Payload(payloadInput, io, reqQuery = {}) {
             let userId = null;
 
             const username = payload.username || payload.customer_id || payload.user || payload.account || reqQuery.username || reqQuery.customer_id;
-            const mobile = String(payload.mobile || payload.to || payload.recipient || payload.receiver || payload.phone || payload.from || '').replace(/\D/g, '');
-            let statusRaw = String(payload.status || payload.event || payload.eventtype || payload.state || '').toLowerCase();
-            const messageId = payload.message_id || payload.whts_ref_id || payload.id || payload.wamid || payload.msg_id || payload.providerMessageId || payload.request_id;
+            const mobile = String(payload.mobile || payload.to || payload.recipient || payload.receiver || payload.phone || payload.from || payload.dest || payload.mob || payload.wabaNumber || payload.number || '').replace(/\D/g, '');
+            let statusRaw = String(payload.status || payload.event || payload.eventtype || payload.state || payload.msg_status || '').toLowerCase();
+            const messageId = payload.message_id || payload.whts_ref_id || payload.id || payload.wamid || payload.msg_id || payload.providerMessageId || payload.request_id || payload.ref_id;
             const templateName = payload.template_name || payload.template;
 
             // Map numeric & string statuses to standard status names
-            if (statusRaw === '1' || statusRaw === 'success' || statusRaw === 'sent_success') statusRaw = 'delivered';
-            else if (statusRaw === '2' || statusRaw === 'seen') statusRaw = 'read';
-            else if (statusRaw === '3' || statusRaw === 'undelivered' || statusRaw === 'error') statusRaw = 'failed';
-            else if (statusRaw === '0') statusRaw = 'pending';
+            if (statusRaw === '1' || statusRaw === 'success' || statusRaw === 'sent_success' || statusRaw === 'delivrd' || statusRaw === 'delivered') statusRaw = 'delivered';
+            else if (statusRaw === '2' || statusRaw === 'seen' || statusRaw === 'read' || statusRaw === 'read_receipt') statusRaw = 'read';
+            else if (statusRaw === '3' || statusRaw === 'undelivered' || statusRaw === 'error' || statusRaw === 'failed' || statusRaw === 'reject' || statusRaw === 'rejected') statusRaw = 'failed';
+            else if (statusRaw === '0' || statusRaw === 'submitted' || statusRaw === 'submitd' || statusRaw === 'sending' || statusRaw === 'sent') statusRaw = 'sent';
 
             // 1. Resolve User ID
             if (username) {
@@ -2107,15 +2105,15 @@ async function processWa20Payload(payloadInput, io, reqQuery = {}) {
             }
 
             // 4. Process Message Delivery Status (DLR)
-            const validMessageStatuses = ['sent', 'delivered', 'read', 'failed', 'undelivered'];
+            const validMessageStatuses = ['sent', 'delivered', 'read', 'failed'];
             if (validMessageStatuses.includes(statusRaw)) {
-                let finalStatus = statusRaw === 'undelivered' ? 'failed' : statusRaw;
+                let finalStatus = statusRaw;
                 console.log(`📊 [WA20 DLR] Message Status Update: Mobile: ${mobile} | MsgID: ${messageId || 'N/A'} -> Status: ${finalStatus}`);
 
                 let logs = [];
                 let isApiLog = false;
 
-                const searchIds = [messageId, payload.request_id, payload.whts_ref_id, payload.id].filter(Boolean);
+                const searchIds = [messageId, payload.request_id, payload.whts_ref_id, payload.id, payload.msg_id, payload.providerMessageId, payload.ref_id, payload.wamid].filter(Boolean);
 
                 // Search by Message ID / Request ID first if provided
                 if (searchIds.length > 0) {
@@ -2160,7 +2158,13 @@ async function processWa20Payload(payloadInput, io, reqQuery = {}) {
                         isApiLog = false;
                     }
 
-                    if (newestLog) logs = [newestLog];
+                    if (newestLog) {
+                        logs = [newestLog];
+                        if (messageId && newestLog.message_id !== messageId) {
+                            const tbl = isApiLog ? 'api_message_logs' : 'message_logs';
+                            await query(`UPDATE ${tbl} SET message_id = ? WHERE id = ?`, [messageId, newestLog.id]);
+                        }
+                    }
                 }
 
                 if (logs.length > 0) {
