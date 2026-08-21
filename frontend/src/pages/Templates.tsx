@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, MoreVertical, Edit, Trash2, Eye, Zap, FileText, Smartphone, RefreshCw, Sparkles, ChevronRight, ChevronLeft, Shield, Image as ImageIcon, Bot, Phone, Link, MessageSquare, Mail, Mic, X } from 'lucide-react';
+import { Plus, Search, MoreVertical, Edit, Trash2, Eye, Zap, FileText, Smartphone, RefreshCw, Sparkles, ChevronRight, ChevronLeft, Shield, Image as ImageIcon, Bot, Phone, Link, MessageSquare, Mail, Mic, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -923,7 +923,16 @@ export default function Templates() {
                     <CardTitle className="text-sm sm:text-lg font-bold text-primary truncate">{template.name}</CardTitle>
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                       <Badge variant="outline" className="bg-muted/50 border-none text-[9px] sm:text-[10px]">{template.category}</Badge>
-                      <Badge variant={template.status === 'approved' ? 'secondary' : 'outline'} className="capitalize text-[9px] sm:text-[10px]">{template.status}</Badge>
+                      <Badge 
+                        className={cn(
+                          "capitalize text-[9px] sm:text-[10px] font-semibold border",
+                          template.status === 'approved' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+                          template.status === 'rejected' && "bg-rose-500/10 text-rose-600 border-rose-500/20",
+                          (template.status === 'pending' || !template.status) && "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                        )}
+                      >
+                        {template.status || 'pending'}
+                      </Badge>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -937,7 +946,15 @@ export default function Templates() {
                   </DropdownMenu>
                 </div>
               </CardHeader>
-              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-0 flex-1 flex flex-col">
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-0 flex-1 flex flex-col gap-2">
+                {template.status === 'rejected' && template.rejection_reason && (
+                  <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/50 text-[11px] text-rose-700 dark:text-rose-300 flex items-start gap-1.5 animate-in fade-in duration-200">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                    <div className="leading-tight">
+                      <span className="font-bold">Rejection Reason:</span> {template.rejection_reason}
+                    </div>
+                  </div>
+                )}
                 <div className="p-3 sm:p-4 rounded-xl bg-muted/30 text-xs sm:text-sm border border-border/50 min-h-[60px] sm:min-h-[80px] flex items-center">
                   <p className="line-clamp-3 text-muted-foreground leading-relaxed italic">"{template.body || 'External Template'}"</p>
                 </div>
@@ -1117,7 +1134,16 @@ export default function Templates() {
                       <p className="font-bold text-sm sm:text-base text-foreground truncate">{t.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: channelColor }}>{t.channel === 'voicebot' ? 'AI Voice' : t.channel}</span>
-                        <Badge variant={t.status === 'approved' ? 'secondary' : 'outline'} className="text-[10px] capitalize">{t.status}</Badge>
+                        <Badge 
+                          className={cn(
+                            "text-[10px] capitalize font-semibold border",
+                            t.status === 'approved' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+                            t.status === 'rejected' && "bg-rose-500/10 text-rose-600 border-rose-500/20",
+                            (t.status === 'pending' || !t.status) && "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                          )}
+                        >
+                          {t.status || 'pending'}
+                        </Badge>
                         {t.category && <Badge variant="outline" className="text-[10px]">{t.category}</Badge>}
                       </div>
                     </div>
@@ -1132,6 +1158,15 @@ export default function Templates() {
 
                   {/* Details panel */}
                   <div className="flex-1 min-w-0 space-y-3 max-w-sm mx-auto sm:mx-0 w-full">
+                    {t.status === 'rejected' && t.rejection_reason && (
+                      <div className="rounded-xl border border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-700 dark:text-rose-300 animate-in fade-in duration-200">
+                        <div className="flex items-center gap-2 mb-1.5 text-rose-800 dark:text-rose-200 font-bold text-xs">
+                          <AlertCircle className="w-4 h-4 text-rose-600" />
+                          <span>Rejection Reason</span>
+                        </div>
+                        <p className="text-xs leading-relaxed">{t.rejection_reason}</p>
+                      </div>
+                    )}
                     {bodyText && (
                       <div className="rounded-xl border border-border bg-card p-4">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Message Body</p>

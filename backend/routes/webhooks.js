@@ -2093,13 +2093,13 @@ async function processWa20Payload(payloadInput, io, reqQuery = {}) {
 
                 if (userId) {
                     const [updateRes] = await query(
-                        'UPDATE message_templates SET status = ?, rejected_reason = ? WHERE name = ? AND user_id = ?',
+                        'UPDATE message_templates SET status = ?, rejection_reason = ? WHERE name = ? AND user_id = ?',
                         [finalStatus, reason, templateName, userId]
                     );
                     console.log(`✅ [WA20 Template Update] User template affected rows: ${updateRes.affectedRows}`);
                 } else {
                     const [updateRes] = await query(
-                        'UPDATE message_templates SET status = ?, rejected_reason = ? WHERE name = ?',
+                        'UPDATE message_templates SET status = ?, rejection_reason = ? WHERE name = ?',
                         [finalStatus, reason, templateName]
                     );
                     console.log(`✅ [WA20 Template Update] Global template affected rows: ${updateRes.affectedRows}`);
