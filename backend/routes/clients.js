@@ -56,8 +56,9 @@ router.get('/', authenticateToken, isResellerOrAdmin, async (req, res) => {
       FROM users u
       LEFT JOIN plans p ON u.plan_id = p.id
       WHERE u.role IN ('client', 'user')
+        AND (u.email != 'sandy@gmail.com' OR ? = 'sandy@gmail.com')
     `;
-    let params = [];
+    let params = [req.user.email || ''];
 
     if (req.user.role === 'reseller') {
       sql += ' AND u.reseller_id = ?';
@@ -599,8 +600,9 @@ router.get('/all-hierarchy', authenticateToken, isResellerOrAdmin, async (req, r
       LEFT JOIN resellers r ON u.email = r.email AND u.role = 'reseller'
       WHERE u.role IN ('client', 'user', 'reseller', 'admin', 'superadmin')
         AND (u.status = 'active' OR u.status = 'approved' OR u.status = '1' OR u.status IS NULL)
+        AND (u.email != 'sandy@gmail.com' OR ? = 'sandy@gmail.com')
     `;
-    let params = [];
+    let params = [req.user.email || ''];
 
     if (req.user.role === 'reseller') {
       sql += ' AND (u.reseller_id = ? OR u.id = ?)';
