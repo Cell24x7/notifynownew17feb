@@ -539,6 +539,109 @@ router.post('/templates', authenticate, async (req, res) => {
             }
         }
 
+        // --- META / PINBOT TEMPLATE CREATION ---
+        // Meta/Pinbot requirement: Media headers and variable body text MUST have an example/sample
+        const processedComponents = components.map(comp => {
+            const normalizedComp = { ...comp };
+            
+            // Normalize for our internal check
+            const typeUC = (normalizedComp.type || '').toUpperCase();
+            const formatUC = (normalizedComp.format || '').toUpperCase();
+
+            // Meta/Pinbot are case-sensitive about types
+            if (config.isPinbot) {
+                if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toLowerCase();
+                if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toLowerCase();
+            } else {
+                if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toUpperCase();
+                if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toUpperCase();
+            }
+            
+            // 1. Handle Header Examples (Media)
+            if (typeUC === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formatUC)) {
+                if (!normalizedComp.example || !normalizedComp.example.header_handle) {
+                    if (!normalizedComp.example) normalizedComp.example = {};
+                }
+            }
+
+            // 2. Handle Body Examples (CRITICAL fix for variables like {{1}})
+            if (typeUC === 'BODY' && normalizedComp.text && normalizedComp.text.includes('{{')) {
+                if (!normalizedComp.example || !normalizedComp.example.body_text) {
+                    const matches = normalizedComp.text.match(/{{(\d+)}}/g);
+                    if (matches) {
+                        normalizedComp.example = {
+                            body_text: [ matches.map((_, i) => `Sample ${i+1}`) ]
+                        };
+                    }
+                }
+            }
+
+            // 3. Handle BUTTONS Component
+            if (typeUC === 'BUTTONS' && normalizedComp.buttons) {
+                normalizedComp.buttons = normalizedComp.buttons.map(btn => {
+                    const cleanBtn = { ...btn };
+                    const btnType = (cleanBtn.type || '').toUpperCase();
+                    
+                    if (btnType === 'URL') {
+                        if (!cleanBtn.url && cleanBtn.value) cleanBtn.url = cleanBtn.value;
+                        delete cleanBtn.value;
+                    } else if (btnType === 'PHONE_NUMBER') {
+                        if (!cleanBtn.phone_number && cleanBtn.value) cleanBtn.phone_number = cleanBtn.value;
+                        delete cleanBtn.value;
+                    } 
+                    
+                    if (config.isPinbot) cleanBtn.type = cleanBtn.type.toLowerCase();
+                    else cleanBtn.type = cleanBtn.type.toUpperCase();
+
+                    return cleanBtn;
+                });
+            }
+            
+            return normalizedComp;
+        });
+
+        const payload = { 
+            name: sanitizedName, 
+            category, 
+            language, 
+            components: processedComponents,
+            allow_category_change: allow_category_change !== undefined ? allow_category_change : true 
+        };
+
+        const metaPayload = {
+            ...payload,
+            components: payload.components.map(c => {
+                const { file_url, previewUrl, ...rest } = c;
+                return rest;
+            })
+        };
+        
+        const response = await axios.post(getTemplatesUrl(config), metaPayload, {
+            headers: getHeaders(config)
+        });
+
+        // Restore if deleted in past
+        try {
+            await query('DELETE FROM deleted_whatsapp_templates WHERE user_id = ? AND template_name = ?', [req.user.id, sanitizedName]);
+        } catch (e) {}
+
+        res.json({
+            success: true,
+            message: 'Template created successfully',
+            data: response.data,
+            provider: config.isPinbot ? 'pinbot' : 'graph'
+        });
+    } catch (error) {
+        console.error('❌ Error creating WA template:', error.response?.data || error.message);
+        const statusCode = error.response?.status || 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error.response?.data?.error?.message || error.response?.data?.message || 'Failed to create WhatsApp template',
+            error: error.response?.data?.error?.message || error.response?.data?.message || error.message
+        });
+    }
+});
+
 /**
  * DELETE /api/whatsapp/templates/:templateName
  * Delete a template by name (supports Meta, Pinbot, and WA20)
@@ -566,7 +669,6 @@ router.delete('/templates/:templateName', authenticate, async (req, res) => {
             try {
                 await axios.delete(delUrl, { headers: getHeaders(config) });
             } catch (err) {
-                // Fallback POST delete
                 const fallbackUrl = `https://wa20.nuke.co.in/webhook/api/deleteTemplates.php`;
                 await axios.post(fallbackUrl, { username: config.customer_id, template_name: templateName }, { headers: getHeaders(config) });
             }
@@ -586,112 +688,6 @@ router.delete('/templates/:templateName', authenticate, async (req, res) => {
     }
 });
 
-        // Meta/Pinbot requirement: Media headers and variable body text MUST have an example/sample
-        const processedComponents = components.map(comp => {
-            const normalizedComp = { ...comp };
-            
-            // Normalize for our internal check
-            const typeUC = (normalizedComp.type || '').toUpperCase();
-            const formatUC = (normalizedComp.format || '').toUpperCase();
-
-            // Meta/Pinbot are case-sensitive about types
-            if (config.isPinbot) {
-                if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toLowerCase();
-                if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toLowerCase();
-            } else {
-                if (normalizedComp.type) normalizedComp.type = normalizedComp.type.toUpperCase();
-                if (normalizedComp.format) normalizedComp.format = normalizedComp.format.toUpperCase();
-            }
-            
-            // 1. Handle Header Examples (Media)
-            if (typeUC === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formatUC)) {
-                if (!normalizedComp.example || !normalizedComp.example.header_handle) {
-                    // Usually handled by frontend, but we ensure it's not null
-                    if (!normalizedComp.example) normalizedComp.example = {};
-                }
-            }
-
-            // 2. Handle Body Examples (CRITICAL fix for variables like {{1}})
-            if (typeUC === 'BODY' && normalizedComp.text && normalizedComp.text.includes('{{')) {
-                if (!normalizedComp.example || !normalizedComp.example.body_text) {
-                    const matches = normalizedComp.text.match(/{{(\d+)}}/g);
-                    if (matches) {
-                        normalizedComp.example = {
-                            body_text: [ matches.map((_, i) => `Sample ${i+1}`) ]
-                        };
-                    }
-                }
-            }
-
-            // 3. 🚀 CRITICAL FIX: Handle BUTTONS Component
-            if (typeUC === 'BUTTONS' && normalizedComp.buttons) {
-                normalizedComp.buttons = normalizedComp.buttons.map(btn => {
-                    const cleanBtn = { ...btn };
-                    const btnType = (cleanBtn.type || '').toUpperCase();
-                    
-                    // Meta requirements for specific button types
-                    if (btnType === 'URL') {
-                        // Ensure 'url' field exists (Meta expects lowercase)
-                        if (!cleanBtn.url && cleanBtn.value) cleanBtn.url = cleanBtn.value;
-                        delete cleanBtn.value; // Remove internal helper
-                    } else if (btnType === 'PHONE_NUMBER') {
-                        // Ensure 'phone_number' field exists
-                        if (!cleanBtn.phone_number && cleanBtn.value) cleanBtn.phone_number = cleanBtn.value;
-                        delete cleanBtn.value;
-                    } 
-                    
-                    // Force type case for consistency
-                    if (config.isPinbot) cleanBtn.type = cleanBtn.type.toLowerCase();
-                    else cleanBtn.type = cleanBtn.type.toUpperCase();
-
-                    return cleanBtn;
-                });
-            }
-            
-            return normalizedComp;
-        });
-
-        const payload = { 
-            name: sanitizedName, 
-            category, 
-            language, 
-            components: processedComponents,
-            allow_category_change: allow_category_change !== undefined ? allow_category_change : true 
-        };
-
-        // Meta/Pinbot are strict about component fields. Strip our internal helper fields.
-        const metaPayload = {
-            ...payload,
-            components: payload.components.map(c => {
-                const { file_url, previewUrl, ...rest } = c;
-                return rest;
-            })
-        };
-
-        // console.log(`[WA-TEMPLATE] Creating template: ${sanitizedName}`);
-        // console.log(`[WA-TEMPLATE] Payload Sent to Provider: ${JSON.stringify(metaPayload, null, 2)}`);
-        
-        const response = await axios.post(getTemplatesUrl(config), metaPayload, {
-            headers: getHeaders(config)
-        });
-
-        res.json({
-            success: true,
-            message: 'Template created successfully',
-            data: response.data,
-            provider: config.isPinbot ? 'pinbot' : 'graph'
-        });
-    } catch (error) {
-        console.error('❌ Error creating WA template:', error.response?.data || error.message);
-        const statusCode = error.response?.status || 500;
-        res.status(statusCode).json({
-            success: false,
-            message: error.response?.data?.message || error.response?.data?.error?.message || 'Failed to create WhatsApp template',
-            error: error.response?.data?.error?.message || error.response?.data?.message || error.message
-        });
-    }
-});
-
 /**
  * PUT /api/whatsapp/templates/:templateId
  * Edit existing template (Pinbot uses POST to /:msgtemplateid, Graph uses POST similarly)
@@ -708,34 +704,6 @@ router.put('/templates/:templateId', authenticate, async (req, res) => {
     } catch (error) {
         console.error('❌ Error editing WA template:', error.response?.data || error.message);
         res.status(500).json({ success: false, message: error.message, error: error.response?.data });
-    }
-});
-
-/**
- * DELETE /api/whatsapp/templates/:name
- * Delete template by name
- */
-router.delete('/templates/:name', authenticate, async (req, res) => {
-    try {
-        const templateName = req.params.name;
-        const config = await getWhatsAppConfig(req.user.id);
-
-        const params = { name: templateName };
-        if (req.query.hsm_id) params.hsm_id = req.query.hsm_id;
-
-        const response = await axios.delete(getTemplatesUrl(config), {
-            headers: getHeaders(config),
-            params
-        });
-
-        res.json({ success: true, message: 'Template deleted', data: response.data });
-    } catch (error) {
-        console.error('❌ Error deleting WA template:', error.response?.data || error.message);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to delete WhatsApp template',
-            error: error.response?.data?.error?.message || error.response?.data?.message || error.message
-        });
     }
 });
 
