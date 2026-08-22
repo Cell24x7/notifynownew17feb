@@ -70,8 +70,9 @@ const getWhatsAppConfig = async (userId) => {
     }
 
     const config = configs[0];
-    config.isPinbot = config.provider === 'vendor2';
-    config.isWa20 = config.provider === 'wa20' || config.provider === 'nuke' || !!config.customer_id || (config.chatbot_name && config.chatbot_name.toLowerCase().includes('wa2'));
+    const isMeta = config.provider === 'vendor1' || config.provider === 'meta' || config.provider === 'graph' || (config.wa_token && String(config.wa_token).startsWith('EAA'));
+    config.isPinbot = !isMeta && (config.provider === 'vendor2' || config.provider === 'pinbot');
+    config.isWa20 = !isMeta && !config.isPinbot && (config.provider === 'wa20' || config.provider === 'nuke' || !!config.customer_id);
     return config;
 };
 
@@ -201,8 +202,8 @@ router.get('/templates', authenticate, async (req, res) => {
             });
         } catch (apiErr) {
             console.error('WhatsApp template API error:', apiErr.response?.data || apiErr.message);
-            // Handle Meta Bad Signature / OAuth error fallback to WA20 if customer_id is available
-            if (!config.isWa20 && config.customer_id) {
+            // Handle WA20 fallback only if it's genuinely a WA20 customer and not Meta
+            if (!config.isWa20 && config.customer_id && !String(config.wa_token).startsWith('EAA') && config.provider !== 'vendor1') {
                 try {
                     config.isWa20 = true;
                     response = await axios.get(`https://wa20.nuke.co.in/webhook/api/templates.php?username=${config.customer_id}`, {

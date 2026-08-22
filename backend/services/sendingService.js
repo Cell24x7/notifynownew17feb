@@ -369,8 +369,9 @@ const sendUniversalMessage = async (item) => {
 
             if (!waConfig) return { success: false, error: 'No WhatsApp configuration available' };
 
-            const isPinbot = waConfig.provider === 'vendor2';
-            const isWa20 = waConfig.provider === 'wa20' || waConfig.provider === 'nuke' || !!waConfig.customer_id;
+            const isMeta = waConfig.provider === 'vendor1' || waConfig.provider === 'meta' || waConfig.provider === 'graph' || (waConfig.wa_token && String(waConfig.wa_token).startsWith('EAA'));
+            const isPinbot = !isMeta && (waConfig.provider === 'vendor2' || waConfig.provider === 'pinbot');
+            const isWa20 = !isMeta && !isPinbot && (waConfig.provider === 'wa20' || waConfig.provider === 'nuke' || !!waConfig.customer_id);
             
             const headers = { 'Content-Type': 'application/json' };
             if (isPinbot) headers.apikey = waConfig.api_key;
