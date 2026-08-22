@@ -204,7 +204,13 @@ router.get('/reports', authenticate, async (req, res) => {
 
     if (startDate && endDate) {
       sql += ` AND c.created_at BETWEEN ? AND ?`;
-      params.push(startDate, endDate);
+      params.push(startDate.includes(' ') ? startDate : startDate + ' 00:00:00', endDate.includes(' ') ? endDate : endDate + ' 23:59:59');
+    } else if (startDate) {
+      sql += ` AND c.created_at >= ?`;
+      params.push(startDate.includes(' ') ? startDate : startDate + ' 00:00:00');
+    } else if (endDate) {
+      sql += ` AND c.created_at <= ?`;
+      params.push(endDate.includes(' ') ? endDate : endDate + ' 23:59:59');
     }
 
     if (status && status !== 'all') {

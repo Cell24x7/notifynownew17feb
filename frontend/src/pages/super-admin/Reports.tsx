@@ -197,13 +197,18 @@ export default function SuperAdminReports() {
         return () => clearInterval(interval);
     }, [selectedUserId, autoRefresh, activeTab, currentPage, startDate, endDate, searchQuery]);
 
+    const formatDateParam = (d: Date | undefined) => {
+        if (!d) return '';
+        return format(d, 'yyyy-MM-dd');
+    };
+
     const fetchData = async (page: number = 1, silent: boolean = false) => {
         if (!silent) setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
             let baseParams = `userId=${selectedUserId}&page=${page}&limit=${ITEMS_PER_PAGE}`;
-            if (startDate) baseParams += `&startDate=${startDate.toISOString().split('T')[0]}`;
-            if (endDate) baseParams += `&endDate=${endDate.toISOString().split('T')[0]}`;
+            if (startDate) baseParams += `&startDate=${formatDateParam(startDate)}`;
+            if (endDate) baseParams += `&endDate=${formatDateParam(endDate)}`;
             if (searchQuery) baseParams += `&search=${encodeURIComponent(searchQuery)}`;
 
             if (activeTab.includes('summary') || activeTab === 'today') {
@@ -212,7 +217,7 @@ export default function SuperAdminReports() {
                 if (activeTab === 'sms_summary') url += '&channel=sms';
                 if (activeTab === 'whatsapp_summary') url += '&channel=whatsapp';
                 if (activeTab === 'rcs_summary') url += '&channel=rcs';
-                if (activeTab === 'today') url += `&startDate=${new Date().toISOString().split('T')[0]}&endDate=${new Date().toISOString().split('T')[0]}`;
+                if (activeTab === 'today') url += `&startDate=${formatDateParam(new Date())}&endDate=${formatDateParam(new Date())}`;
 
                 const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
                 const data = await response.json();

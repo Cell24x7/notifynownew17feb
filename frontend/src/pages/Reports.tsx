@@ -257,14 +257,19 @@ export default function Reports() {
         }
     }, [detailedPage, apiPage, engagementPage, targetUserId, startDate, endDate, channelFilter]);
 
+    const formatDateParam = (d: Date | undefined) => {
+        if (!d) return '';
+        return format(d, 'yyyy-MM-dd');
+    };
+
     const fetchReports = async (page: number = 1, fetchForTab: string = activeTab, silent: boolean = false) => {
         if (!cachedReportsList && !silent) setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/rcs/reports?page=${page}&limit=${ITEMS_PER_PAGE}&`;
 
-            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (startDate) url += `startDate=${formatDateParam(startDate)}&`;
+            if (endDate) url += `endDate=${formatDateParam(endDate)}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
@@ -335,8 +340,8 @@ export default function Reports() {
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/webhooks/message-logs?page=${page}&limit=${ITEMS_PER_PAGE}&`;
-            if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+            if (startDate) url += `startDate=${formatDateParam(startDate)}&`;
+            if (endDate) url += `endDate=${formatDateParam(endDate)}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
@@ -376,8 +381,8 @@ export default function Reports() {
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/reports/summary?`;
-            if (startDate) url += `from=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
+            if (startDate) url += `from=${formatDateParam(startDate)}&`;
+            if (endDate) url += `to=${formatDateParam(endDate)}&`;
             if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
@@ -397,8 +402,8 @@ export default function Reports() {
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/reports/api-summary?`;
-            if (startDate) url += `from=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
+            if (startDate) url += `from=${formatDateParam(startDate)}&`;
+            if (endDate) url += `to=${formatDateParam(endDate)}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -419,8 +424,8 @@ export default function Reports() {
         try {
             const token = localStorage.getItem('authToken');
             let url = `${API_BASE_URL}/api/reports/engagement?page=${page}&limit=${ITEMS_PER_PAGE}&`;
-            if (startDate) url += `from=${startDate.toISOString().split('T')[0]}&`;
-            if (endDate) url += `to=${endDate.toISOString().split('T')[0]}&`;
+            if (startDate) url += `from=${formatDateParam(startDate)}&`;
+            if (endDate) url += `to=${formatDateParam(endDate)}&`;
             if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
 
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -463,8 +468,8 @@ export default function Reports() {
 
             if (activeTab === 'summary') {
                 let url = `${API_BASE_URL}/api/rcs/reports?export=true&`;
-                if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-                if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+                if (startDate) url += `startDate=${formatDateParam(startDate)}&`;
+                if (endDate) url += `endDate=${formatDateParam(endDate)}&`;
                 if (statusFilter !== 'all') url += `status=${statusFilter}&`;
                 if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
                 if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
@@ -491,8 +496,8 @@ export default function Reports() {
                 }
             } else if (activeTab === 'detailed' || activeTab === 'api') {
                 let url = `${API_BASE_URL}/api/webhooks/message-logs?export=true&`;
-                if (startDate) url += `startDate=${startDate.toISOString().split('T')[0]}&`;
-                if (endDate) url += `endDate=${endDate.toISOString().split('T')[0]}&`;
+                if (startDate) url += `startDate=${formatDateParam(startDate)}&`;
+                if (endDate) url += `endDate=${formatDateParam(endDate)}&`;
                 if (channelFilter !== 'all') url += `channel=${channelFilter}&`;
                 if (targetUserId !== 'all') url += `userId=${targetUserId}&`;
                 url += `source=${activeTab === 'api' ? 'api' : 'manual'}&`;
